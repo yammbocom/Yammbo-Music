@@ -25,7 +25,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.ui.Alignment
 import it.fast4x.riplay.LocalPlayerAwareWindowInsets
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.utils.globalContext
 import it.fast4x.riplay.ui.components.themed.Title
 import okhttp3.OkHttpClient

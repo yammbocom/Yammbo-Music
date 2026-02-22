@@ -41,10 +41,10 @@ import it.fast4x.environment.requests.song
 import it.fast4x.environment.utils.from
 import it.fast4x.kugou.KuGou
 import it.fast4x.lrclib.LrcLib
-import it.fast4x.riplay.BuildConfig
+import com.yambo.music.BuildConfig
 import it.fast4x.riplay.data.Database
 import it.fast4x.riplay.data.Database.Companion.getLikedAt
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.commonutils.EXPLICIT_PREFIX
 import it.fast4x.riplay.commonutils.cleanPrefix
 import it.fast4x.riplay.commonutils.durationTextToMillis
@@ -650,7 +650,7 @@ fun getUpdateDownloadUrl(): String {
     } else {
         updatedVersionName = BuildConfig.VERSION_NAME
     }
-    return "https://github.com/fast4x/RiPlay/releases/download/$updatedVersionName/riplay-full-release-$updatedVersionName.apk"
+    return "https://music.yammbo.com/releases/download/$updatedVersionName/yammbo-music-$updatedVersionName.apk"
 }
 
 @Composable

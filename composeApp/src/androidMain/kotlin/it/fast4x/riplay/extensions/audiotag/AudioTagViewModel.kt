@@ -6,7 +6,7 @@ import androidx.lifecycle.viewModelScope
 import it.fast4x.audiotaginfo.AudioTagInfo
 import it.fast4x.audiotaginfo.models.GetResultResponse
 import it.fast4x.audiotaginfo.models.StatResponse
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.extensions.players.audioPlayer
 import it.fast4x.riplay.extensions.audiotag.models.UiState
 import it.fast4x.riplay.extensions.preferences.musicIdentifierApiKey

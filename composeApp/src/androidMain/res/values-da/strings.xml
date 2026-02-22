@@ -1,5 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Auth screens -->
+    <string name="auth_email">E-mail</string>
+    <string name="auth_password">Adgangskode</string>
+    <string name="auth_confirm_password">Bekræft Adgangskode</string>
+    <string name="auth_login">Log ind</string>
+    <string name="auth_register">Registrer</string>
+    <string name="auth_forgot_password">Glemt adgangskode?</string>
+    <string name="auth_create_account">Opret Konto</string>
+    <string name="auth_back_to_login">Tilbage til Login</string>
+    <string name="auth_reset_password">Nulstil Adgangskode</string>
+    <string name="auth_send_reset_link">Send Nulstillingslink</string>
+    <string name="auth_fill_all_fields">Udfyld venligst alle felter</string>
+    <string name="auth_passwords_not_match">Adgangskoderne matcher ikke</string>
+    <string name="auth_password_min_length">Adgangskoden skal være mindst 6 tegn</string>
+    <string name="auth_enter_email">Indtast venligst din e-mail</string>
+    <string name="auth_reset_description">Indtast din e-mailadresse, og vi sender dig et link til at nulstille din adgangskode.</string>
+    <string name="auth_account_created_verify">Konto oprettet! Tjek din e-mail for bekræftelse.</string>
+    <string name="auth_account_created_success">Konto oprettet! Du kan nu logge ind.</string>
+    <string name="auth_login_failed">Login mislykkedes</string>
+    <string name="auth_registration_failed">Registrering mislykkedes</string>
     <string name="cancel">Annullér</string>
     <string name="done">Færdig</string>
     <string name="hidesong">Vil du virkelig skjule denne sang? Dens afspilningstid og cache slettes. Denne handling kan ikke fortrydes.</string>

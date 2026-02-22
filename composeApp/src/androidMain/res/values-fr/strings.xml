@@ -1,5 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Auth screens -->
+    <string name="auth_email">E-mail</string>
+    <string name="auth_password">Mot de passe</string>
+    <string name="auth_confirm_password">Confirmer le Mot de passe</string>
+    <string name="auth_login">Se connecter</string>
+    <string name="auth_register">S\'inscrire</string>
+    <string name="auth_forgot_password">Mot de passe oublié ?</string>
+    <string name="auth_create_account">Créer un Compte</string>
+    <string name="auth_back_to_login">Retour à la Connexion</string>
+    <string name="auth_reset_password">Réinitialiser le Mot de passe</string>
+    <string name="auth_send_reset_link">Envoyer le Lien de Réinitialisation</string>
+    <string name="auth_fill_all_fields">Veuillez remplir tous les champs</string>
+    <string name="auth_passwords_not_match">Les mots de passe ne correspondent pas</string>
+    <string name="auth_password_min_length">Le mot de passe doit comporter au moins 6 caractères</string>
+    <string name="auth_enter_email">Veuillez entrer votre e-mail</string>
+    <string name="auth_reset_description">Entrez votre adresse e-mail et nous vous enverrons un lien pour réinitialiser votre mot de passe.</string>
+    <string name="auth_account_created_verify">Compte créé ! Vérifiez votre e-mail pour la confirmation.</string>
+    <string name="auth_account_created_success">Compte créé avec succès ! Vous pouvez maintenant vous connecter.</string>
+    <string name="auth_login_failed">Échec de la connexion</string>
+    <string name="auth_registration_failed">Échec de l\'inscription</string>
     <string name="cancel">Annuler</string>
     <string name="done">Fait</string>
     <string name="hidesong">Voulez-vous vraiment masquer ce titre ? Son temps de lecture et son cache seront effacés. Cette action est irréversible.</string>

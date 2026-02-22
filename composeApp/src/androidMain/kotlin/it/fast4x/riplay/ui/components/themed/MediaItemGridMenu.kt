@@ -58,7 +58,7 @@ import it.fast4x.riplay.commonutils.MODIFIED_PREFIX
 import it.fast4x.riplay.commonutils.MONTHLY_PREFIX
 import it.fast4x.riplay.commonutils.PINNED_PREFIX
 import it.fast4x.riplay.commonutils.PIPED_PREFIX
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.utils.appContext
 import it.fast4x.riplay.enums.NavRoutes
 import it.fast4x.riplay.enums.PlaylistSortBy

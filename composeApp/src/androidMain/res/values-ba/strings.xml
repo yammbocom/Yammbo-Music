@@ -1,5 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Auth screens -->
+    <string name="auth_email">Электрон почта</string>
+    <string name="auth_password">Пароль</string>
+    <string name="auth_confirm_password">Паролде раҫлағыҙ</string>
+    <string name="auth_login">Инеү</string>
+    <string name="auth_register">Теркәлеү</string>
+    <string name="auth_forgot_password">Паролде оноттоғоҙмо?</string>
+    <string name="auth_create_account">Аккаунт булдырыу</string>
+    <string name="auth_back_to_login">Инеүгә ҡайтыу</string>
+    <string name="auth_reset_password">Паролде яңыртыу</string>
+    <string name="auth_send_reset_link">Яңыртыу һылтанмаһын ебәреү</string>
+    <string name="auth_fill_all_fields">Зинһар, бөтә юлдарҙы тултырығыҙ</string>
+    <string name="auth_passwords_not_match">Парольдәр тап килмәй</string>
+    <string name="auth_password_min_length">Пароль кәмендә 6 символдан тороу тейеш</string>
+    <string name="auth_enter_email">Зинһар, электрон почтағыҙҙы керетегеҙ</string>
+    <string name="auth_reset_description">Электрон почта адресығыҙҙы керетегеҙ, беҙ һеҙгә паролде яңыртыу һылтанмаһын ебәрербеҙ.</string>
+    <string name="auth_account_created_verify">Аккаунт булдырылды! Раҫлау өсөн почтағыҙҙы тикшерегеҙ.</string>
+    <string name="auth_account_created_success">Аккаунт уңышлы булдырылды! Хәҙер инә алаһығыҙ.</string>
+    <string name="auth_login_failed">Инеү уңышһыҙ булды</string>
+    <string name="auth_registration_failed">Теркәлеү уңышһыҙ булды</string>
     <string name="cancel">Юҡҡа сығарыу</string>
     <string name="done">Әҙер</string>
     <string name="hidesong">Һеҙ ысынлап та был йырҙы юйғы киләме? Уйнатылған ваҡыты һәм кэш юйыла. Хәрәкәтте кире ҡайтарырға булмай.</string>

@@ -1,5 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Auth screens -->
+    <string name="auth_email">Retpoŝto</string>
+    <string name="auth_password">Pasvorto</string>
+    <string name="auth_confirm_password">Konfirmu Pasvorton</string>
+    <string name="auth_login">Ensaluti</string>
+    <string name="auth_register">Registriĝi</string>
+    <string name="auth_forgot_password">Ĉu vi forgesis la pasvorton?</string>
+    <string name="auth_create_account">Krei Konton</string>
+    <string name="auth_back_to_login">Reen al Ensaluto</string>
+    <string name="auth_reset_password">Restarigi Pasvorton</string>
+    <string name="auth_send_reset_link">Sendi Restarigan Ligilon</string>
+    <string name="auth_fill_all_fields">Bonvolu plenigi ĉiujn kampojn</string>
+    <string name="auth_passwords_not_match">Pasvortoj ne kongruas</string>
+    <string name="auth_password_min_length">Pasvorto devas havi almenaŭ 6 signojn</string>
+    <string name="auth_enter_email">Bonvolu enigi vian retpoŝton</string>
+    <string name="auth_reset_description">Enigu vian retpoŝtan adreson kaj ni sendos al vi ligilon por restarigi vian pasvorton.</string>
+    <string name="auth_account_created_verify">Konto kreita! Kontrolu vian retpoŝton por konfirmo.</string>
+    <string name="auth_account_created_success">Konto sukcese kreita! Vi povas nun ensaluti.</string>
+    <string name="auth_login_failed">Ensaluto malsukcesis</string>
+    <string name="auth_registration_failed">Registriĝo malsukcesis</string>
     <string name="cancel">Nuligi</string>
     <string name="done">Fina</string>
     <string name="hidesong">Ĉu vi vere volas kaŝi ĉi tiun kanton? Ĝia ludada tempo kaj kaŝmemoro estos forviŝitaj. Ĉi tiu ago estas nemaligebla.</string>

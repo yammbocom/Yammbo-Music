@@ -7,7 +7,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.data.models.Playlist
 import it.fast4x.riplay.data.models.Song
 

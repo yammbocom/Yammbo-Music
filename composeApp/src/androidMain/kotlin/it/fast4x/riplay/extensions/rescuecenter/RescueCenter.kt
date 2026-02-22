@@ -30,7 +30,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.utils.colorPalette
 import it.fast4x.riplay.enums.PopupType
 import it.fast4x.riplay.utils.typography
@@ -71,7 +71,7 @@ fun RescueScreen(
 
             val file =
                 File(context.filesDir.resolve("logs"),
-                    "RiPlay_crash_log.txt"
+                    "YammboMusic_crash_log.txt"
                 )
             if (!file.exists()) {
                 SmartMessage(noLogAvailable, type = PopupType.Info, context = context)
@@ -100,7 +100,7 @@ fun RescueScreen(
                 try {
                     @SuppressLint("SimpleDateFormat")
                     val dateFormat = SimpleDateFormat("yyyyMMddHHmmss")
-                    exportLauncher.launch("RiPlay_CrashLog_${txt.take(20)}_${dateFormat.format(
+                    exportLauncher.launch("YammboMusic_CrashLog_${txt.take(20)}_${dateFormat.format(
                         Date()
                     )}")
                 } catch (e: ActivityNotFoundException) {

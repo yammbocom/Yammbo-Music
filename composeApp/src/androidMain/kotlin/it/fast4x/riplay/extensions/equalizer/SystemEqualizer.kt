@@ -9,7 +9,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.platform.LocalContext
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.enums.PopupType
 import it.fast4x.riplay.ui.components.themed.SmartMessage
 import it.fast4x.riplay.utils.EqualizerIntentBundleAccessor

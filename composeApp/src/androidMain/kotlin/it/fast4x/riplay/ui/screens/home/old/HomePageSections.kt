@@ -45,7 +45,7 @@ import androidx.navigation.NavController
 import it.fast4x.environment.Environment
 import it.fast4x.environment.models.NavigationEndpoint
 import it.fast4x.environment.requests.HomePage
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.commonutils.EXPLICIT_PREFIX
 import it.fast4x.riplay.data.Database
 import it.fast4x.riplay.data.models.Artist

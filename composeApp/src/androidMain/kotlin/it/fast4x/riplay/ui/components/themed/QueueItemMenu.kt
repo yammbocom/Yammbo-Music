@@ -5,7 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavController
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.utils.colorPalette
 import it.fast4x.riplay.enums.MenuStyle
 import it.fast4x.riplay.extensions.preferences.menuStyleKey

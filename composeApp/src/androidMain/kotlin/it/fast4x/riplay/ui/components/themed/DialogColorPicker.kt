@@ -44,7 +44,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.toRect
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import it.fast4x.riplay.utils.colorPalette

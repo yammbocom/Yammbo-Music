@@ -2,7 +2,7 @@ package it.fast4x.riplay.extensions.listenerlevel
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
-import it.fast4x.riplay.R
+import com.yambo.music.R
 
 enum class AnnualListenerLevel {
     SonicWhisper,

@@ -82,7 +82,7 @@ import it.fast4x.riplay.data.Database.Companion.songAlbumInfo
 import it.fast4x.riplay.data.Database.Companion.songArtistInfo
 import it.fast4x.riplay.LocalPlayerServiceBinder
 import it.fast4x.riplay.LocalSelectedQueue
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.enums.MaxSongs
 import it.fast4x.riplay.enums.NavRoutes
 import it.fast4x.riplay.enums.NavigationBarPosition

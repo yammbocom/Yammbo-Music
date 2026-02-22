@@ -24,7 +24,7 @@ fun main() = application {
         state = WindowState(
             placement = WindowPlacement.Maximized,
         ),
-        title = "RiPlay Desktop Multiplatform",
+        title = "Yammbo Music Desktop",
         undecorated = true
     ) {
         initializeEnvironment()

@@ -6,7 +6,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.commonutils.durationTextToMillis
 import it.fast4x.riplay.data.Database
 import it.fast4x.riplay.data.models.QueuedMediaItem

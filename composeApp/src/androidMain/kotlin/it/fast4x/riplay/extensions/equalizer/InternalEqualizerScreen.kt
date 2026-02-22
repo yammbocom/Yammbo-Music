@@ -31,7 +31,7 @@ import it.fast4x.riplay.utils.colorPalette
 import it.fast4x.riplay.utils.typography
 import kotlin.math.abs
 import kotlin.math.roundToInt
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.enums.EqualizerPreset
 
 @Composable

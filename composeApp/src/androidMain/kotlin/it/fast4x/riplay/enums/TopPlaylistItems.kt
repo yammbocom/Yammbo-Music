@@ -4,7 +4,7 @@ import androidx.annotation.DrawableRes
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.res.painterResource
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.days
 

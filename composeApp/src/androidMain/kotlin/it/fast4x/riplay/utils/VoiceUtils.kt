@@ -24,7 +24,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.ui.components.themed.SmartMessage
 import java.util.Locale
 

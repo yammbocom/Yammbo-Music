@@ -1,5 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Auth screens -->
+    <string name="auth_email">ایمیل</string>
+    <string name="auth_password">رمز عبور</string>
+    <string name="auth_confirm_password">تأیید رمز عبور</string>
+    <string name="auth_login">ورود</string>
+    <string name="auth_register">ثبت نام</string>
+    <string name="auth_forgot_password">رمز عبور را فراموش کردید؟</string>
+    <string name="auth_create_account">ایجاد حساب</string>
+    <string name="auth_back_to_login">بازگشت به ورود</string>
+    <string name="auth_reset_password">بازنشانی رمز عبور</string>
+    <string name="auth_send_reset_link">ارسال لینک بازنشانی</string>
+    <string name="auth_fill_all_fields">لطفاً تمام فیلدها را پر کنید</string>
+    <string name="auth_passwords_not_match">رمزهای عبور مطابقت ندارند</string>
+    <string name="auth_password_min_length">رمز عبور باید حداقل ۶ کاراکتر باشد</string>
+    <string name="auth_enter_email">لطفاً ایمیل خود را وارد کنید</string>
+    <string name="auth_reset_description">آدرس ایمیل خود را وارد کنید و ما لینک بازنشانی رمز عبور را برای شما ارسال خواهیم کرد.</string>
+    <string name="auth_account_created_verify">حساب ایجاد شد! ایمیل خود را برای تأیید بررسی کنید.</string>
+    <string name="auth_account_created_success">حساب با موفقیت ایجاد شد! اکنون می‌توانید وارد شوید.</string>
+    <string name="auth_login_failed">ورود ناموفق</string>
+    <string name="auth_registration_failed">ثبت نام ناموفق</string>
     <string name="cancel">لغو</string>
     <string name="done">انجام شد</string>
     <string name="hidesong">آیا واقعاً میخواهید این آهنگ را پنهان کنید؟ زمان پخش و حافظه پنهان آن پاک می‌شود.\nاین عمل غیرقابل برگشت است.</string>

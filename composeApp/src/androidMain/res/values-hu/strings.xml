@@ -1,5 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Auth screens -->
+    <string name="auth_email">E-mail</string>
+    <string name="auth_password">Jelszó</string>
+    <string name="auth_confirm_password">Jelszó Megerősítése</string>
+    <string name="auth_login">Bejelentkezés</string>
+    <string name="auth_register">Regisztráció</string>
+    <string name="auth_forgot_password">Elfelejtett jelszó?</string>
+    <string name="auth_create_account">Fiók Létrehozása</string>
+    <string name="auth_back_to_login">Vissza a Bejelentkezéshez</string>
+    <string name="auth_reset_password">Jelszó Visszaállítása</string>
+    <string name="auth_send_reset_link">Visszaállítási Link Küldése</string>
+    <string name="auth_fill_all_fields">Kérjük, töltse ki az összes mezőt</string>
+    <string name="auth_passwords_not_match">A jelszavak nem egyeznek</string>
+    <string name="auth_password_min_length">A jelszónak legalább 6 karakter hosszúnak kell lennie</string>
+    <string name="auth_enter_email">Kérjük, adja meg az e-mail címét</string>
+    <string name="auth_reset_description">Adja meg e-mail címét, és küldünk egy linket a jelszó visszaállításához.</string>
+    <string name="auth_account_created_verify">Fiók létrehozva! Ellenőrizze e-mailjét a megerősítéshez.</string>
+    <string name="auth_account_created_success">Fiók sikeresen létrehozva! Most bejelentkezhet.</string>
+    <string name="auth_login_failed">Sikertelen bejelentkezés</string>
+    <string name="auth_registration_failed">Sikertelen regisztráció</string>
     <string name="cancel">Vissza</string>
     <string name="done">Kész</string>
     <string name="hidesong">Biztosan el szeretnéd rejteni ezt a zenét? Törölve lesz a lejátszási ideje, valamint a gyorsítótárból is eltűnik. Ez a művelet visszavonhatatlan.</string>

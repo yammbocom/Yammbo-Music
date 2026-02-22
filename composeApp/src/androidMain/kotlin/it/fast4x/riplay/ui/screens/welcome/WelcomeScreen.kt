@@ -7,7 +7,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavController
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.ui.components.SimpleScreenContainer
 
 @Composable

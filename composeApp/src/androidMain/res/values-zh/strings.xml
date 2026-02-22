@@ -1,5 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Auth screens -->
+    <string name="auth_email">电子邮件</string>
+    <string name="auth_password">密码</string>
+    <string name="auth_confirm_password">确认密码</string>
+    <string name="auth_login">登录</string>
+    <string name="auth_register">注册</string>
+    <string name="auth_forgot_password">忘记密码？</string>
+    <string name="auth_create_account">创建账户</string>
+    <string name="auth_back_to_login">返回登录</string>
+    <string name="auth_reset_password">重置密码</string>
+    <string name="auth_send_reset_link">发送重置链接</string>
+    <string name="auth_fill_all_fields">请填写所有字段</string>
+    <string name="auth_passwords_not_match">密码不匹配</string>
+    <string name="auth_password_min_length">密码至少需要6个字符</string>
+    <string name="auth_enter_email">请输入您的电子邮件</string>
+    <string name="auth_reset_description">输入您的电子邮件地址，我们将向您发送重置密码的链接。</string>
+    <string name="auth_account_created_verify">账户已创建！请检查您的电子邮件进行验证。</string>
+    <string name="auth_account_created_success">账户创建成功！您现在可以登录了。</string>
+    <string name="auth_login_failed">登录失败</string>
+    <string name="auth_registration_failed">注册失败</string>
     <string name="cancel">取消</string>
     <string name="done">完成</string>
     <string name="hidesong">你真的想要隐藏这首歌吗？它的播放记录和缓存将会被清除。（这个动作是不可逆的）</string>

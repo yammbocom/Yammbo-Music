@@ -53,7 +53,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.ui.styling.favoritesIcon
 import it.fast4x.riplay.extensions.preferences.multiFloatActionIconOffsetXkey
 import it.fast4x.riplay.extensions.preferences.multiFloatActionIconOffsetYkey

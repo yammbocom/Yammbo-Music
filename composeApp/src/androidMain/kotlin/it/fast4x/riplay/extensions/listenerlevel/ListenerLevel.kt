@@ -34,7 +34,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import it.fast4x.riplay.LocalPlayerAwareWindowInsets
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.data.Database
 import it.fast4x.riplay.enums.NavRoutes
 import it.fast4x.riplay.extensions.timeline.AnimatedVerticalTimeline

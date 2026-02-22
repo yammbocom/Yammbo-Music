@@ -3,7 +3,7 @@ package it.fast4x.riplay.enums
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.ui.styling.px
 
 enum class HomeItemSize ( val textId: Int, val size: Int ) {

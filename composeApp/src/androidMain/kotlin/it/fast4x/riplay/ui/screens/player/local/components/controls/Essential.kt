@@ -53,7 +53,7 @@ import androidx.compose.ui.unit.dp
 import androidx.media3.common.util.UnstableApi
 import androidx.navigation.NavController
 import it.fast4x.riplay.data.Database
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.utils.appContext
 import it.fast4x.riplay.commonutils.cleanPrefix
 import it.fast4x.riplay.utils.colorPalette
@@ -129,14 +129,14 @@ fun InfoAlbumAndArtistEssential(
     disableScrollingText: Boolean = false
 ) {
     val playerControlsType by rememberPreference(playerControlsTypeKey, PlayerControlsType.Essential)
-    val colorPaletteMode by rememberPreference(colorPaletteModeKey, ColorPaletteMode.Dark)
+    val colorPaletteMode by rememberPreference(colorPaletteModeKey, ColorPaletteMode.System)
     var effectRotationEnabled by rememberPreference(effectRotationKey, true)
     var showthumbnail by rememberPreference(showthumbnailKey, true)
     var isRotated by rememberSaveable { mutableStateOf(false) }
     var showSelectDialog by remember { mutableStateOf(false) }
     var textoutline by rememberPreference(textoutlineKey, false)
     val buttonState by rememberPreference(buttonStateKey, ButtonState.Idle)
-    val playerBackgroundColors by rememberPreference(playerBackgroundColorsKey,PlayerBackgroundColors.BlurredCoverColor)
+    val playerBackgroundColors by rememberPreference(playerBackgroundColorsKey,PlayerBackgroundColors.CoverColorGradient)
     var likeButtonWidth by remember{ mutableStateOf(0.dp) }
     val currentMediaItem = binder.player.currentMediaItem
 
@@ -317,7 +317,7 @@ fun InfoAlbumAndArtistEssential(
                             .padding(start = 5.dp)
                             .size(24.dp)
                     )
-                    if (playerBackgroundColors == PlayerBackgroundColors.BlurredCoverColor) {
+                    if (playerBackgroundColors == PlayerBackgroundColors.CoverColorGradient) {
                         Icon(
                             painter = painterResource(id = getUnlikedIcon()),
                             tint = colorPalette().text,
@@ -442,7 +442,7 @@ fun ControlsEssential(
 ) {
 
     val colorPaletteName by rememberPreference(colorPaletteNameKey, ColorPaletteName.Dynamic)
-    val colorPaletteMode by rememberPreference(colorPaletteModeKey, ColorPaletteMode.Dark)
+    val colorPaletteMode by rememberPreference(colorPaletteModeKey, ColorPaletteMode.System)
     var effectRotationEnabled by rememberPreference(effectRotationKey, true)
     var isRotated by rememberSaveable { mutableStateOf(false) }
     val rotationAngle by animateFloatAsState(
@@ -457,7 +457,7 @@ fun ControlsEssential(
     )
 
     var queueLoopType by rememberPreference(queueLoopTypeKey, defaultValue = QueueLoopType.Default)
-    val playerBackgroundColors by rememberPreference(playerBackgroundColorsKey,PlayerBackgroundColors.BlurredCoverColor)
+    val playerBackgroundColors by rememberPreference(playerBackgroundColorsKey,PlayerBackgroundColors.CoverColorGradient)
     var jumpPrevious by rememberPreference(jumpPreviousKey,"3")
     val currentMediaItem = binder.player.currentMediaItem
     var lightTheme = colorPaletteMode == ColorPaletteMode.Light || (colorPaletteMode == ColorPaletteMode.System && (!isSystemInDarkTheme()))
@@ -527,7 +527,7 @@ fun ControlsEssential(
             )
         }
 
-        if (playerBackgroundColors == PlayerBackgroundColors.BlurredCoverColor) {
+        if (playerBackgroundColors == PlayerBackgroundColors.CoverColorGradient) {
             Icon(
                 painter = painterResource(id = getUnlikedIcon()),
                 tint = colorPalette().text,

@@ -46,7 +46,7 @@ import com.mikepenz.hypnoticcanvas.shaders.MeshGradient
 import com.mikepenz.hypnoticcanvas.shaders.MesmerizingLens
 import com.mikepenz.hypnoticcanvas.shaders.Stripy
 import it.fast4x.riplay.LocalPlayerServiceBinder
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.commonutils.cleanPrefix
 import it.fast4x.riplay.extensions.rewind.data.AnimatedContent
 import it.fast4x.riplay.extensions.rewind.data.AnimationType

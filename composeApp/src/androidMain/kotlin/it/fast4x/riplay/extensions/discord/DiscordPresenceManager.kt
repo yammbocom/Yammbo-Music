@@ -6,7 +6,7 @@ import androidx.compose.runtime.MutableState
 import androidx.core.net.toUri
 import androidx.media3.common.MediaItem
 import androidx.media3.common.util.UnstableApi
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import com.my.kizzyrpc.KizzyRPC
 import com.my.kizzyrpc.model.Activity
 import com.my.kizzyrpc.model.Assets
@@ -174,14 +174,14 @@ class DiscordPresenceManager(
         if ( smallImage != null )
             smallImage
         else
-            getDiscordAssetUri( "https://raw.githubusercontent.com/fast4x/RiPlay/main/assets/design/latest/icon.png" )
+            getDiscordAssetUri( "https://music.yammbo.com/images/icon.png" )
                 ?.also { smallImage = it }
 
     private suspend fun getLargeImageFallback(): String? =
         if ( largeImage != null )
             largeImage
         else
-            getDiscordAssetUri( "https://raw.githubusercontent.com/fast4x/RiPlay/main/assets/design/latest/icon.png" )
+            getDiscordAssetUri( "https://music.yammbo.com/images/icon.png" )
                 ?.also { largeImage = it }
 
 
@@ -337,7 +337,7 @@ class DiscordPresenceManager(
             rpc?.setActivity(
                 activity = Activity(
                     applicationId = APPLICATION_ID,
-                    name = "RiPlay",
+                    name = "Yammbo Music",
                     details = details,
                     state = state,
                     type = TypeDiscordActivity.LISTENING.value,
@@ -351,10 +351,10 @@ class DiscordPresenceManager(
                         largeText = largeTextValue,
                         smallText = "v${getVersionName(context)}",
                     ),
-                    buttons = listOf("Get RiPlay", "Listen to YTMusic"),
+                    buttons = listOf("Get Yammbo Music", "Listen to YTMusic"),
                     metadata = Metadata(
                         listOf(
-                            "https://github.com/fast4x/RiPlay",
+                            "https://music.yammbo.com",
                             "https://music.youtube.com/watch?v=${mediaItem.mediaId}",
                         )
                     )

@@ -1,5 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Auth screens -->
+    <string name="auth_email">البريد الإلكتروني</string>
+    <string name="auth_password">كلمة المرور</string>
+    <string name="auth_confirm_password">تأكيد كلمة المرور</string>
+    <string name="auth_login">تسجيل الدخول</string>
+    <string name="auth_register">تسجيل</string>
+    <string name="auth_forgot_password">نسيت كلمة المرور؟</string>
+    <string name="auth_create_account">إنشاء حساب</string>
+    <string name="auth_back_to_login">العودة لتسجيل الدخول</string>
+    <string name="auth_reset_password">إعادة تعيين كلمة المرور</string>
+    <string name="auth_send_reset_link">إرسال رابط إعادة التعيين</string>
+    <string name="auth_fill_all_fields">يرجى ملء جميع الحقول</string>
+    <string name="auth_passwords_not_match">كلمات المرور غير متطابقة</string>
+    <string name="auth_password_min_length">يجب أن تكون كلمة المرور 6 أحرف على الأقل</string>
+    <string name="auth_enter_email">يرجى إدخال بريدك الإلكتروني</string>
+    <string name="auth_reset_description">أدخل عنوان بريدك الإلكتروني وسنرسل لك رابطاً لإعادة تعيين كلمة المرور.</string>
+    <string name="auth_account_created_verify">تم إنشاء الحساب! تحقق من بريدك الإلكتروني للتحقق.</string>
+    <string name="auth_account_created_success">تم إنشاء الحساب بنجاح! يمكنك الآن تسجيل الدخول.</string>
+    <string name="auth_login_failed">فشل تسجيل الدخول</string>
+    <string name="auth_registration_failed">فشل التسجيل</string>
     <string name="cancel">إلغاء</string>
     <string name="done">أكتمل</string>
     <string name="hidesong">هل تريد حقا أخفاء هذه الأغنية؟ كافية البيانات المحفوظة ستمسح من الجهاز.\nهذا الإجراء لا يمكن التراجع عنه.</string>

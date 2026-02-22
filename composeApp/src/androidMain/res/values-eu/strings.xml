@@ -1,5 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Auth screens -->
+    <string name="auth_email">Posta elektronikoa</string>
+    <string name="auth_password">Pasahitza</string>
+    <string name="auth_confirm_password">Berretsi Pasahitza</string>
+    <string name="auth_login">Hasi saioa</string>
+    <string name="auth_register">Erregistratu</string>
+    <string name="auth_forgot_password">Pasahitza ahaztu duzu?</string>
+    <string name="auth_create_account">Kontua Sortu</string>
+    <string name="auth_back_to_login">Itzuli Saio-hasierara</string>
+    <string name="auth_reset_password">Pasahitza Berrezarri</string>
+    <string name="auth_send_reset_link">Berrezarpen Esteka Bidali</string>
+    <string name="auth_fill_all_fields">Mesedez, bete eremu guztiak</string>
+    <string name="auth_passwords_not_match">Pasahitzak ez datoz bat</string>
+    <string name="auth_password_min_length">Pasahitzak gutxienez 6 karaktere izan behar ditu</string>
+    <string name="auth_enter_email">Mesedez, sartu zure posta elektronikoa</string>
+    <string name="auth_reset_description">Sartu zure posta elektroniko helbidea eta pasahitza berrezartzeko esteka bidaliko dizugu.</string>
+    <string name="auth_account_created_verify">Kontua sortuta! Egiaztatu zure posta elektronikoa berresteko.</string>
+    <string name="auth_account_created_success">Kontua ondo sortuta! Orain saioa hasi dezakezu.</string>
+    <string name="auth_login_failed">Saio-hasiera huts egin du</string>
+    <string name="auth_registration_failed">Erregistroak huts egin du</string>
     <string name="cancel">Utzi</string>
     <string name="done">Egina</string>
     <string name="hidesong">Abesti hau ezkutatu nahi duzu? Haren zerrenda denbora eta katxea garbituko dira. Ekintza hau atzeraezina da.</string>

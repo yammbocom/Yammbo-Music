@@ -1,5 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Auth screens -->
+    <string name="auth_email">이메일</string>
+    <string name="auth_password">비밀번호</string>
+    <string name="auth_confirm_password">비밀번호 확인</string>
+    <string name="auth_login">로그인</string>
+    <string name="auth_register">회원가입</string>
+    <string name="auth_forgot_password">비밀번호를 잊으셨나요?</string>
+    <string name="auth_create_account">계정 만들기</string>
+    <string name="auth_back_to_login">로그인으로 돌아가기</string>
+    <string name="auth_reset_password">비밀번호 재설정</string>
+    <string name="auth_send_reset_link">재설정 링크 보내기</string>
+    <string name="auth_fill_all_fields">모든 항목을 입력해주세요</string>
+    <string name="auth_passwords_not_match">비밀번호가 일치하지 않습니다</string>
+    <string name="auth_password_min_length">비밀번호는 최소 6자 이상이어야 합니다</string>
+    <string name="auth_enter_email">이메일을 입력해주세요</string>
+    <string name="auth_reset_description">이메일 주소를 입력하시면 비밀번호 재설정 링크를 보내드립니다.</string>
+    <string name="auth_account_created_verify">계정이 생성되었습니다! 이메일에서 인증을 확인하세요.</string>
+    <string name="auth_account_created_success">계정이 성공적으로 생성되었습니다! 이제 로그인할 수 있습니다.</string>
+    <string name="auth_login_failed">로그인 실패</string>
+    <string name="auth_registration_failed">회원가입 실패</string>
     <string name="cancel">취소</string>
     <string name="done">완료</string>
     <string name="hidesong">정말로 이 곡을 숨기실건가요? 재생 시간과 캐시는 지워집니다.\n이 작업은 되돌릴 수 없습니다.</string>

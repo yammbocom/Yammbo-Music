@@ -1,5 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Auth screens -->
+    <string name="auth_email">Email</string>
+    <string name="auth_password">Password</string>
+    <string name="auth_confirm_password">Kumpirmahin ang Password</string>
+    <string name="auth_login">Mag-login</string>
+    <string name="auth_register">Mag-rehistro</string>
+    <string name="auth_forgot_password">Nakalimutan ang password?</string>
+    <string name="auth_create_account">Gumawa ng Account</string>
+    <string name="auth_back_to_login">Bumalik sa Login</string>
+    <string name="auth_reset_password">I-reset ang Password</string>
+    <string name="auth_send_reset_link">Ipadala ang Reset Link</string>
+    <string name="auth_fill_all_fields">Pakipunan ang lahat ng field</string>
+    <string name="auth_passwords_not_match">Hindi magkatugma ang mga password</string>
+    <string name="auth_password_min_length">Ang password ay dapat hindi bababa sa 6 na character</string>
+    <string name="auth_enter_email">Pakilagay ang iyong email</string>
+    <string name="auth_reset_description">Ilagay ang iyong email address at magpapadala kami ng link para i-reset ang iyong password.</string>
+    <string name="auth_account_created_verify">Nagawa na ang account! Tingnan ang iyong email para sa verification.</string>
+    <string name="auth_account_created_success">Matagumpay na nagawa ang account! Maaari ka nang mag-login.</string>
+    <string name="auth_login_failed">Nabigo ang pag-login</string>
+    <string name="auth_registration_failed">Nabigo ang pagpaparehistro</string>
     <string name="cancel">Kanselahin</string>
     <string name="done">I-tapos</string>
     <string name="hidesong">Gusto mo ba talagang itago ang kantang ito? Ang playback time at cache nito ay mabubura. Hindi maaaring ibalik ito.</string>

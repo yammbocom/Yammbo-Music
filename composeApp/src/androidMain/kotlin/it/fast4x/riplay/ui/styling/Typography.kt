@@ -10,7 +10,7 @@ import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.enums.FontType
 
 @Immutable

@@ -1,5 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Auth screens -->
+    <string name="auth_email">Sähköposti</string>
+    <string name="auth_password">Salasana</string>
+    <string name="auth_confirm_password">Vahvista Salasana</string>
+    <string name="auth_login">Kirjaudu sisään</string>
+    <string name="auth_register">Rekisteröidy</string>
+    <string name="auth_forgot_password">Unohditko salasanan?</string>
+    <string name="auth_create_account">Luo Tili</string>
+    <string name="auth_back_to_login">Takaisin Kirjautumiseen</string>
+    <string name="auth_reset_password">Nollaa Salasana</string>
+    <string name="auth_send_reset_link">Lähetä Nollauslinkki</string>
+    <string name="auth_fill_all_fields">Täytä kaikki kentät</string>
+    <string name="auth_passwords_not_match">Salasanat eivät täsmää</string>
+    <string name="auth_password_min_length">Salasanan on oltava vähintään 6 merkkiä</string>
+    <string name="auth_enter_email">Anna sähköpostiosoitteesi</string>
+    <string name="auth_reset_description">Anna sähköpostiosoitteesi ja lähetämme sinulle linkin salasanan nollaamiseksi.</string>
+    <string name="auth_account_created_verify">Tili luotu! Tarkista sähköpostisi vahvistusta varten.</string>
+    <string name="auth_account_created_success">Tili luotu onnistuneesti! Voit nyt kirjautua sisään.</string>
+    <string name="auth_login_failed">Kirjautuminen epäonnistui</string>
+    <string name="auth_registration_failed">Rekisteröityminen epäonnistui</string>
     <string name="cancel">Peruuta</string>
     <string name="done">Valmis</string>
     <string name="hidesong">Haluatko varmasti piilottaa tämän kappaleen? Sen toistoaika ja välimuisti tyhjennetään. Tämä toiminto on peruuttamaton.</string>

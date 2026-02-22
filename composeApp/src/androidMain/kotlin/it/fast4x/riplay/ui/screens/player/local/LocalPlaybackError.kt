@@ -26,7 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.util.UnstableApi
 import it.fast4x.riplay.LocalPlayerServiceBinder
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.ui.styling.PureBlackColorPalette
 import it.fast4x.riplay.ui.styling.center
 import it.fast4x.riplay.ui.styling.color

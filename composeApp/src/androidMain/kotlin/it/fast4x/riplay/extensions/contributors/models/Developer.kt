@@ -32,7 +32,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import coil.compose.rememberAsyncImagePainter
 import com.google.gson.annotations.SerializedName
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.ui.styling.favoritesIcon
 import it.fast4x.riplay.utils.colorPalette
 import it.fast4x.riplay.utils.typography

@@ -81,7 +81,7 @@ import it.fast4x.riplay.data.Database
 import it.fast4x.riplay.data.Database.Companion.like
 import it.fast4x.riplay.LocalPlayerServiceBinder
 import it.fast4x.riplay.LocalSelectedQueue
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.utils.appContext
 import it.fast4x.riplay.commonutils.cleanPrefix
 import it.fast4x.riplay.enums.NavRoutes

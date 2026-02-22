@@ -11,7 +11,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import it.fast4x.riplay.LocalPlayerAwareWindowInsets
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.extensions.preferences.lastfmSessionTokenKey
 import it.fast4x.riplay.extensions.preferences.preferences
 import it.fast4x.riplay.ui.components.themed.Title
@@ -56,7 +56,7 @@ fun LastFmAuthScreen(
                     modifier = Modifier.fillMaxSize().windowInsetsPadding(LocalPlayerAwareWindowInsets.current)
                 ) {
                     Title(
-                        globalContext().resources.getString(it.fast4x.riplay.R.string.lastfm_connect),
+                        globalContext().resources.getString(com.yambo.music.R.string.lastfm_connect),
                         icon = R.drawable.chevron_down,
                         onClick = { navController.navigateUp() }
                     )

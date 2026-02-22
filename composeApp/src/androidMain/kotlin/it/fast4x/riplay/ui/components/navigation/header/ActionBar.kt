@@ -16,7 +16,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import it.fast4x.riplay.LocalPlayerServiceBinder
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.enums.EqualizerType
 import it.fast4x.riplay.enums.NavRoutes
 import it.fast4x.riplay.extensions.equalizer.InternalEqualizerScreen

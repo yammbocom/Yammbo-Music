@@ -38,7 +38,7 @@ import androidx.navigation.NavController
 import it.fast4x.riplay.extensions.persist.persist
 import it.fast4x.riplay.data.Database
 import it.fast4x.riplay.LocalPlayerServiceBinder
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.enums.NavigationBarPosition
 import it.fast4x.riplay.data.models.SongEntity
 import it.fast4x.riplay.enums.SongSortBy

@@ -11,7 +11,7 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import it.fast4x.environment.Environment
 import it.fast4x.environment.requests.discoverPage
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.data.Database
 import kotlinx.coroutines.flow.first
 import timber.log.Timber

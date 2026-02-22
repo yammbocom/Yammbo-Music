@@ -39,7 +39,7 @@ import it.fast4x.environment.requests.playlistPage
 import it.fast4x.environment.requests.song
 import it.fast4x.riplay.LocalPlayerAwareWindowInsets
 import it.fast4x.riplay.LocalPlayerServiceBinder
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.enums.NavRoutes
 import it.fast4x.riplay.enums.NavigationBarPosition
 import it.fast4x.riplay.ui.components.themed.HeaderWithIcon

@@ -13,7 +13,7 @@ import androidx.documentfile.provider.DocumentFile
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.github.doyaaaaaken.kotlincsv.dsl.csvWriter
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.data.Database
 import it.fast4x.riplay.enums.AnimatedGradient
 import it.fast4x.riplay.enums.BackgroundProgress
@@ -146,7 +146,7 @@ class AutoBackupWorker(context: Context, params: WorkerParameters) : CoroutineWo
             val backupManager = DatabaseBackupManager(context, Database)
             @SuppressLint("SimpleDateFormat")
             val dateFormat = SimpleDateFormat("yyyyMMddHHmmss")
-            val dbFile = folder.createFile("application/octet-stream", "riplay_${dateFormat.format(Date())}.db")
+            val dbFile = folder.createFile("application/octet-stream", "yammbo_${dateFormat.format(Date())}.db")
 
             if (dbFile == null) {
                 Timber.e("AutoBackupWorker: File Database Backup not created")
@@ -156,7 +156,7 @@ class AutoBackupWorker(context: Context, params: WorkerParameters) : CoroutineWo
             backupManager.backupDatabase(dbFile.uri)
             Timber.e("AutoBackupWorker: Backup database completed")
 
-            val appearanceFilename = folder.createFile("text/csv", "riplay_appearance_${dateFormat.format(Date())}.csv")
+            val appearanceFilename = folder.createFile("text/csv", "yammbo_appearance_${dateFormat.format(Date())}.csv")
 
             if (appearanceFilename == null) {
                 Timber.e("AutoBackupWorker: File Appearance Backup not created")
@@ -165,7 +165,7 @@ class AutoBackupWorker(context: Context, params: WorkerParameters) : CoroutineWo
 
             val albumCoverRotation = context.preferences.getBoolean(albumCoverRotationKey, false)
             val showthumbnail = context.preferences.getBoolean(showthumbnailKey, true)
-            val playerBackgroundColors = context.preferences.getEnum(playerBackgroundColorsKey, PlayerBackgroundColors.BlurredCoverColor)
+            val playerBackgroundColors = context.preferences.getEnum(playerBackgroundColorsKey, PlayerBackgroundColors.CoverColorGradient)
             val thumbnailRoundness = context.preferences.getEnum(thumbnailRoundnessKey, ThumbnailRoundness.Heavy)
             val playerType = context.preferences.getEnum(playerTypeKey, PlayerType.Modern)
             val queueType = context.preferences.getEnum(queueTypeKey, QueueType.Modern)
@@ -180,7 +180,7 @@ class AutoBackupWorker(context: Context, params: WorkerParameters) : CoroutineWo
             val playerInfoType = context.preferences.getEnum(playerInfoTypeKey, PlayerType.Modern)
             val transparentBackgroundActionBarPlayer = context.preferences.getBoolean(
                 transparentBackgroundPlayerActionBarKey,
-                false
+                true
             )
             val iconLikeType = context.preferences.getEnum(iconLikeTypeKey, IconLikeType.Essential)
             val playerSwapControlsWithTimeline = context.preferences.getBoolean(
@@ -191,7 +191,7 @@ class AutoBackupWorker(context: Context, params: WorkerParameters) : CoroutineWo
                 playerEnableLyricsPopupMessageKey,
                 true
             )
-            val actionspacedevenly = context.preferences.getBoolean(actionspacedevenlyKey, false)
+            val actionspacedevenly = context.preferences.getBoolean(actionspacedevenlyKey, true)
             val thumbnailType = context.preferences.getEnum(thumbnailTypeKey, ThumbnailType.Modern)
             val showvisthumbnail = context.preferences.getBoolean(showthumbnailKey, true)
             val buttonzoomout = context.preferences.getBoolean(buttonzoomoutKey, false)
@@ -204,7 +204,7 @@ class AutoBackupWorker(context: Context, params: WorkerParameters) : CoroutineWo
             val statsfornerds = context.preferences.getBoolean(statsfornerdsKey, false)
             val transparentbar = context.preferences.getBoolean(transparentbarKey, true)
             val showlyricsthumbnail = context.preferences.getBoolean(showlyricsthumbnailKey, false)
-            val blackgradient = context.preferences.getBoolean(blackgradientKey, false)
+            val blackgradient = context.preferences.getBoolean(blackgradientKey, true)
             val expandedplayer = context.preferences.getBoolean(expandedplayerKey, true)
             val playerPlayButtonType = context.preferences.getEnum(playerPlayButtonTypeKey, PlayerPlayButtonType.Disabled)
             val bottomgradient = context.preferences.getBoolean(bottomgradientKey, false)
@@ -213,7 +213,7 @@ class AutoBackupWorker(context: Context, params: WorkerParameters) : CoroutineWo
             val thumbnailTapEnabled = context.preferences.getBoolean(thumbnailTapEnabledKey, true)
             val showButtonPlayerAddToPlaylist = context.preferences.getBoolean(showButtonPlayerAddToPlaylistKey, true)
             val showButtonPlayerArrow = context.preferences.getBoolean(showButtonPlayerArrowKey, true)
-            val showButtonPlayerLoop = context.preferences.getBoolean(showButtonPlayerLoopKey, true)
+            val showButtonPlayerLoop = context.preferences.getBoolean(showButtonPlayerLoopKey, false)
             val showButtonPlayerLyrics = context.preferences.getBoolean(showButtonPlayerLyricsKey, true)
             val expandedplayertoggle = context.preferences.getBoolean(expandedplayerKey, true)
             val showButtonPlayerShuffle = context.preferences.getBoolean(showButtonPlayerShuffleKey, true)
@@ -222,7 +222,7 @@ class AutoBackupWorker(context: Context, params: WorkerParameters) : CoroutineWo
             val showButtonPlayerStartradio = context.preferences.getBoolean(showButtonPlayerStartRadioKey, true)
             val showButtonPlayerSystemEqualizer = context.preferences.getBoolean(showButtonPlayerSystemEqualizerKey, true)
             val showButtonPlayerDiscover = context.preferences.getBoolean(showButtonPlayerDiscoverKey, true)
-            val showButtonPlayerVideo = context.preferences.getBoolean(showButtonPlayerVideoKey, true)
+            val showButtonPlayerVideo = context.preferences.getBoolean(showButtonPlayerVideoKey, false)
             val showBackgroundLyrics = context.preferences.getBoolean(showBackgroundLyricsKey, false)
             val showTotalTimeQueue = context.preferences.getBoolean(showTotalTimeQueueKey, true)
             val backgroundProgress = context.preferences.getEnum(backgroundProgressKey, BackgroundProgress.MiniPlayer)
@@ -249,7 +249,7 @@ class AutoBackupWorker(context: Context, params: WorkerParameters) : CoroutineWo
             val thumbnailFade = context.preferences.getFloat(thumbnailFadeKey, 5f)
             val thumbnailSpacing = context.preferences.getFloat(thumbnailSpacingKey, 0f)
             val colorPaletteName = context.preferences.getEnum(colorPaletteNameKey, ColorPaletteName.Dynamic)
-            val colorPaletteMode = context.preferences.getEnum(colorPaletteModeKey, ColorPaletteMode.Dark)
+            val colorPaletteMode = context.preferences.getEnum(colorPaletteModeKey, ColorPaletteMode.System)
             val swipeAnimationNoThumbnail = context.preferences.getEnum(swipeAnimationsNoThumbnailKey, SwipeAnimationNoThumbnail.Sliding)
             val showLikeButtonBackgroundPlayer = context.preferences.getBoolean(showLikeButtonBackgroundPlayerKey, true)
             val visualizerEnabled = context.preferences.getBoolean(visualizerEnabledKey, false)

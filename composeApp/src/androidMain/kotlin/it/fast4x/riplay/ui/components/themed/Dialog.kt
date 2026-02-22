@@ -91,7 +91,7 @@ import it.fast4x.environment.utils.from
 import it.fast4x.riplay.data.Database
 import it.fast4x.riplay.data.Database.Companion.update
 import it.fast4x.riplay.LocalPlayerServiceBinder
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.enums.ColorPaletteMode
 import it.fast4x.riplay.enums.ThumbnailRoundness
 import it.fast4x.riplay.enums.ValidationType
@@ -477,7 +477,7 @@ inline fun SelectorArtistsDialog(
         ) {
             if (values != null) {
                 val pagerState = rememberPagerState(pageCount = { values.size })
-                val colorPaletteMode by rememberPreference(colorPaletteModeKey, ColorPaletteMode.Dark)
+                val colorPaletteMode by rememberPreference(colorPaletteModeKey, ColorPaletteMode.System)
 
                 Box {
                     HorizontalPager(state = pagerState) { idArtist ->
@@ -1127,7 +1127,7 @@ fun NewVersionDialog (
                         .size(30.dp)
                         .clickable {
                             onDismiss()
-                            uriHandler.openUri("https://github.com/fast4x/RiPlay/releases/latest")
+                            uriHandler.openUri("https://music.yammbo.com")
                         }
                 )
             }

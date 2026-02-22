@@ -9,7 +9,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.utils.getAvailableUpdateInfo
 import it.fast4x.riplay.utils.getVersionCode
 import timber.log.Timber
@@ -26,6 +26,11 @@ class CheckUpdateWorker(context: Context, params: WorkerParameters) : CoroutineW
     }
 
     override suspend fun doWork(): Result {
+        // Yammbo: Update check disabled
+        Timber.d("CheckUpdateWorker: Disabled for Yammbo Music")
+        return Result.success()
+
+        @Suppress("UNREACHABLE_CODE")
         val context = applicationContext
 
         return try {

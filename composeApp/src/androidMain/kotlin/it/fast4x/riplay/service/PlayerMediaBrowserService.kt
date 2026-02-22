@@ -27,7 +27,7 @@ import it.fast4x.environment.utils.from
 import it.fast4x.riplay.commonutils.MODIFIED_PREFIX
 import it.fast4x.riplay.commonutils.MONTHLY_PREFIX
 import it.fast4x.riplay.commonutils.PINNED_PREFIX
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.data.Database
 import it.fast4x.riplay.data.models.Album
 import it.fast4x.riplay.data.models.Artist
@@ -659,7 +659,7 @@ class PlayerMediaBrowserService : MediaBrowserServiceCompat(),
                     }
                     MediaId.TOP -> {
                         val maxTopSongs = preferences.getEnum(MaxTopPlaylistItemsKey,
-                            MaxTopPlaylistItems.`10`).number.toInt()
+                            MaxTopPlaylistItems.`50`).number.toInt()
 
                         Database.trending(maxTopSongs)
                             .first()
@@ -939,7 +939,7 @@ class PlayerMediaBrowserService : MediaBrowserServiceCompat(),
                 .setMediaId(MediaId.TOP)
                 .setTitle((this as Context).resources.getString(R.string.my_playlist_top)
                     .format((this as Context).preferences.getEnum(MaxTopPlaylistItemsKey,
-                        MaxTopPlaylistItems.`10`).number))
+                        MaxTopPlaylistItems.`50`).number))
                 .setIconUri(uriFor(R.drawable.trending))
                 .build(),
             MediaItem.FLAG_BROWSABLE

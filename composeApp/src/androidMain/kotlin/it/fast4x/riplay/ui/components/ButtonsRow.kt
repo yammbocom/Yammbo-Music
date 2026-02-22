@@ -27,7 +27,7 @@ fun <E> ButtonsRow(
     onValueUpdate: (E) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val colorPaletteMode by rememberPreference(colorPaletteModeKey, ColorPaletteMode.Dark)
+    val colorPaletteMode by rememberPreference(colorPaletteModeKey, ColorPaletteMode.System)
     Row(
         modifier = modifier
             .fillMaxWidth()

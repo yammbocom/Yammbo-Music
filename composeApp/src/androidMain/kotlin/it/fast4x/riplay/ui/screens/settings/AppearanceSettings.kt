@@ -33,7 +33,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.navigation.NavController
 import com.github.doyaaaaaken.kotlincsv.dsl.csvReader
 import com.github.doyaaaaaken.kotlincsv.dsl.csvWriter
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.enums.BackgroundProgress
 import it.fast4x.riplay.enums.CarouselSize
 import it.fast4x.riplay.enums.IconLikeType
@@ -187,7 +187,7 @@ fun DefaultAppearanceSettings() {
     showthumbnail = true
     var transparentbar by rememberPreference(transparentbarKey, true)
     transparentbar = true
-    var blackgradient by rememberPreference(blackgradientKey, false)
+    var blackgradient by rememberPreference(blackgradientKey, true)
     blackgradient = false
     var showlyricsthumbnail by rememberPreference(showlyricsthumbnailKey, false)
     showlyricsthumbnail = false
@@ -217,8 +217,8 @@ fun DefaultAppearanceSettings() {
 
     var visualizerEnabled by rememberPreference(visualizerEnabledKey, false)
     visualizerEnabled = false
-    var playerTimelineType by rememberPreference(playerTimelineTypeKey, PlayerTimelineType.Default)
-    playerTimelineType = PlayerTimelineType.Default
+    var playerTimelineType by rememberPreference(playerTimelineTypeKey, PlayerTimelineType.Wavy)
+    playerTimelineType = PlayerTimelineType.Wavy
     var playerThumbnailSize by rememberPreference(
         playerThumbnailSizeKey,
         PlayerThumbnailSize.Biggest
@@ -239,7 +239,7 @@ fun DefaultAppearanceSettings() {
     showButtonPlayerArrow = false
 //    var showButtonPlayerDownload by rememberPreference(showButtonPlayerDownloadKey, true)
 //    showButtonPlayerDownload = true
-    var showButtonPlayerLoop by rememberPreference(showButtonPlayerLoopKey, true)
+    var showButtonPlayerLoop by rememberPreference(showButtonPlayerLoopKey, false)
     showButtonPlayerLoop = true
     var showButtonPlayerLyrics by rememberPreference(showButtonPlayerLyricsKey, true)
     showButtonPlayerLyrics = true
@@ -258,7 +258,7 @@ fun DefaultAppearanceSettings() {
     showButtonPlayerSystemEqualizer = false
     var showButtonPlayerDiscover by rememberPreference(showButtonPlayerDiscoverKey, false)
     showButtonPlayerDiscover = false
-    var showButtonPlayerVideo by rememberPreference(showButtonPlayerVideoKey, true)
+    var showButtonPlayerVideo by rememberPreference(showButtonPlayerVideoKey, false)
     showButtonPlayerVideo = false
     var navigationBarPosition by rememberPreference(
         navigationBarPositionKey,
@@ -296,9 +296,9 @@ fun DefaultAppearanceSettings() {
     miniPlayerType = MiniPlayerType.Modern
     var playerBackgroundColors by rememberPreference(
         playerBackgroundColorsKey,
-        PlayerBackgroundColors.BlurredCoverColor
+        PlayerBackgroundColors.CoverColorGradient
     )
-    playerBackgroundColors = PlayerBackgroundColors.BlurredCoverColor
+    playerBackgroundColors = PlayerBackgroundColors.CoverColorGradient
     var showTopActionsBar by rememberPreference(showTopActionsBarKey, true)
     showTopActionsBar = true
     var playerControlsType by rememberPreference(playerControlsTypeKey, PlayerControlsType.Essential)
@@ -307,7 +307,7 @@ fun DefaultAppearanceSettings() {
     playerInfoType = PlayerInfoType.Modern
     var transparentBackgroundActionBarPlayer by rememberPreference(
         transparentBackgroundPlayerActionBarKey,
-        false
+        true
     )
     transparentBackgroundActionBarPlayer = false
     var iconLikeType by rememberPreference(iconLikeTypeKey, IconLikeType.Essential)
@@ -322,7 +322,7 @@ fun DefaultAppearanceSettings() {
         true
     )
     playerEnableLyricsPopupMessage = true
-    var actionspacedevenly by rememberPreference(actionspacedevenlyKey, false)
+    var actionspacedevenly by rememberPreference(actionspacedevenlyKey, true)
     actionspacedevenly = false
     var thumbnailType by rememberPreference(thumbnailTypeKey, ThumbnailType.Modern)
     thumbnailType = ThumbnailType.Modern
@@ -376,7 +376,7 @@ fun AppearanceSettings(
 
     var showthumbnail by rememberPreference(showthumbnailKey, true)
     var transparentbar by rememberPreference(transparentbarKey, true)
-    var blackgradient by rememberPreference(blackgradientKey, false)
+    var blackgradient by rememberPreference(blackgradientKey, true)
     var showlyricsthumbnail by rememberPreference(showlyricsthumbnailKey, false)
     var expandedplayer by rememberPreference(expandedplayerKey, false)
     var playerPlayButtonType by rememberPreference(
@@ -405,7 +405,7 @@ fun AppearanceSettings(
         PlayerVisualizerType.Disabled
     )
     */
-    var playerTimelineType by rememberPreference(playerTimelineTypeKey, PlayerTimelineType.Default)
+    var playerTimelineType by rememberPreference(playerTimelineTypeKey, PlayerTimelineType.Wavy)
     var playerThumbnailSize by rememberPreference(
         playerThumbnailSizeKey,
         PlayerThumbnailSize.Biggest
@@ -433,7 +433,7 @@ fun AppearanceSettings(
     var showButtonPlayerAddToPlaylist by rememberPreference(showButtonPlayerAddToPlaylistKey, true)
     var showButtonPlayerArrow by rememberPreference(showButtonPlayerArrowKey, true)
     //var showButtonPlayerDownload by rememberPreference(showButtonPlayerDownloadKey, true)
-    var showButtonPlayerLoop by rememberPreference(showButtonPlayerLoopKey, true)
+    var showButtonPlayerLoop by rememberPreference(showButtonPlayerLoopKey, false)
     var showButtonPlayerLyrics by rememberPreference(showButtonPlayerLyricsKey, true)
     var expandedplayertoggle by rememberPreference(expandedplayertoggleKey, true)
     var showButtonPlayerShuffle by rememberPreference(showButtonPlayerShuffleKey, true)
@@ -445,7 +445,7 @@ fun AppearanceSettings(
         false
     )
     var showButtonPlayerDiscover by rememberPreference(showButtonPlayerDiscoverKey, false)
-    var showButtonPlayerVideo by rememberPreference(showButtonPlayerVideoKey, true)
+    var showButtonPlayerVideo by rememberPreference(showButtonPlayerVideoKey, false)
 
     val navigationBarPosition by rememberPreference(
         navigationBarPositionKey,
@@ -476,7 +476,7 @@ fun AppearanceSettings(
     )
     var playerBackgroundColors by rememberPreference(
         playerBackgroundColorsKey,
-        PlayerBackgroundColors.BlurredCoverColor
+        PlayerBackgroundColors.CoverColorGradient
     )
 
     var showTopActionsBar by rememberPreference(showTopActionsBarKey, true)
@@ -486,7 +486,7 @@ fun AppearanceSettings(
     var playerInfoType by rememberPreference(playerInfoTypeKey, PlayerInfoType.Essential)
     var transparentBackgroundActionBarPlayer by rememberPreference(
         transparentBackgroundPlayerActionBarKey,
-        false
+        true
     )
     var iconLikeType by rememberPreference(iconLikeTypeKey, IconLikeType.Essential)
     var playerSwapControlsWithTimeline by rememberPreference(
@@ -497,7 +497,7 @@ fun AppearanceSettings(
         playerEnableLyricsPopupMessageKey,
         true
     )
-    var actionspacedevenly by rememberPreference(actionspacedevenlyKey, false)
+    var actionspacedevenly by rememberPreference(actionspacedevenlyKey, true)
     var thumbnailType by rememberPreference(thumbnailTypeKey, ThumbnailType.Modern)
     var showvisthumbnail by rememberPreference(showvisthumbnailKey, false)
     var buttonzoomout by rememberPreference(buttonzoomoutKey, false)
@@ -545,8 +545,8 @@ fun AppearanceSettings(
     var thumbnailFadeEx  by rememberPreference(thumbnailFadeExKey, 5f)
     var thumbnailFade  by rememberPreference(thumbnailFadeKey, 5f)
     var thumbnailSpacing  by rememberPreference(thumbnailSpacingKey, 0f)
-    var colorPaletteName by rememberPreference(colorPaletteNameKey, ColorPaletteName.Dynamic)
-    var colorPaletteMode by rememberPreference(colorPaletteModeKey, ColorPaletteMode.Dark)
+    var colorPaletteName by rememberPreference(colorPaletteNameKey, ColorPaletteName.Default)
+    var colorPaletteMode by rememberPreference(colorPaletteModeKey, ColorPaletteMode.System)
     var swipeAnimationNoThumbnail by rememberPreference(swipeAnimationsNoThumbnailKey, SwipeAnimationNoThumbnail.Sliding)
 
     var appearanceFilename by remember {
@@ -979,7 +979,7 @@ fun AppearanceSettings(
          */
     ) {
 
-        if (playerBackgroundColors != PlayerBackgroundColors.BlurredCoverColor)
+        if (playerBackgroundColors != PlayerBackgroundColors.CoverColorGradient)
             showthumbnail = true
         if (!visualizerEnabled) showvisthumbnail = false
         if (!showthumbnail) {
@@ -999,7 +999,7 @@ fun AppearanceSettings(
                 onClick0 = {
                     showTopActionsBar = true
                     showthumbnail = true
-                    playerBackgroundColors = PlayerBackgroundColors.BlurredCoverColor
+                    playerBackgroundColors = PlayerBackgroundColors.CoverColorGradient
                     blurStrength = 50f
                     thumbnailRoundness = ThumbnailRoundness.None
                     playerInfoType = PlayerInfoType.Essential
@@ -1017,7 +1017,7 @@ fun AppearanceSettings(
                     bottomgradient = true
                     showRemainingSongTime = true
                     showNextSongsInPlayer = false
-                    colorPaletteName = ColorPaletteName.Dynamic
+                    colorPaletteName = ColorPaletteName.Default
                     colorPaletteMode = ColorPaletteMode.System
                     ///////ACTION BAR BUTTONS////////////////
                     transparentBackgroundActionBarPlayer = true
@@ -1042,7 +1042,7 @@ fun AppearanceSettings(
                 onClick1 = {
                     showTopActionsBar = true
                     showthumbnail = true
-                    playerBackgroundColors = PlayerBackgroundColors.BlurredCoverColor
+                    playerBackgroundColors = PlayerBackgroundColors.CoverColorGradient
                     blurStrength = 50f
                     playerInfoType = PlayerInfoType.Essential
                     playerPlayButtonType = PlayerPlayButtonType.Disabled
@@ -1064,7 +1064,7 @@ fun AppearanceSettings(
                     showlyricsthumbnail = false
                     thumbnailRoundness = ThumbnailRoundness.Medium
                     showNextSongsInPlayer = true
-                    colorPaletteName = ColorPaletteName.Dynamic
+                    colorPaletteName = ColorPaletteName.Default
                     colorPaletteMode = ColorPaletteMode.System
                     ///////ACTION BAR BUTTONS////////////////
                     transparentBackgroundActionBarPlayer = true
@@ -1091,7 +1091,7 @@ fun AppearanceSettings(
                     showthumbnail = false
                     noblur = true
                     topPadding = false
-                    playerBackgroundColors = PlayerBackgroundColors.BlurredCoverColor
+                    playerBackgroundColors = PlayerBackgroundColors.CoverColorGradient
                     blurStrength = 50f
                     playerPlayButtonType = PlayerPlayButtonType.Disabled
                     playerInfoType = PlayerInfoType.Modern
@@ -1107,7 +1107,7 @@ fun AppearanceSettings(
                     bottomgradient = true
                     showlyricsthumbnail = false
                     showNextSongsInPlayer = false
-                    colorPaletteName = ColorPaletteName.Dynamic
+                    colorPaletteName = ColorPaletteName.Default
                     colorPaletteMode = ColorPaletteMode.System
                     ///////ACTION BAR BUTTONS////////////////
                     transparentBackgroundActionBarPlayer = true
@@ -1133,14 +1133,14 @@ fun AppearanceSettings(
                     showTopActionsBar = false
                     topPadding = false
                     showthumbnail = true
-                    playerBackgroundColors = PlayerBackgroundColors.BlurredCoverColor
+                    playerBackgroundColors = PlayerBackgroundColors.CoverColorGradient
                     blurStrength = 50f
                     playerInfoType = PlayerInfoType.Essential
                     playerTimelineType = PlayerTimelineType.FakeAudioBar
                     playerTimelineSize = PlayerTimelineSize.Biggest
                     playerControlsType = PlayerControlsType.Modern
                     playerPlayButtonType = PlayerPlayButtonType.Disabled
-                    colorPaletteName = ColorPaletteName.PureBlack
+                    colorPaletteName = ColorPaletteName.Default
                     transparentbar = false
                     playerType = PlayerType.Essential
                     expandedplayer = false
@@ -1187,8 +1187,8 @@ fun AppearanceSettings(
                     playerTimelineSize = PlayerTimelineSize.Biggest
                     playerControlsType = PlayerControlsType.Essential
                     playerPlayButtonType = PlayerPlayButtonType.Square
-                    colorPaletteName = ColorPaletteName.Dynamic
-                    colorPaletteMode = ColorPaletteMode.PitchBlack
+                    colorPaletteName = ColorPaletteName.Default
+                    colorPaletteMode = ColorPaletteMode.Dark
                     transparentbar = false
                     playerType = PlayerType.Modern
                     expandedplayer = false
@@ -1233,7 +1233,7 @@ fun AppearanceSettings(
                     playerTimelineSize = PlayerTimelineSize.Biggest
                     playerControlsType = PlayerControlsType.Essential
                     playerPlayButtonType = PlayerPlayButtonType.CircularRibbed
-                    colorPaletteName = ColorPaletteName.Dynamic
+                    colorPaletteName = ColorPaletteName.Default
                     colorPaletteMode = ColorPaletteMode.System
                     transparentbar = false
                     playerType = PlayerType.Essential
@@ -1386,7 +1386,7 @@ fun AppearanceSettings(
                             },
                         )
 
-                    if (playerBackgroundColors == PlayerBackgroundColors.BlurredCoverColor) {
+                    if (playerBackgroundColors == PlayerBackgroundColors.CoverColorGradient) {
                         if (search.input.isBlank() || stringResource(R.string.show_thumbnail).contains(
                                 search.input,
                                 true
@@ -1418,7 +1418,7 @@ fun AppearanceSettings(
                                         SwipeAnimationNoThumbnail.Circle -> stringResource(R.string.vt_circular)
                                     }
                                 },
-                                modifier = Modifier.padding(start = if (playerBackgroundColors == PlayerBackgroundColors.BlurredCoverColor) 12.dp else 0.dp)
+                                modifier = Modifier.padding(start = if (playerBackgroundColors == PlayerBackgroundColors.CoverColorGradient) 12.dp else 0.dp)
                             )
                     }
                     AnimatedVisibility(visible = showthumbnail) {
@@ -1434,7 +1434,7 @@ fun AppearanceSettings(
                                         text = "",
                                         isChecked = fadingedge,
                                         onCheckedChange = { fadingedge = it },
-                                        modifier = Modifier.padding(start = if (playerBackgroundColors == PlayerBackgroundColors.BlurredCoverColor) 12.dp else 0.dp)
+                                        modifier = Modifier.padding(start = if (playerBackgroundColors == PlayerBackgroundColors.CoverColorGradient) 12.dp else 0.dp)
                                     )
                             }
 
@@ -1449,7 +1449,7 @@ fun AppearanceSettings(
                                         text = "",
                                         isChecked = carousel,
                                         onCheckedChange = { carousel = it },
-                                        modifier = Modifier.padding(start = if (playerBackgroundColors == PlayerBackgroundColors.BlurredCoverColor) 12.dp else 0.dp)
+                                        modifier = Modifier.padding(start = if (playerBackgroundColors == PlayerBackgroundColors.CoverColorGradient) 12.dp else 0.dp)
                                     )
 
                                 if (search.input.isBlank() || stringResource(R.string.carouselsize).contains(
@@ -1470,7 +1470,7 @@ fun AppearanceSettings(
                                                 CarouselSize.Expanded -> stringResource(R.string.expanded)
                                             }
                                         },
-                                        modifier = Modifier.padding(start = if (playerBackgroundColors == PlayerBackgroundColors.BlurredCoverColor) 12.dp else 0.dp)
+                                        modifier = Modifier.padding(start = if (playerBackgroundColors == PlayerBackgroundColors.CoverColorGradient) 12.dp else 0.dp)
                                     )
                             }
                             if (playerType == PlayerType.Essential) {
@@ -1485,7 +1485,7 @@ fun AppearanceSettings(
                                         text = "",
                                         isChecked = thumbnailpause,
                                         onCheckedChange = { thumbnailpause = it },
-                                        modifier = Modifier.padding(start = if (playerBackgroundColors == PlayerBackgroundColors.BlurredCoverColor) 12.dp else 0.dp)
+                                        modifier = Modifier.padding(start = if (playerBackgroundColors == PlayerBackgroundColors.CoverColorGradient) 12.dp else 0.dp)
                                     )
 
                                 if (search.input.isBlank() || stringResource(R.string.show_lyrics_thumbnail).contains(
@@ -1498,7 +1498,7 @@ fun AppearanceSettings(
                                         text = "",
                                         isChecked = showlyricsthumbnail,
                                         onCheckedChange = { showlyricsthumbnail = it },
-                                        modifier = Modifier.padding(start = if (playerBackgroundColors == PlayerBackgroundColors.BlurredCoverColor) 12.dp else 0.dp)
+                                        modifier = Modifier.padding(start = if (playerBackgroundColors == PlayerBackgroundColors.CoverColorGradient) 12.dp else 0.dp)
                                     )
                                 if (visualizerEnabled) {
                                     if (search.input.isBlank() || stringResource(R.string.showvisthumbnail).contains(
@@ -1511,7 +1511,7 @@ fun AppearanceSettings(
                                             text = "",
                                             isChecked = showvisthumbnail,
                                             onCheckedChange = { showvisthumbnail = it },
-                                            modifier = Modifier.padding(start = if (playerBackgroundColors == PlayerBackgroundColors.BlurredCoverColor) 12.dp else 0.dp)
+                                            modifier = Modifier.padding(start = if (playerBackgroundColors == PlayerBackgroundColors.CoverColorGradient) 12.dp else 0.dp)
                                         )
                                 }
                             }
@@ -1526,7 +1526,7 @@ fun AppearanceSettings(
                                     text = "",
                                     isChecked = showCoverThumbnailAnimation,
                                     onCheckedChange = { showCoverThumbnailAnimation = it },
-                                    modifier = Modifier.padding(start = if (playerBackgroundColors == PlayerBackgroundColors.BlurredCoverColor) 12.dp else 0.dp)
+                                    modifier = Modifier.padding(start = if (playerBackgroundColors == PlayerBackgroundColors.CoverColorGradient) 12.dp else 0.dp)
                                 )
                                 AnimatedVisibility(visible = showCoverThumbnailAnimation) {
                                     Column {
@@ -1535,7 +1535,7 @@ fun AppearanceSettings(
                                             selectedValue = coverThumbnailAnimation,
                                             onValueSelected = { coverThumbnailAnimation = it },
                                             valueText = { it.textName },
-                                            modifier = Modifier.padding(start = if (playerBackgroundColors == PlayerBackgroundColors.BlurredCoverColor) 24.dp else 12.dp)
+                                            modifier = Modifier.padding(start = if (playerBackgroundColors == PlayerBackgroundColors.CoverColorGradient) 24.dp else 12.dp)
                                         )
                                     }
                                 }
@@ -1560,7 +1560,7 @@ fun AppearanceSettings(
                                                 PlayerThumbnailSize.Expanded -> stringResource(R.string.expanded)
                                             }
                                         },
-                                        modifier = Modifier.padding(start = if (playerBackgroundColors == PlayerBackgroundColors.BlurredCoverColor) 12.dp else 0.dp)
+                                        modifier = Modifier.padding(start = if (playerBackgroundColors == PlayerBackgroundColors.CoverColorGradient) 12.dp else 0.dp)
                                     )
                             } else {
                                 if (search.input.isBlank() || stringResource(R.string.player_thumbnail_size).contains(
@@ -1581,7 +1581,7 @@ fun AppearanceSettings(
                                                 PlayerThumbnailSize.Expanded -> stringResource(R.string.expanded)
                                             }
                                         },
-                                        modifier = Modifier.padding(start = if (playerBackgroundColors == PlayerBackgroundColors.BlurredCoverColor) 12.dp else 0.dp)
+                                        modifier = Modifier.padding(start = if (playerBackgroundColors == PlayerBackgroundColors.CoverColorGradient) 12.dp else 0.dp)
                                     )
                             }
                             if (search.input.isBlank() || stringResource(R.string.thumbnailtype).contains(
@@ -1601,7 +1601,7 @@ fun AppearanceSettings(
                                             ThumbnailType.Essential -> stringResource(R.string.pcontrols_essential)
                                         }
                                     },
-                                    modifier = Modifier.padding(start = if (playerBackgroundColors == PlayerBackgroundColors.BlurredCoverColor) 12.dp else 0.dp)
+                                    modifier = Modifier.padding(start = if (playerBackgroundColors == PlayerBackgroundColors.CoverColorGradient) 12.dp else 0.dp)
                                 )
 
                             if (search.input.isBlank() || stringResource(R.string.thumbnail_roundness).contains(
@@ -1636,7 +1636,7 @@ fun AppearanceSettings(
                                             ThumbnailRoundness.Medium -> stringResource(R.string.medium)
                                         }
                                     },
-                                    modifier = Modifier.padding(start = if (playerBackgroundColors == PlayerBackgroundColors.BlurredCoverColor) 12.dp else 0.dp)
+                                    modifier = Modifier.padding(start = if (playerBackgroundColors == PlayerBackgroundColors.CoverColorGradient) 12.dp else 0.dp)
                                 )
                         }
                     }
@@ -1914,7 +1914,7 @@ fun AppearanceSettings(
                                     PlayerBackgroundColors.ThemeColor -> stringResource(R.string.bg_colors_background_from_theme)
                                     PlayerBackgroundColors.CoverColorGradient -> stringResource(R.string.bg_colors_gradient_background_from_cover)
                                     PlayerBackgroundColors.ThemeColorGradient -> stringResource(R.string.bg_colors_gradient_background_from_theme)
-                                    PlayerBackgroundColors.BlurredCoverColor -> stringResource(R.string.bg_colors_blurred_cover_background)
+                                    PlayerBackgroundColors.CoverColorGradient -> stringResource(R.string.bg_colors_blurred_cover_background)
                                     PlayerBackgroundColors.ColorPalette -> stringResource(R.string.colorpalette)
                                     PlayerBackgroundColors.AnimatedGradient -> stringResource(R.string.animatedgradient)
                                     PlayerBackgroundColors.MidnightOdyssey -> stringResource(R.string.midnightodyssey)
@@ -1970,7 +1970,7 @@ fun AppearanceSettings(
                                 onCheckedChange = { blackgradient = it }
                             )
 
-                    if ((playerBackgroundColors == PlayerBackgroundColors.BlurredCoverColor) && (playerType == PlayerType.Modern))
+                    if ((playerBackgroundColors == PlayerBackgroundColors.CoverColorGradient) && (playerType == PlayerType.Modern))
                         if (search.input.isBlank() || stringResource(R.string.albumCoverRotation).contains(
                                 search.input,
                                 true
@@ -1985,7 +1985,7 @@ fun AppearanceSettings(
                                     .padding(start = 12.dp)
                             )
 
-                    if (playerBackgroundColors == PlayerBackgroundColors.BlurredCoverColor)
+                    if (playerBackgroundColors == PlayerBackgroundColors.CoverColorGradient)
                         if (search.input.isBlank() || stringResource(R.string.bottomgradient).contains(
                                 search.input,
                                 true
@@ -2672,6 +2672,8 @@ fun AppearanceSettings(
 
                 settingsItem {
                     SettingsGroupSpacer()
+                    // Yammbo: Reset section hidden
+                    /*
                     var resetToDefault by remember { mutableStateOf(false) }
 
                     ButtonBarSettingEntry(
@@ -2687,6 +2689,7 @@ fun AppearanceSettings(
                         navController.popBackStack()
                         SmartMessage(stringResource(R.string.done), context = context)
                     }
+                    */
 
                     SettingsGroupSpacer()
                     ButtonBarSettingEntry(

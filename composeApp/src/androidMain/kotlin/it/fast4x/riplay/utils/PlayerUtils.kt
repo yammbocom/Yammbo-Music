@@ -26,7 +26,7 @@ import androidx.media3.common.Player.REPEAT_MODE_ONE
 import androidx.media3.common.Timeline
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSpec
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.commonutils.durationTextToMillis
 import it.fast4x.riplay.data.Database
 import it.fast4x.riplay.data.models.QueuedMediaItem

@@ -24,7 +24,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.media3.common.util.UnstableApi
 
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.enums.NavigationBarPosition
 import it.fast4x.riplay.enums.PopupType
 import it.fast4x.riplay.ui.components.themed.HeaderWithIcon
@@ -128,7 +128,7 @@ fun MiscSettings() {
 
             val file =
                 File(context.filesDir.resolve("logs"),
-                    if (exportCrashlog) "RiPlay_crash_log.txt" else  "RiPlay_log.txt"
+                    if (exportCrashlog) "YammboMusic_crash_log.txt" else  "YammboMusic_log.txt"
                 )
             if (file.exists()) {
                 text = file.readText()
@@ -489,12 +489,12 @@ fun MiscSettings() {
                     onCheckedChange = {
                         logDebugEnabled = it
                         if (!it) {
-                            val file = File(context.filesDir.resolve("logs"), "RiPlay_log.txt")
+                            val file = File(context.filesDir.resolve("logs"), "YammboMusic_log.txt")
                             if (file.exists())
                                 file.delete()
 
                             val filec =
-                                File(context.filesDir.resolve("logs"), "RiPlay_crash_log.txt")
+                                File(context.filesDir.resolve("logs"), "YammboMusic_crash_log.txt")
                             if (filec.exists())
                                 filec.delete()
 
@@ -538,7 +538,7 @@ fun MiscSettings() {
                     onClick = {
                         exportCrashlog = true
                         isExporting = true
-//                val file = File(context.filesDir.resolve("logs"), "RiPlay_crash_log.txt")
+//                val file = File(context.filesDir.resolve("logs"), "YammboMusic_crash_log.txt")
 //                if (file.exists()) {
 //                    text = file.readText()
 //                    text?.let {

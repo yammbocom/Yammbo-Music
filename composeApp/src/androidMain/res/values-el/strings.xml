@@ -1,5 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Auth screens -->
+    <string name="auth_email">Email</string>
+    <string name="auth_password">Κωδικός</string>
+    <string name="auth_confirm_password">Επιβεβαίωση Κωδικού</string>
+    <string name="auth_login">Σύνδεση</string>
+    <string name="auth_register">Εγγραφή</string>
+    <string name="auth_forgot_password">Ξεχάσατε τον κωδικό;</string>
+    <string name="auth_create_account">Δημιουργία Λογαριασμού</string>
+    <string name="auth_back_to_login">Πίσω στη Σύνδεση</string>
+    <string name="auth_reset_password">Επαναφορά Κωδικού</string>
+    <string name="auth_send_reset_link">Αποστολή Συνδέσμου Επαναφοράς</string>
+    <string name="auth_fill_all_fields">Παρακαλώ συμπληρώστε όλα τα πεδία</string>
+    <string name="auth_passwords_not_match">Οι κωδικοί δεν ταιριάζουν</string>
+    <string name="auth_password_min_length">Ο κωδικός πρέπει να έχει τουλάχιστον 6 χαρακτήρες</string>
+    <string name="auth_enter_email">Παρακαλώ εισάγετε το email σας</string>
+    <string name="auth_reset_description">Εισάγετε τη διεύθυνση email σας και θα σας στείλουμε σύνδεσμο για επαναφορά του κωδικού σας.</string>
+    <string name="auth_account_created_verify">Ο λογαριασμός δημιουργήθηκε! Ελέγξτε το email σας για επιβεβαίωση.</string>
+    <string name="auth_account_created_success">Ο λογαριασμός δημιουργήθηκε επιτυχώς! Μπορείτε τώρα να συνδεθείτε.</string>
+    <string name="auth_login_failed">Η σύνδεση απέτυχε</string>
+    <string name="auth_registration_failed">Η εγγραφή απέτυχε</string>
     <string name="cancel">Άκυρο</string>
     <string name="done">Τέλος</string>
     <string name="hidesong">Θέλετε να διαγράψετε αυτό το τραγούδι; Ο χρόνος ακρόασης και η προσωρινή μνήμη του θα διαγραφούν.\nΑυτή η ενέργεια δεν είναι αναστρέψιμη.</string>

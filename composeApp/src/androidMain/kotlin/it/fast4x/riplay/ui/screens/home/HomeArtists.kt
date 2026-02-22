@@ -51,7 +51,7 @@ import androidx.navigation.NavController
 import it.fast4x.riplay.extensions.persist.persistList
 import it.fast4x.environment.EnvironmentExt
 import it.fast4x.riplay.data.Database
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.enums.ArtistSortBy
 import it.fast4x.riplay.enums.ArtistsType
 import it.fast4x.riplay.enums.NavigationBarPosition

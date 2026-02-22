@@ -1,5 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Auth screens -->
+    <string name="auth_email">E-mail</string>
+    <string name="auth_password">Heslo</string>
+    <string name="auth_confirm_password">Potvrdit Heslo</string>
+    <string name="auth_login">Přihlásit se</string>
+    <string name="auth_register">Registrovat se</string>
+    <string name="auth_forgot_password">Zapomněli jste heslo?</string>
+    <string name="auth_create_account">Vytvořit Účet</string>
+    <string name="auth_back_to_login">Zpět na Přihlášení</string>
+    <string name="auth_reset_password">Obnovit Heslo</string>
+    <string name="auth_send_reset_link">Odeslat Odkaz pro Obnovení</string>
+    <string name="auth_fill_all_fields">Vyplňte prosím všechna pole</string>
+    <string name="auth_passwords_not_match">Hesla se neshodují</string>
+    <string name="auth_password_min_length">Heslo musí mít alespoň 6 znaků</string>
+    <string name="auth_enter_email">Zadejte prosím svůj e-mail</string>
+    <string name="auth_reset_description">Zadejte svou e-mailovou adresu a pošleme vám odkaz pro obnovení hesla.</string>
+    <string name="auth_account_created_verify">Účet vytvořen! Zkontrolujte e-mail pro ověření.</string>
+    <string name="auth_account_created_success">Účet úspěšně vytvořen! Nyní se můžete přihlásit.</string>
+    <string name="auth_login_failed">Přihlášení selhalo</string>
+    <string name="auth_registration_failed">Registrace selhala</string>
     <string name="cancel">Zrušit</string>
     <string name="done">Hotovo</string>
     <string name="hidesong">Opravdu chcete tuto skladbu skrýt? Její čas přehrávání a mezipaměť budou vymazány. Tato akce je nevratná.</string>

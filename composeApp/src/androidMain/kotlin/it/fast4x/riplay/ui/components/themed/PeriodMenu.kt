@@ -16,7 +16,7 @@ import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.enums.MaxTopPlaylistItems
 import it.fast4x.riplay.enums.TopPlaylistPeriod
 import it.fast4x.riplay.extensions.preferences.MaxTopPlaylistItemsKey
@@ -36,7 +36,7 @@ fun PeriodMenu (
     val density = LocalDensity.current
     val maxTopPlaylistItems by rememberPreference(
         MaxTopPlaylistItemsKey,
-        MaxTopPlaylistItems.`10`
+        MaxTopPlaylistItems.`50`
     )
 
     Menu(

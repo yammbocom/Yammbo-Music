@@ -95,7 +95,7 @@ import it.fast4x.riplay.data.Database.Companion.songAlbumInfo
 import it.fast4x.riplay.data.Database.Companion.songArtistInfo
 import it.fast4x.riplay.LocalPlayerServiceBinder
 import it.fast4x.riplay.LocalSelectedQueue
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.enums.MaxSongs
 import it.fast4x.riplay.enums.NavRoutes
 import it.fast4x.riplay.enums.NavigationBarPosition
@@ -308,7 +308,7 @@ fun LocalPlaylistSongs(
     //**** SMART RECOMMENDATION
     val recommendationsNumber by rememberPreference(
         recommendationsNumberKey,
-        RecommendationsNumber.`5`
+        RecommendationsNumber.`20`
     )
     var isRecommendationEnabled by rememberPreference(isRecommendationEnabledKey, false)
     var relatedSongsRecommendationResult by persist<Result<Environment.RelatedSongs?>?>(tag = "home/relatedSongsResult")

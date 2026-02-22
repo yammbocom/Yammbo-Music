@@ -1,5 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Auth screens -->
+    <string name="auth_email">ఇమెయిల్</string>
+    <string name="auth_password">పాస్‌వర్డ్</string>
+    <string name="auth_confirm_password">పాస్‌వర్డ్ నిర్ధారించండి</string>
+    <string name="auth_login">లాగిన్</string>
+    <string name="auth_register">నమోదు</string>
+    <string name="auth_forgot_password">పాస్‌వర్డ్ మర్చిపోయారా?</string>
+    <string name="auth_create_account">ఖాతా సృష్టించండి</string>
+    <string name="auth_back_to_login">లాగిన్‌కు తిరిగి వెళ్ళండి</string>
+    <string name="auth_reset_password">పాస్‌వర్డ్ రీసెట్ చేయండి</string>
+    <string name="auth_send_reset_link">రీసెట్ లింక్ పంపండి</string>
+    <string name="auth_fill_all_fields">దయచేసి అన్ని ఫీల్డ్‌లను నింపండి</string>
+    <string name="auth_passwords_not_match">పాస్‌వర్డ్‌లు సరిపోలడం లేదు</string>
+    <string name="auth_password_min_length">పాస్‌వర్డ్ కనీసం 6 అక్షరాలు ఉండాలి</string>
+    <string name="auth_enter_email">దయచేసి మీ ఇమెయిల్ నమోదు చేయండి</string>
+    <string name="auth_reset_description">మీ ఇమెయిల్ చిరునామా నమోదు చేయండి, పాస్‌వర్డ్ రీసెట్ చేయడానికి లింక్ పంపుతాము.</string>
+    <string name="auth_account_created_verify">ఖాతా సృష్టించబడింది! ధృవీకరణ కోసం మీ ఇమెయిల్ తనిఖీ చేయండి.</string>
+    <string name="auth_account_created_success">ఖాతా విజయవంతంగా సృష్టించబడింది! ఇప్పుడు లాగిన్ చేయవచ్చు.</string>
+    <string name="auth_login_failed">లాగిన్ విఫలమైంది</string>
+    <string name="auth_registration_failed">నమోదు విఫలమైంది</string>
     <string name="cancel">రద్దు చేయి</string>
     <string name="done">పూర్తి చేయి</string>
     <string name="hidesong">నీవు నిజంగానే ఈ పాటను దాచలి (దాయలి) అనుకుంటున్నావా? ప్రస్తుతం నీవు పాటలు వింటున్నవు. నీ పాట యొక్క cache కొల్పోతావు. ఒకసారి పాటను దాచిటే మళ్ళీ వెనక్కి తీసుకురాలేవు.</string>

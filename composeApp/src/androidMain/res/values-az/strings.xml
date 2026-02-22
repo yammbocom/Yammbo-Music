@@ -1,5 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Auth screens -->
+    <string name="auth_email">E-poçt</string>
+    <string name="auth_password">Şifrə</string>
+    <string name="auth_confirm_password">Şifrəni Təsdiqləyin</string>
+    <string name="auth_login">Daxil ol</string>
+    <string name="auth_register">Qeydiyyat</string>
+    <string name="auth_forgot_password">Şifrəni unutdunuz?</string>
+    <string name="auth_create_account">Hesab Yaradın</string>
+    <string name="auth_back_to_login">Girişə Qayıt</string>
+    <string name="auth_reset_password">Şifrəni Sıfırla</string>
+    <string name="auth_send_reset_link">Sıfırlama Linkini Göndər</string>
+    <string name="auth_fill_all_fields">Zəhmət olmasa bütün sahələri doldurun</string>
+    <string name="auth_passwords_not_match">Şifrələr uyğun gəlmir</string>
+    <string name="auth_password_min_length">Şifrə ən azı 6 simvol olmalıdır</string>
+    <string name="auth_enter_email">Zəhmət olmasa e-poçtunuzu daxil edin</string>
+    <string name="auth_reset_description">E-poçt ünvanınızı daxil edin və şifrənizi sıfırlamaq üçün sizə link göndərəcəyik.</string>
+    <string name="auth_account_created_verify">Hesab yaradıldı! Doğrulama üçün e-poçtunuzu yoxlayın.</string>
+    <string name="auth_account_created_success">Hesab uğurla yaradıldı! İndi daxil ola bilərsiniz.</string>
+    <string name="auth_login_failed">Giriş uğursuz oldu</string>
+    <string name="auth_registration_failed">Qeydiyyat uğursuz oldu</string>
     <string name="cancel">Ləğv et</string>
     <string name="done">Bitdi</string>
     <string name="hidesong">Həqiqətən bu mahnını gizlətmək istəyirsiz? Onun dinlənmə vaxtı və qalığı silinəcək. Bu tələb geri dönməzdir.</string>

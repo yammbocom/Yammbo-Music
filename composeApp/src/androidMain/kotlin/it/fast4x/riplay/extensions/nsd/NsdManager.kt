@@ -49,8 +49,8 @@ fun registerNsdService() {
     val serviceInfo = NsdServiceInfo().apply {
         // The name is subject to change based on conflicts
         // with other services advertised on the same network.
-        serviceName = "RiPlayLinkApp"
-        serviceType = "_RiPlayLinkApp._tcp."
+        serviceName = "YammboMusicLinkApp"
+        serviceType = "_YammboMusicLinkApp._tcp."
         port = 8000
     }
 
@@ -129,6 +129,6 @@ fun discoverNsdServices(
         }
     }
 
-    nsdManager.discoverServices("_RiPlayLinkApp._tcp.", NsdManager.PROTOCOL_DNS_SD, discoveryListener)
+    nsdManager.discoverServices("_YammboMusicApp._tcp.", NsdManager.PROTOCOL_DNS_SD, discoveryListener)
 
 }

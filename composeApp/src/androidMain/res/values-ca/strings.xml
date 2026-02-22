@@ -1,5 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Auth screens -->
+    <string name="auth_email">Correu electrònic</string>
+    <string name="auth_password">Contrasenya</string>
+    <string name="auth_confirm_password">Confirmar Contrasenya</string>
+    <string name="auth_login">Iniciar sessió</string>
+    <string name="auth_register">Registrar-se</string>
+    <string name="auth_forgot_password">Has oblidat la contrasenya?</string>
+    <string name="auth_create_account">Crear Compte</string>
+    <string name="auth_back_to_login">Tornar a Iniciar sessió</string>
+    <string name="auth_reset_password">Restablir Contrasenya</string>
+    <string name="auth_send_reset_link">Enviar Enllaç de Restabliment</string>
+    <string name="auth_fill_all_fields">Si us plau, ompliu tots els camps</string>
+    <string name="auth_passwords_not_match">Les contrasenyes no coincideixen</string>
+    <string name="auth_password_min_length">La contrasenya ha de tenir almenys 6 caràcters</string>
+    <string name="auth_enter_email">Si us plau, introduïu el vostre correu</string>
+    <string name="auth_reset_description">Introduïu la vostra adreça de correu electrònic i us enviarem un enllaç per restablir la contrasenya.</string>
+    <string name="auth_account_created_verify">Compte creat! Comproveu el correu per verificar.</string>
+    <string name="auth_account_created_success">Compte creat amb èxit! Ara podeu iniciar sessió.</string>
+    <string name="auth_login_failed">Error d\'inici de sessió</string>
+    <string name="auth_registration_failed">Error de registre</string>
     <string name="cancel">Cancel·lar</string>
     <string name="done">Fet</string>
     <string name="hidesong">Vols amagar aquesta cançó? El seu temps de reproducció i la memòria cau s\'esborrarà. Aquesta acció no es pot desfer.</string>

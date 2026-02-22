@@ -23,7 +23,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
-import it.fast4x.riplay.R
+import com.yambo.music.R
 
 enum class AnimationType {
     SLIDE_AND_FADE,

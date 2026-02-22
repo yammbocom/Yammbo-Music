@@ -7,7 +7,7 @@
         android:shortcutShortLabel="@string/search">
         <intent
             android:targetClass="it.fast4x.riplay.MainActivity"
-            android:targetPackage="it.fast4x.riplay"
+            android:targetPackage="com.yambo.music"
             android:action="it.fast4x.riplay.action.search" />
     </shortcut>
     <shortcut
@@ -17,7 +17,7 @@
         android:shortcutShortLabel="@string/music_identify">
         <intent
             android:targetClass="it.fast4x.riplay.MainActivity"
-            android:targetPackage="it.fast4x.riplay"
+            android:targetPackage="com.yambo.music"
             android:action="it.fast4x.riplay.action.musicidentifier" />
     </shortcut>
     <!--
@@ -28,7 +28,7 @@
         android:shortcutShortLabel="@string/songs">
         <intent
             android:targetClass="it.fast4x.riplay.MainActivity"
-            android:targetPackage="it.fast4x.riplay"
+            android:targetPackage="com.yambo.music"
             android:action="it.fast4x.riplay.action.songs" />
     </shortcut>
 
@@ -39,7 +39,7 @@
         android:shortcutShortLabel="@string/albums">
         <intent
             android:targetClass="it.fast4x.riplay.MainActivity"
-            android:targetPackage="it.fast4x.riplay"
+            android:targetPackage="com.yambo.music"
             android:action="it.fast4x.riplay.action.albums" />
     </shortcut>
     -->
@@ -50,7 +50,7 @@
         android:shortcutShortLabel="@string/playlists">
         <intent
             android:targetClass="it.fast4x.riplay.MainActivity"
-            android:targetPackage="it.fast4x.riplay"
+            android:targetPackage="com.yambo.music"
             android:action="it.fast4x.riplay.action.library" />
     </shortcut>
     <shortcut
@@ -60,7 +60,7 @@
         android:shortcutShortLabel="@string/rescue_center">
         <intent
             android:targetClass="it.fast4x.riplay.MainActivity"
-            android:targetPackage="it.fast4x.riplay"
+            android:targetPackage="com.yambo.music"
             android:action="it.fast4x.riplay.action.rescuecenter" />
     </shortcut>
 </shortcuts>

@@ -87,7 +87,7 @@ fun binder() = LocalPlayerServiceBinder.current
 fun appContext(): Context = Dependencies.application.applicationContext
 fun globalContext(): Context = Dependencies.application
 
-fun getColorTheme() = appContext().preferences.getEnum(colorPaletteModeKey, ColorPaletteMode.Dark)
+fun getColorTheme() = appContext().preferences.getEnum(colorPaletteModeKey, ColorPaletteMode.System)
 fun getViewType() = appContext().preferences.getEnum(viewTypeKey, ViewType.Grid)
 fun getDnsOverHttpsType() = appContext().preferences.getEnum(dnsOverHttpsTypeKey, DnsOverHttpsType.None)
 fun getUiType() = appContext().preferences.getEnum(UiTypeKey, UiType.RiPlay)
@@ -96,7 +96,7 @@ fun getPauseListenHistory() = appContext().preferences.getBoolean(pauseListenHis
 fun getMinTimeForEvent() = appContext().preferences.getEnum(exoPlayerMinTimeForEventKey, MinTimeForEvent.`20s`)
 fun getLastYTVideoId() = appContext().preferences.getString(lastVideoIdKey, "")
 fun getLastYTVideoSeconds() = appContext().preferences.getFloat(lastVideoSecondsKey, 0f)
-fun getPlayerTimelineType() = appContext().preferences.getEnum(playerTimelineTypeKey, PlayerTimelineType.Default)
+fun getPlayerTimelineType() = appContext().preferences.getEnum(playerTimelineTypeKey, PlayerTimelineType.Wavy)
 fun getPlaybackFadeAudioDuration() = appContext().preferences.getEnum(playbackFadeAudioDurationKey, DurationInMilliseconds.Disabled)
 fun getKeepPlayerMinimized() = appContext().preferences.getBoolean(keepPlayerMinimizedKey, false)
 fun getlastFmSessionKey() = appContext().preferences.getString(lastfmSessionTokenKey, "")

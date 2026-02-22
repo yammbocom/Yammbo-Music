@@ -160,7 +160,7 @@ import it.fast4x.environment.Environment
 import it.fast4x.environment.models.NavigationEndpoint
 import it.fast4x.riplay.LocalPlayerServiceBinder
 import it.fast4x.riplay.LocalSelectedQueue
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.appRunningInBackground
 import it.fast4x.riplay.commonutils.cleanPrefix
 import it.fast4x.riplay.commonutils.durationTextToMillis
@@ -603,7 +603,7 @@ fun OnlinePlayer(
             }
         )
     }
-    val actionspacedevenly by rememberObservedPreference(actionspacedevenlyKey, false)
+    val actionspacedevenly by rememberObservedPreference(actionspacedevenlyKey, true)
     var expandedplayer by rememberPreference(expandedplayerKey, false)
 
     var updateBrush by rememberSaveable { mutableStateOf(false) }
@@ -666,7 +666,7 @@ fun OnlinePlayer(
     val showButtonPlayerAddToPlaylist by rememberObservedPreference(showButtonPlayerAddToPlaylistKey, true)
     val showButtonPlayerArrow by rememberObservedPreference(showButtonPlayerArrowKey, true)
     val showButtonPlayerDownload by rememberObservedPreference(showButtonPlayerDownloadKey, true)
-    val showButtonPlayerLoop by rememberObservedPreference(showButtonPlayerLoopKey, true)
+    val showButtonPlayerLoop by rememberObservedPreference(showButtonPlayerLoopKey, false)
     val showButtonPlayerLyrics by rememberObservedPreference(showButtonPlayerLyricsKey, true)
     val expandedplayertoggle by rememberPreference(expandedplayertoggleKey, true)
     val showButtonPlayerShuffle by rememberObservedPreference(showButtonPlayerShuffleKey, true)
@@ -677,7 +677,7 @@ fun OnlinePlayer(
         showButtonPlayerSystemEqualizerKey,
         false
     )
-    val showButtonPlayerVideo by rememberObservedPreference(showButtonPlayerVideoKey, true)
+    val showButtonPlayerVideo by rememberObservedPreference(showButtonPlayerVideoKey, false)
 
     val showTotalTimeQueue by rememberObservedPreference(showTotalTimeQueueKey, true)
     val backgroundProgress by rememberObservedPreference(
@@ -857,7 +857,7 @@ fun OnlinePlayer(
     var darkMuted by rememberSaveable { mutableStateOf(0) }
 
 
-    val colorPaletteMode by rememberPreference(colorPaletteModeKey, ColorPaletteMode.Dark)
+    val colorPaletteMode by rememberPreference(colorPaletteModeKey, ColorPaletteMode.System)
 
     var lightTheme =
         colorPaletteMode == ColorPaletteMode.Light || (colorPaletteMode == ColorPaletteMode.System && (!isSystemInDarkTheme()))
@@ -874,7 +874,7 @@ fun OnlinePlayer(
 
     val playerBackgroundColors by rememberObservedPreference(
         playerBackgroundColorsKey,
-        PlayerBackgroundColors.BlurredCoverColor
+        PlayerBackgroundColors.CoverColorGradient
     )
     val animatedGradient by rememberObservedPreference(
         animatedGradientKey,
@@ -1012,7 +1012,7 @@ fun OnlinePlayer(
 
     val transparentBackgroundActionBarPlayer by rememberObservedPreference(
         transparentBackgroundPlayerActionBarKey,
-        false
+        true
     )
     val showTopActionsBar by rememberObservedPreference(showTopActionsBarKey, true)
     val showPlayerActionsBar by rememberObservedPreference(showPlayerActionsBarKey, true)
@@ -1021,7 +1021,7 @@ fun OnlinePlayer(
         //.padding(bottom = bottomDp)
         .padding(bottom = 0.dp)
     var deltaX by rememberSaveable { mutableStateOf(0f) }
-    val blackgradient by rememberObservedPreference(blackgradientKey, false)
+    val blackgradient by rememberObservedPreference(blackgradientKey, true)
     val bottomgradient by rememberObservedPreference(bottomgradientKey, false)
     val disableScrollingText by rememberObservedPreference(disableScrollingTextKey, false)
 
@@ -1054,7 +1054,7 @@ fun OnlinePlayer(
         containerModifier = containerModifier
             .background(dynamicColorPalette.accent.copy(0.8f).compositeOver(Color.Black))
     } else if (!isGradientBackgroundEnabled) {
-        if (playerBackgroundColors == PlayerBackgroundColors.BlurredCoverColor && (playerType == PlayerType.Essential || (showthumbnail && (!albumCoverRotation)))) {
+        if (playerBackgroundColors == PlayerBackgroundColors.CoverColorGradient && (playerType == PlayerType.Essential || (showthumbnail && (!albumCoverRotation)))) {
             containerModifier = containerModifier
                 .background(dynamicColorPalette.background1)
                 .paint(
@@ -2255,7 +2255,7 @@ fun OnlinePlayer(
 
                 if (!mediaItem.isVideo) {
 
-                    if ((playerBackgroundColors == PlayerBackgroundColors.BlurredCoverColor && playerType == PlayerType.Modern && (!showthumbnail || albumCoverRotation)) || (animatedGradient == AnimatedGradient.Random && tempGradient == gradients[14])) {
+                    if ((playerBackgroundColors == PlayerBackgroundColors.CoverColorGradient && playerType == PlayerType.Modern && (!showthumbnail || albumCoverRotation)) || (animatedGradient == AnimatedGradient.Random && tempGradient == gradients[14])) {
                         val fling = PagerDefaults.flingBehavior(
                             state = pagerStateFS,
                             snapPositionalThreshold = 0.20f
@@ -2852,7 +2852,7 @@ fun OnlinePlayer(
                         )
                     }
             ) {
-                if ((playerBackgroundColors == PlayerBackgroundColors.BlurredCoverColor && playerType == PlayerType.Modern && (!showthumbnail || albumCoverRotation)) || (animatedGradient == AnimatedGradient.Random && tempGradient == gradients[14])) {
+                if ((playerBackgroundColors == PlayerBackgroundColors.CoverColorGradient && playerType == PlayerType.Modern && (!showthumbnail || albumCoverRotation)) || (animatedGradient == AnimatedGradient.Random && tempGradient == gradients[14])) {
                     val fling = PagerDefaults.flingBehavior(
                         state = pagerStateFS,
                         snapPositionalThreshold = 0.30f
@@ -3190,7 +3190,7 @@ fun OnlinePlayer(
 
 
                             Image(
-                                painter = painterResource(R.drawable.app_icon),
+                                painter = painterResource(R.drawable.yambo_icon),
                                 contentDescription = null,
                                 colorFilter = ColorFilter.tint(if (playerBackgroundColors == PlayerBackgroundColors.MidnightOdyssey) dynamicColorPalette.background2 else colorPalette().collapsedPlayerProgressBar),
                                 modifier = Modifier

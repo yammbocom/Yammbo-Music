@@ -19,7 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
 import it.fast4x.environment.Environment
 import it.fast4x.riplay.LocalPlayerAwareWindowInsets
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.ui.components.themed.Title
 import it.fast4x.riplay.extensions.preferences.ytVisitorDataKey
 import it.fast4x.riplay.extensions.preferences.ytCookieKey

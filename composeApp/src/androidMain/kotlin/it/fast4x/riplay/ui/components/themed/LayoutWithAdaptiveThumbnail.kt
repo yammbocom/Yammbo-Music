@@ -20,7 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.media3.common.util.UnstableApi
 import coil.compose.AsyncImage
 import com.valentinilk.shimmer.shimmer
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.enums.PlayerThumbnailSize
 import it.fast4x.riplay.ui.styling.px
 import it.fast4x.riplay.ui.styling.shimmer

@@ -1,5 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Auth screens -->
+    <string name="auth_email">Email</string>
+    <string name="auth_password">Password</string>
+    <string name="auth_confirm_password">Confirm Password</string>
+    <string name="auth_login">Login</string>
+    <string name="auth_register">Register</string>
+    <string name="auth_forgot_password">Forgot Password?</string>
+    <string name="auth_create_account">Create Account</string>
+    <string name="auth_back_to_login">Back to Login</string>
+    <string name="auth_reset_password">Reset Password</string>
+    <string name="auth_send_reset_link">Send Reset Link</string>
+    <string name="auth_fill_all_fields">Please fill in all fields</string>
+    <string name="auth_passwords_not_match">Passwords do not match</string>
+    <string name="auth_password_min_length">Password must be at least 6 characters</string>
+    <string name="auth_enter_email">Please enter your email</string>
+    <string name="auth_reset_description">Enter your email address and we\'ll send you a link to reset your password.</string>
+    <string name="auth_account_created_verify">Account created! Check your email for verification.</string>
+    <string name="auth_account_created_success">Account created successfully! You can now login.</string>
+    <string name="auth_login_failed">Login failed</string>
+    <string name="auth_registration_failed">Registration failed</string>
     <string name="cancel">Cancel</string>
     <string name="done">Done</string>
     <string name="hidesong">Do you really want to hide this song? Its playback time and cache will be wiped. This action is irreversible.</string>

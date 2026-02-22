@@ -28,7 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.media3.common.util.UnstableApi
 import androidx.navigation.NavController
 import it.fast4x.riplay.extensions.persist.PersistMapCleanup
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.enums.NavRoutes
 import it.fast4x.riplay.enums.SearchType
 import it.fast4x.riplay.ui.components.themed.IconButton

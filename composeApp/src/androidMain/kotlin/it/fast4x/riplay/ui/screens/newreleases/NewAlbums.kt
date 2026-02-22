@@ -28,7 +28,7 @@ import androidx.navigation.NavController
 import it.fast4x.riplay.extensions.persist.persist
 import it.fast4x.environment.Environment
 import it.fast4x.environment.requests.discoverPage
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.enums.NavRoutes
 import it.fast4x.riplay.enums.NavigationBarPosition
 import it.fast4x.riplay.ui.components.themed.HeaderWithIcon

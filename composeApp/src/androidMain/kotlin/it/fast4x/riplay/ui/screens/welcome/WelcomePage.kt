@@ -30,7 +30,7 @@ fun WelcomePage(){
                 .fillMaxWidth()
         ) {
             Text(
-                text = "Welcome to RiPlay",
+                text = "Welcome to Yammbo Music",
                 style = TextStyle(
                     fontSize = typography().xl.bold.fontSize,
                     fontWeight = typography().xl.bold.fontWeight,

@@ -28,7 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.media3.common.util.UnstableApi
 import androidx.navigation.NavController
 import it.fast4x.riplay.data.Database
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.data.models.Blacklist
 import it.fast4x.riplay.enums.NavigationBarPosition
 import it.fast4x.riplay.enums.BlacklistType

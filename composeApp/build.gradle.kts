@@ -268,6 +268,8 @@ kotlin {
             implementation(libs.ktor.client.core)
             implementation(libs.ktor.client.okhttp)
             implementation(libs.ktor.client.websockets)
+            implementation(libs.ktor.client.content.negotiation)
+            implementation(libs.ktor.serialization.json)
             implementation(libs.multidex)
             implementation(libs.jsoup)
 
@@ -309,7 +311,7 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "it.fast4x.riplay"
+        applicationId = "com.yambo.music"
         minSdk = 24
         targetSdk = 36
         versionCode = 67
@@ -563,7 +565,7 @@ android {
         }
     }
 
-    namespace = "it.fast4x.riplay"
+    namespace = "com.yambo.music"
 
     signingConfigs {
         create("release") {
@@ -590,14 +592,14 @@ android {
     buildTypes {
         debug {
             applicationIdSuffix = ".debug"
-            manifestPlaceholders["appName"] = "RiPlay-Debug"
+            manifestPlaceholders["appName"] = "Yammbo Music Debug"
         }
 
         release {
             vcsInfo.include = true
             isMinifyEnabled = true
             isShrinkResources = true
-            manifestPlaceholders["appName"] = "RiPlay"
+            manifestPlaceholders["appName"] = "Yammbo Music"
             signingConfig = signingConfigs.getByName("release")
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             multiDexKeepProguard = File("multidex-config.txt")
@@ -646,7 +648,7 @@ android {
         variant.outputs
             .map { it as com.android.build.gradle.internal.api.BaseVariantOutputImpl }
             .forEach { output ->
-                val outputFileName = "RiPlay-${output.baseName}-${variant.versionName}.apk"
+                val outputFileName = "YammboMusic-${output.baseName}-${variant.versionName}.apk"
                 //val outputFileName = "riplay-${variant.baseName}.apk"
                 output.outputFileName = outputFileName
             }
@@ -691,11 +693,11 @@ compose.desktop {
         group = "riplay"
 
         nativeDistributions {
-            vendor = "RiPlay.DesktopApp"
-            description = "RiPlay Desktop Music Player"
+            vendor = "YammboMusic.DesktopApp"
+            description = "Yammbo Music Desktop Player"
 
             targetFormats(TargetFormat.Msi, TargetFormat.Deb, TargetFormat.Rpm)
-            packageName = "RiPLay.DesktopApp"
+            packageName = "YammboMusic.DesktopApp"
             packageVersion = "0.0.1"
 
             /*

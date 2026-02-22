@@ -3,7 +3,7 @@ package it.fast4x.riplay.ui.screens.player.online.components.customui
 import android.content.Context
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.customui.PlayerUiController
 
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import android.content.Intent
 import android.graphics.drawable.Drawable
 import android.net.Uri

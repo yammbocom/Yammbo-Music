@@ -31,7 +31,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.navigation.NavController
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.extensions.ritune.RiTuneDevice
 import it.fast4x.riplay.ui.components.themed.IconButton
 import it.fast4x.riplay.utils.GlobalSharedData

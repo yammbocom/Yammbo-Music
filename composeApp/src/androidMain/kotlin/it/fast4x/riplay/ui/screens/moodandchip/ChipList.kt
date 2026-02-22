@@ -38,7 +38,7 @@ import it.fast4x.environment.EnvironmentExt
 import it.fast4x.environment.requests.HomePage
 import it.fast4x.riplay.LocalPlayerAwareWindowInsets
 import it.fast4x.riplay.LocalPlayerServiceBinder
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.data.models.Chip
 import it.fast4x.riplay.enums.NavRoutes
 import it.fast4x.riplay.enums.NavigationBarPosition

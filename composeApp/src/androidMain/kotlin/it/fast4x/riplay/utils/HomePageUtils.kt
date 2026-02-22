@@ -9,7 +9,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.stringResource
 import it.fast4x.environment.Environment
 import it.fast4x.environment.requests.HomePage
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.data.models.Song
 import it.fast4x.riplay.enums.MenuStyle
 import it.fast4x.riplay.enums.PlayEventsType

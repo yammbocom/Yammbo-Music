@@ -2,7 +2,7 @@ package it.fast4x.riplay.extensions.lastfm
 
 import androidx.lifecycle.viewModelScope
 import it.fast4x.lastfm.LastFmService
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.utils.SecureConfig
 import it.fast4x.riplay.utils.appContext
 import it.fast4x.riplay.utils.getlastFmSessionKey

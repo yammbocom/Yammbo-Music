@@ -1,5 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Auth screens -->
+    <string name="auth_email">ইমেইল</string>
+    <string name="auth_password">পাসওয়ার্ড</string>
+    <string name="auth_confirm_password">পাসওয়ার্ড নিশ্চিত করুন</string>
+    <string name="auth_login">লগইন</string>
+    <string name="auth_register">নিবন্ধন</string>
+    <string name="auth_forgot_password">পাসওয়ার্ড ভুলে গেছেন?</string>
+    <string name="auth_create_account">অ্যাকাউন্ট তৈরি করুন</string>
+    <string name="auth_back_to_login">লগইনে ফিরে যান</string>
+    <string name="auth_reset_password">পাসওয়ার্ড রিসেট করুন</string>
+    <string name="auth_send_reset_link">রিসেট লিঙ্ক পাঠান</string>
+    <string name="auth_fill_all_fields">অনুগ্রহ করে সব ক্ষেত্র পূরণ করুন</string>
+    <string name="auth_passwords_not_match">পাসওয়ার্ড মিলছে না</string>
+    <string name="auth_password_min_length">পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে</string>
+    <string name="auth_enter_email">অনুগ্রহ করে আপনার ইমেইল দিন</string>
+    <string name="auth_reset_description">আপনার ইমেইল ঠিকানা লিখুন এবং আমরা আপনাকে পাসওয়ার্ড রিসেট করার লিঙ্ক পাঠাব।</string>
+    <string name="auth_account_created_verify">অ্যাকাউন্ট তৈরি হয়েছে! যাচাইয়ের জন্য আপনার ইমেইল দেখুন।</string>
+    <string name="auth_account_created_success">অ্যাকাউন্ট সফলভাবে তৈরি হয়েছে! এখন লগইন করতে পারেন।</string>
+    <string name="auth_login_failed">লগইন ব্যর্থ</string>
+    <string name="auth_registration_failed">নিবন্ধন ব্যর্থ</string>
     <string name="cancel">বাতিল</string>
     <string name="done">হয়েছে</string>
     <string name="hidesong">আপনি কি সত্যি গানটা লুকাতে চান? এর প্লেব্যাক টাইম আর ক্যাশে মুছে যাবে। \n এটা পুনরুদ্ধার করা যাবে না আর।</string>

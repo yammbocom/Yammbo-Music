@@ -36,7 +36,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.enums.ThumbnailRoundness
 import it.fast4x.riplay.ui.styling.favoritesIcon
 import it.fast4x.riplay.extensions.preferences.rememberPreference

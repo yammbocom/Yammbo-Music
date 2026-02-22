@@ -46,7 +46,7 @@
         </intent>
     </queries>
     <queries>
-        <package android:name="it.fast4x.riplay" />
+        <package android:name="com.yambo.music" />
     </queries>
     <queries>
         <intent>
@@ -55,7 +55,7 @@
     </queries>
 
     <application
-        android:name=".MainApplication"
+        android:name="it.fast4x.riplay.MainApplication"
         android:allowBackup="true"
         android:banner="@mipmap/ic_banner"
         android:configChanges="colorMode|density|fontScale|keyboard|keyboardHidden|layoutDirection|locale|mcc|mnc|navigation|orientation|screenLayout|screenSize|smallestScreenSize|touchscreen|uiMode"
@@ -63,7 +63,7 @@
         android:icon="@mipmap/ic_launcher"
         android:label="${appName}"
         android:supportsRtl="true"
-        android:theme="@style/Theme.RiPlay"
+        android:theme="@style/Theme.YamboMusic"
         android:requestLegacyExternalStorage="true"
         android:enableOnBackInvokedCallback="true"
         android:networkSecurityConfig="@xml/network_security_config"
@@ -72,10 +72,10 @@
         android:hardwareAccelerated="true">
 
         <activity
-            android:name=".MainActivity"
+            android:name="it.fast4x.riplay.MainActivity"
             android:exported="true"
             android:launchMode="singleTask"
-            android:theme="@style/Theme.RiPlay"
+            android:theme="@style/Theme.YamboMusic"
             android:windowSoftInputMode="adjustResize"
             android:supportsPictureInPicture="true"
             android:configChanges="colorMode|density|fontScale|keyboard|keyboardHidden|layoutDirection|locale|mcc|mnc|navigation|orientation|screenLayout|screenSize|smallestScreenSize|touchscreen|uiMode">
@@ -158,7 +158,7 @@
                 android:resource="@xml/shortcuts" />
         </activity>
 
-        <receiver android:name=".ui.widgets.PlayerVerticalWidgetReceiver"
+        <receiver android:name="it.fast4x.riplay.ui.widgets.PlayerVerticalWidgetReceiver"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
@@ -167,7 +167,7 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/player_vertical_widget_info" />
         </receiver>
-        <receiver android:name=".ui.widgets.PlayerHorizontalWidgetReceiver"
+        <receiver android:name="it.fast4x.riplay.ui.widgets.PlayerHorizontalWidgetReceiver"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
@@ -178,14 +178,14 @@
         </receiver>
 
         <service
-            android:name=".service.PlayerService"
+            android:name="it.fast4x.riplay.service.PlayerService"
             android:exported="false"
             android:foregroundServiceType="mediaPlayback"
             android:enabled="true"
             android:stopWithTask="false">
         </service>
 
-        <service android:name=".service.PlayerMediaBrowserService"
+        <service android:name="it.fast4x.riplay.service.PlayerMediaBrowserService"
             android:exported="true"
             android:enabled="true"
             tools:ignore="ExportedService">
@@ -212,7 +212,7 @@
         </service>
 
         <receiver
-            android:name=".service.PlayerService$NotificationDismissReceiver"
+            android:name="it.fast4x.riplay.service.PlayerService$NotificationDismissReceiver"
             android:exported="false" />
 
         <provider

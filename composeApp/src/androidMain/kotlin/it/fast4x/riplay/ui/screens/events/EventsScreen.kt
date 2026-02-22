@@ -18,7 +18,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.enums.EventType
 import it.fast4x.riplay.extensions.preferences.autoBackupFolderKey
 import it.fast4x.riplay.extensions.preferences.rememberPreference
@@ -31,7 +31,7 @@ import it.fast4x.riplay.utils.formatTimeRemaining
 import it.fast4x.riplay.utils.getWorkStatusFlow
 import it.fast4x.riplay.utils.isWorkScheduled
 import it.fast4x.riplay.utils.typography
-import it.fast4x.riplay.BuildConfig
+import com.yambo.music.BuildConfig
 
 
 const val workNameNewRelease = "weeklyOrDailyCheckNewFromArtistsWork"

@@ -41,7 +41,7 @@ import androidx.glance.layout.width
 import androidx.glance.text.Text
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.PlayerConstants
 import it.fast4x.riplay.MainActivity
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.service.PlayerService
 import it.fast4x.riplay.utils.isLocal
 import it.fast4x.riplay.utils.playNext

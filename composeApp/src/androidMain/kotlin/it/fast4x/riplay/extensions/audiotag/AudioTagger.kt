@@ -34,7 +34,7 @@ import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
 import it.fast4x.audiotaginfo.models.Track
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.commonutils.cleanString
 import it.fast4x.riplay.enums.NavRoutes
 import it.fast4x.riplay.extensions.audiotag.models.AudioTagInfoErrors
@@ -65,7 +65,7 @@ fun AudioTagger(viewModel: AudioTagViewModel, navController: NavController) {
     ) {
         Image(
             painter = painterResource(R.drawable.app_icon),
-            contentDescription = "RiPlay Logo",
+            contentDescription = "Yammbo Music Logo",
             modifier = Modifier
                 .padding(bottom = 32.dp)
                 .size(70.dp),

@@ -1,5 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Auth screens -->
+    <string name="auth_email">E-pos</string>
+    <string name="auth_password">Wagwoord</string>
+    <string name="auth_confirm_password">Bevestig Wagwoord</string>
+    <string name="auth_login">Meld aan</string>
+    <string name="auth_register">Registreer</string>
+    <string name="auth_forgot_password">Wagwoord vergeet?</string>
+    <string name="auth_create_account">Skep Rekening</string>
+    <string name="auth_back_to_login">Terug na Aanmelding</string>
+    <string name="auth_reset_password">Herstel Wagwoord</string>
+    <string name="auth_send_reset_link">Stuur Herstelskakel</string>
+    <string name="auth_fill_all_fields">Vul asseblief alle velde in</string>
+    <string name="auth_passwords_not_match">Wagwoorde stem nie ooreen nie</string>
+    <string name="auth_password_min_length">Wagwoord moet ten minste 6 karakters wees</string>
+    <string name="auth_enter_email">Voer asseblief jou e-pos in</string>
+    <string name="auth_reset_description">Voer jou e-posadres in en ons sal vir jou \'n skakel stuur om jou wagwoord te herstel.</string>
+    <string name="auth_account_created_verify">Rekening geskep! Kyk jou e-pos vir verifikasie.</string>
+    <string name="auth_account_created_success">Rekening suksesvol geskep! Jy kan nou aanmeld.</string>
+    <string name="auth_login_failed">Aanmelding misluk</string>
+    <string name="auth_registration_failed">Registrasie misluk</string>
     <string name="cancel">Kanselleer</string>
     <string name="done">Klaar</string>
     <string name="hidesong">Wil jy hierdie liedjie regtig versteek? Sy speeltyd en cache sal uitgevee word. Hierdie aksie is onomkeerbaar.</string>

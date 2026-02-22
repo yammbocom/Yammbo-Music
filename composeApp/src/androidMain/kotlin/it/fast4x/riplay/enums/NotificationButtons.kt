@@ -7,7 +7,7 @@ import androidx.media3.common.Player.REPEAT_MODE_OFF
 import androidx.media3.common.Player.REPEAT_MODE_ONE
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.SessionCommand
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.service.MediaSessionConstants.CommandSearch
 import it.fast4x.riplay.service.MediaSessionConstants.CommandStartRadio
 import it.fast4x.riplay.service.MediaSessionConstants.CommandToggleLike

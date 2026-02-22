@@ -1,6 +1,6 @@
 package it.fast4x.riplay.enums
 
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.utils.appContext
 
 enum class StreamingPlayerType {

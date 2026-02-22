@@ -46,7 +46,7 @@ import androidx.core.os.LocaleListCompat
 import androidx.media3.common.util.UnstableApi
 import androidx.navigation.NavController
 import it.fast4x.riplay.LocalPlayerServiceBinder
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.enums.DurationInMilliseconds
 import it.fast4x.riplay.enums.DurationInMinutes
 import it.fast4x.riplay.enums.MinTimeForEvent
@@ -141,7 +141,7 @@ import it.fast4x.riplay.extensions.preferences.volumeBoostLevelKey
 import java.net.Proxy
 import androidx.core.net.toUri
 import androidx.core.text.isDigitsOnly
-import it.fast4x.riplay.BuildConfig
+import com.yambo.music.BuildConfig
 import it.fast4x.riplay.data.Database
 import it.fast4x.riplay.enums.CheckUpdateState
 import it.fast4x.riplay.enums.ContentType
@@ -355,7 +355,7 @@ fun GeneralSettings(
         Database.queriesCount().distinctUntilChanged()
     }.collectAsState(initial = 0)
 
-    var checkUpdateState by rememberPreference(checkUpdateStateKey, CheckUpdateState.Enabled)
+    var checkUpdateState by rememberPreference(checkUpdateStateKey, CheckUpdateState.Disabled)
 
     val internalEqualizer = LocalPlayerServiceBinder.current?.equalizer
 
@@ -436,7 +436,7 @@ fun GeneralSettings(
                 settingsItem {
                     HeaderWithIcon(
                         title = stringResource(R.string.tab_general),
-                        iconId = R.drawable.app_icon,
+                        iconId = R.drawable.yambo_icon,
                         enabled = false,
                         showIcon = true,
                         modifier = Modifier,
@@ -712,7 +712,7 @@ fun GeneralSettings(
                                         )
                                     } catch (e: ActivityNotFoundException) {
                                         SmartMessage(
-                                            "$msgNoBatteryOptim RiPlay",
+                                            "$msgNoBatteryOptim Yammbo Music",
                                             type = PopupType.Info,
                                             context = context
                                         )

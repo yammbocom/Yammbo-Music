@@ -1,5 +1,6 @@
 package it.fast4x.riplay
 
+import com.yambo.music.R
 import android.content.ComponentName
 import android.content.pm.PackageManager
 import androidx.annotation.OptIn
@@ -53,7 +54,7 @@ class MainApplication : MultiDexApplication(), ImageLoaderFactory {
         /**** LOG *********/
         val logEnabled = preferences.getBoolean(logDebugEnabledKey, false)
         if (logEnabled) {
-            Timber.plant(FileLoggingTree(File(dir, "RiPlay_log.txt")))
+            Timber.plant(FileLoggingTree(File(dir, "YammboMusic_log.txt")))
             Timber.d("Log enabled at ${dir.absolutePath}")
         } else {
             Timber.uprootAll()

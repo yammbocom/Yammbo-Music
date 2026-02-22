@@ -87,7 +87,7 @@ import it.fast4x.riplay.data.Database
 import it.fast4x.riplay.commonutils.EXPLICIT_PREFIX
 import it.fast4x.riplay.LocalPlayerServiceBinder
 import it.fast4x.riplay.LocalSelectedQueue
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.utils.appContext
 import it.fast4x.riplay.utils.colorPalette
 import it.fast4x.riplay.enums.BuiltInPlaylist
@@ -257,7 +257,7 @@ fun HomeLocalSongs(
 
     val maxTopPlaylistItems by rememberPreference(
         MaxTopPlaylistItemsKey,
-        MaxTopPlaylistItems.`10`
+        MaxTopPlaylistItems.`50`
     )
     var topPlaylistPeriod by rememberPreference(topPlaylistPeriodKey, TopPlaylistPeriod.PastWeek)
 

@@ -1,5 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Auth screens -->
+    <string name="auth_email">E-mail</string>
+    <string name="auth_password">Contrasigno</string>
+    <string name="auth_confirm_password">Confirmar Contrasigno</string>
+    <string name="auth_login">Aperir session</string>
+    <string name="auth_register">Registrar se</string>
+    <string name="auth_forgot_password">Contrasigno oblidate?</string>
+    <string name="auth_create_account">Crear Conto</string>
+    <string name="auth_back_to_login">Retornar al Login</string>
+    <string name="auth_reset_password">Reinitialisar Contrasigno</string>
+    <string name="auth_send_reset_link">Inviar Ligamine de Reinitialisation</string>
+    <string name="auth_fill_all_fields">Per favor, completa tote le campos</string>
+    <string name="auth_passwords_not_match">Le contrasignos non corresponde</string>
+    <string name="auth_password_min_length">Le contrasigno debe haber al minus 6 characteres</string>
+    <string name="auth_enter_email">Per favor, insere tu e-mail</string>
+    <string name="auth_reset_description">Insere tu adresse de e-mail e nos te inviara un ligamine pro reinitialisar tu contrasigno.</string>
+    <string name="auth_account_created_verify">Conto create! Verifica tu e-mail pro confirmation.</string>
+    <string name="auth_account_created_success">Conto create con successo! Tu pote ora aperir session.</string>
+    <string name="auth_login_failed">Apertura de session fallite</string>
+    <string name="auth_registration_failed">Registration fallite</string>
     <string name="cancel">Cancellar</string>
     <string name="done">Preste</string>
     <string name="hidesong">Do you really want to hide this song? Its playback time and cache will be wiped. This action is irreversible.</string>

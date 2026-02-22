@@ -1,5 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Auth screens -->
+    <string name="auth_email">E-post</string>
+    <string name="auth_password">Parool</string>
+    <string name="auth_confirm_password">Kinnita Parool</string>
+    <string name="auth_login">Logi sisse</string>
+    <string name="auth_register">Registreeri</string>
+    <string name="auth_forgot_password">Unustasid parooli?</string>
+    <string name="auth_create_account">Loo Konto</string>
+    <string name="auth_back_to_login">Tagasi Sisselogimisele</string>
+    <string name="auth_reset_password">Lähtesta Parool</string>
+    <string name="auth_send_reset_link">Saada Lähtestamislink</string>
+    <string name="auth_fill_all_fields">Palun täida kõik väljad</string>
+    <string name="auth_passwords_not_match">Paroolid ei ühti</string>
+    <string name="auth_password_min_length">Parool peab olema vähemalt 6 tähemärki</string>
+    <string name="auth_enter_email">Palun sisesta oma e-post</string>
+    <string name="auth_reset_description">Sisesta oma e-posti aadress ja saadame sulle lingi parooli lähtestamiseks.</string>
+    <string name="auth_account_created_verify">Konto loodud! Kontrolli oma e-posti kinnitamiseks.</string>
+    <string name="auth_account_created_success">Konto edukalt loodud! Nüüd saad sisse logida.</string>
+    <string name="auth_login_failed">Sisselogimine ebaõnnestus</string>
+    <string name="auth_registration_failed">Registreerimine ebaõnnestus</string>
     <string name="cancel">Tühista</string>
     <string name="done">Tehtud</string>
     <string name="hidesong">Kas te soovite loo peita? Loo esitusaeg ja vahemälu kustutatakse. Antud tegevus on pöördumatu.</string>

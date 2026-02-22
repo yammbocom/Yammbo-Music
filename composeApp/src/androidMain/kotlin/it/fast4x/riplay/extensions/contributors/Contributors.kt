@@ -14,7 +14,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.google.gson.Gson
 import com.google.gson.JsonArray
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.extensions.contributors.models.Developer
 import it.fast4x.riplay.extensions.contributors.models.Translator
 import timber.log.Timber

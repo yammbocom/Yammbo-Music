@@ -1,5 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Auth screens -->
+    <string name="auth_email">மின்னஞ்சல்</string>
+    <string name="auth_password">கடவுச்சொல்</string>
+    <string name="auth_confirm_password">கடவுச்சொல்லை உறுதிப்படுத்தவும்</string>
+    <string name="auth_login">உள்நுழைவு</string>
+    <string name="auth_register">பதிவு செய்</string>
+    <string name="auth_forgot_password">கடவுச்சொல் மறந்துவிட்டதா?</string>
+    <string name="auth_create_account">கணக்கை உருவாக்கு</string>
+    <string name="auth_back_to_login">உள்நுழைவுக்குத் திரும்பு</string>
+    <string name="auth_reset_password">கடவுச்சொல்லை மீட்டமை</string>
+    <string name="auth_send_reset_link">மீட்டமைப்பு இணைப்பை அனுப்பு</string>
+    <string name="auth_fill_all_fields">எல்லா புலங்களையும் நிரப்பவும்</string>
+    <string name="auth_passwords_not_match">கடவுச்சொற்கள் பொருந்தவில்லை</string>
+    <string name="auth_password_min_length">கடவுச்சொல் குறைந்தது 6 எழுத்துகள் இருக்க வேண்டும்</string>
+    <string name="auth_enter_email">உங்கள் மின்னஞ்சலை உள்ளிடவும்</string>
+    <string name="auth_reset_description">உங்கள் மின்னஞ்சல் முகவரியை உள்ளிடவும், கடவுச்சொல்லை மீட்டமைக்க இணைப்பை அனுப்புவோம்.</string>
+    <string name="auth_account_created_verify">கணக்கு உருவாக்கப்பட்டது! சரிபார்ப்புக்கு உங்கள் மின்னஞ்சலைச் சரிபார்க்கவும்.</string>
+    <string name="auth_account_created_success">கணக்கு வெற்றிகரமாக உருவாக்கப்பட்டது! இப்போது உள்நுழையலாம்.</string>
+    <string name="auth_login_failed">உள்நுழைவு தோல்வி</string>
+    <string name="auth_registration_failed">பதிவு தோல்வி</string>
     <string name="cancel">ரத்துசெய்</string>
     <string name="done">முடிந்தது</string>
     <string name="hidesong">நீங்கள் இந்தப் பாடல்களை மறைக்க விரும்புகிறீர்களா? இதன் வாசிப்பு நேரமும் தற்காலிக சேமிப்பும் அழிக்கப்படும். இந்தச் செயல் திரும்பப் பெற முடியாது.</string>

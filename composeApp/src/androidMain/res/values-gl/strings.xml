@@ -1,5 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Auth screens -->
+    <string name="auth_email">Correo electrónico</string>
+    <string name="auth_password">Contrasinal</string>
+    <string name="auth_confirm_password">Confirmar Contrasinal</string>
+    <string name="auth_login">Iniciar sesión</string>
+    <string name="auth_register">Rexistrarse</string>
+    <string name="auth_forgot_password">Esqueciches o contrasinal?</string>
+    <string name="auth_create_account">Crear Conta</string>
+    <string name="auth_back_to_login">Volver ao Inicio de sesión</string>
+    <string name="auth_reset_password">Restablecer Contrasinal</string>
+    <string name="auth_send_reset_link">Enviar Ligazón de Restablecemento</string>
+    <string name="auth_fill_all_fields">Por favor, enche todos os campos</string>
+    <string name="auth_passwords_not_match">Os contrasinais non coinciden</string>
+    <string name="auth_password_min_length">O contrasinal debe ter polo menos 6 caracteres</string>
+    <string name="auth_enter_email">Por favor, introduce o teu correo electrónico</string>
+    <string name="auth_reset_description">Introduce o teu enderezo de correo electrónico e enviarémosche unha ligazón para restablecer o teu contrasinal.</string>
+    <string name="auth_account_created_verify">Conta creada! Comproba o teu correo para verificar.</string>
+    <string name="auth_account_created_success">Conta creada con éxito! Xa podes iniciar sesión.</string>
+    <string name="auth_login_failed">Erro ao iniciar sesión</string>
+    <string name="auth_registration_failed">Erro no rexistro</string>
     <string name="cancel">Cancelar</string>
     <string name="done">Feito</string>
     <string name="hidesong">Realmente queres agochar esta canción? O tempo de reprodución e a caché serán borrados. Esta acción é irreversible.</string>

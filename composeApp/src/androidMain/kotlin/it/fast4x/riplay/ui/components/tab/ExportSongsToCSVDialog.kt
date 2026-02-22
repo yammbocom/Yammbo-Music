@@ -13,7 +13,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.media3.common.MediaItem
 import androidx.media3.common.util.UnstableApi
 import com.github.doyaaaaaken.kotlincsv.dsl.csvWriter
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.enums.PopupType
 import it.fast4x.riplay.ui.components.themed.SmartMessage
 import it.fast4x.riplay.utils.appContext

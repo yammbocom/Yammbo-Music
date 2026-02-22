@@ -47,7 +47,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.util.UnstableApi
 import androidx.navigation.NavController
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.enums.ValidationType
 import it.fast4x.riplay.ui.components.themed.DialogColorPicker
 import it.fast4x.riplay.ui.components.themed.InputTextDialog
@@ -89,7 +89,7 @@ fun SettingsScreen(
                 onTabChanged,
                 miniPlayer,
                 navBarContent = { item ->
-                    item(0, stringResource(R.string.tab_general), R.drawable.app_icon)
+                    item(0, stringResource(R.string.tab_general), R.drawable.yambo_icon)
                     item(1, stringResource(R.string.ui_tab), R.drawable.ui)
                     item(2, stringResource(R.string.player_appearance), R.drawable.color_palette)
                     item(3, if (!isYtLoggedIn()) stringResource(R.string.home)
@@ -109,7 +109,17 @@ fun SettingsScreen(
                         2 -> AppearanceSettings(navController = navController)
                         3 -> HomeSettings()
                         4 -> DataSettings()
-                        5 -> AccountsSettings()
+                        5 -> {
+                            val activity = navController.context as? it.fast4x.riplay.MainActivity
+                            AccountsSettings(
+                                authManager = activity?.authManager,
+                                onLogout = {
+                                    navController.navigate(it.fast4x.riplay.enums.NavRoutes.login.name) {
+                                        popUpTo(0) { inclusive = true }
+                                    }
+                                }
+                            )
+                        }
                         6 -> MiscSettings()
                         7 -> About()
 

@@ -1,7 +1,7 @@
 package it.fast4x.riplay.enums
 
 import androidx.annotation.StringRes
-import it.fast4x.riplay.R
+import com.yambo.music.R
 
 enum class EqualizerPreset(@StringRes val labelRes: Int) {
     FLAT(R.string.equalizer_flat),

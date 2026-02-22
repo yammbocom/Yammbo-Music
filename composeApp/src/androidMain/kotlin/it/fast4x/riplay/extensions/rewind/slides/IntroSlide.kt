@@ -16,7 +16,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.extensions.rewind.data.AnimatedContent
 import it.fast4x.riplay.extensions.rewind.data.RewindSlide
 import it.fast4x.riplay.extensions.visualbitmap.VisualBitmapCreator
@@ -66,7 +66,7 @@ fun IntroSlide(slide: RewindSlide.IntroSlide, isPageActive: Boolean) {
                     AnimatedContent(isVisible = isContentVisible, delay = 0) {
                         Icon(
                             painter = painterResource(id = R.drawable.app_icon),
-                            contentDescription = "RiPlay",
+                            contentDescription = "Yammbo Music",
                             tint = colorPalette().accent,
                             modifier = Modifier
                                 .size(40.dp)

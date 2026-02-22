@@ -1,5 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Auth screens -->
+    <string name="auth_email">メールアドレス</string>
+    <string name="auth_password">パスワード</string>
+    <string name="auth_confirm_password">パスワード確認</string>
+    <string name="auth_login">ログイン</string>
+    <string name="auth_register">登録</string>
+    <string name="auth_forgot_password">パスワードをお忘れですか？</string>
+    <string name="auth_create_account">アカウント作成</string>
+    <string name="auth_back_to_login">ログインに戻る</string>
+    <string name="auth_reset_password">パスワードリセット</string>
+    <string name="auth_send_reset_link">リセットリンクを送信</string>
+    <string name="auth_fill_all_fields">すべてのフィールドを入力してください</string>
+    <string name="auth_passwords_not_match">パスワードが一致しません</string>
+    <string name="auth_password_min_length">パスワードは6文字以上である必要があります</string>
+    <string name="auth_enter_email">メールアドレスを入力してください</string>
+    <string name="auth_reset_description">メールアドレスを入力すると、パスワードリセット用のリンクをお送りします。</string>
+    <string name="auth_account_created_verify">アカウントが作成されました！確認メールをご確認ください。</string>
+    <string name="auth_account_created_success">アカウントが正常に作成されました！ログインできます。</string>
+    <string name="auth_login_failed">ログインに失敗しました</string>
+    <string name="auth_registration_failed">登録に失敗しました</string>
     <string name="cancel">キャンセル</string>
     <string name="done">完了</string>
     <string name="hidesong">この曲を非表示にしますか？再生時間とキャッシュは消去されます。\nこの操作は元に戻せません。</string>

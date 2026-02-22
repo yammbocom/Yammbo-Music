@@ -1,5 +1,7 @@
 package it.fast4x.riplay
 
+import com.yambo.music.BuildConfig
+import com.yambo.music.R
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
@@ -10,8 +12,6 @@ import android.content.ServiceConnection
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.content.res.Configuration
-import android.graphics.Bitmap
-import android.graphics.drawable.BitmapDrawable
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
@@ -96,18 +96,11 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.navigation.compose.rememberNavController
-import androidx.palette.graphics.Palette
-import coil.imageLoader
-import coil.request.ImageRequest
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
-import com.kieronquinn.monetcompat.app.MonetCompatActivity
-import com.kieronquinn.monetcompat.core.MonetActivityAccessException
-import com.kieronquinn.monetcompat.core.MonetCompat
-import com.kieronquinn.monetcompat.interfaces.MonetColorsChangedListener
+import androidx.appcompat.app.AppCompatActivity
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.views.YouTubePlayerView
 import com.valentinilk.shimmer.LocalShimmerTheme
 import com.valentinilk.shimmer.defaultShimmerTheme
-import dev.kdrag0n.monet.theme.ColorScheme
 import it.fast4x.environment.Environment
 import it.fast4x.environment.models.bodies.BrowseBody
 import it.fast4x.environment.requests.playlistPage
@@ -143,28 +136,7 @@ import it.fast4x.riplay.extensions.preferences.applyFontPaddingKey
 import it.fast4x.riplay.extensions.preferences.backgroundProgressKey
 import it.fast4x.riplay.extensions.preferences.colorPaletteModeKey
 import it.fast4x.riplay.extensions.preferences.colorPaletteNameKey
-import it.fast4x.riplay.extensions.preferences.customColorKey
 import it.fast4x.riplay.extensions.preferences.customDnsOverHttpsServerKey
-import it.fast4x.riplay.extensions.preferences.customThemeDark_Background0Key
-import it.fast4x.riplay.extensions.preferences.customThemeDark_Background1Key
-import it.fast4x.riplay.extensions.preferences.customThemeDark_Background2Key
-import it.fast4x.riplay.extensions.preferences.customThemeDark_Background3Key
-import it.fast4x.riplay.extensions.preferences.customThemeDark_Background4Key
-import it.fast4x.riplay.extensions.preferences.customThemeDark_TextKey
-import it.fast4x.riplay.extensions.preferences.customThemeDark_accentKey
-import it.fast4x.riplay.extensions.preferences.customThemeDark_iconButtonPlayerKey
-import it.fast4x.riplay.extensions.preferences.customThemeDark_textDisabledKey
-import it.fast4x.riplay.extensions.preferences.customThemeDark_textSecondaryKey
-import it.fast4x.riplay.extensions.preferences.customThemeLight_Background0Key
-import it.fast4x.riplay.extensions.preferences.customThemeLight_Background1Key
-import it.fast4x.riplay.extensions.preferences.customThemeLight_Background2Key
-import it.fast4x.riplay.extensions.preferences.customThemeLight_Background3Key
-import it.fast4x.riplay.extensions.preferences.customThemeLight_Background4Key
-import it.fast4x.riplay.extensions.preferences.customThemeLight_TextKey
-import it.fast4x.riplay.extensions.preferences.customThemeLight_accentKey
-import it.fast4x.riplay.extensions.preferences.customThemeLight_iconButtonPlayerKey
-import it.fast4x.riplay.extensions.preferences.customThemeLight_textDisabledKey
-import it.fast4x.riplay.extensions.preferences.customThemeLight_textSecondaryKey
 import it.fast4x.riplay.extensions.preferences.disableClosingPlayerSwipingDownKey
 import it.fast4x.riplay.extensions.preferences.disablePlayerHorizontalSwipeKey
 import it.fast4x.riplay.extensions.preferences.fontTypeKey
@@ -222,19 +194,14 @@ import it.fast4x.riplay.ui.screens.settings.isYtLoggedIn
 import it.fast4x.riplay.ui.styling.Appearance
 import it.fast4x.riplay.ui.styling.Dimensions
 import it.fast4x.riplay.ui.styling.LocalAppearance
-import it.fast4x.riplay.ui.styling.applyPitchBlack
 import it.fast4x.riplay.ui.styling.colorPaletteOf
-import it.fast4x.riplay.ui.styling.customColorPalette
-import it.fast4x.riplay.ui.styling.dynamicColorPaletteOf
 import it.fast4x.riplay.ui.styling.typographyOf
-import it.fast4x.riplay.utils.LocalMonetCompat
 import it.fast4x.riplay.utils.asMediaItem
 import it.fast4x.riplay.utils.globalContext
 import it.fast4x.riplay.utils.forcePlay
 import it.fast4x.riplay.utils.getDnsOverHttpsType
 import it.fast4x.riplay.utils.getKeepPlayerMinimized
 import it.fast4x.riplay.utils.getSystemlanguage
-import it.fast4x.riplay.utils.invokeOnReady
 import it.fast4x.riplay.utils.isAtLeastAndroid13
 import it.fast4x.riplay.utils.isAtLeastAndroid6
 import it.fast4x.riplay.utils.isAtLeastAndroid8
@@ -281,9 +248,7 @@ import kotlin.math.sqrt
 
 @UnstableApi
 class MainActivity :
-    MonetCompatActivity(),
-    //AppCompatActivity()
-    MonetColorsChangedListener
+    AppCompatActivity()
 {
     //lateinit var internetConnectivityObserver: InternetConnectivityObserver
 
@@ -307,14 +272,15 @@ class MainActivity :
     private var binder by mutableStateOf<PlayerService.Binder?>(null)
     private var intentUriData by mutableStateOf<Uri?>(null)
 
+    lateinit var authManager: it.fast4x.riplay.extensions.yammboapi.YammboAuthManager
+        private set
+
     private var sensorManager: SensorManager? = null
     private var acceleration = 0f
     private var currentAcceleration = 0f
     private var lastAcceleration = 0f
     private var shakeCounter = 0
 
-    private var _monet: MonetCompat? by mutableStateOf(null)
-    val localMonet get() = _monet ?: throw MonetActivityAccessException()
 
     private val pipState: MutableState<Boolean> = mutableStateOf(false)
 
@@ -499,6 +465,8 @@ class MainActivity :
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        authManager = it.fast4x.riplay.extensions.yammboapi.YammboAuthManager(this)
+
 //        if (BuildConfig.DEBUG) {
 //            StrictMode.setThreadPolicy(
 //                StrictMode.ThreadPolicy.Builder()
@@ -511,8 +479,6 @@ class MainActivity :
 //                    .build()
 //            )
 //        }
-
-        MonetCompat.enablePaletteCompat()
 
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.dark(
@@ -533,23 +499,7 @@ class MainActivity :
 
         enableFullscreenMode()
 
-        MonetCompat.setup(this)
-        _monet = MonetCompat.getInstance()
-        localMonet.setDefaultPalette()
-
-        localMonet.addMonetColorsChangedListener(
-            listener = this,
-            notifySelf = false
-        )
-        localMonet.updateMonetColors()
-
-        Timber.d("MainActivity.onCreate Before localMonet.invokeOnReady")
-
-        localMonet.invokeOnReady {
-            Timber.d("MainActivity.onCreate Inside localMonet.invokeOnReady")
-
-            startApp()
-        }
+        startApp()
 
         if (preferences.getBoolean(shakeEventEnabledKey, false)) {
             sensorManager = getSystemService(SENSOR_SERVICE) as SensorManager
@@ -793,10 +743,11 @@ class MainActivity :
             // Observe preference so theme mode updates immediately when changed from Settings
             val colorPaletteMode by rememberObservedPreference(
                 colorPaletteModeKey,
-                ColorPaletteMode.Dark
+                ColorPaletteMode.System
             )
-            val isPicthBlack = colorPaletteMode == ColorPaletteMode.PitchBlack
 
+            // Yammbo: Update check disabled
+            /*
             if (preferences.getEnum(
                     checkUpdateStateKey,
                     CheckUpdateState.Enabled
@@ -807,6 +758,7 @@ class MainActivity :
                     checkAndDownloadNewVersionCode()
                 }
             }
+            */
 
 
             val coroutineScope = rememberCoroutineScope()
@@ -816,7 +768,6 @@ class MainActivity :
                 animatedGradientKey,
                 AnimatedGradient.Linear
             )
-            var customColor by rememberPreference(customColorKey, Color.Green.hashCode())
             val lightTheme =
                 colorPaletteMode == ColorPaletteMode.Light || (colorPaletteMode == ColorPaletteMode.System && (!isSystemInDarkTheme()))
 
@@ -900,34 +851,15 @@ class MainActivity :
                 stateSaver = Appearance
             ) {
                 with(preferences) {
-                    val colorPaletteName =
-                        getEnum(colorPaletteNameKey, ColorPaletteName.Dynamic)
-                    //val colorPaletteMode = getEnum(colorPaletteModeKey, ColorPaletteMode.Dark)
                     val thumbnailRoundness =
                         getEnum(thumbnailRoundnessKey, ThumbnailRoundness.Heavy)
                     val useSystemFont = getBoolean(useSystemFontKey, false)
                     val applyFontPadding = getBoolean(applyFontPaddingKey, false)
 
-                    var colorPalette =
-                        colorPaletteOf(colorPaletteName, colorPaletteMode, !lightTheme)
+                    val colorPalette =
+                        colorPaletteOf(ColorPaletteName.Default, colorPaletteMode, !lightTheme)
 
                     val fontType = getEnum(fontTypeKey, FontType.Rubik)
-
-                    //TODO CHECK MATERIALYOU OR MONIT
-                    if (colorPaletteName == ColorPaletteName.MaterialYou) {
-                        colorPalette = dynamicColorPaletteOf(
-                            Color(localMonet.getAccentColor(this@MainActivity)),
-                            !lightTheme
-                        )
-                    }
-                    if (colorPaletteName == ColorPaletteName.CustomColor) {
-                        Timber.d("MainActivity.startApp SetContent with(preferences) customColor PRE colorPalette: $colorPalette")
-                        colorPalette = dynamicColorPaletteOf(
-                            Color(customColor),
-                            !lightTheme
-                        )
-                        Timber.d("MainActivity.startApp SetContent with(preferences) customColor POST colorPalette: $colorPalette")
-                    }
 
                     setSystemBarAppearance(colorPalette.isDark)
 
@@ -944,69 +876,7 @@ class MainActivity :
                         )
                     )
                 }
-
-
             }
-
-            fun setDynamicPalette(url: String) {
-                val playerBackgroundColors = preferences.getEnum(
-                    playerBackgroundColorsKey,
-                    PlayerBackgroundColors.BlurredCoverColor
-                )
-                val colorPaletteName =
-                    preferences.getEnum(colorPaletteNameKey, ColorPaletteName.Dynamic)
-                val isDynamicPalette = colorPaletteName == ColorPaletteName.Dynamic
-                val isCoverColor =
-                    playerBackgroundColors == PlayerBackgroundColors.CoverColorGradient ||
-                            playerBackgroundColors == PlayerBackgroundColors.CoverColor ||
-                            animatedGradient == AnimatedGradient.FluidCoverColorGradient
-
-                if (!isDynamicPalette) return
-
-
-                coroutineScope.launch(Dispatchers.IO) {
-                    val result = imageLoader.execute(
-                        ImageRequest.Builder(this@MainActivity)
-                            .data(url)
-                            // Required to get work getPixels
-                            //.bitmapConfig(if (isAtLeastAndroid8) Bitmap.Config.RGBA_F16 else Bitmap.Config.ARGB_8888)
-                            .bitmapConfig(Bitmap.Config.ARGB_8888)
-                            .allowHardware(false)
-                            .build()
-                    )
-                    val isPicthBlack = colorPaletteMode == ColorPaletteMode.PitchBlack
-                    val isDark =
-                        colorPaletteMode == ColorPaletteMode.Dark || isPicthBlack || (colorPaletteMode == ColorPaletteMode.System && isSystemInDarkTheme)
-
-                    val bitmap = (result.drawable as? BitmapDrawable)?.bitmap
-                    if (bitmap != null) {
-                        val palette = Palette
-                            .from(bitmap)
-                            .maximumColorCount(8)
-                            .addFilter(if (isDark) ({ _, hsl -> hsl[0] !in 36f..100f }) else null)
-                            .generate()
-
-                        dynamicColorPaletteOf(bitmap, isDark)?.let {
-                            withContext(Dispatchers.Main) {
-                                setSystemBarAppearance(it.isDark)
-                            }
-                            appearance = appearance.copy(
-                                colorPalette = if (!isPicthBlack) it else it.copy(
-                                    background0 = Color.Black,
-                                    background1 = Color.Black,
-                                    background2 = Color.Black,
-                                    background3 = Color.Black,
-                                    background4 = Color.Black,
-                                    // text = Color.White
-                                ),
-                                typography = appearance.typography.copy(it.text)
-                            )
-                        }
-
-                    }
-                }
-            }
-
 
             // React to theme mode changes without requiring app restart (include palette mode key)
             DisposableEffect(binder, colorPaletteMode, !lightTheme) {
@@ -1050,118 +920,27 @@ class MainActivity :
                                 Timber.d("MainActivity.recreate()")
                             }
 
-                            colorPaletteNameKey, colorPaletteModeKey,
-                            customThemeLight_Background0Key,
-                            customThemeLight_Background1Key,
-                            customThemeLight_Background2Key,
-                            customThemeLight_Background3Key,
-                            customThemeLight_Background4Key,
-                            customThemeLight_TextKey,
-                            customThemeLight_textSecondaryKey,
-                            customThemeLight_textDisabledKey,
-                            customThemeLight_iconButtonPlayerKey,
-                            customThemeLight_accentKey,
-                            customThemeDark_Background0Key,
-                            customThemeDark_Background1Key,
-                            customThemeDark_Background2Key,
-                            customThemeDark_Background3Key,
-                            customThemeDark_Background4Key,
-                            customThemeDark_TextKey,
-                            customThemeDark_textSecondaryKey,
-                            customThemeDark_textDisabledKey,
-                            customThemeDark_iconButtonPlayerKey,
-                            customThemeDark_accentKey,
-                            customColorKey
+                            colorPaletteNameKey, colorPaletteModeKey
                                 -> {
-                                val colorPaletteName =
-                                    sharedPreferences.getEnum(
-                                        colorPaletteNameKey,
-                                        ColorPaletteName.Dynamic
-                                    )
-
                                 val newColorPaletteMode = sharedPreferences.getEnum(
                                     colorPaletteModeKey,
                                     ColorPaletteMode.Dark
                                 )
-                                val isNewPitchBlack = newColorPaletteMode == ColorPaletteMode.PitchBlack
                                 val isNewDark =
-                                    newColorPaletteMode == ColorPaletteMode.Dark || isNewPitchBlack || (newColorPaletteMode == ColorPaletteMode.System && isSystemInDarkTheme)
-                                val newLightTheme = !isNewDark
+                                    newColorPaletteMode == ColorPaletteMode.Dark || (newColorPaletteMode == ColorPaletteMode.System && isSystemInDarkTheme)
 
-                                var colorPalette = colorPaletteOf(
-                                    colorPaletteName,
+                                val colorPalette = colorPaletteOf(
+                                    ColorPaletteName.Default,
                                     newColorPaletteMode,
-                                    newLightTheme.not()
+                                    isNewDark
                                 )
 
-                                if (colorPaletteName == ColorPaletteName.Dynamic) {
-                                    val artworkUri =
-                                        (binder?.player?.currentMediaItem?.mediaMetadata?.artworkUri.toString().thumbnail(
-                                            1200
-                                        )
-                                            ?: "").toString()
-                                    artworkUri.let {
-                                        if (it.isNotEmpty())
-                                            setDynamicPalette(it)
-                                        else {
+                                setSystemBarAppearance(colorPalette.isDark)
 
-                                            setSystemBarAppearance(colorPalette.isDark)
-                                            appearance = appearance.copy(
-                                                colorPalette = if (!isNewPitchBlack) colorPalette else colorPalette.copy(
-                                                    background0 = Color.Black,
-                                                    background1 = Color.Black,
-                                                    background2 = Color.Black,
-                                                    background3 = Color.Black,
-                                                    background4 = Color.Black,
-                                                    // text = Color.White
-                                                ),
-                                                typography = appearance.typography.copy(
-                                                    colorPalette.text
-                                                ),
-                                            )
-                                        }
-
-                                    }
-
-                                } else {
-
-                                    if (colorPaletteName == ColorPaletteName.MaterialYou) {
-                                        colorPalette = dynamicColorPaletteOf(
-                                            Color(localMonet.getAccentColor(this@MainActivity)),
-                                            newLightTheme.not()
-                                        )
-                                    }
-
-                                    if (colorPaletteName == ColorPaletteName.Customized) {
-                                        colorPalette = customColorPalette(
-                                            colorPalette,
-                                            this@MainActivity,
-                                            isSystemInDarkTheme
-                                        )
-                                    }
-                                    if (colorPaletteName == ColorPaletteName.CustomColor) {
-                                        Timber.d("MainActivity.startApp SetContent DisposableEffect customColor PRE colorPalette: $colorPalette")
-                                        colorPalette = dynamicColorPaletteOf(
-                                            Color(customColor),
-                                            newLightTheme.not()
-                                        )
-                                        Timber.d("MainActivity.startApp SetContent DisposableEffect customColor POST colorPalette: $colorPalette")
-                                    }
-
-                                    setSystemBarAppearance(colorPalette.isDark)
-
-                                    appearance = appearance.copy(
-                                        colorPalette = if (!isNewPitchBlack) colorPalette else colorPalette.copy(
-                                            background0 = Color.Black,
-                                            background1 = Color.Black,
-                                            background2 = Color.Black,
-                                            background3 = Color.Black,
-                                            background4 = Color.Black,
-                                            text = Color.White
-                                        ),
-                                        typography = appearance.typography.copy(if (!isNewPitchBlack) colorPalette.text else Color.White),
-                                    )
-                                }
+                                appearance = appearance.copy(
+                                    colorPalette = colorPalette,
+                                    typography = appearance.typography.copy(colorPalette.text),
+                                )
                             }
 
                             thumbnailRoundnessKey -> {
@@ -1212,17 +991,6 @@ class MainActivity :
                 with(preferences) {
                     registerOnSharedPreferenceChangeListener(listener)
 
-                    val colorPaletteName =
-                        getEnum(colorPaletteNameKey, ColorPaletteName.Dynamic)
-                    if (colorPaletteName == ColorPaletteName.Dynamic) {
-                        setDynamicPalette(
-                            (binder?.player?.currentMediaItem?.mediaMetadata?.artworkUri.toString().thumbnail(
-                                1200
-                            )
-                                ?: "").toString()
-                        )
-                    }
-
                     onDispose {
                         unregisterOnSharedPreferenceChangeListener(listener)
                     }
@@ -1251,27 +1019,6 @@ class MainActivity :
                     ),
                 )
             }
-
-            LaunchedEffect(Unit) {
-                val colorPaletteName =
-                    preferences.getEnum(colorPaletteNameKey, ColorPaletteName.Dynamic)
-                if (colorPaletteName == ColorPaletteName.Customized) {
-                    appearance = appearance.copy(
-                        colorPalette = customColorPalette(
-                            appearance.colorPalette,
-                            this@MainActivity,
-                            isSystemInDarkTheme
-                        )
-                    )
-                }
-            }
-
-
-            if (colorPaletteMode == ColorPaletteMode.PitchBlack)
-                appearance = appearance.copy(
-                    colorPalette = appearance.colorPalette.applyPitchBlack,
-                    typography = appearance.typography.copy(appearance.colorPalette.text)
-                )
 
             BoxWithConstraints(
                 modifier = Modifier
@@ -1389,7 +1136,6 @@ class MainActivity :
                             LocalPlayerAwareWindowInsets provides playerAwareWindowInsets,
                             LocalLayoutDirection provides LayoutDirection.Ltr,
                             LocalPlayerSheetState provides localPlayerSheetState,
-                            LocalMonetCompat provides localMonet,
                             //LocalRiTuneDevices provides riTuneDevices.value,
                             LocalOnlinePlayerPlayingState provides onlinePlayerPlayingState,
                             LocalSelectedQueue provides selectedQueue.value,
@@ -1405,7 +1151,7 @@ class MainActivity :
                                     onBackup = {
                                         @SuppressLint("SimpleDateFormat")
                                         val dateFormat = SimpleDateFormat("yyyyMMddHHmmss")
-                                        backupLauncher.launch("riplay_${dateFormat.format(Date())}.db")
+                                        backupLauncher.launch("yammbo_${dateFormat.format(Date())}.db")
                                     },
                                     onRestore = {
                                         restoreLauncher.launch(arrayOf("application/octet-stream"))
@@ -1436,7 +1182,8 @@ class MainActivity :
                                     },
                                     //player = onlinePlayer,
                                     //playerState = onlinePlayerState,
-                                    openTabFromShortcut = openTabFromShortcut
+                                    openTabFromShortcut = openTabFromShortcut,
+                                    authManager = authManager
                                 )
 
                                 val isSnowEffectEnabled by rememberObservedPreference(showSnowfallEffectKey, false)
@@ -1650,11 +1397,7 @@ class MainActivity :
                                     }
                                 }
 
-                                setDynamicPalette(
-                                    it.mediaMetadata.artworkUri.toString().thumbnail(
-                                        1200
-                                    ).toString()
-                                )
+                                // Dynamic palette removed in theme simplification
 
                             }
 
@@ -1682,7 +1425,7 @@ class MainActivity :
                 Timber.d("MainActivity LaunchedEffect intentUriData scheme ${"https://"}${uri.toString().substringAfter("https://").substringBeforeLast("\"")}")
 
                 SmartMessage(
-                    message = "${"RiPlay "}${getString(R.string.opening_url)}",
+                    message = "${"Yammbo Music "}${getString(R.string.opening_url)}",
                     durationLong = true,
                     context = this@MainActivity
                 )
@@ -1872,12 +1615,6 @@ class MainActivity :
         Timber.d("MainActivity.onDestroy")
         preferences.edit(commit = true) { putBoolean(appIsRunningKey, false) }
 
-        runCatching {
-            localMonet.removeMonetColorsChangedListener(this)
-            _monet = null
-        }.onFailure {
-            Timber.e("MainActivity.onDestroy removeMonetColorsChangedListener ${it.stackTraceToString()}")
-        }
 
     }
 
@@ -1908,24 +1645,6 @@ class MainActivity :
     }
 
 
-    override fun onMonetColorsChanged(
-        monet: MonetCompat,
-        monetColors: ColorScheme,
-        isInitialChange: Boolean
-    ) {
-        super<MonetCompatActivity>.onMonetColorsChanged(monet, monetColors, isInitialChange)
-        val colorPaletteName =
-            preferences.getEnum(colorPaletteNameKey, ColorPaletteName.Dynamic)
-        if (!isInitialChange && colorPaletteName == ColorPaletteName.MaterialYou) {
-            /*
-            monet.updateMonetColors()
-            monet.invokeOnReady {
-                startApp()
-            }
-             */
-            this@MainActivity.recreate()
-        }
-    }
 
 }
 

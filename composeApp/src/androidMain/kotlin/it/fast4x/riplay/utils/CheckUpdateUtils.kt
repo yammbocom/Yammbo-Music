@@ -20,7 +20,7 @@ suspend fun checkAndDownloadNewVersionCode() {
 
     CoroutineScope(Dispatchers.Default).launch {
         val url =
-            "https://raw.githubusercontent.com/fast4x/RiPlay/main/updatedVersion/updatedVersionCode.ver"
+            "https://music.yammbo.com/updatedVersion/updatedVersionCode.ver"
         val client = OkHttpClient()
 
         try {

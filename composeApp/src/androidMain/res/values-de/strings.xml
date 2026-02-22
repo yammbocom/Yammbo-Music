@@ -1,5 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Auth screens -->
+    <string name="auth_email">E-Mail</string>
+    <string name="auth_password">Passwort</string>
+    <string name="auth_confirm_password">Passwort bestätigen</string>
+    <string name="auth_login">Anmelden</string>
+    <string name="auth_register">Registrieren</string>
+    <string name="auth_forgot_password">Passwort vergessen?</string>
+    <string name="auth_create_account">Konto erstellen</string>
+    <string name="auth_back_to_login">Zurück zur Anmeldung</string>
+    <string name="auth_reset_password">Passwort zurücksetzen</string>
+    <string name="auth_send_reset_link">Link zum Zurücksetzen senden</string>
+    <string name="auth_fill_all_fields">Bitte füllen Sie alle Felder aus</string>
+    <string name="auth_passwords_not_match">Passwörter stimmen nicht überein</string>
+    <string name="auth_password_min_length">Passwort muss mindestens 6 Zeichen lang sein</string>
+    <string name="auth_enter_email">Bitte geben Sie Ihre E-Mail ein</string>
+    <string name="auth_reset_description">Geben Sie Ihre E-Mail-Adresse ein und wir senden Ihnen einen Link zum Zurücksetzen Ihres Passworts.</string>
+    <string name="auth_account_created_verify">Konto erstellt! Überprüfen Sie Ihre E-Mail zur Bestätigung.</string>
+    <string name="auth_account_created_success">Konto erfolgreich erstellt! Sie können sich jetzt anmelden.</string>
+    <string name="auth_login_failed">Anmeldung fehlgeschlagen</string>
+    <string name="auth_registration_failed">Registrierung fehlgeschlagen</string>
     <string name="cancel">Abbrechen</string>
     <string name="done">Fertig</string>
     <string name="hidesong">Soll der Titel wirklich ausgeblendet werden? Die Wiedergabezeit und der Cache werden zurückgesetzt. Diese Aktion kann nicht rückgängig gemacht werden.</string>

@@ -1,5 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Auth screens -->
+    <string name="auth_email">ଇମେଲ</string>
+    <string name="auth_password">ପାସୱାର୍ଡ</string>
+    <string name="auth_confirm_password">ପାସୱାର୍ଡ ନିଶ୍ଚିତ କରନ୍ତୁ</string>
+    <string name="auth_login">ଲଗଇନ</string>
+    <string name="auth_register">ପଞ୍ଜୀକରଣ</string>
+    <string name="auth_forgot_password">ପାସୱାର୍ଡ ଭୁଲି ଗଲେ?</string>
+    <string name="auth_create_account">ଆକାଉଣ୍ଟ ତିଆରି କରନ୍ତୁ</string>
+    <string name="auth_back_to_login">ଲଗଇନକୁ ଫେରନ୍ତୁ</string>
+    <string name="auth_reset_password">ପାସୱାର୍ଡ ରିସେଟ କରନ୍ତୁ</string>
+    <string name="auth_send_reset_link">ରିସେଟ ଲିଙ୍କ ପଠାନ୍ତୁ</string>
+    <string name="auth_fill_all_fields">ଦୟାକରି ସମସ୍ତ ଫିଲ୍ଡ ପୂରଣ କରନ୍ତୁ</string>
+    <string name="auth_passwords_not_match">ପାସୱାର୍ଡ ମେଳ ଖାଉନାହିଁ</string>
+    <string name="auth_password_min_length">ପାସୱାର୍ଡ ଅତିକମରେ ୬ ଅକ୍ଷରର ହେବା ଆବଶ୍ୟକ</string>
+    <string name="auth_enter_email">ଦୟାକରି ଆପଣଙ୍କ ଇମେଲ ଦିଅନ୍ତୁ</string>
+    <string name="auth_reset_description">ଆପଣଙ୍କ ଇମେଲ ଠିକଣା ଦିଅନ୍ତୁ ଏବଂ ଆମେ ଆପଣଙ୍କୁ ପାସୱାର୍ଡ ରିସେଟ ଲିଙ୍କ ପଠାଇବୁ।</string>
+    <string name="auth_account_created_verify">ଆକାଉଣ୍ଟ ତିଆରି ହେଲା! ଯାଞ୍ଚ ପାଇଁ ଆପଣଙ୍କ ଇମେଲ ଦେଖନ୍ତୁ।</string>
+    <string name="auth_account_created_success">ଆକାଉଣ୍ଟ ସଫଳ ଭାବେ ତିଆରି ହେଲା! ଏବେ ଲଗଇନ କରିପାରିବେ।</string>
+    <string name="auth_login_failed">ଲଗଇନ ବିଫଳ</string>
+    <string name="auth_registration_failed">ପଞ୍ଜୀକରଣ ବିଫଳ</string>
     <string name="cancel">ବାତିଲ୍ କରନ୍ତୁ</string>
     <string name="done">ସମ୍ପନ୍ନ</string>
     <string name="hidesong">ଆପଣ ପ୍ରକୃତରେ ଏହି ଗୀତକୁ ଲୁଚାଇବାକୁ ଚାହୁଁଛନ୍ତି କି? ଏହାର ଚଲାଇବା ସମୟ ଏବଂ କ୍ୟାଶେ ବିଲୋପ ହୋଇଯିବ ।\nଏହି କାର୍ଯ୍ୟଟି ଅପରିବର୍ତ୍ତନୀୟ ଅଟେ ।.</string>

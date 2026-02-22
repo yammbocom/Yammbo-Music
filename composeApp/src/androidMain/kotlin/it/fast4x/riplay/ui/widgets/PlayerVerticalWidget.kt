@@ -35,7 +35,7 @@ import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.padding
 import androidx.glance.text.Text
 import it.fast4x.riplay.MainActivity
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.service.PlayerService
 import it.fast4x.riplay.ui.widgets.PlayerHorizontalWidget.Companion.widgetBinder
 import it.fast4x.riplay.utils.isLocal

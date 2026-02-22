@@ -11,7 +11,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.media3.common.util.UnstableApi
 import androidx.navigation.NavController
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.ui.components.PageContainer
 import it.fast4x.riplay.ui.components.ScreenContainer
 import it.fast4x.riplay.ui.screens.localplaylist.LocalPlaylistSongs

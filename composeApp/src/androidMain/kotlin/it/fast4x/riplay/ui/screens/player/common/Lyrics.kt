@@ -97,7 +97,7 @@ import it.fast4x.lrclib.LrcLib
 import it.fast4x.lrclib.models.Track
 import it.fast4x.riplay.data.Database
 import it.fast4x.riplay.LocalPlayerServiceBinder
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.commonutils.cleanPrefix
 import it.fast4x.riplay.enums.ColorPaletteMode
 import it.fast4x.riplay.enums.Languages
@@ -220,12 +220,12 @@ fun Lyrics(
         )
         val playerBackgroundColors by rememberPreference(
             playerBackgroundColorsKey,
-            PlayerBackgroundColors.BlurredCoverColor
+            PlayerBackgroundColors.CoverColorGradient
         )
         var lyricsFontSize by rememberPreference(lyricsFontSizeKey, LyricsFontSize.Medium)
 
         val thumbnailSize = Dimensions.thumbnails.player.song
-        val colorPaletteMode by rememberPreference(colorPaletteModeKey, ColorPaletteMode.Dark)
+        val colorPaletteMode by rememberPreference(colorPaletteModeKey, ColorPaletteMode.System)
 
         var isEditing by remember(mediaId, isShowingSynchronizedLyrics) {
             mutableStateOf(false)

@@ -3,6 +3,9 @@ package it.fast4x.riplay.enums
 import androidx.navigation.NavController
 
 enum class NavRoutes {
+    login,
+    register,
+    forgotPassword,
     home,
     album,
     artist,

@@ -1,5 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Auth screens -->
+    <string name="auth_email">E-post</string>
+    <string name="auth_password">Lösenord</string>
+    <string name="auth_confirm_password">Bekräfta Lösenord</string>
+    <string name="auth_login">Logga in</string>
+    <string name="auth_register">Registrera</string>
+    <string name="auth_forgot_password">Glömt lösenord?</string>
+    <string name="auth_create_account">Skapa Konto</string>
+    <string name="auth_back_to_login">Tillbaka till Inloggning</string>
+    <string name="auth_reset_password">Återställ Lösenord</string>
+    <string name="auth_send_reset_link">Skicka Återställningslänk</string>
+    <string name="auth_fill_all_fields">Vänligen fyll i alla fält</string>
+    <string name="auth_passwords_not_match">Lösenorden matchar inte</string>
+    <string name="auth_password_min_length">Lösenordet måste vara minst 6 tecken</string>
+    <string name="auth_enter_email">Vänligen ange din e-post</string>
+    <string name="auth_reset_description">Ange din e-postadress så skickar vi en länk för att återställa ditt lösenord.</string>
+    <string name="auth_account_created_verify">Konto skapat! Kolla din e-post för verifiering.</string>
+    <string name="auth_account_created_success">Konto skapat framgångsrikt! Du kan nu logga in.</string>
+    <string name="auth_login_failed">Inloggning misslyckades</string>
+    <string name="auth_registration_failed">Registrering misslyckades</string>
     <string name="cancel">Avbryt</string>
     <string name="done">Klar</string>
     <string name="hidesong">Vill du verkligen dölja denna låt? Dess uppspelningstid och cache kommer att raderas. Denna åtgärd går inte att ångra.</string>

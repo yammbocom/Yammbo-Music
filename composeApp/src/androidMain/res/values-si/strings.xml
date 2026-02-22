@@ -1,5 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Auth screens -->
+    <string name="auth_email">ඊමේල්</string>
+    <string name="auth_password">මුරපදය</string>
+    <string name="auth_confirm_password">මුරපදය තහවුරු කරන්න</string>
+    <string name="auth_login">පිවිසෙන්න</string>
+    <string name="auth_register">ලියාපදිංචි වන්න</string>
+    <string name="auth_forgot_password">මුරපදය අමතකද?</string>
+    <string name="auth_create_account">ගිණුමක් සාදන්න</string>
+    <string name="auth_back_to_login">පිවිසුමට ආපසු</string>
+    <string name="auth_reset_password">මුරපදය යළි සකසන්න</string>
+    <string name="auth_send_reset_link">යළි සැකසීමේ සබැඳිය යවන්න</string>
+    <string name="auth_fill_all_fields">කරුණාකර සියලු ක්ෂේත්‍ර පුරවන්න</string>
+    <string name="auth_passwords_not_match">මුරපද නොගැළපේ</string>
+    <string name="auth_password_min_length">මුරපදය අවම වශයෙන් අක්ෂර 6ක් විය යුතුය</string>
+    <string name="auth_enter_email">කරුණාකර ඔබගේ ඊමේල් ඇතුළත් කරන්න</string>
+    <string name="auth_reset_description">ඔබගේ ඊමේල් ලිපිනය ඇතුළත් කරන්න, මුරපදය යළි සැකසීමට සබැඳියක් අපි ඔබට එවන්නෙමු.</string>
+    <string name="auth_account_created_verify">ගිණුම සාදන ලදි! සත්‍යාපනය සඳහා ඔබගේ ඊමේල් පරීක්ෂා කරන්න.</string>
+    <string name="auth_account_created_success">ගිණුම සාදන ලදි! දැන් පිවිසිය හැක.</string>
+    <string name="auth_login_failed">පිවිසුම අසාර්ථකයි</string>
+    <string name="auth_registration_failed">ලියාපදිංචිය අසාර්ථකයි</string>
     <string name="cancel">අවලංගු කරන්න</string>
     <string name="done">අවසන්</string>
     <string name="hidesong">ඔබට මෙම සින්දුව සැඟවීමට අවශ්‍යද? එය ඇසූ කාලය මකාදැමෙන අතර කැෂයෙන්ද ඉවත් වේ.\nමෙය ආපසු හැරවීමට නොහැකි යි.</string>

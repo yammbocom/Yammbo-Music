@@ -34,7 +34,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.extensions.ritune.improved.models.RiTuneConnectionStatus
 import it.fast4x.riplay.extensions.ritune.improved.models.RiTuneRemoteCommand
 import it.fast4x.riplay.utils.colorPalette

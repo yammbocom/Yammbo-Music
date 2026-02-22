@@ -1,6 +1,6 @@
 package it.fast4x.riplay.utils
 
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.enums.QueueLoopType
 
 fun setQueueLoopState(currentState: QueueLoopType): QueueLoopType {

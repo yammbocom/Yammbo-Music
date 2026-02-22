@@ -17,8 +17,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
-import it.fast4x.riplay.BuildConfig
-import it.fast4x.riplay.R
+import com.yambo.music.BuildConfig
+import com.yambo.music.R
 import it.fast4x.riplay.enums.NavigationBarPosition
 import it.fast4x.riplay.ui.components.themed.HeaderWithIcon
 import it.fast4x.riplay.ui.styling.Dimensions
@@ -70,7 +70,7 @@ fun About() {
                 .fillMaxSize()
         ) {
             BasicText(
-                text = "RiPlay ${BuildConfig.VERSION_NAME} (${BuildConfig.BUILD_VARIANT}) by fast4x",
+                text = "Yammbo Music ${BuildConfig.VERSION_NAME} (${BuildConfig.BUILD_VARIANT})",
                 style = typography().s.secondary,
 
                 )
@@ -83,47 +83,12 @@ fun About() {
         SettingsEntry(
             online = false,
             offline = false,
-            title = stringResource(R.string.social_telegram),
-            text = stringResource(R.string.social_telegram_info),
+            title = "Yammbo Music",
+            text = "music.yammbo.com",
             onClick = {
-                uriHandler.openUri("https://t.me/riplay_app")
+                uriHandler.openUri("https://music.yammbo.com")
             }
         )
-
-        SettingsEntry(
-            online = false,
-            offline = false,
-            title = stringResource(R.string.social_reddit),
-            text = stringResource(R.string.social_reddit_info),
-            onClick = {
-                uriHandler.openUri("https://www.reddit.com/r/RiMusicApp/")
-            }
-        )
-
-        SettingsGroupSpacer()
-
-        SettingsEntryGroupText(title = stringResource(R.string.title_official_project_page))
-
-        SettingsEntry(
-            online = false,
-            offline = false,
-            title = stringResource(R.string.social_github),
-            text = stringResource(R.string.view_the_source_code),
-            onClick = {
-                uriHandler.openUri("https://github.com/fast4x/RiPlay")
-            }
-        )
-
-        if (BuildConfig.BUILD_VARIANT == "full")
-            SettingsEntry(
-                online = false,
-                offline = false,
-                title = stringResource(R.string.social_github),
-                text = stringResource(R.string.download_latest_version_from_github_you_will_find_the_file_in_the_notification_area_and_you_can_install_by_clicking_on_it),
-                onClick = {
-                    uriHandler.openUri(getUpdateDownloadUrl())
-                }
-            )
 
         SettingsGroupSpacer()
 
@@ -131,18 +96,9 @@ fun About() {
 
         SettingsEntry(
             title = stringResource(R.string.report_an_issue),
-            text = stringResource(R.string.you_will_be_redirected_to_github),
+            text = "Contactar soporte",
             onClick = {
-                uriHandler.openUri("https://github.com/fast4x/RiPlay/issues/new?assignees=&labels=bug&template=bug_report.yaml")
-            }
-        )
-
-
-        SettingsEntry(
-            title = stringResource(R.string.request_a_feature_or_suggest_an_idea),
-            text = stringResource(R.string.you_will_be_redirected_to_github),
-            onClick = {
-                uriHandler.openUri("https://github.com/fast4x/RiPlay/issues/new?assignees=&labels=enhancement&template=feature_request.yaml")
+                uriHandler.openUri("https://music.yammbo.com/support")
             }
         )
 

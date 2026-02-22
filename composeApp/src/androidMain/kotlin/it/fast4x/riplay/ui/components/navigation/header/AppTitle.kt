@@ -20,7 +20,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import it.fast4x.riplay.LocalPlayerServiceBinder
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.enums.NavRoutes
 import it.fast4x.riplay.extensions.preferences.eqEnabledKey
 import it.fast4x.riplay.extensions.preferences.logDebugEnabledKey
@@ -41,47 +41,20 @@ private fun AppLogo(
     context: Context
 ) {
     val modifier = Modifier.combinedClickable(
-        onClick = {},
+        onClick = {
+            if (NavRoutes.home.isNotHere(navController))
+                navController.navigate(NavRoutes.home.name)
+        },
         onLongClick = {}
     )
 
-    Button(
-        iconId = R.drawable.app_icon,
-        color = colorPalette().favoritesIcon,
-        padding = 0.dp,
-        size = 36.dp,
-        modifier = modifier
-    ).Draw()
-}
-
-@Composable
-private fun AppLogoText( navController: NavController ) {
-    val iconTextClick: () -> Unit = {
-        if ( NavRoutes.home.isNotHere( navController ) )
-            navController.navigate(NavRoutes.home.name)
-    }
-
-
-    Text(
-        text = "Play",
-        style = typography().xxl.copy(
-            color = colorPalette().text
-        ),
-        modifier = Modifier.clickable {
-            iconTextClick()
-        }
+    Image(
+        painter = painterResource(R.drawable.yambo_icon),
+        contentDescription = "Yammbo Music",
+        colorFilter = ColorFilter.tint(colorPalette().text),
+        modifier = modifier.size(36.dp)
     )
-
-//    Button(
-//        iconId = R.drawable.app_logo_text,
-//        color = AppBar.contentColor(),
-//        padding = 0.dp,
-//        size = 36.dp,
-//        forceWidth = 100.dp,
-//        modifier = Modifier.clickable { iconTextClick() }
-//    ).Draw()
 }
-
 
 @Composable
 fun AppTitle(
@@ -94,9 +67,6 @@ fun AppTitle(
     ) {
         Column {
             AppLogo(navController, context)
-        }
-        Column {
-            AppLogoText(navController)
         }
         Column(
             verticalArrangement = Arrangement.spacedBy(2.dp),

@@ -1,5 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Auth screens -->
+    <string name="auth_email">Email</string>
+    <string name="auth_password">Mật khẩu</string>
+    <string name="auth_confirm_password">Xác nhận Mật khẩu</string>
+    <string name="auth_login">Đăng nhập</string>
+    <string name="auth_register">Đăng ký</string>
+    <string name="auth_forgot_password">Quên mật khẩu?</string>
+    <string name="auth_create_account">Tạo Tài khoản</string>
+    <string name="auth_back_to_login">Quay lại Đăng nhập</string>
+    <string name="auth_reset_password">Đặt lại Mật khẩu</string>
+    <string name="auth_send_reset_link">Gửi Liên kết Đặt lại</string>
+    <string name="auth_fill_all_fields">Vui lòng điền tất cả các trường</string>
+    <string name="auth_passwords_not_match">Mật khẩu không khớp</string>
+    <string name="auth_password_min_length">Mật khẩu phải có ít nhất 6 ký tự</string>
+    <string name="auth_enter_email">Vui lòng nhập email của bạn</string>
+    <string name="auth_reset_description">Nhập địa chỉ email của bạn và chúng tôi sẽ gửi cho bạn liên kết để đặt lại mật khẩu.</string>
+    <string name="auth_account_created_verify">Tài khoản đã được tạo! Kiểm tra email để xác minh.</string>
+    <string name="auth_account_created_success">Tài khoản đã được tạo thành công! Bây giờ bạn có thể đăng nhập.</string>
+    <string name="auth_login_failed">Đăng nhập thất bại</string>
+    <string name="auth_registration_failed">Đăng ký thất bại</string>
     <string name="cancel">Hủy</string>
     <string name="done">Xong</string>
     <string name="hidesong">Bạn có thực sự muốn ẩn bài hát này? Thời gian phát lại và bộ nhớ đệm sẽ bị xóa. Hành động này không thể thay đổi được.</string>

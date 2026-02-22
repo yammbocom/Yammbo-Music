@@ -16,7 +16,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.data.models.Artist
 import it.fast4x.riplay.enums.MenuStyle
 import it.fast4x.riplay.extensions.preferences.menuStyleKey

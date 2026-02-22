@@ -43,7 +43,7 @@ import coil.annotation.ExperimentalCoilApi
 import it.fast4x.riplay.LocalBackupManager
 import it.fast4x.riplay.data.Database
 import it.fast4x.riplay.LocalPlayerServiceBinder
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.enums.CacheType
 import it.fast4x.riplay.enums.CoilDiskCacheMaxSize
 import it.fast4x.riplay.enums.NavigationBarPosition
@@ -142,7 +142,7 @@ fun DataSettings() {
             onConfirm = {
                 @SuppressLint("SimpleDateFormat")
                 val dateFormat = SimpleDateFormat("yyyyMMddHHmmss")
-                backupLauncher.launch("riplay_${dateFormat.format(Date())}.db")
+                backupLauncher.launch("yammbo_${dateFormat.format(Date())}.db")
             }
         )
     }

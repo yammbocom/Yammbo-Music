@@ -15,7 +15,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.extensions.listenerlevel.AnnualListenerLevel.SonicWhisper
 import it.fast4x.riplay.extensions.listenerlevel.AnnualListenerLevel.SoulNavigator
 import it.fast4x.riplay.extensions.listenerlevel.AnnualListenerLevel.TheDailyWanderer

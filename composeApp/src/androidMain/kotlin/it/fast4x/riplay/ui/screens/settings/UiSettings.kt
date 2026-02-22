@@ -24,7 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.media3.common.util.UnstableApi
 import androidx.navigation.NavController
 import it.fast4x.riplay.LocalPlayerServiceBinder
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.enums.AlbumSwipeAction
 import it.fast4x.riplay.enums.BackgroundProgress
 import it.fast4x.riplay.enums.CarouselSize
@@ -236,7 +236,7 @@ fun DefaultUiSettings() {
     skipMediaOnError = false
     var volumeNormalization by rememberPreference(volumeNormalizationKey, false)
     volumeNormalization = false
-    var recommendationsNumber by rememberPreference(recommendationsNumberKey,   RecommendationsNumber.`5`)
+    var recommendationsNumber by rememberPreference(recommendationsNumberKey,   RecommendationsNumber.`20`)
     recommendationsNumber = RecommendationsNumber.`5`
     var keepPlayerMinimized by rememberPreference(keepPlayerMinimizedKey,   false)
     keepPlayerMinimized = false
@@ -252,9 +252,9 @@ fun DefaultUiSettings() {
     disablePlayerHorizontalSwipe = false
     var lastPlayerPlayButtonType by rememberPreference(lastPlayerPlayButtonTypeKey, PlayerPlayButtonType.Rectangular)
     lastPlayerPlayButtonType = PlayerPlayButtonType.Rectangular
-    var colorPaletteName by rememberPreference(colorPaletteNameKey, ColorPaletteName.Dynamic)
-    colorPaletteName = ColorPaletteName.Dynamic
-    var colorPaletteMode by rememberPreference(colorPaletteModeKey, ColorPaletteMode.Dark)
+    var colorPaletteName by rememberPreference(colorPaletteNameKey, ColorPaletteName.Default)
+    colorPaletteName = ColorPaletteName.Default
+    var colorPaletteMode by rememberPreference(colorPaletteModeKey, ColorPaletteMode.System)
     colorPaletteMode = ColorPaletteMode.Dark
     var indexNavigationTab by rememberPreference(
         indexNavigationTabKey,
@@ -277,14 +277,14 @@ fun DefaultUiSettings() {
     showStatsInNavbar = false
     var maxStatisticsItems by rememberPreference(
         maxStatisticsItemsKey,
-        MaxStatisticsItems.`10`
+        MaxStatisticsItems.`50`
     )
     maxStatisticsItems = MaxStatisticsItems.`10`
     var showStatsListeningTime by rememberPreference(showStatsListeningTimeKey,   true)
     showStatsListeningTime = true
     var maxTopPlaylistItems by rememberPreference(
         MaxTopPlaylistItemsKey,
-        MaxTopPlaylistItems.`10`
+        MaxTopPlaylistItems.`50`
     )
     maxTopPlaylistItems = MaxTopPlaylistItems.`10`
     var navigationBarPosition by rememberPreference(navigationBarPositionKey, NavigationBarPosition.Bottom)
@@ -408,7 +408,7 @@ fun DefaultUiSettings() {
     carouselSize = CarouselSize.Biggest
     var thumbnailType by rememberPreference(thumbnailTypeKey, ThumbnailType.Modern)
     thumbnailType = ThumbnailType.Modern
-    var playerTimelineType by rememberPreference(playerTimelineTypeKey, PlayerTimelineType.Default)
+    var playerTimelineType by rememberPreference(playerTimelineTypeKey, PlayerTimelineType.Wavy)
     playerTimelineType = PlayerTimelineType.Default
     var playerThumbnailSize by rememberPreference(
         playerThumbnailSizeKey,
@@ -443,10 +443,10 @@ fun DefaultUiSettings() {
     iconLikeType = IconLikeType.Essential
     var playerBackgroundColors by rememberPreference(
         playerBackgroundColorsKey,
-        PlayerBackgroundColors.BlurredCoverColor
+        PlayerBackgroundColors.CoverColorGradient
     )
-    playerBackgroundColors = PlayerBackgroundColors.BlurredCoverColor
-    var blackgradient by rememberPreference(blackgradientKey, false)
+    playerBackgroundColors = PlayerBackgroundColors.CoverColorGradient
+    var blackgradient by rememberPreference(blackgradientKey, true)
     blackgradient = false
     var showTotalTimeQueue by rememberPreference(showTotalTimeQueueKey, true)
     showTotalTimeQueue = true
@@ -469,10 +469,10 @@ fun DefaultUiSettings() {
     backgroundProgress = BackgroundProgress.MiniPlayer
     var transparentBackgroundActionBarPlayer by rememberPreference(
         transparentBackgroundPlayerActionBarKey,
-        false
+        true
     )
     transparentBackgroundActionBarPlayer = false
-    var actionspacedevenly by rememberPreference(actionspacedevenlyKey, false)
+    var actionspacedevenly by rememberPreference(actionspacedevenlyKey, true)
     actionspacedevenly = false
     var tapqueue by rememberPreference(tapqueueKey, true)
     tapqueue = true
@@ -484,7 +484,7 @@ fun DefaultUiSettings() {
     showButtonPlayerArrow = false
 //    var showButtonPlayerDownload by rememberPreference(showButtonPlayerDownloadKey, true)
 //    showButtonPlayerDownload = true
-    var showButtonPlayerLoop by rememberPreference(showButtonPlayerLoopKey, true)
+    var showButtonPlayerLoop by rememberPreference(showButtonPlayerLoopKey, false)
     showButtonPlayerLoop = true
     var showButtonPlayerLyrics by rememberPreference(showButtonPlayerLyricsKey, true)
     showButtonPlayerLyrics = true
@@ -539,7 +539,7 @@ fun UiSettings(
 
 
 
-    var recommendationsNumber by rememberPreference(recommendationsNumberKey,   RecommendationsNumber.`5`)
+    var recommendationsNumber by rememberPreference(recommendationsNumberKey,   RecommendationsNumber.`20`)
 
     var keepPlayerMinimized by rememberPreference(keepPlayerMinimizedKey,   false)
 
@@ -550,8 +550,8 @@ fun UiSettings(
 
     var lastPlayerPlayButtonType by rememberPreference(lastPlayerPlayButtonTypeKey, PlayerPlayButtonType.Rectangular)
 
-    var colorPaletteName by rememberPreference(colorPaletteNameKey, ColorPaletteName.Dynamic)
-    var colorPaletteMode by rememberPreference(colorPaletteModeKey, ColorPaletteMode.Dark)
+    var colorPaletteName by rememberPreference(colorPaletteNameKey, ColorPaletteName.Default)
+    var colorPaletteMode by rememberPreference(colorPaletteModeKey, ColorPaletteMode.System)
     var indexNavigationTab by rememberPreference(
         indexNavigationTabKey,
         HomeScreenTabs.Default
@@ -565,14 +565,14 @@ fun UiSettings(
 
     var maxStatisticsItems by rememberPreference(
         maxStatisticsItemsKey,
-        MaxStatisticsItems.`10`
+        MaxStatisticsItems.`50`
     )
 
     var showStatsListeningTime by rememberPreference(showStatsListeningTimeKey,   true)
 
     var maxTopPlaylistItems by rememberPreference(
         MaxTopPlaylistItemsKey,
-        MaxTopPlaylistItems.`10`
+        MaxTopPlaylistItems.`50`
     )
 
     var navigationBarPosition by rememberPreference(navigationBarPositionKey, NavigationBarPosition.Bottom)
@@ -632,7 +632,7 @@ fun UiSettings(
     var carousel by rememberPreference(carouselKey, true)
     var carouselSize by rememberPreference(carouselSizeKey, CarouselSize.Biggest)
     var thumbnailType by rememberPreference(thumbnailTypeKey, ThumbnailType.Modern)
-    var playerTimelineType by rememberPreference(playerTimelineTypeKey, PlayerTimelineType.Default)
+    var playerTimelineType by rememberPreference(playerTimelineTypeKey, PlayerTimelineType.Wavy)
     var playerThumbnailSize by rememberPreference(
         playerThumbnailSizeKey,
         PlayerThumbnailSize.Biggest
@@ -658,9 +658,9 @@ fun UiSettings(
     var iconLikeType by rememberPreference(iconLikeTypeKey, IconLikeType.Essential)
     var playerBackgroundColors by rememberPreference(
         playerBackgroundColorsKey,
-        PlayerBackgroundColors.BlurredCoverColor
+        PlayerBackgroundColors.CoverColorGradient
     )
-    var blackgradient by rememberPreference(blackgradientKey, false)
+    var blackgradient by rememberPreference(blackgradientKey, true)
     var showTotalTimeQueue by rememberPreference(showTotalTimeQueueKey, true)
     var showNextSongsInPlayer by rememberPreference(showNextSongsInPlayerKey, false)
     var showRemainingSongTime by rememberPreference(showRemainingSongTimeKey, true)
@@ -674,15 +674,15 @@ fun UiSettings(
     )
     var transparentBackgroundActionBarPlayer by rememberPreference(
         transparentBackgroundPlayerActionBarKey,
-        false
+        true
     )
-    var actionspacedevenly by rememberPreference(actionspacedevenlyKey, false)
+    var actionspacedevenly by rememberPreference(actionspacedevenlyKey, true)
     var tapqueue by rememberPreference(tapqueueKey, true)
     var swipeUpQueue by rememberPreference(swipeUpQueueKey, true)
     var showButtonPlayerAddToPlaylist by rememberPreference(showButtonPlayerAddToPlaylistKey, true)
     var showButtonPlayerArrow by rememberPreference(showButtonPlayerArrowKey, true)
     //var showButtonPlayerDownload by rememberPreference(showButtonPlayerDownloadKey, true)
-    var showButtonPlayerLoop by rememberPreference(showButtonPlayerLoopKey, true)
+    var showButtonPlayerLoop by rememberPreference(showButtonPlayerLoopKey, false)
     var showButtonPlayerLyrics by rememberPreference(showButtonPlayerLyricsKey, true)
     var expandedplayertoggle by rememberPreference(expandedplayertoggleKey, true)
     var showButtonPlayerShuffle by rememberPreference(showButtonPlayerShuffleKey, true)
@@ -933,235 +933,7 @@ fun UiSettings(
                         }
                     )
 
-                if (search.input.isBlank() || stringResource(R.string.theme).contains(
-                        search.input,
-                        true
-                    )
-                )
-                    EnumValueSelectorSettingsEntry(
-                        title = stringResource(R.string.theme),
-                        selectedValue = colorPaletteName,
-                        onValueSelected = {
-                            colorPaletteName = it
-                            when (it) {
-                                ColorPaletteName.PureBlack,
-                                ColorPaletteName.ModernBlack -> colorPaletteMode =
-                                    ColorPaletteMode.System
 
-                                else -> {}
-                            }
-                        },
-                        valueText = {
-                            when (it) {
-                                ColorPaletteName.Default -> stringResource(R.string._default)
-                                ColorPaletteName.Dynamic -> stringResource(R.string.dynamic)
-                                ColorPaletteName.PureBlack -> stringResource(R.string.theme_pure_black)
-                                ColorPaletteName.ModernBlack -> stringResource(R.string.theme_modern_black)
-                                ColorPaletteName.MaterialYou -> stringResource(R.string.theme_material_you)
-                                ColorPaletteName.Customized -> stringResource(R.string.theme_customized)
-                                ColorPaletteName.CustomColor -> stringResource(R.string.customcolor)
-                            }
-                        }
-                    )
-
-                AnimatedVisibility(visible = colorPaletteName == ColorPaletteName.CustomColor) {
-                    Column {
-                        ColorSettingEntry(
-                            title = stringResource(R.string.customcolor),
-                            text = "",
-                            color = Color(customColor),
-                            onColorSelected = {
-                                customColor = it.hashCode()
-                            },
-                            modifier = Modifier
-                                .padding(start = 12.dp)
-                        )
-                        ImportantSettingsDescription(
-                            text = stringResource(R.string.restarting_riplay_is_required),
-                            modifier = Modifier
-                                .padding(start = 12.dp)
-                        )
-                    }
-                }
-                AnimatedVisibility(visible = colorPaletteName == ColorPaletteName.Customized) {
-                    Column {
-                        SettingsEntryGroupText(stringResource(R.string.title_customized_light_theme_colors))
-                        ButtonBarSettingEntry(
-                            title = stringResource(R.string.title_reset_customized_light_colors),
-                            text = stringResource(R.string.info_click_to_reset_default_light_colors),
-                            icon = R.drawable.trash,
-                            onClick = { resetCustomLightThemeDialog = true }
-                        )
-                        ColorSettingEntry(
-                            title = stringResource(R.string.color_background_1),
-                            text = "",
-                            color = Color(customThemeLight_Background0),
-                            onColorSelected = {
-                                customThemeLight_Background0 = it.hashCode()
-                            }
-                        )
-                        ColorSettingEntry(
-                            title = stringResource(R.string.color_background_2),
-                            text = "",
-                            color = Color(customThemeLight_Background1),
-                            onColorSelected = {
-                                customThemeLight_Background1 = it.hashCode()
-                            }
-                        )
-                        ColorSettingEntry(
-                            title = stringResource(R.string.color_background_3),
-                            text = "",
-                            color = Color(customThemeLight_Background2),
-                            onColorSelected = {
-                                customThemeLight_Background2 = it.hashCode()
-                            }
-                        )
-                        ColorSettingEntry(
-                            title = stringResource(R.string.color_background_4),
-                            text = "",
-                            color = Color(customThemeLight_Background3),
-                            onColorSelected = {
-                                customThemeLight_Background3 = it.hashCode()
-                            }
-                        )
-                        ColorSettingEntry(
-                            title = stringResource(R.string.color_background_5),
-                            text = "",
-                            color = Color(customThemeLight_Background4),
-                            onColorSelected = {
-                                customThemeLight_Background4 = it.hashCode()
-                            }
-                        )
-                        ColorSettingEntry(
-                            title = stringResource(R.string.color_text),
-                            text = "",
-                            color = Color(customThemeLight_Text),
-                            onColorSelected = {
-                                customThemeLight_Text = it.hashCode()
-                            }
-                        )
-                        ColorSettingEntry(
-                            title = stringResource(R.string.color_text_secondary),
-                            text = "",
-                            color = Color(customThemeLight_TextSecondary),
-                            onColorSelected = {
-                                customThemeLight_TextSecondary = it.hashCode()
-                            }
-                        )
-                        ColorSettingEntry(
-                            title = stringResource(R.string.color_text_disabled),
-                            text = "",
-                            color = Color(customThemeLight_TextDisabled),
-                            onColorSelected = {
-                                customThemeLight_TextDisabled = it.hashCode()
-                            }
-                        )
-                        ColorSettingEntry(
-                            title = stringResource(R.string.color_icon_button_player),
-                            text = "",
-                            color = Color(customThemeLight_IconButtonPlayer),
-                            onColorSelected = {
-                                customThemeLight_IconButtonPlayer = it.hashCode()
-                            }
-                        )
-                        ColorSettingEntry(
-                            title = stringResource(R.string.color_accent),
-                            text = "",
-                            color = Color(customThemeLight_Accent),
-                            onColorSelected = {
-                                customThemeLight_Accent = it.hashCode()
-                            }
-                        )
-
-                        SettingsEntryGroupText(stringResource(R.string.title_customized_dark_theme_colors))
-                        ButtonBarSettingEntry(
-                            title = stringResource(R.string.title_reset_customized_dark_colors),
-                            text = stringResource(R.string.click_to_reset_default_dark_colors),
-                            icon = R.drawable.trash,
-                            onClick = { resetCustomDarkThemeDialog = true }
-                        )
-                        ColorSettingEntry(
-                            title = stringResource(R.string.color_background_1),
-                            text = "",
-                            color = Color(customThemeDark_Background0),
-                            onColorSelected = {
-                                customThemeDark_Background0 = it.hashCode()
-                            }
-                        )
-                        ColorSettingEntry(
-                            title = stringResource(R.string.color_background_2),
-                            text = "",
-                            color = Color(customThemeDark_Background1),
-                            onColorSelected = {
-                                customThemeDark_Background1 = it.hashCode()
-                            }
-                        )
-                        ColorSettingEntry(
-                            title = stringResource(R.string.color_background_3),
-                            text = "",
-                            color = Color(customThemeDark_Background2),
-                            onColorSelected = {
-                                customThemeDark_Background2 = it.hashCode()
-                            }
-                        )
-                        ColorSettingEntry(
-                            title = stringResource(R.string.color_background_4),
-                            text = "",
-                            color = Color(customThemeDark_Background3),
-                            onColorSelected = {
-                                customThemeDark_Background3 = it.hashCode()
-                            }
-                        )
-                        ColorSettingEntry(
-                            title = stringResource(R.string.color_background_5),
-                            text = "",
-                            color = Color(customThemeDark_Background4),
-                            onColorSelected = {
-                                customThemeDark_Background4 = it.hashCode()
-                            }
-                        )
-                        ColorSettingEntry(
-                            title = stringResource(R.string.color_text),
-                            text = "",
-                            color = Color(customThemeDark_Text),
-                            onColorSelected = {
-                                customThemeDark_Text = it.hashCode()
-                            }
-                        )
-                        ColorSettingEntry(
-                            title = stringResource(R.string.color_text_secondary),
-                            text = "",
-                            color = Color(customThemeDark_TextSecondary),
-                            onColorSelected = {
-                                customThemeDark_TextSecondary = it.hashCode()
-                            }
-                        )
-                        ColorSettingEntry(
-                            title = stringResource(R.string.color_text_disabled),
-                            text = "",
-                            color = Color(customThemeDark_TextDisabled),
-                            onColorSelected = {
-                                customThemeDark_TextDisabled = it.hashCode()
-                            }
-                        )
-                        ColorSettingEntry(
-                            title = stringResource(R.string.color_icon_button_player),
-                            text = "",
-                            color = Color(customThemeDark_IconButtonPlayer),
-                            onColorSelected = {
-                                customThemeDark_IconButtonPlayer = it.hashCode()
-                            }
-                        )
-                        ColorSettingEntry(
-                            title = stringResource(R.string.color_accent),
-                            text = "",
-                            color = Color(customThemeDark_Accent),
-                            onColorSelected = {
-                                customThemeDark_Accent = it.hashCode()
-                            }
-                        )
-                    }
-                }
 
                 if (search.input.isBlank() || stringResource(R.string.theme_mode).contains(
                         search.input,
@@ -1171,16 +943,8 @@ fun UiSettings(
                     EnumValueSelectorSettingsEntry(
                         title = stringResource(R.string.theme_mode),
                         selectedValue = colorPaletteMode,
-                        isEnabled = when (colorPaletteName) {
-                            ColorPaletteName.PureBlack -> false
-                            ColorPaletteName.ModernBlack -> false
-                            else -> {
-                                true
-                            }
-                        },
                         onValueSelected = {
                             colorPaletteMode = it
-                            //if (it == ColorPaletteMode.PitchBlack) colorPaletteName = ColorPaletteName.ModernBlack
                         },
                         valueText = {
                             when (it) {
@@ -1888,6 +1652,8 @@ fun UiSettings(
 //                    )
 //            }
 
+            // Yammbo: Reset section hidden
+            /*
             settingsItem(
                 isHeader = true
             ) {
@@ -1912,6 +1678,7 @@ fun UiSettings(
                     SmartMessage(stringResource(R.string.done), context = context)
                 }
             }
+            */
 
 //        SettingsGroupSpacer(
 //            modifier = Modifier.height(Dimensions.bottomSpacer)

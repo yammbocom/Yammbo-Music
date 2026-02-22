@@ -51,7 +51,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.navigation.NavController
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.PlayerConstants
 import it.fast4x.riplay.data.Database
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.utils.appContext
 import it.fast4x.riplay.commonutils.cleanPrefix
 import it.fast4x.riplay.utils.colorPalette
@@ -115,13 +115,13 @@ fun InfoAlbumAndArtistModern(
     onCollapse: () -> Unit,
     disableScrollingText: Boolean = false
 ) {
-    val colorPaletteMode by rememberPreference(colorPaletteModeKey, ColorPaletteMode.Dark)
+    val colorPaletteMode by rememberPreference(colorPaletteModeKey, ColorPaletteMode.System)
     val playerControlsType by rememberPreference(playerControlsTypeKey, PlayerControlsType.Essential)
     var showthumbnail by rememberPreference(showthumbnailKey, true)
     var effectRotationEnabled by rememberPreference(effectRotationKey, true)
     var isRotated by rememberSaveable { mutableStateOf(false) }
     var showSelectDialog by remember { mutableStateOf(false) }
-    val playerBackgroundColors by rememberPreference(playerBackgroundColorsKey,PlayerBackgroundColors.BlurredCoverColor)
+    val playerBackgroundColors by rememberPreference(playerBackgroundColorsKey,PlayerBackgroundColors.CoverColorGradient)
     val playerInfoShowIcon by rememberPreference(playerInfoShowIconsKey, true)
 
 
@@ -287,7 +287,7 @@ fun InfoAlbumAndArtistModern(
                             .padding(start = 5.dp)
                             .size(24.dp)
                     )
-                    if (playerBackgroundColors == PlayerBackgroundColors.BlurredCoverColor) {
+                    if (playerBackgroundColors == PlayerBackgroundColors.CoverColorGradient) {
                         Icon(
                             painter = painterResource(id = getUnlikedIcon()),
                             tint = colorPalette().text,

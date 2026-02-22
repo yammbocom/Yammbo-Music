@@ -4,7 +4,7 @@ import android.content.Context
 import android.net.Uri
 import android.os.Build
 import androidx.annotation.RequiresApi
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.enums.LogType
 import it.fast4x.riplay.enums.PopupType
 import it.fast4x.riplay.ui.components.themed.SmartMessage
@@ -132,8 +132,8 @@ fun tryCopyDir() {
 fun loadAppLog(context: Context, type: LogType): String? {
     val file = File(context.filesDir.resolve("logs"),
         when (type) {
-            LogType.Default ->  "RiPlay_log.txt"
-            LogType.Crash ->    "RiPlay_crash_log.txt"
+            LogType.Default ->  "YammboMusic_log.txt"
+            LogType.Crash ->    "YammboMusic_crash_log.txt"
         }
     )
     if (file.exists()) {

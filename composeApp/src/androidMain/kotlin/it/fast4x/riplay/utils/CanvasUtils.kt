@@ -310,7 +310,7 @@ private suspend fun Bitmap.blur(
 
 @Composable
 fun saturate(color: Int): Color {
-    val colorPaletteMode by rememberPreference(colorPaletteModeKey, ColorPaletteMode.Dark)
+    val colorPaletteMode by rememberPreference(colorPaletteModeKey, ColorPaletteMode.System)
     val colorHSL by rememberSaveable { mutableStateOf(floatArrayOf(0f, 0f, 0f)) }
     val lightTheme =
         colorPaletteMode == ColorPaletteMode.Light || (colorPaletteMode == ColorPaletteMode.System && (!isSystemInDarkTheme()))

@@ -1,5 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Auth screens -->
+    <string name="auth_email">Email</string>
+    <string name="auth_password">Kata Sandi</string>
+    <string name="auth_confirm_password">Konfirmasi Kata Sandi</string>
+    <string name="auth_login">Masuk</string>
+    <string name="auth_register">Daftar</string>
+    <string name="auth_forgot_password">Lupa kata sandi?</string>
+    <string name="auth_create_account">Buat Akun</string>
+    <string name="auth_back_to_login">Kembali ke Login</string>
+    <string name="auth_reset_password">Atur Ulang Kata Sandi</string>
+    <string name="auth_send_reset_link">Kirim Tautan Atur Ulang</string>
+    <string name="auth_fill_all_fields">Harap isi semua kolom</string>
+    <string name="auth_passwords_not_match">Kata sandi tidak cocok</string>
+    <string name="auth_password_min_length">Kata sandi harus minimal 6 karakter</string>
+    <string name="auth_enter_email">Harap masukkan email Anda</string>
+    <string name="auth_reset_description">Masukkan alamat email Anda dan kami akan mengirimkan tautan untuk mengatur ulang kata sandi Anda.</string>
+    <string name="auth_account_created_verify">Akun dibuat! Periksa email Anda untuk verifikasi.</string>
+    <string name="auth_account_created_success">Akun berhasil dibuat! Anda sekarang bisa masuk.</string>
+    <string name="auth_login_failed">Login gagal</string>
+    <string name="auth_registration_failed">Pendaftaran gagal</string>
     <string name="cancel">Batalkan</string>
     <string name="done">Selesai</string>
     <string name="hidesong">Apakah Anda benar-benar ingin menyembunyikan lagu ini? Waktu pemutaran dan berkas singgahannya (cache) akan dihapus. Tindakan ini tidak dapat diubah.</string>

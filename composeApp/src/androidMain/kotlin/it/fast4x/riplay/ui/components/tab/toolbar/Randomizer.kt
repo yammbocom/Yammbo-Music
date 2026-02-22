@@ -1,7 +1,7 @@
 package it.fast4x.riplay.ui.components.tab.toolbar
 
 import androidx.compose.runtime.Composable
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.ui.components.navigation.header.TabToolBar
 import kotlin.random.Random
 

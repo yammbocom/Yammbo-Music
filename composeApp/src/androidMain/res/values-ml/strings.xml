@@ -1,5 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Auth screens -->
+    <string name="auth_email">ഇമെയിൽ</string>
+    <string name="auth_password">പാസ്‌വേഡ്</string>
+    <string name="auth_confirm_password">പാസ്‌വേഡ് സ്ഥിരീകരിക്കുക</string>
+    <string name="auth_login">ലോഗിൻ</string>
+    <string name="auth_register">രജിസ്റ്റർ</string>
+    <string name="auth_forgot_password">പാസ്‌വേഡ് മറന്നോ?</string>
+    <string name="auth_create_account">അക്കൗണ്ട് സൃഷ്ടിക്കുക</string>
+    <string name="auth_back_to_login">ലോഗിനിലേക്ക് മടങ്ങുക</string>
+    <string name="auth_reset_password">പാസ്‌വേഡ് പുനഃക്രമീകരിക്കുക</string>
+    <string name="auth_send_reset_link">പുനഃക്രമീകരണ ലിങ്ക് അയയ്ക്കുക</string>
+    <string name="auth_fill_all_fields">എല്ലാ ഫീൽഡുകളും പൂരിപ്പിക്കുക</string>
+    <string name="auth_passwords_not_match">പാസ്‌വേഡുകൾ പൊരുത്തപ്പെടുന്നില്ല</string>
+    <string name="auth_password_min_length">പാസ്‌വേഡ് കുറഞ്ഞത് 6 അക്ഷരമെങ്കിലും ആയിരിക്കണം</string>
+    <string name="auth_enter_email">നിങ്ങളുടെ ഇമെയിൽ നൽകുക</string>
+    <string name="auth_reset_description">നിങ്ങളുടെ ഇമെയിൽ വിലാസം നൽകുക, പാസ്‌വേഡ് പുനഃക്രമീകരിക്കാനുള്ള ലിങ്ക് ഞങ്ങൾ അയയ്ക്കും.</string>
+    <string name="auth_account_created_verify">അക്കൗണ്ട് സൃഷ്ടിച്ചു! സ്ഥിരീകരണത്തിനായി ഇമെയിൽ പരിശോധിക്കുക.</string>
+    <string name="auth_account_created_success">അക്കൗണ്ട് വിജയകരമായി സൃഷ്ടിച്ചു! ഇപ്പോൾ ലോഗിൻ ചെയ്യാം.</string>
+    <string name="auth_login_failed">ലോഗിൻ പരാജയപ്പെട്ടു</string>
+    <string name="auth_registration_failed">രജിസ്ട്രേഷൻ പരാജയപ്പെട്ടു</string>
     <string name="cancel">റദ്ദാക്കുക</string>
     <string name="done">കഴിഞ്ഞു</string>
     <string name="hidesong">Do you really want to hide this song? Its playback time and cache will be wiped. This action is irreversible.</string>

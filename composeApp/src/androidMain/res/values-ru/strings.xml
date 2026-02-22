@@ -1,5 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Auth screens -->
+    <string name="auth_email">Электронная почта</string>
+    <string name="auth_password">Пароль</string>
+    <string name="auth_confirm_password">Подтвердите Пароль</string>
+    <string name="auth_login">Войти</string>
+    <string name="auth_register">Зарегистрироваться</string>
+    <string name="auth_forgot_password">Забыли пароль?</string>
+    <string name="auth_create_account">Создать Аккаунт</string>
+    <string name="auth_back_to_login">Назад к Входу</string>
+    <string name="auth_reset_password">Сбросить Пароль</string>
+    <string name="auth_send_reset_link">Отправить Ссылку для Сброса</string>
+    <string name="auth_fill_all_fields">Пожалуйста, заполните все поля</string>
+    <string name="auth_passwords_not_match">Пароли не совпадают</string>
+    <string name="auth_password_min_length">Пароль должен быть не менее 6 символов</string>
+    <string name="auth_enter_email">Пожалуйста, введите вашу почту</string>
+    <string name="auth_reset_description">Введите ваш адрес электронной почты, и мы отправим вам ссылку для сброса пароля.</string>
+    <string name="auth_account_created_verify">Аккаунт создан! Проверьте почту для подтверждения.</string>
+    <string name="auth_account_created_success">Аккаунт успешно создан! Теперь вы можете войти.</string>
+    <string name="auth_login_failed">Ошибка входа</string>
+    <string name="auth_registration_failed">Ошибка регистрации</string>
     <string name="cancel">Отмена</string>
     <string name="done">Готово</string>
     <string name="hidesong">Вы действительно хотите скрыть эту песню? История воспроизведения и кэш будут удалены.

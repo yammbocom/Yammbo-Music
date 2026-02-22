@@ -47,7 +47,7 @@ import coil.size.Size
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import it.fast4x.riplay.data.Database
 import it.fast4x.riplay.LocalPlayerServiceBinder
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.enums.PopupType
 import it.fast4x.riplay.enums.ThumbnailCoverType
 import it.fast4x.riplay.enums.ThumbnailType

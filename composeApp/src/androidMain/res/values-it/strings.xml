@@ -1,5 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Auth screens -->
+    <string name="auth_email">Email</string>
+    <string name="auth_password">Password</string>
+    <string name="auth_confirm_password">Conferma Password</string>
+    <string name="auth_login">Accedi</string>
+    <string name="auth_register">Registrati</string>
+    <string name="auth_forgot_password">Password dimenticata?</string>
+    <string name="auth_create_account">Crea Account</string>
+    <string name="auth_back_to_login">Torna al Login</string>
+    <string name="auth_reset_password">Reimposta Password</string>
+    <string name="auth_send_reset_link">Invia Link di Reimpostazione</string>
+    <string name="auth_fill_all_fields">Compila tutti i campi</string>
+    <string name="auth_passwords_not_match">Le password non corrispondono</string>
+    <string name="auth_password_min_length">La password deve avere almeno 6 caratteri</string>
+    <string name="auth_enter_email">Inserisci la tua email</string>
+    <string name="auth_reset_description">Inserisci il tuo indirizzo email e ti invieremo un link per reimpostare la tua password.</string>
+    <string name="auth_account_created_verify">Account creato! Controlla la tua email per la verifica.</string>
+    <string name="auth_account_created_success">Account creato con successo! Ora puoi accedere.</string>
+    <string name="auth_login_failed">Accesso fallito</string>
+    <string name="auth_registration_failed">Registrazione fallita</string>
     <string name="cancel">Annulla</string>
     <string name="done">Ok</string>
     <string name="hidesong">Vuoi davvero nascondere questa canzone? Il tempo di riproduzione e la cache verranno cancellati. Questa azione è irreversibile.</string>

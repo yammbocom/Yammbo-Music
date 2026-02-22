@@ -40,9 +40,9 @@ import androidx.navigation.compose.rememberNavController
 import coil.compose.AsyncImage
 import it.fast4x.environment.Environment
 import it.fast4x.environment.utils.parseCookieString
-import it.fast4x.riplay.BuildConfig
+import com.yambo.music.BuildConfig
 import it.fast4x.riplay.LocalAudioTagger
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.enums.LastFmScrobbleType
 import it.fast4x.riplay.enums.MusicIdentifierProvider
 import it.fast4x.riplay.utils.appContext
@@ -86,7 +86,12 @@ import it.fast4x.riplay.extensions.preferences.lastfmSessionTokenKey
 import it.fast4x.riplay.extensions.preferences.musicIdentifierApiKey
 import it.fast4x.riplay.extensions.preferences.musicIdentifierProviderKey
 import it.fast4x.riplay.ui.styling.semiBold
+import it.fast4x.riplay.extensions.yammboapi.YammboApiService
+import it.fast4x.riplay.extensions.yammboapi.YammboAuthManager
+import it.fast4x.riplay.enums.NavRoutes
 import it.fast4x.riplay.utils.typography
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -98,7 +103,10 @@ import timber.log.Timber
 @SuppressLint("BatteryLife")
 @ExperimentalAnimationApi
 @Composable
-fun AccountsSettings() {
+fun AccountsSettings(
+    authManager: YammboAuthManager? = null,
+    onLogout: (() -> Unit)? = null
+) {
     val context = LocalContext.current
     val thumbnailRoundness by rememberPreference(
         thumbnailRoundnessKey,
@@ -139,6 +147,37 @@ fun AccountsSettings() {
             modifier = Modifier,
             onClick = {}
         )
+
+        /****** YAMMBO MUSIC ACCOUNT ******/
+        if (authManager != null) {
+            SettingsGroupSpacer()
+            SettingsEntryGroupText(title = "Yammbo Music")
+
+            if (authManager.isLoggedIn()) {
+                SettingsDescription(text = "Logged in as ${authManager.getUserEmail()}")
+
+                ButtonBarSettingEntry(
+                    isEnabled = true,
+                    title = "Logout",
+                    text = "Sign out of your Yammbo Music account",
+                    icon = R.drawable.close,
+                    iconColor = colorPalette().text,
+                    onClick = {
+                        val token = authManager.getAccessToken()
+                        if (token != null) {
+                            CoroutineScope(Dispatchers.IO).launch {
+                                YammboApiService.logout(token)
+                            }
+                        }
+                        authManager.logout()
+                        onLogout?.invoke()
+                    }
+                )
+            } else {
+                SettingsDescription(text = "Not logged in")
+            }
+        }
+        /****** YAMMBO MUSIC ACCOUNT ******/
 
         /****** YOUTUBE LOGIN ******/
 

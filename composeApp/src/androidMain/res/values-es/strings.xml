@@ -1,5 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Auth screens -->
+    <string name="auth_email">Correo electrónico</string>
+    <string name="auth_password">Contraseña</string>
+    <string name="auth_confirm_password">Confirmar Contraseña</string>
+    <string name="auth_login">Iniciar sesión</string>
+    <string name="auth_register">Registrarse</string>
+    <string name="auth_forgot_password">¿Olvidaste tu contraseña?</string>
+    <string name="auth_create_account">Crear Cuenta</string>
+    <string name="auth_back_to_login">Volver al Inicio de sesión</string>
+    <string name="auth_reset_password">Restablecer Contraseña</string>
+    <string name="auth_send_reset_link">Enviar Enlace de Restablecimiento</string>
+    <string name="auth_fill_all_fields">Por favor, completa todos los campos</string>
+    <string name="auth_passwords_not_match">Las contraseñas no coinciden</string>
+    <string name="auth_password_min_length">La contraseña debe tener al menos 6 caracteres</string>
+    <string name="auth_enter_email">Por favor, ingresa tu correo electrónico</string>
+    <string name="auth_reset_description">Ingresa tu dirección de correo electrónico y te enviaremos un enlace para restablecer tu contraseña.</string>
+    <string name="auth_account_created_verify">¡Cuenta creada! Revisa tu correo para verificar.</string>
+    <string name="auth_account_created_success">¡Cuenta creada exitosamente! Ya puedes iniciar sesión.</string>
+    <string name="auth_login_failed">Error al iniciar sesión</string>
+    <string name="auth_registration_failed">Error en el registro</string>
     <string name="cancel">Cancelar</string>
     <string name="done">Hecho</string>
     <string name="hidesong">¿Seguro que quieres ocultar esta canción? El tiempo de reproducción y la caché se eliminarán. Esta acción es irreversible.</string>

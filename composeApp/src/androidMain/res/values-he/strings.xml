@@ -1,5 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Auth screens -->
+    <string name="auth_email">אימייל</string>
+    <string name="auth_password">סיסמה</string>
+    <string name="auth_confirm_password">אישור סיסמה</string>
+    <string name="auth_login">התחברות</string>
+    <string name="auth_register">הרשמה</string>
+    <string name="auth_forgot_password">שכחת סיסמה?</string>
+    <string name="auth_create_account">יצירת חשבון</string>
+    <string name="auth_back_to_login">חזרה להתחברות</string>
+    <string name="auth_reset_password">איפוס סיסמה</string>
+    <string name="auth_send_reset_link">שליחת קישור איפוס</string>
+    <string name="auth_fill_all_fields">נא למלא את כל השדות</string>
+    <string name="auth_passwords_not_match">הסיסמאות אינן תואמות</string>
+    <string name="auth_password_min_length">הסיסמה חייבת להכיל לפחות 6 תווים</string>
+    <string name="auth_enter_email">נא להזין את האימייל שלך</string>
+    <string name="auth_reset_description">הזן את כתובת האימייל שלך ונשלח לך קישור לאיפוס הסיסמה.</string>
+    <string name="auth_account_created_verify">החשבון נוצר! בדוק את האימייל לאימות.</string>
+    <string name="auth_account_created_success">החשבון נוצר בהצלחה! כעת תוכל להתחבר.</string>
+    <string name="auth_login_failed">ההתחברות נכשלה</string>
+    <string name="auth_registration_failed">ההרשמה נכשלה</string>
     <string name="cancel">ביטול</string>
     <string name="done">בוצע</string>
     <string name="hidesong">האם באמת תרצו להסתיר את השיר? זמן ההשמעה וזיכרון המטמון שלו ימחקו.\n הפעולה הזאת לא ניתנת לביטול.</string>

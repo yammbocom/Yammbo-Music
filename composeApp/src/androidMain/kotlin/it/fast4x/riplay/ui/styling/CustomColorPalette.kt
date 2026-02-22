@@ -29,7 +29,7 @@ import it.fast4x.riplay.extensions.preferences.preferences
 
 
 fun customColorPalette(colorPalette: ColorPalette, context: Context, isSystemInDarkTheme: Boolean): ColorPalette {
-    val colorPaletteMode = context.preferences.getEnum(colorPaletteModeKey, ColorPaletteMode.Dark)
+    val colorPaletteMode = context.preferences.getEnum(colorPaletteModeKey, ColorPaletteMode.System)
 
     val customThemeLight = colorPalette.copy(
         background0 = Color(context.preferences.getInt(customThemeLight_Background0Key, DefaultLightColorPalette.background0.hashCode())),

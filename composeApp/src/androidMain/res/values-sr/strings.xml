@@ -1,5 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Auth screens -->
+    <string name="auth_email">Имејл</string>
+    <string name="auth_password">Лозинка</string>
+    <string name="auth_confirm_password">Потврди Лозинку</string>
+    <string name="auth_login">Пријави се</string>
+    <string name="auth_register">Региструј се</string>
+    <string name="auth_forgot_password">Заборавили сте лозинку?</string>
+    <string name="auth_create_account">Направи Налог</string>
+    <string name="auth_back_to_login">Назад на Пријаву</string>
+    <string name="auth_reset_password">Ресетуј Лозинку</string>
+    <string name="auth_send_reset_link">Пошаљи Линк за Ресетовање</string>
+    <string name="auth_fill_all_fields">Молимо попуните сва поља</string>
+    <string name="auth_passwords_not_match">Лозинке се не поклапају</string>
+    <string name="auth_password_min_length">Лозинка мора имати најмање 6 карактера</string>
+    <string name="auth_enter_email">Молимо унесите ваш имејл</string>
+    <string name="auth_reset_description">Унесите вашу имејл адресу и послаћемо вам линк за ресетовање лозинке.</string>
+    <string name="auth_account_created_verify">Налог је направљен! Проверите имејл за верификацију.</string>
+    <string name="auth_account_created_success">Налог је успешно направљен! Сада можете да се пријавите.</string>
+    <string name="auth_login_failed">Неуспешна пријава</string>
+    <string name="auth_registration_failed">Неуспешна регистрација</string>
     <string name="cancel">Откажи</string>
     <string name="done">Готово</string>
     <string name="hidesong">Да ли заиста желите да сакријете ову песму? Њено време репродукције и кеш меморија ће бити обрисани. Ова радња је неповратна.</string>

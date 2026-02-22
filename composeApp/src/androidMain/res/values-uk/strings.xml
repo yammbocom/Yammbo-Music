@@ -1,5 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Auth screens -->
+    <string name="auth_email">Електронна пошта</string>
+    <string name="auth_password">Пароль</string>
+    <string name="auth_confirm_password">Підтвердіть Пароль</string>
+    <string name="auth_login">Увійти</string>
+    <string name="auth_register">Зареєструватися</string>
+    <string name="auth_forgot_password">Забули пароль?</string>
+    <string name="auth_create_account">Створити Обліковий запис</string>
+    <string name="auth_back_to_login">Повернутися до Входу</string>
+    <string name="auth_reset_password">Скинути Пароль</string>
+    <string name="auth_send_reset_link">Надіслати Посилання для Скидання</string>
+    <string name="auth_fill_all_fields">Будь ласка, заповніть усі поля</string>
+    <string name="auth_passwords_not_match">Паролі не збігаються</string>
+    <string name="auth_password_min_length">Пароль повинен бути не менше 6 символів</string>
+    <string name="auth_enter_email">Будь ласка, введіть вашу пошту</string>
+    <string name="auth_reset_description">Введіть вашу адресу електронної пошти, і ми надішлемо вам посилання для скидання пароля.</string>
+    <string name="auth_account_created_verify">Обліковий запис створено! Перевірте пошту для підтвердження.</string>
+    <string name="auth_account_created_success">Обліковий запис успішно створено! Тепер ви можете увійти.</string>
+    <string name="auth_login_failed">Помилка входу</string>
+    <string name="auth_registration_failed">Помилка реєстрації</string>
     <string name="cancel">Скасовувати</string>
     <string name="done">Зроблено</string>
     <string name="hidesong">Ви дійсно хочете приховати цю пісню? Час її відтворення та кеш буде витерто. Ця дія є незворотною.</string>

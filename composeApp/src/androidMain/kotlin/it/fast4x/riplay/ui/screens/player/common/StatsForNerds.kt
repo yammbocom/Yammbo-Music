@@ -38,7 +38,7 @@ import androidx.media3.datasource.cache.Cache
 import androidx.media3.datasource.cache.CacheSpan
 import it.fast4x.riplay.data.Database
 import it.fast4x.riplay.LocalPlayerServiceBinder
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.enums.PlayerBackgroundColors
 import it.fast4x.riplay.enums.PlayerType
 import it.fast4x.riplay.data.models.Format
@@ -99,12 +99,12 @@ fun StatsForNerds(
         val playerType by rememberPreference(playerTypeKey, PlayerType.Modern)
         val transparentBackgroundActionBarPlayer by rememberPreference(
             transparentBackgroundPlayerActionBarKey,
-            false
+            true
         )
-        var blackgradient by rememberPreference(blackgradientKey, false)
+        var blackgradient by rememberPreference(blackgradientKey, true)
         val playerBackgroundColors by rememberPreference(
             playerBackgroundColorsKey,
-            PlayerBackgroundColors.BlurredCoverColor
+            PlayerBackgroundColors.CoverColorGradient
         )
         var statsfornerdsfull by remember {mutableStateOf(false)}
         val rotationAngle by animateFloatAsState(

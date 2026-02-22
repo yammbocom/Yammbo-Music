@@ -13,7 +13,7 @@ import it.fast4x.riplay.data.Database
 import it.fast4x.riplay.data.Database.Companion.getAlbumsList
 import it.fast4x.riplay.data.Database.Companion.getArtistsList
 import it.fast4x.riplay.data.Database.Companion.update
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.commonutils.YTP_PREFIX
 import it.fast4x.riplay.extensions.preferences.autosyncKey
 import it.fast4x.riplay.extensions.preferences.rememberPreference

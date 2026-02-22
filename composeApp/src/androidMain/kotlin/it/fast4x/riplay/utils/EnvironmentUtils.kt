@@ -3,7 +3,7 @@ package it.fast4x.riplay.utils
 import android.content.Context
 import it.fast4x.environment.utils.EnvironmentPreferenceItem
 import it.fast4x.environment.utils.EnvironmentPreferences
-import it.fast4x.riplay.R
+import com.yambo.music.R
 
 //fun InitializeEnvironment(context: Context) {
 //    EnvironmentPreferences.preference = EnvironmentPreferenceItem(

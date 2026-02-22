@@ -1,5 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Auth screens -->
+    <string name="auth_email">Ríomhphost</string>
+    <string name="auth_password">Pasfhocal</string>
+    <string name="auth_confirm_password">Deimhnigh Pasfhocal</string>
+    <string name="auth_login">Logáil isteach</string>
+    <string name="auth_register">Cláraigh</string>
+    <string name="auth_forgot_password">An ndearna tú dearmad ar do phasfhocal?</string>
+    <string name="auth_create_account">Cruthaigh Cuntas</string>
+    <string name="auth_back_to_login">Ar ais go Logáil isteach</string>
+    <string name="auth_reset_password">Athshocraigh Pasfhocal</string>
+    <string name="auth_send_reset_link">Seol Nasc Athshocraithe</string>
+    <string name="auth_fill_all_fields">Líon isteach gach réimse le do thoil</string>
+    <string name="auth_passwords_not_match">Ní mheaitseálann na pasfhocail</string>
+    <string name="auth_password_min_length">Caithfidh 6 charachtar ar a laghad a bheith sa phasfhocal</string>
+    <string name="auth_enter_email">Cuir isteach do ríomhphost le do thoil</string>
+    <string name="auth_reset_description">Cuir isteach do sheoladh ríomhphoist agus seolfaimid nasc chugat chun do phasfhocal a athshocrú.</string>
+    <string name="auth_account_created_verify">Cuntas cruthaithe! Seiceáil do ríomhphost le haghaidh fíoraithe.</string>
+    <string name="auth_account_created_success">Cuntas cruthaithe go rathúil! Is féidir leat logáil isteach anois.</string>
+    <string name="auth_login_failed">Theip ar logáil isteach</string>
+    <string name="auth_registration_failed">Theip ar chlárú</string>
     <string name="cancel">Cuir ar Ceal</string>
     <string name="done">Déanta</string>
     <string name="hidesong">An bhfuil tú cinnte an t-amhrán seo a chuir i bhfolach? Glanfar a athsheinm agus a thaisce.Do-aisiompaithe é an gníomh seo.</string>

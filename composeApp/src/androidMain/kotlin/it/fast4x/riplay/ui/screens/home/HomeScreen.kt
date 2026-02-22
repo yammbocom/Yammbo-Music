@@ -20,10 +20,10 @@ import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.lifecycle.Lifecycle
 import androidx.media3.common.util.UnstableApi
 import androidx.navigation.NavController
-import it.fast4x.riplay.BuildConfig
+import com.yambo.music.BuildConfig
 import it.fast4x.riplay.commonutils.LOCAL_KEY_PREFIX
 import it.fast4x.riplay.LocalPlayerSheetState
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.data.models.toUiChip
 import it.fast4x.riplay.enums.CheckUpdateState
 import it.fast4x.riplay.enums.HomeScreenTabs
@@ -66,7 +66,7 @@ fun HomeScreen(
         mutableStateOf(true)
     }
 
-    var checkUpdateState by rememberPreference(checkUpdateStateKey, CheckUpdateState.Enabled)
+    var checkUpdateState by rememberPreference(checkUpdateStateKey, CheckUpdateState.Disabled)
 
     val saveableStateHolder = rememberSaveableStateHolder()
 
@@ -208,6 +208,8 @@ fun HomeScreen(
     }
 
 
+    // Yammbo: Update dialogs disabled
+    /*
     if(BuildConfig.BUILD_VARIANT == "full") {
         if (showNewversionDialog && checkUpdateState == CheckUpdateState.Enabled)
             CheckAvailableNewVersion(
@@ -229,6 +231,7 @@ fun HomeScreen(
                 onConfirm = { checkUpdateState = CheckUpdateState.Enabled },
             )
     }
+    */
 
     // Exit app when user uses back
     val context = LocalContext.current

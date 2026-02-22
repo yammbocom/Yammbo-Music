@@ -60,7 +60,7 @@ import it.fast4x.environment.requests.relatedPage
 import it.fast4x.riplay.data.Database
 import it.fast4x.riplay.LocalPlayerAwareWindowInsets
 import it.fast4x.riplay.LocalPlayerServiceBinder
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.enums.Countries
 import it.fast4x.riplay.enums.NavigationBarPosition
 import it.fast4x.riplay.enums.PlayEventsType

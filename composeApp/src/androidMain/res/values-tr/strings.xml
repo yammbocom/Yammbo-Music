@@ -1,5 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Auth screens -->
+    <string name="auth_email">E-posta</string>
+    <string name="auth_password">Şifre</string>
+    <string name="auth_confirm_password">Şifreyi Onayla</string>
+    <string name="auth_login">Giriş Yap</string>
+    <string name="auth_register">Kayıt Ol</string>
+    <string name="auth_forgot_password">Şifrenizi mi unuttunuz?</string>
+    <string name="auth_create_account">Hesap Oluştur</string>
+    <string name="auth_back_to_login">Girişe Dön</string>
+    <string name="auth_reset_password">Şifre Sıfırla</string>
+    <string name="auth_send_reset_link">Sıfırlama Bağlantısı Gönder</string>
+    <string name="auth_fill_all_fields">Lütfen tüm alanları doldurun</string>
+    <string name="auth_passwords_not_match">Şifreler eşleşmiyor</string>
+    <string name="auth_password_min_length">Şifre en az 6 karakter olmalıdır</string>
+    <string name="auth_enter_email">Lütfen e-postanızı girin</string>
+    <string name="auth_reset_description">E-posta adresinizi girin ve şifrenizi sıfırlamak için bir bağlantı göndereceğiz.</string>
+    <string name="auth_account_created_verify">Hesap oluşturuldu! Doğrulama için e-postanızı kontrol edin.</string>
+    <string name="auth_account_created_success">Hesap başarıyla oluşturuldu! Artık giriş yapabilirsiniz.</string>
+    <string name="auth_login_failed">Giriş başarısız</string>
+    <string name="auth_registration_failed">Kayıt başarısız</string>
     <string name="cancel">İptal</string>
     <string name="done">Tamam</string>
     <string name="hidesong">Bu şarkıyı gerçekten gizlemek istiyor musun? Oynatma süresi ve önbelleği silinecek. Bu işlem geri alınamaz.</string>

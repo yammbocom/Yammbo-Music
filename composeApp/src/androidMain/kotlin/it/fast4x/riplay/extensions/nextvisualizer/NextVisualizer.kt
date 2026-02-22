@@ -49,7 +49,7 @@ import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
 import it.fast4x.riplay.LocalPlayerServiceBinder
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.extensions.nextvisualizer.painters.Painter
 import it.fast4x.riplay.extensions.nextvisualizer.painters.fft.FftBar
 import it.fast4x.riplay.extensions.nextvisualizer.painters.fft.FftCBar

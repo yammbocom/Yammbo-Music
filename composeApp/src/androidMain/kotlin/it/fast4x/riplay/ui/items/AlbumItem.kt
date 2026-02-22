@@ -24,7 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.times
 import coil.compose.AsyncImage
 import it.fast4x.environment.Environment
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.commonutils.cleanPrefix
 import it.fast4x.riplay.data.models.Album
 import it.fast4x.riplay.ui.components.themed.TextPlaceholder

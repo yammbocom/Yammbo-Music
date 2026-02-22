@@ -4,7 +4,7 @@ package it.fast4x.riplay.utils
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.res.stringResource
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.enums.Languages
 import it.fast4x.riplay.extensions.preferences.otherLanguageAppKey
 import it.fast4x.riplay.extensions.preferences.rememberPreference

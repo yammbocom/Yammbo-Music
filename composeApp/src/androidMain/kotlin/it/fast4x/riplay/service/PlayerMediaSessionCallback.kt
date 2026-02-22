@@ -126,7 +126,7 @@ class PlayerMediaSessionCallback (
 
                 PlayerMediaBrowserService.MediaId.top -> {
                     val maxTopSongs = context().preferences.getEnum(MaxTopPlaylistItemsKey,
-                        MaxTopPlaylistItems.`10`).number.toInt()
+                        MaxTopPlaylistItems.`50`).number.toInt()
 
                     Database.trending(maxTopSongs)
                         .first()

@@ -84,10 +84,14 @@ import it.fast4x.riplay.extensions.rewind.RewindListScreen
 import it.fast4x.riplay.extensions.rewind.RewindScreen
 import it.fast4x.riplay.extensions.ritune.improved.RiTuneSelector
 import it.fast4x.riplay.ui.components.LocalGlobalSheetState
+import it.fast4x.riplay.ui.screens.auth.ForgotPasswordScreen
+import it.fast4x.riplay.ui.screens.auth.LoginScreen
+import it.fast4x.riplay.ui.screens.auth.RegisterScreen
 import it.fast4x.riplay.ui.screens.events.EventsScreen
 import it.fast4x.riplay.ui.screens.moodandchip.ChipListScreen
 import it.fast4x.riplay.ui.screens.ondevice.OnDevicePlaylistScreen
 import it.fast4x.riplay.ui.screens.player.controller.PlayerScreen
+import it.fast4x.riplay.extensions.yammboapi.YammboAuthManager
 import it.fast4x.riplay.utils.MusicIdentifier
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalAnimationApi::class,
@@ -101,7 +105,8 @@ import it.fast4x.riplay.utils.MusicIdentifier
 fun AppNavigation(
     navController: NavHostController,
     miniPlayer: @Composable () -> Unit = {},
-    openTabFromShortcut: Int
+    openTabFromShortcut: Int,
+    authManager: YammboAuthManager
 ) {
     val transitionEffect by rememberPreference(transitionEffectKey, TransitionEffect.Scale)
 
@@ -153,9 +158,11 @@ fun AppNavigation(
     val context = LocalContext.current
     clearPreference(context, homeScreenTabIndexKey)
 
+    val startDest = if (authManager.isLoggedIn()) NavRoutes.home.name else NavRoutes.login.name
+
     NavHost(
         navController = navController,
-        startDestination = NavRoutes.home.name,
+        startDestination = startDest,
         enterTransition = {
             when (transitionEffect) {
                 TransitionEffect.None -> EnterTransition.None
@@ -245,6 +252,21 @@ fun AppNavigation(
             modalBottomSheetPage {
                 ListenerLevelCharts()
             }
+        }
+
+        composable(route = NavRoutes.login.name) {
+            LoginScreen(
+                navController = navController,
+                authManager = authManager
+            )
+        }
+
+        composable(route = NavRoutes.register.name) {
+            RegisterScreen(navController = navController)
+        }
+
+        composable(route = NavRoutes.forgotPassword.name) {
+            ForgotPasswordScreen(navController = navController)
         }
 
         composable(route = NavRoutes.home.name) {

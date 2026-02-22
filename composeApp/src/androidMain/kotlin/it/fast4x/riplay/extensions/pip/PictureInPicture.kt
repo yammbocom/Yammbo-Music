@@ -28,7 +28,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.core.app.OnPictureInPictureModeChangedProvider
 import androidx.core.app.PictureInPictureModeChangedInfo
 import androidx.core.graphics.toRect
-import it.fast4x.riplay.R
+import com.yambo.music.R
 import it.fast4x.riplay.extensions.persist.findActivityNullable
 import it.fast4x.riplay.utils.ActionReceiver
 import it.fast4x.riplay.extensions.preferences.enablePictureInPictureAutoKey
