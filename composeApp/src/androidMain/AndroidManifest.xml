@@ -2,7 +2,8 @@
 <manifest xmlns:tools="http://schemas.android.com/tools"
     xmlns:android="http://schemas.android.com/apk/res/android"
     tools:ignore="ExtraText"
-    android:installLocation="preferExternal">
+    android:installLocation="preferExternal"
+    package="it.fast4x.riplay">
 
     <uses-sdk tools:overrideLibrary="com.my.kizzyrpc"/>
 
@@ -20,15 +21,29 @@
         android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
+
+    <!-- Required for audio visualizer graphic effect -->
     <uses-permission android:name = "android.permission.RECORD_AUDIO"/>
     <uses-permission android:name = "android.permission.MODIFY_AUDIO_SETTINGS"/>
+
+    <!-- Required to get state of data connection -->
     <uses-permission android:name = "android.permission.ACCESS_NETWORK_STATE" />
+
+    <!-- Required to set cover as wallpaper -->
     <uses-permission android:name ="android.permission.SET_WALLPAPER" />
+
     <!-- Required only to get installed app for direct share intent -->
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
 
+    <!-- Required to get bluetooth device connected/disconnected like headset-->
     <uses-permission android:name="android.permission.BLUETOOTH" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+
+    <!-- Required to set local song as ringtone -->
+    <uses-permission android:name="android.permission.WRITE_SETTINGS" tools:ignore="ProtectedPermissions" />
+
+    <!-- Required to resume playback after received call, alternative to audioFocus issue in webview -->
+    <!-- <uses-permission android:name="android.permission.READ_PHONE_STATE" /> -->
 
     <uses-feature    android:name="android.software.leanback" android:required="false" />
     <uses-feature    android:name="android.hardware.touchscreen" android:required="false" />
@@ -158,6 +173,13 @@
                 android:resource="@xml/shortcuts" />
         </activity>
 
+        <activity
+            android:name=".extensions.crashreporter.CrashReporterActivity"
+            android:process=":crash_reporter"
+            android:exported="false"
+            android:theme="@style/Theme.RiPlay"
+            android:excludeFromRecents="true" />
+
         <receiver android:name="it.fast4x.riplay.ui.widgets.PlayerVerticalWidgetReceiver"
             android:exported="true">
             <intent-filter>
@@ -230,9 +252,6 @@
 
         <meta-data android:name="com.google.android.gms.car.notification.SmallIcon"
             android:resource="@drawable/app_icon" />
-
-        <meta-data android:name="com.google.android.gms.cast.framework.OPTIONS_PROVIDER_CLASS_NAME"
-            android:value="it.fast4x.riplay.extensions.chromecast.CastOptionsProvider" />
 
     </application>
 </manifest>

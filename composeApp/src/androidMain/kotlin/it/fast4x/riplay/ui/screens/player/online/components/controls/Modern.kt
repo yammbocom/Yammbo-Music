@@ -69,7 +69,7 @@ import it.fast4x.riplay.ui.components.themed.CustomElevatedButton
 import it.fast4x.riplay.ui.components.themed.IconButton
 import it.fast4x.riplay.ui.components.themed.SelectorArtistsDialog
 import it.fast4x.riplay.ui.components.themed.SmartMessage
-import it.fast4x.riplay.ui.screens.player.local.bounceClick
+import it.fast4x.riplay.utils.bounceClick
 import it.fast4x.riplay.ui.screens.settings.isYtSyncEnabled
 import it.fast4x.riplay.ui.styling.collapsedPlayerProgressBar
 import it.fast4x.riplay.ui.styling.favoritesIcon
@@ -81,7 +81,7 @@ import it.fast4x.riplay.utils.dropShadow
 import it.fast4x.riplay.extensions.preferences.effectRotationKey
 import it.fast4x.riplay.utils.getLikeState
 import it.fast4x.riplay.utils.getUnlikedIcon
-import org.dailyislam.android.utilities.isNetworkConnected
+import it.fast4x.riplay.utils.isNetworkConnected
 import it.fast4x.riplay.extensions.preferences.jumpPreviousKey
 import it.fast4x.riplay.utils.mediaItemToggleLike
 import it.fast4x.riplay.extensions.preferences.playerBackgroundColorsKey

@@ -33,6 +33,7 @@ import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -100,7 +101,7 @@ import it.fast4x.riplay.extensions.preferences.effectRotationKey
 import it.fast4x.riplay.utils.getLikeState
 import it.fast4x.riplay.utils.intent
 import it.fast4x.riplay.utils.isExplicit
-import org.dailyislam.android.utilities.isNetworkConnected
+import it.fast4x.riplay.utils.isNetworkConnected
 import it.fast4x.riplay.utils.mediaItemToggleLike
 import it.fast4x.riplay.extensions.preferences.miniPlayerTypeKey
 import it.fast4x.riplay.utils.playNext
@@ -138,13 +139,14 @@ fun OnlineMiniPlayer(
 
     val context = LocalContext.current
     val binder = LocalPlayerServiceBinder.current
-    var shouldBePlaying by remember { mutableStateOf(false) }
+
     val hapticFeedback = LocalHapticFeedback.current
 
     binder?.player ?: return
     if (binder.player.currentTimeline.windowCount == 0) return
 
-    val playerState = binder.onlinePlayerState
+    val playerState = binder.onlinePlayerState.collectAsState()
+    val shouldBePlaying = playerState.value == PlayerConstants.PlayerState.PLAYING
 
     var nullableMediaItem by remember {
         mutableStateOf(binder.player.currentMediaItem, neverEqualPolicy())
@@ -459,7 +461,7 @@ fun OnlineMiniPlayer(
                            .size(24.dp)
                    )
 
-                if (playerState != PlayerConstants.PlayerState.BUFFERING) {
+                if (playerState.value != PlayerConstants.PlayerState.BUFFERING) {
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(playPauseRoundness))
@@ -565,16 +567,16 @@ fun OnlineMiniPlayer(
 
         /********** NEW PLAYER */
 
-        LaunchedEffect(playerState) {
-            shouldBePlaying = playerState == PlayerConstants.PlayerState.PLAYING
-
-//            if (playerState.value == PlayerConstants.PlayerState.ENDED) {
-//                // TODO Implement repeat mode in queue
-//                if (getQueueLoopType() != QueueLoopType.Default)
-//                    player.value?.seekTo(0f)
-//            }
-
-        }
+//        LaunchedEffect(playerState) {
+//            shouldBePlaying = playerState == PlayerConstants.PlayerState.PLAYING
+//
+////            if (playerState.value == PlayerConstants.PlayerState.ENDED) {
+////                // TODO Implement repeat mode in queue
+////                if (getQueueLoopType() != QueueLoopType.Default)
+////                    player.value?.seekTo(0f)
+////            }
+//
+//        }
 
         var songIsAudioOnly by rememberSaveable {
             mutableStateOf<Boolean>(true)

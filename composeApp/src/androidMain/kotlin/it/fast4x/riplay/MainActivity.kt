@@ -61,6 +61,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -97,7 +98,11 @@ import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.navigation.compose.rememberNavController
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
-import androidx.appcompat.app.AppCompatActivity
+import com.kieronquinn.monetcompat.app.MonetCompatActivity
+import com.kieronquinn.monetcompat.core.MonetActivityAccessException
+import com.kieronquinn.monetcompat.core.MonetCompat
+import com.kieronquinn.monetcompat.interfaces.MonetColorsChangedListener
+import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.PlayerConstants
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.views.YouTubePlayerView
 import com.valentinilk.shimmer.LocalShimmerTheme
 import com.valentinilk.shimmer.defaultShimmerTheme
@@ -226,7 +231,9 @@ import it.fast4x.riplay.service.experimental.AppSharedScope
 import it.fast4x.riplay.service.experimental.GlobalQueueViewModel
 import it.fast4x.riplay.ui.components.Snowfall
 import it.fast4x.riplay.utils.GlobalSharedData.riTuneDevices
+import it.fast4x.riplay.utils.WebViewInfo
 import it.fast4x.riplay.utils.checkAndDownloadNewVersionCode
+import it.fast4x.riplay.utils.getWebViewInfo
 import it.fast4x.riplay.utils.isAtLeastAndroid12
 import it.fast4x.riplay.utils.isManufacturerWithAutostart
 import kotlinx.coroutines.Dispatchers
@@ -248,7 +255,7 @@ import kotlin.math.sqrt
 
 @UnstableApi
 class MainActivity :
-    AppCompatActivity()
+    MonetCompatActivity()
 {
     //lateinit var internetConnectivityObserver: InternetConnectivityObserver
 
@@ -256,8 +263,8 @@ class MainActivity :
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
             if (service is PlayerService.Binder) {
                 this@MainActivity.binder = service
-                this@MainActivity.onlinePlayerPlayingState = service.onlinePlayerPlayingState
-                this@MainActivity.onlinePlayerView = service.onlinePlayerView
+                //this@MainActivity.onlinePlayerPlayingState = service.onlinePlayerPlayingState
+                //this@MainActivity.onlinePlayerView = service.onlinePlayerView
             }
 
 
@@ -291,7 +298,7 @@ class MainActivity :
 
     //var riTuneDevices: MutableState<List<NsdServiceInfo>> = mutableStateOf(emptyList())
 
-    var onlinePlayerPlayingState by mutableStateOf(false)
+    //var onlinePlayerPlayingState by mutableStateOf(false)
     var localPlayerPlayingState: MutableState<Boolean> = mutableStateOf(false)
 
     var selectedQueue: MutableState<Queues> = mutableStateOf(defaultQueue())
@@ -353,6 +360,7 @@ class MainActivity :
 
         if (isAtLeastAndroid12 && preferences.getBoolean(resumeOrPausePlaybackWhenDeviceKey, false))
             permissionsToRequest.add(Manifest.permission.BLUETOOTH_CONNECT)
+
 
         val permissionsNotGranted = permissionsToRequest.filter {
             ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
@@ -439,21 +447,17 @@ class MainActivity :
     }
 
     override fun onStart() {
-        //runCatching {
-            val intent = Intent(this, PlayerService::class.java)
+        super.onStart()
 
-//            if (isAtLeastAndroid8)
-//                startForegroundService(intent)
-//            else
+        val intent = Intent(this, PlayerService::class.java)
+
+        if (isAtLeastAndroid8)
+            startForegroundService(intent)
+        else
             startService(intent)
 
-            bindService(intent, serviceConnection, BIND_AUTO_CREATE)
+        bindService(intent, serviceConnection, BIND_AUTO_CREATE)
 
-//        }.onFailure {
-//            Timber.e("MainActivity.onStart bindService ${it.stackTraceToString()}")
-//        }
-
-        super.onStart()
     }
 
     @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
@@ -719,6 +723,30 @@ class MainActivity :
         }
 
         setContent {
+
+            //Check if webview component exists
+            var webViewInfo by remember { mutableStateOf<WebViewInfo>(WebViewInfo()) }
+            LaunchedEffect(Unit) {
+                webViewInfo = getWebViewInfo(this@MainActivity)
+                if (!webViewInfo.isWebViewAvailable)
+                    SmartMessage(
+                        "Android WebView not available, please install or update system",
+                        PopupType.Error,
+                        durationLong = true,
+                        context = this@MainActivity
+                    )
+            }
+
+
+            // Binder observer
+            val binder = this@MainActivity.binder
+            LaunchedEffect(binder) {
+                val serviceBinder = binder ?: return@LaunchedEffect
+
+                serviceBinder.onlinePlayerState.collect { newState ->
+                    Timber.d("MainActivity: onlinePlayerState new state from Service: $newState")
+                }
+            }
 
             val backupLauncher = rememberLauncherForActivityResult(
                 contract = ActivityResultContracts.CreateDocument("application/octet-stream")
@@ -1083,8 +1111,10 @@ class MainActivity :
                     intent.action = null
                 }
 
-                onlinePlayerPlayingState = binder?.onlinePlayerPlayingState == true
-                onlinePlayerView = binder?.onlinePlayerView
+                val playerState = binder?.onlinePlayerState?.collectAsState()
+                val onlinePlayerPlayingState = playerState?.value == PlayerConstants.PlayerState.PLAYING
+                val playerView = binder?.onlinePlayerView?.collectAsState()
+                onlinePlayerView = playerView?.value
 
                 val pip = isInPip(
                     onChange = {
@@ -1137,7 +1167,7 @@ class MainActivity :
                             LocalLayoutDirection provides LayoutDirection.Ltr,
                             LocalPlayerSheetState provides localPlayerSheetState,
                             //LocalRiTuneDevices provides riTuneDevices.value,
-                            LocalOnlinePlayerPlayingState provides onlinePlayerPlayingState,
+                            //LocalOnlinePlayerPlayingState provides onlinePlayerPlayingState,
                             LocalSelectedQueue provides selectedQueue.value,
                             LocalAudioTagger provides audioTaggerViewModel,
                             LocalBackupManager provides backupManagerViewModel,
@@ -1591,22 +1621,18 @@ class MainActivity :
 
     }
 
-    // not needed
-//    override fun onStop() {
-//        Timber.d("MainActivity.onStop")
-//        runCatching {
-//            unbindService(serviceConnection)
-//        }.onFailure {
-//            Timber.e("MainActivity.onStop unbindService ${it.stackTraceToString()}")
-//        }
-//
-//        if (!isclosebackgroundPlayerEnabled)
-//            onStart() // some device require white listed
-//
-//
-//
-//        super.onStop()
-//    }
+
+    override fun onStop() {
+        super.onStop()
+
+        Timber.d("MainActivity.onStop")
+        runCatching {
+            unbindService(serviceConnection)
+        }.onFailure {
+            Timber.e("MainActivity.onStop unbindService ${it.stackTraceToString()}")
+        }
+
+    }
 
     @UnstableApi
     override fun onDestroy() {
@@ -1658,8 +1684,8 @@ val LocalPlayerAwareWindowInsets = staticCompositionLocalOf<WindowInsets> { TODO
 val LocalPlayerSheetState =
     staticCompositionLocalOf<BottomSheetState> { error("No sheet state provided") }
 
-val LocalOnlinePlayerPlayingState =
-    staticCompositionLocalOf<Boolean> { error("No player sheet state provided") }
+//val LocalOnlinePlayerPlayingState =
+//    staticCompositionLocalOf<Boolean> { error("No player sheet state provided") }
 
 //val LocalRiTuneDevices =
 //    staticCompositionLocalOf<List<NsdServiceInfo>> { error("No RiTune devices provided") }

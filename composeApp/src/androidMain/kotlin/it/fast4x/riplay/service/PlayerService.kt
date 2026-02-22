@@ -14,6 +14,7 @@ import android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK
 import android.content.Intent.FLAG_ACTIVITY_NEW_TASK
 import android.content.IntentFilter
 import android.content.SharedPreferences
+import android.content.pm.ServiceInfo
 import android.database.SQLException
 import android.graphics.Bitmap
 import android.hardware.Sensor
@@ -39,9 +40,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.edit
-import androidx.core.content.getSystemService
 import androidx.lifecycle.ViewModelProvider
 import androidx.media.VolumeProviderCompat
 import androidx.media3.common.AudioAttributes
@@ -196,9 +197,10 @@ import it.fast4x.riplay.service.helpers.BluetoothConnectReceiver
 import it.fast4x.riplay.service.helpers.EqualizerHelper
 import it.fast4x.riplay.service.helpers.NoisyAudioReceiver
 import it.fast4x.riplay.utils.GlobalSharedData
+import it.fast4x.riplay.utils.isAtLeastAndroid11
+
 import it.fast4x.riplay.utils.isExplicit
 import it.fast4x.riplay.utils.isLocal
-import it.fast4x.riplay.utils.isManufacturerWithAutostart
 import it.fast4x.riplay.utils.isVideo
 import it.fast4x.riplay.utils.playAtIndex
 import it.fast4x.riplay.utils.playNext
@@ -246,7 +248,9 @@ class PlayerService : Service(),
     Player.Listener,
     PlaybackStatsListener.Callback,
     SharedPreferences.OnSharedPreferenceChangeListener,
-    OnAudioVolumeChangedListener {
+    OnAudioVolumeChangedListener
+    //AudioManager.OnAudioFocusChangeListener // todo check if is needed in the future with new webview
+{
     private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private lateinit var unifiedMediaSession: MediaSessionCompat
     val cache: SimpleCache by lazy {
@@ -271,6 +275,7 @@ class PlayerService : Service(),
 
     private var isPersistentQueueEnabled = false
     private var isResumePlaybackOnStart = false
+
     //private var isclosebackgroundPlayerEnabled = false
     private var closeServiceAfterMinutes by mutableStateOf(DurationInMinutes.Disabled)
     private var closeServiceWhenPlayerPausedAfterMinutes by mutableStateOf(DurationInMinutes.Disabled)
@@ -278,7 +283,9 @@ class PlayerService : Service(),
     private var isShowingThumbnailInLockscreen = true
     private var medleyDuration by mutableFloatStateOf(0f)
 
-//    private var audioManager: AudioManager? = null
+    private lateinit var audioManager: AudioManager
+    //private var focusRequest: AudioFocusRequest? = null
+
 //    private var audioDeviceCallback: AudioDeviceCallback? = null
 
     private var loudnessEnhancer: LoudnessEnhancer? = null
@@ -288,8 +295,6 @@ class PlayerService : Service(),
     private var isNotificationStarted = false
 
     var legacyNotificationActionReceiver: LegacyNotificationActionReceiver? = null
-
-    var serviceRestartReceiver: ServiceRestartReceiver? = null
 
     private val playerVerticalWidget = PlayerVerticalWidget()
     private val playerHorizontalWidget = PlayerHorizontalWidget()
@@ -308,13 +313,31 @@ class PlayerService : Service(),
      */
     var currentSecond: MutableState<Float> = mutableFloatStateOf(0f)
     var currentDuration: MutableState<Float> = mutableFloatStateOf(0f)
-    var internalOnlinePlayerView: MutableState<YouTubePlayerView> = mutableStateOf(
+
+    private val _internalOnlinePlayerView = MutableStateFlow<YouTubePlayerView>(
         LayoutInflater.from(appContext())
             .inflate(R.layout.youtube_player, null, false)
                 as YouTubePlayerView
     )
-    var internalOnlinePlayer: MutableState<YouTubePlayer?> = mutableStateOf(null)
-    var internalOnlinePlayerState by mutableStateOf(PlayerConstants.PlayerState.UNSTARTED)
+    val internalOnlinePlayerView: StateFlow<YouTubePlayerView?> = _internalOnlinePlayerView
+//    var internalOnlinePlayerView: MutableState<YouTubePlayerView> = mutableStateOf(
+//        LayoutInflater.from(appContext())
+//            .inflate(R.layout.youtube_player, null, false)
+//                as YouTubePlayerView
+//    )
+
+    private val _internalOnlinePlayer = MutableStateFlow<YouTubePlayer?>(null)
+    val internalOnlinePlayer: StateFlow<YouTubePlayer?> = _internalOnlinePlayer
+
+    private val _internalOnlinePlayerState =
+        MutableStateFlow<PlayerConstants.PlayerState>(PlayerConstants.PlayerState.UNSTARTED)
+    val internalOnlinePlayerState: StateFlow<PlayerConstants.PlayerState> =
+        _internalOnlinePlayerState
+
+    private val _internalOnlineBufferedFraction = MutableStateFlow(0f)
+    val internalOnlineBufferedFraction: StateFlow<Float> = _internalOnlineBufferedFraction
+
+
     var load = true
     var playFromSecond by mutableFloatStateOf(0f)
     var lastError: PlayerConstants.PlayerError? = null
@@ -362,6 +385,9 @@ class PlayerService : Service(),
     private var noisyReceiver: NoisyAudioReceiver? = null
     private var bluetoothReceiver: BluetoothConnectReceiver? = null
 
+    //private lateinit var audioFocusHelper: AudioFocusHelper
+    private var hasAudioFocus = false
+
     private val riTuneClient: RiTuneClient = RiTuneClient()
     private var riTuneObserverJob: Job? = null
     private var riTunePlayerState: RiTunePlayerState? = null
@@ -372,6 +398,27 @@ class PlayerService : Service(),
         ViewModelProvider(AppSharedScope)[GlobalQueueViewModel::class.java]
     }
 
+    private var unstartedWatchdogJob: Job? = null
+
+    /*
+    private var telephonyManager: TelephonyManager? = null
+    private var wasPlayingBeforeCall = false
+    // Listener per Android 12 e superiori (Nuova API)
+    private val telephonyCallback = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        object : TelephonyCallback(), TelephonyCallback.CallStateListener {
+            override fun onCallStateChanged(state: Int) {
+                handleCallStateChange(state)
+            }
+        }
+    } else null
+    // Listener per Android 11 e inferiori (Vecchia API, non deprecata per loro)
+    private val phoneStateListener = object : PhoneStateListener() {
+        override fun onCallStateChanged(state: Int, phoneNumber: String?) {
+            handleCallStateChange(state)
+        }
+    }
+
+     */
     //private var checkVolumeLevel: Boolean = true
 
 
@@ -387,64 +434,40 @@ class PlayerService : Service(),
     override fun onCreate() {
         super.onCreate()
 
-        /**
-         * Online initialization
-         */
         createNotificationChannel()
 
-        preferences.registerOnSharedPreferenceChangeListener(this)
-
-        //val preferences = preferences
-        isPersistentQueueEnabled = preferences.getBoolean(persistentQueueKey, true)
-        isResumePlaybackOnStart = preferences.getBoolean(resumePlaybackOnStartKey, false)
-        isShowingThumbnailInLockscreen =
-            preferences.getBoolean(isShowingThumbnailInLockscreenKey, false)
-        medleyDuration = preferences.getFloat(playbackDurationKey, 0f)
-
-        player = ExoPlayer.Builder(this)
-            .setMediaSourceFactory(createMediaSourceFactory())
-            .setRenderersFactory(createRendersFactory())
-            .setHandleAudioBecomingNoisy(true)
-            .setWakeMode(C.WAKE_MODE_LOCAL)
-            .setAudioAttributes(
-                AudioAttributes.Builder()
-                    .setUsage(C.USAGE_MEDIA)
-                    .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
-                    .build(),
-                isHandleAudioFocusEnabled()
-            )
-            //.setUsePlatformDiagnostics(false)
-            .setSeekBackIncrementMs(5000)
-            .setSeekForwardIncrementMs(5000)
-//            .setLoadControl(
-//                DefaultLoadControl.Builder()
-//                    .setBufferDurationsMs(
-//                        DefaultLoadControl.DEFAULT_MIN_BUFFER_MS, // 50000
-//                        DefaultLoadControl.DEFAULT_MAX_BUFFER_MS, // 50000
-//                        5000,
-//                        10000
-//                    ).build()
-//            )
-            .build()
-            .apply {
-                addListener(this@PlayerService)
-                sleepTimerListener = SleepTimerListener(coroutineScope, this)
-                addListener(sleepTimerListener)
-                addAnalyticsListener(PlaybackStatsListener(false, this@PlayerService))
-            }
-
-        player.repeatMode = preferences.getEnum(queueLoopTypeKey, QueueLoopType.Default).type
-
-        player.skipSilenceEnabled = preferences.getBoolean(skipSilenceKey, false)
-        player.pauseAtEndOfMediaItems = true
-
-        audioVolumeObserver = AudioVolumeObserver(this)
-        audioVolumeObserver.register(AudioManager.STREAM_MUSIC, this)
-
-        equalizerHelper = EqualizerHelper(this)
-        equalizerHelper.setup(0)
-
         //connectivityManager = getSystemService()!!
+
+        // INITIALIZATION
+        preferences.registerOnSharedPreferenceChangeListener(this)
+        initializeLocalPlayer()
+        initializeVariables()
+        initializeOnlinePlayer()
+        initializeUnifiedMediaSession()
+
+        startForeground()
+
+        initializeBitmapProvider()
+        initializeAudioVolumeObserver()
+        initializeAudioEqualizer()
+        initializeLegacyNotificationActionReceiver()
+        initializePositionObserver()
+        initializeBluetoothConnect()
+        initializeNormalizeVolume()
+        initializeBassBoost()
+        initializeReverb()
+        initializeSensorListener()
+        initializeSongCoverInLockScreen()
+        initializeMedleyMode()
+        initializePlaybackParameters()
+        initializeNoisyReceiver()
+        initializeAudioManager()
+        //initializeAudioFocusHelper()
+        //initializeTelephonyManager(true)
+
+        initializeRiTune()
+        initializeDiscordPresence()
+        // INITIALIZATION
 
         coroutineScope.launch {
             withContext(Dispatchers.Main) {
@@ -497,7 +520,7 @@ class PlayerService : Service(),
             var currentMediaId = song.id
 
             if (lastOnlineMediaId != currentMediaId) {
-                if(onlineListenedDurationMs > 0) incrementOnlineListenedPlaytimeMs()
+                if (onlineListenedDurationMs > 0) incrementOnlineListenedPlaytimeMs()
                 delay(200)
                 onlineListenedDurationMs = 0L
                 lastOnlineMediaId = currentMediaId
@@ -517,45 +540,30 @@ class PlayerService : Service(),
                 getOnlineMetadata(currentMediaId)
                     ?.let {
                         Timber.d("PlayerService onCreate update currentSong onlinemetadata it $it")
-                        Database.upsert(Format(
-                            songId = currentMediaId,
-                            contentLength = it.videoDetails?.lengthSeconds?.toLong(),
-                            loudnessDb = it.playerConfig?.audioConfig?.loudnessDb
-                                ?: it.playerConfig?.audioConfig?.perceptualLoudnessDb?.toFloat(),
-                            playbackUrl = it.playbackTracking?.videostatsPlaybackUrl?.baseUrl
-                        ))
+                        try {
+                            Database.upsert(
+                                Format(
+                                    songId = currentMediaId,
+                                    contentLength = it.videoDetails?.lengthSeconds?.toLong(),
+                                    loudnessDb = it.playerConfig?.audioConfig?.loudnessDb
+                                        ?: it.playerConfig?.audioConfig?.perceptualLoudnessDb?.toFloat(),
+                                    playbackUrl = it.playbackTracking?.videostatsPlaybackUrl?.baseUrl
+                                )
+                            )
+                        } catch (e: Exception) {
+                            Timber.e("PlayerService onCreate update currentSong exception ${e.stackTraceToString()}")
+                        }
+
                     }
             }
         }
-
-        initializeLegacyNotificationActionReceiver()
-        initializeUnifiedMediaSession()
-        initializeBitmapProvider()
-        initializeOnlinePlayer()
-
-        startForeground()
-
-        initializePositionObserver()
-        initializeBluetoothConnect()
-        initializeNormalizeVolume()
-        initializeBassBoost()
-        initializeReverb()
-        initializeSensorListener()
-        initializeSongCoverInLockScreen()
-        initializeMedleyMode()
-        initializeVariables()
-        initializePlaybackParameters()
-        initializeNoisyReceiver()
-
-        initializeRiTune()
-        initializeDiscordPresence()
 
         globalQueue.linkController(binder)
 
         coroutineScope.launch(Dispatchers.Default) {
             while (isActive) {
                 if (localMediaItem?.isLocal == false) {
-                    if (internalOnlinePlayerState == PlayerConstants.PlayerState.PLAYING) {
+                    if (_internalOnlinePlayerState.value == PlayerConstants.PlayerState.PLAYING) {
                         onlineListenedDurationMs += 1000
                     } else {
                         if (onlineListenedDurationMs > 0) {
@@ -567,7 +575,7 @@ class PlayerService : Service(),
                     //fallback if online player not fire state ended
                     if (currentDuration.value > 0) {
                         if (currentSecond.value >= currentDuration.value - 0.5f) {
-                            if (internalOnlinePlayerState == PlayerConstants.PlayerState.PLAYING) {
+                            if (_internalOnlinePlayerState.value == PlayerConstants.PlayerState.PLAYING) {
                                 Timber.d("PlayerService Watchdog: End of online track detected by time, forcing playNext()")
                                 withContext(Dispatchers.Main) {
                                     player.playNext()
@@ -576,7 +584,7 @@ class PlayerService : Service(),
                             }
                         }
                     }
-                    Timber.d("PlayerService onCreate onlineListenedDurationMs $onlineListenedDurationMs")
+                    //Timber.d("PlayerService onCreate onlineListenedDurationMs $onlineListenedDurationMs")
                 }
                 delay(1000)
             }
@@ -585,41 +593,75 @@ class PlayerService : Service(),
         updateWidgets()
 
     }
-// not important for now
-//    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-//        startForeground()
-//        return if (isManufacturerWithAutostart()) START_STICKY else START_NOT_STICKY
-//    }
+
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        startForeground()
+        Timber.d(
+            "PlayerService onStartCommand action ${intent?.action} enable ${
+                intent?.getBooleanExtra(
+                    EXTRA_ENABLE_LISTENER,
+                    false
+                )
+            }"
+        )
+        /*
+        when (intent?.action) {
+            ACTION_UPDATE_PHONE_LISTENER -> {
+                val shouldEnable = intent.getBooleanExtra(EXTRA_ENABLE_LISTENER, false)
+                initializeTelephonyManager(shouldEnable)
+            }
+        }
+         */
+
+        return START_STICKY
+    }
 
     private fun startForeground() {
-        startForeground(NOTIFICATION_ID,notification())
         //runCatching {
-//            notification().let {
-//                ServiceCompat.startForeground(
-//                    this@PlayerService,
-//                    NOTIFICATION_ID,
-//                    it,
-//                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-//                        ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
-//                    } else {
-//                        0
-//                    }
-//                )
-//            }
+        notification().let {
+            ServiceCompat.startForeground(
+                this@PlayerService,
+                NOTIFICATION_ID,
+                it,
+                if (isAtLeastAndroid11) {
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+                } else {
+                    0
+                }
+            )
+        }
 //        }.onFailure {
 //            Timber.e("PlayerService oncreate startForeground ${it.stackTraceToString()}")
+//            stopSelf()
+//            SmartMessage("Error starting service, maybe permission denied?", context = this)
 //        }
     }
 
     private fun initializeVariables() {
+
+        //val preferences = preferences
+        isPersistentQueueEnabled = preferences.getBoolean(persistentQueueKey, true)
+        isResumePlaybackOnStart = preferences.getBoolean(resumePlaybackOnStartKey, false)
+        isShowingThumbnailInLockscreen =
+            preferences.getBoolean(isShowingThumbnailInLockscreenKey, false)
+        medleyDuration = preferences.getFloat(playbackDurationKey, 0f)
+
+        _internalOnlinePlayerView.value = LayoutInflater.from(appContext())
+            .inflate(R.layout.youtube_player, null, false) as YouTubePlayerView
+
+        //_internalOnlinePlayerView.value = view
+
         // todo add here all val that requires first initialize and add references in shared preferences, so is not nededed restart service when change it
-        CoroutineScope(Dispatchers.Main).launch {
-            currentMediaItemState.value = player.currentMediaItem
-        }
+
+        currentMediaItemState.value = player.currentMediaItem
+
         //isclosebackgroundPlayerEnabled = preferences.getBoolean(closebackgroundPlayerKey, false)
-        closeServiceAfterMinutes = preferences.getEnum(closePlayerServiceAfterMinutesKey, DurationInMinutes.Disabled)
+        closeServiceAfterMinutes =
+            preferences.getEnum(closePlayerServiceAfterMinutesKey, DurationInMinutes.Disabled)
         closeServiceWhenPlayerPausedAfterMinutes = preferences.getEnum(
-            closePlayerServiceWhenPausedAfterMinutesKey, DurationInMinutes.Disabled)
+            closePlayerServiceWhenPausedAfterMinutesKey, DurationInMinutes.Disabled
+        )
     }
 
     private fun initializePlaybackParameters() {
@@ -627,18 +669,19 @@ class PlayerService : Service(),
             false -> {
                 val playbackSpeed = preferences.getFloat(playbackSpeedKey, 1f)
                 val onlinePlabackRate = when {
-                    (playbackSpeed.toDouble() in 0.0..0.25)     -> PlayerConstants.PlaybackRate.RATE_0_25
-                    (playbackSpeed.toDouble() in 0.26..0.5)     -> PlayerConstants.PlaybackRate.RATE_0_5
-                    (playbackSpeed.toDouble() in 0.51..0.75)    -> PlayerConstants.PlaybackRate.RATE_0_75
-                    (playbackSpeed.toDouble() in 0.76..1.0)     -> PlayerConstants.PlaybackRate.RATE_1
-                    (playbackSpeed.toDouble() in 1.01..1.25)    -> PlayerConstants.PlaybackRate.RATE_1_25
-                    (playbackSpeed.toDouble() in 1.26..1.5)     -> PlayerConstants.PlaybackRate.RATE_1_5
-                    (playbackSpeed.toDouble() in 1.51..1.75)    -> PlayerConstants.PlaybackRate.RATE_1_75
+                    (playbackSpeed.toDouble() in 0.0..0.25) -> PlayerConstants.PlaybackRate.RATE_0_25
+                    (playbackSpeed.toDouble() in 0.26..0.5) -> PlayerConstants.PlaybackRate.RATE_0_5
+                    (playbackSpeed.toDouble() in 0.51..0.75) -> PlayerConstants.PlaybackRate.RATE_0_75
+                    (playbackSpeed.toDouble() in 0.76..1.0) -> PlayerConstants.PlaybackRate.RATE_1
+                    (playbackSpeed.toDouble() in 1.01..1.25) -> PlayerConstants.PlaybackRate.RATE_1_25
+                    (playbackSpeed.toDouble() in 1.26..1.5) -> PlayerConstants.PlaybackRate.RATE_1_5
+                    (playbackSpeed.toDouble() in 1.51..1.75) -> PlayerConstants.PlaybackRate.RATE_1_75
                     (playbackSpeed.toDouble() > 1.76) -> PlayerConstants.PlaybackRate.RATE_2
                     else -> PlayerConstants.PlaybackRate.RATE_1
                 }
-                internalOnlinePlayer.value?.setPlaybackRate(onlinePlabackRate)
+                _internalOnlinePlayer.value?.setPlaybackRate(onlinePlabackRate)
             }
+
             else -> {
                 player.playbackParameters = PlaybackParameters(
                     preferences.getFloat(playbackSpeedKey, 1f),
@@ -649,12 +692,55 @@ class PlayerService : Service(),
 
     }
 
+    /*
+    private fun handleCallStateChange(state: Int) {
+        when (state) {
+            TelephonyManager.CALL_STATE_RINGING, TelephonyManager.CALL_STATE_OFFHOOK -> {
+                // Sta squillando o sei in chiamata
+                Timber.d("PhoneState: Chiamata in corso/Ricevuta -> Pause")
+                wasPlayingBeforeCall = isPlayingNow || player.isPlaying
+                if (wasPlayingBeforeCall) {
+                    pausePlayback()
+                }
+            }
+            TelephonyManager.CALL_STATE_IDLE -> {
+                // Chiamata terminata
+                Timber.d("PhoneState: Chiamata terminata -> Resume")
+                if (wasPlayingBeforeCall) {
+                    // Ritardo per sicurezza
+                    CoroutineScope(Dispatchers.Main).launch {
+                        delay(500) // Ritardo di 500ms
+                        playPlayback()
+                    }
+                }
+                wasPlayingBeforeCall = false
+            }
+        }
+    }
+     */
+
+    private fun pausePlayback() {
+        if (localMediaItem?.isLocal == true)
+            player.pause()
+        else
+            _internalOnlinePlayer.value?.pause()
+    }
+
+    private fun playPlayback() {
+        if (localMediaItem?.isLocal == true)
+            player.play()
+        else
+            _internalOnlinePlayer.value?.play()
+    }
+
     private fun initializeMedleyMode() {
         coroutineScope.launch {
             while (medleyDuration > 0) {
                 withContext(Dispatchers.Main) {
-                    Timber.d("PlayerService initializeMedleyMode medleyDuration $medleyDuration player.isPlaying ${player.isPlaying} internalOnlinePlayerState ${internalOnlinePlayerState == PlayerConstants.PlayerState.PLAYING}")
-                    val seconds = if (localMediaItem?.isLocal == true) player.currentPosition.div(1000).toInt() else currentSecond.value.toInt()
+                    Timber.d("PlayerService initializeMedleyMode medleyDuration $medleyDuration player.isPlaying ${player.isPlaying} internalOnlinePlayerState ${_internalOnlinePlayerState.value == PlayerConstants.PlayerState.PLAYING}")
+                    val seconds =
+                        if (localMediaItem?.isLocal == true) player.currentPosition.div(1000)
+                            .toInt() else currentSecond.value.toInt()
                     if (medleyDuration.toInt() <= seconds) {
                         //delay(1.seconds * (medleyDuration.toInt() + 2))
                         //handleSkipToNext()
@@ -701,7 +787,7 @@ class PlayerService : Service(),
 
                 if (isCastActive) {
                     withContext(Dispatchers.Main) {
-                        internalOnlinePlayerState =
+                        _internalOnlinePlayerState.value =
                             playerState ?: PlayerConstants.PlayerState.UNSTARTED
                         if (duration != null) {
                             currentDuration.value = duration
@@ -834,10 +920,13 @@ class PlayerService : Service(),
     }
 
     private fun resumePlaybackOnStart() {
-        if(!isPersistentQueueEnabled && !isResumePlaybackOnStart) return
+        if (!isPersistentQueueEnabled && !isResumePlaybackOnStart) return
 
         when (player.currentMediaItem?.isLocal) {
-            true -> { if (!player.isPlaying) player.play() }
+            true -> {
+                if (!player.isPlaying) player.play()
+            }
+
             else -> {}
         }
 
@@ -881,9 +970,62 @@ class PlayerService : Service(),
 
     }
 
+    fun recreateOnlinePlayerView() {
+//        _internalOnlinePlayerView.value.release()
+//
+//        val newView = LayoutInflater.from(appContext())
+//            .inflate(R.layout.youtube_player, null, false) as YouTubePlayerView
+//
+//        _internalOnlinePlayerView.value = newView
+
+        initializeVariables()
+
+        initializeOnlinePlayer()
+    }
+
+    private fun initializeLocalPlayer() {
+        player = ExoPlayer.Builder(this)
+            .setMediaSourceFactory(createMediaSourceFactory())
+            .setRenderersFactory(createRendersFactory())
+            .setHandleAudioBecomingNoisy(true)
+            .setWakeMode(C.WAKE_MODE_LOCAL)
+            .setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(C.USAGE_MEDIA)
+                    .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
+                    .build(),
+                isHandleAudioFocusEnabled()
+            )
+            //.setUsePlatformDiagnostics(false)
+            .setSeekBackIncrementMs(5000)
+            .setSeekForwardIncrementMs(5000)
+//            .setLoadControl(
+//                DefaultLoadControl.Builder()
+//                    .setBufferDurationsMs(
+//                        DefaultLoadControl.DEFAULT_MIN_BUFFER_MS, // 50000
+//                        DefaultLoadControl.DEFAULT_MAX_BUFFER_MS, // 50000
+//                        5000,
+//                        10000
+//                    ).build()
+//            )
+            .build()
+            .apply {
+                addListener(this@PlayerService)
+                sleepTimerListener = SleepTimerListener(coroutineScope, this)
+                addListener(sleepTimerListener)
+                addAnalyticsListener(PlaybackStatsListener(false, this@PlayerService))
+            }
+
+        player.repeatMode = preferences.getEnum(queueLoopTypeKey, QueueLoopType.Default).type
+
+        player.skipSilenceEnabled = preferences.getBoolean(skipSilenceKey, false)
+        player.pauseAtEndOfMediaItems = true
+    }
+
+
     private fun initializeOnlinePlayer() {
 
-        internalOnlinePlayerView.value.apply {
+        _internalOnlinePlayerView.value.apply {
             enableAutomaticInitialization = false
 
             enableBackgroundPlayback(true)
@@ -893,6 +1035,8 @@ class PlayerService : Service(),
             val iFramePlayerOptions = IFramePlayerOptions.Builder(appContext())
                 .controls(0) // show/hide controls
                 .listType("playlist")
+                .autoplay(0)
+                .mute(1)
                 .origin(resources.getString(R.string.env_fqqhBZd0cf))
                 .build()
 
@@ -900,14 +1044,13 @@ class PlayerService : Service(),
 
                 override fun onReady(youTubePlayer: YouTubePlayer) {
                     super.onReady(youTubePlayer)
-                    CoroutineScope(Dispatchers.Main).launch {
-                        internalOnlinePlayer.value = youTubePlayer
-                    }
+
+                    _internalOnlinePlayer.value = youTubePlayer
 
                     val customUiController =
                         CustomDefaultPlayerUiController(
                             context,
-                            internalOnlinePlayerView.value,
+                            _internalOnlinePlayerView.value,
                             youTubePlayer,
                             onTap = {}
                         )
@@ -921,7 +1064,7 @@ class PlayerService : Service(),
                     customUiController.showBufferingProgress(false)
                     customUiController.showYouTubeButton(false)
                     customUiController.showFullscreenButton(false)
-                    internalOnlinePlayerView.value.setCustomPlayerUi(customUiController.rootView)
+                    _internalOnlinePlayerView.value.setCustomPlayerUi(customUiController.rootView)
 
                     Timber.d("PlayerService onlinePlayer onReady localmediaItem ${localMediaItem?.mediaId} queue index ${binder.player.currentMediaItemIndex}")
                     Timber.d("PlayerService onlinePlayer onReady isPersistentQueueEnabled $isPersistentQueueEnabled isResumePlaybackOnStart $isResumePlaybackOnStart")
@@ -938,17 +1081,17 @@ class PlayerService : Service(),
 
                 override fun onCurrentSecond(youTubePlayer: YouTubePlayer, second: Float) {
                     super.onCurrentSecond(youTubePlayer, second)
-                    CoroutineScope(Dispatchers.Main).launch {
-                        currentSecond.value = second
-                        //Timber.d("PlayerService onlinePlayerView: onCurrentSecond $second")
-                    }
+
+                    currentSecond.value = second
+                    //Timber.d("PlayerService onlinePlayerView: onCurrentSecond $second")
+
                 }
 
                 override fun onVideoDuration(youTubePlayer: YouTubePlayer, duration: Float) {
                     super.onVideoDuration(youTubePlayer, duration)
-                    CoroutineScope(Dispatchers.Main).launch {
-                        currentDuration.value = duration
-                    }
+
+                    currentDuration.value = duration
+
                     updateUnifiedNotification()
                     updateDiscordPresence()
                 }
@@ -958,15 +1101,46 @@ class PlayerService : Service(),
                     state: PlayerConstants.PlayerState
                 ) {
 
+                    _internalOnlinePlayerState.value = state
+
                     Timber.d("PlayerService onlinePlayerView: onStateChange $state")
 
+                    unstartedWatchdogJob?.cancel()
+
                     when(state) {
-                        PlayerConstants.PlayerState.PLAYING, PlayerConstants.PlayerState.PAUSED -> {
-                            youTubePlayer.unMute()
+                        PlayerConstants.PlayerState.PLAYING -> youTubePlayer.unMute()
+                        PlayerConstants.PlayerState.PAUSED -> youTubePlayer.mute()
+                        PlayerConstants.PlayerState.UNSTARTED -> {
+                            if (!firstTimeStarted) {
+                                unstartedWatchdogJob = CoroutineScope(Dispatchers.Main).launch {
+                                    Timber.d("PlayerService onlinePlayerView: onStateChange UNSTARTED watchdog")
+                                    delay(500)
+
+                                    if (_internalOnlinePlayerState.value == PlayerConstants.PlayerState.UNSTARTED) {
+                                        Timber.e("PlayerService onlinePlayerView: Persistent UNSTARTED state. Probably webView killed. Force to re-initialize.")
+
+                                        recreateOnlinePlayerView()
+                                        delay(500)
+                                        val currentPlayer = this@PlayerService._internalOnlinePlayer.value
+
+                                        localMediaItem?.let { item ->
+                                            if (currentPlayer != null) {
+                                                Timber.d("PlayerService onlinePlayerView: Try reload song/video")
+                                                currentPlayer.cueVideo(item.mediaId, playFromSecond)
+                                            } else {
+                                                Timber.w("PlayerService onlinePlayerView: Recovery - _internalOnlinePlayer is not defined, impossible to continue")
+                                            }
+                                        }
+
+                                    }
+                                }
+                            }
                         }
-                        PlayerConstants.PlayerState.VIDEO_CUED, PlayerConstants.PlayerState.UNSTARTED -> {
-                            Timber.d("PlayerService onlinePlayerView: onStateChange VIDEO_CUED, UNSTARTED regular play()")
-                            //youTubePlayer.play()
+
+                        PlayerConstants.PlayerState.VIDEO_CUED -> {
+                            Timber.d("PlayerService onlinePlayerView: onStateChange VIDEO_CUED regular play()")
+//                            if (!hasAudioFocus)
+//                                hasAudioFocus = requestAudioFocus()
 
                             if (!firstTimeStarted) {
                                 if (!GlobalSharedData.riTuneCastActive)
@@ -1003,7 +1177,6 @@ class PlayerService : Service(),
                         }
                     }
 
-                    internalOnlinePlayerState = state
                     isPlayingNow = state == PlayerConstants.PlayerState.PLAYING
                     updateUnifiedNotification()
                     updateDiscordPresence()
@@ -1016,7 +1189,8 @@ class PlayerService : Service(),
                 ) {
                     //super.onError(youTubePlayer, error)
 
-                    localMediaItem?.isLocal?.let { if (it) return }
+                    if (localMediaItem == null || localMediaItem?.isLocal == true) return
+
                     if (isPersistentQueueEnabled)
                         player.saveMasterQueue(currentSecond.value.toInt())
 
@@ -1083,11 +1257,19 @@ class PlayerService : Service(),
                     SmartMessage(
                         message = this@PlayerService.getString(
                             R.string.skip_media_on_error_message,
-                            prev.mediaMetadata.title
+                            cleanPrefix(prev.mediaMetadata.title.toString())
                         ),
                         context = this@PlayerService,
                     )
 
+                }
+
+                override fun onVideoLoadedFraction(
+                    youTubePlayer: YouTubePlayer,
+                    loadedFraction: Float
+                ) {
+                    _internalOnlineBufferedFraction.value = loadedFraction
+                    Timber.d("PlayerService: initializeOnlinePlayer onVideoLoadedFraction $loadedFraction")
                 }
 
             }
@@ -1096,6 +1278,16 @@ class PlayerService : Service(),
 
         }
 
+    }
+
+    private fun initializeAudioVolumeObserver() {
+        audioVolumeObserver = AudioVolumeObserver(this)
+        audioVolumeObserver.register(AudioManager.STREAM_MUSIC, this)
+    }
+
+    private fun initializeAudioEqualizer() {
+        equalizerHelper = EqualizerHelper(this)
+        equalizerHelper.setup(0)
     }
 
     private fun initializeLegacyNotificationActionReceiver() {
@@ -1132,7 +1324,7 @@ class PlayerService : Service(),
                 updateDiscordPresenceWithOnlinePlayer(
                     discordPresenceManager,
                     it,
-                    mutableStateOf(internalOnlinePlayerState),
+                    mutableStateOf(_internalOnlinePlayerState.value),
                     currentDuration.value,
                     currentSecond.value
                 )
@@ -1148,16 +1340,15 @@ class PlayerService : Service(),
     }
 
     private fun getVolumeProvider(): VolumeProviderCompat {
-        val audio = getSystemService(AUDIO_SERVICE) as AudioManager?
 
         val STREAM_TYPE = AudioManager.STREAM_MUSIC
-        val currentVolume = audio?.getStreamVolume(STREAM_TYPE)
-        val maxVolume = audio?.getStreamMaxVolume(STREAM_TYPE)
+        val currentVolume = audioManager.getStreamVolume(STREAM_TYPE)
+        val maxVolume = audioManager.getStreamMaxVolume(STREAM_TYPE)
         val VOLUME_UP = 1
         val VOLUME_DOWN = -1
 
         return object :
-            VolumeProviderCompat(VOLUME_CONTROL_RELATIVE, maxVolume!!, currentVolume!!) {
+            VolumeProviderCompat(VOLUME_CONTROL_RELATIVE, maxVolume, currentVolume) {
 
                 override fun onAdjustVolume(direction: Int) {
                         val useVolumeKeysToChangeSong = preferences.getBoolean(useVolumeKeysToChangeSongKey, false)
@@ -1166,25 +1357,21 @@ class PlayerService : Service(),
                             if (binder.player.isPlaying && useVolumeKeysToChangeSong) {
                                 binder.player.forceSeekToNext()
                             } else {
-                                audio?.adjustStreamVolume(
+                                audioManager.adjustStreamVolume(
                                     STREAM_TYPE,
                                     AudioManager.ADJUST_RAISE, AudioManager.FLAG_REMOVE_SOUND_AND_VIBRATE
                                 )
-                                if (audio != null) {
-                                    setCurrentVolume(audio.getStreamVolume(STREAM_TYPE))
-                                }
+                                setCurrentVolume(audioManager.getStreamVolume(STREAM_TYPE))
                             }
                         } else if (direction == VOLUME_DOWN) {
                             if (binder.player.isPlaying && useVolumeKeysToChangeSong) {
                                 binder.player.forceSeekToPrevious()
                             } else {
-                                audio?.adjustStreamVolume(
+                                audioManager.adjustStreamVolume(
                                     STREAM_TYPE,
                                     AudioManager.ADJUST_LOWER, AudioManager.FLAG_REMOVE_SOUND_AND_VIBRATE
                                 )
-                                if (audio != null) {
-                                    setCurrentVolume(audio.getStreamVolume(STREAM_TYPE))
-                                }
+                                setCurrentVolume(audioManager.getStreamVolume(STREAM_TYPE))
                             }
                         }
                 }
@@ -1211,7 +1398,7 @@ class PlayerService : Service(),
         }
 //        if (isclosebackgroundPlayerEnabled) {
 //            player.pause()
-//            internalOnlinePlayer.value?.pause()
+//            _internalOnlinePlayer.value?.pause()
 //            broadCastPendingIntent<NotificationDismissReceiver>().send()
 //            this.stopService(this.intent<PlayerService>())
 //            //stopSelf()
@@ -1225,6 +1412,10 @@ class PlayerService : Service(),
         Timber.d("PlayerService onDestroy")
 
         player.saveMasterQueue(currentSecond.value.toInt())
+
+        //abandonAudioFocus()
+
+        //initializeTelephonyManager(false)
 
         try {
             unregisterReceiver(legacyNotificationActionReceiver)
@@ -1249,10 +1440,10 @@ class PlayerService : Service(),
         }
 
         try {
-            CoroutineScope(Dispatchers.Main).launch {
-                internalOnlinePlayer.value = null
-            }
-            internalOnlinePlayerView.value.release()
+
+            _internalOnlinePlayer.value = null
+
+            _internalOnlinePlayerView.value.release()
         } catch (e: Exception) {
             Timber.e("PlayerService Error in online player release: ${e.message}")
         }
@@ -1285,18 +1476,18 @@ class PlayerService : Service(),
     private var pausedByZeroVolume = false
     override fun onAudioVolumeChanged(currentVolume: Int, maxVolume: Int) {
         if (preferences.getBoolean(isPauseOnVolumeZeroEnabledKey, false)) {
-            if ((player.isPlaying || internalOnlinePlayerState == PlayerConstants.PlayerState.PLAYING) && currentVolume < 1) {
+            if ((player.isPlaying || _internalOnlinePlayerState.value == PlayerConstants.PlayerState.PLAYING) && currentVolume < 1) {
                 if (player.currentMediaItem?.isLocal == true) {
                     binder.callPause {}
                 } else {
-                    internalOnlinePlayer.value?.pause()
+                    _internalOnlinePlayer.value?.pause()
                 }
                 pausedByZeroVolume = true
             } else if (pausedByZeroVolume && currentVolume >= 1) {
                 if (player.currentMediaItem?.isLocal == true) {
                     binder.player.play()
                 } else {
-                    internalOnlinePlayer.value?.play()
+                    _internalOnlinePlayer.value?.play()
                 }
                 pausedByZeroVolume = false
             }
@@ -1307,7 +1498,7 @@ class PlayerService : Service(),
             ) {
             val onlineVolume = getSystemMediaVolume()
             Timber.d("PlayerService onAudioVolumeChanged currentVolume $currentVolume onlineVolume $onlineVolume")
-            internalOnlinePlayer.value?.setVolume(onlineVolume)
+            _internalOnlinePlayer.value?.setVolume(onlineVolume)
         }
     }
 
@@ -1378,6 +1569,8 @@ class PlayerService : Service(),
 
         if (mediaItem == null) return
 
+        currentSecond.value = 0F
+
 //        if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED) {
 //            Timber.d("PlayerService: MediaItem transition ignored (Reason: Playlist Changed)")
 //            return
@@ -1387,9 +1580,9 @@ class PlayerService : Service(),
 
         if (lastOnlineMediaId == newMediaId) {
             Timber.d("PlayerService: Transition ignored, same MediaID ($newMediaId) skipped")
-            CoroutineScope(Dispatchers.Main).launch {
-                binder.player.playNext()
-            }
+
+            binder.player.playNext()
+
             //return
         }
 
@@ -1404,9 +1597,7 @@ class PlayerService : Service(),
         Timber.d("PlayerService onMediaItemTransition mediaItem ${mediaItem.mediaId} reason $reason")
 
         currentQueuePosition = player.currentMediaItemIndex
-        CoroutineScope(Dispatchers.Main).launch {
-            currentSecond.value = 0F
-        }
+
 
         if (parentalControlEnabled && mediaItem.isExplicit) {
             //handleSkipToNext()
@@ -1434,9 +1625,9 @@ class PlayerService : Service(),
         }
 
         mediaItem.let {
-            CoroutineScope(Dispatchers.Main).launch {
-                currentMediaItemState.value = it
-            }
+
+            currentMediaItemState.value = it
+
             localMediaItem = it
 
             if (!it.isLocal){
@@ -1444,7 +1635,7 @@ class PlayerService : Service(),
                 Timber.d("PlayerService onMediaItemTransition system volume ${getSystemMediaVolume()}")
 
                 if (!GlobalSharedData.riTuneCastActive)
-                    internalOnlinePlayer.value?.cueVideo(it.mediaId, playFromSecond)
+                    _internalOnlinePlayer.value?.cueVideo(it.mediaId, playFromSecond)
                 else
                     coroutineScope.launch {
                         riTuneClient.sendCommand(
@@ -1455,10 +1646,10 @@ class PlayerService : Service(),
                             )
                         )
                     }
-                //internalOnlinePlayer.value?.loadVideo(it.mediaId, playFromSecond)
-                //startFadeAnimator(player = internalOnlinePlayer, volumeDevice = getSystemMediaVolume(), duration = 5, fadeIn = true) {}
+                //_internalOnlinePlayer.value?.loadVideo(it.mediaId, playFromSecond)
+                //startFadeAnimator(player = _internalOnlinePlayer, volumeDevice = getSystemMediaVolume(), duration = 5, fadeIn = true) {}
                 //if (checkVolumeLevel)
-                internalOnlinePlayer.value?.setVolume(getSystemMediaVolume())
+                _internalOnlinePlayer.value?.setVolume(getSystemMediaVolume())
 
             }
 
@@ -1486,7 +1677,7 @@ class PlayerService : Service(),
                     LastFmScrobbleType.Simple -> {
                         sendScrobble(
                             mediaItem.mediaMetadata.artist.toString(),
-                            mediaItem.mediaMetadata.title.toString(),
+                            cleanPrefix(mediaItem.mediaMetadata.title.toString()),
                             mediaItem.mediaMetadata.albumTitle.toString(),
                             it
                         )
@@ -1495,7 +1686,7 @@ class PlayerService : Service(),
                     LastFmScrobbleType.NowPlaying -> {
                         sendNowPlaying(
                             mediaItem.mediaMetadata.artist.toString(),
-                            mediaItem.mediaMetadata.title.toString(),
+                            cleanPrefix(mediaItem.mediaMetadata.title.toString()),
                             mediaItem.mediaMetadata.albumTitle.toString(),
                             it
                         )
@@ -1555,7 +1746,7 @@ class PlayerService : Service(),
 
             val description = MediaDescriptionCompat.Builder()
                 .setMediaId(mediaItem.mediaId)
-                .setTitle(mediaItem.mediaMetadata.title)
+                .setTitle(cleanPrefix(mediaItem.mediaMetadata.title.toString()))
                 .setSubtitle(mediaItem.mediaMetadata.artist)
 
                 .setIconUri(mediaItem.mediaMetadata.artworkUri)
@@ -1586,10 +1777,10 @@ class PlayerService : Service(),
                     Timber.w("PlayerService maybeRecoverPlaybackError: try to recover player error")
                     localMediaItem?.let {
                         if (!GlobalSharedData.riTuneCastActive) {
-                            internalOnlinePlayer.value?.cueVideo(it.mediaId, playFromSecond)
-                            //internalOnlinePlayer.value?.loadVideo(it.mediaId, playFromSecond)
+                            _internalOnlinePlayer.value?.cueVideo(it.mediaId, playFromSecond)
+                            //_internalOnlinePlayer.value?.loadVideo(it.mediaId, playFromSecond)
 
-                            internalOnlinePlayer.value?.setVolume(getSystemMediaVolume())
+                            _internalOnlinePlayer.value?.setVolume(getSystemMediaVolume())
                         } else {
                             coroutineScope.launch {
                                 riTuneClient.sendCommand(
@@ -1714,19 +1905,194 @@ class PlayerService : Service(),
         unifiedMediaSession.setMetadata(metadataBuilder.build())
     }
 
+    /*
+    private fun initializeTelephonyManager(enable: Boolean) {
+        val hasPermission = ContextCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED
+        if (enable && (!hasPermission || !preferences.getBoolean(resumeOrPausePlaybackWhenCallKey, false))) return
+
+        telephonyManager = getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
+
+        if (enable) {
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                telephonyManager?.registerTelephonyCallback(
+                    ContextCompat.getMainExecutor(this),
+                    telephonyCallback!!
+                )
+            } else {
+                @Suppress("DEPRECATION")
+                telephonyManager?.listen(phoneStateListener, PhoneStateListener.LISTEN_CALL_STATE)
+            }
+            Timber.d("PlayerService: TelephonyManager registered")
+
+        } else {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                telephonyManager?.unregisterTelephonyCallback(telephonyCallback!!)
+            } else {
+                @Suppress("DEPRECATION")
+                telephonyManager?.listen(phoneStateListener, PhoneStateListener.LISTEN_NONE)
+            }
+            Timber.w("PlayerService: TelephonyManager unregistered")
+        }
+
+    }
+     */
+
+    private fun initializeAudioManager() {
+        audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
+    }
+
     private fun initializeNoisyReceiver() {
         if (!preferences.getBoolean(resumeOrPausePlaybackWhenDeviceKey, false)) return
 
         noisyReceiver = NoisyAudioReceiver(this) {
             player.pause()
             if (!GlobalSharedData.riTuneCastActive)
-                internalOnlinePlayer.value?.pause()
+                _internalOnlinePlayer.value?.pause()
 
             SmartMessage(getString(R.string.music_paused_headphones_disconnected), context = this)
         }
 
         noisyReceiver?.register()
     }
+
+    /*
+    fun requestAudioFocus(): Boolean {
+
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val playbackAttributes = android.media.AudioAttributes.Builder()
+                .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
+                .setContentType(android.media.AudioAttributes.CONTENT_TYPE_MUSIC)
+                .build()
+
+            focusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+                .setAudioAttributes(playbackAttributes)
+                .setAcceptsDelayedFocusGain(true)
+                .setOnAudioFocusChangeListener(this)
+                .build()
+
+            val result = audioManager.requestAudioFocus(focusRequest!!)
+            result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+        } else {
+            @Suppress("DEPRECATION")
+            val result = audioManager.requestAudioFocus(
+                this,
+                AudioManager.STREAM_MUSIC,
+                AudioManager.AUDIOFOCUS_GAIN
+            )
+            result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+        }
+    }
+
+    private fun abandonAudioFocus() {
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            focusRequest?.let {
+                audioManager.abandonAudioFocusRequest(it)
+            }
+        } else {
+            @Suppress("DEPRECATION")
+            audioManager.abandonAudioFocus(this)
+        }
+    }
+     */
+
+    /*
+    override fun onAudioFocusChange(focusChange: Int) {
+        when (focusChange) {
+            AudioManager.AUDIOFOCUS_GAIN, AudioManager.AUDIOFOCUS_GAIN_TRANSIENT -> {
+                // resume audio playback
+                hasAudioFocus = true
+                Timber.d("PlayerService initializeAudioFocusHelper Focus Gained -> Resume")
+            }
+            AudioManager.AUDIOFOCUS_LOSS -> {
+                // Lost focus for an unbounded amount of time: stop playback and release media resources
+                val isAudioActuallyPlaying = audioManager.isMusicActive
+                if (localMediaItem?.isLocal == false && isAudioActuallyPlaying) {
+                    hasAudioFocus = true
+                    Timber.w("PlayerService initializeAudioFocusHelper LOSS intercettato, ma isMusicActive = TRUE. Ignoro (La Webview ha il controllo).")
+                    return
+                }
+                Timber.d("PlayerService initializeAudioFocusHelper LOSS REALE (Nessun audio attivo o locale). Fermo tutto.")
+                hasAudioFocus = false
+                //isPlayingBeforeLossOfFocus = (isPlayingNow || player.isPlaying)
+
+                if (localMediaItem?.isLocal == true)
+                    player.pause()
+                else
+                    _internalOnlinePlayer.value?.pause()
+                //abandonAudioFocus()
+                Timber.d("PlayerService initializeAudioFocusHelper Focus Loss -> Stop")
+            }
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
+                // Lost focus for a short time, but we have to stop playback.
+                hasAudioFocus = false
+                Timber.d("PlayerService initializeAudioFocusHelper Focus Transient -> Pause")
+            }
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
+                // Lost focus for a short time, but it's ok to keep playing at an attenuated level
+                hasAudioFocus = false
+                Timber.d("PlayerService initializeAudioFocusHelper Focus Duck -> Lower Volume")
+            }
+            AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK -> {
+                // Return focus after loss of transient focus
+                hasAudioFocus = true
+                Timber.d("PlayerService initializeAudioFocusHelper Focus Gained May Duck -> Resume Volume")
+            }
+        }
+    }
+     */
+
+    /*
+    private fun initializeAudioFocusHelper() {
+        audioFocusHelper = AudioFocusHelper(this, object : AudioFocusHelper.OnAudioFocusListener {
+
+            override fun onAudioGained() {
+                // call ended, resume playback
+                hasAudioFocus = true
+                Timber.d("PlayerService initializeAudioFocusHelper Focus Gained -> Resume")
+            }
+
+            override fun onAudioLossTransient() {
+                // in call, pause playback
+                hasAudioFocus = false
+                Timber.d("PlayerService initializeAudioFocusHelper Focus Transient -> Pause")
+            }
+
+            override fun onAudioLossTransientCanDuck() {
+                // Notification, decrease playback volume
+                hasAudioFocus = true
+                player.volume = 0.20f
+                _internalOnlinePlayer.value?.setVolume(20)
+                Timber.d("PlayerService initializeAudioFocusHelper Focus Duck -> Lower Volume")
+            }
+
+            override fun onAudioGainedTransientMayDuck() {
+                // Resume volume after loss transient can duck
+                hasAudioFocus = true
+                player.volume = 1f
+                _internalOnlinePlayer.value?.setVolume(100)
+                Timber.d("PlayerService initializeAudioFocusHelper Focus Gained May Duck -> Resume Volume")
+            }
+
+            override fun onAudioLoss() {
+                hasAudioFocus = false
+                // Lost control stop playback
+//                val isActuallyPlaying = isPlayingNow || player.isPlaying
+//                if (isActuallyPlaying) {
+//                    if (localMediaItem?.isLocal == true)
+//                        player.volume = 0.2f
+//                    else
+//                        CoroutineScope(Dispatchers.Main).launch {
+//                            _internalOnlinePlayer.value?.setVolume(20)
+//                        }
+//                }
+                Timber.d("PlayerService initializeAudioFocusHelper Focus Loss -> Stop")
+            }
+        })
+    }
+
+     */
 
     private fun initializeBluetoothConnect() {
         if (!preferences.getBoolean(resumeOrPausePlaybackWhenDeviceKey, false)) return
@@ -1735,7 +2101,7 @@ class PlayerService : Service(),
             if (currentSong.value?.isLocal == true) {
                 player.play()
             } else {
-                internalOnlinePlayer.value?.play()
+                _internalOnlinePlayer.value?.play()
             }
 
             SmartMessage(getString(R.string.music_resumed_headphones_connected), context = this)
@@ -1788,7 +2154,7 @@ class PlayerService : Service(),
                 )
                 .putString(
                     MediaMetadataCompat.METADATA_KEY_TITLE,
-                    currentMediaItem?.mediaMetadata?.title.toString()
+                    cleanPrefix(currentMediaItem?.mediaMetadata?.title.toString())
                 )
                 .putString(
                     MediaMetadataCompat.METADATA_KEY_ARTIST,
@@ -1858,7 +2224,7 @@ class PlayerService : Service(),
                         else MediaSessionCompat.QueueItem.UNKNOWN_ID.toLong()
                     )
                     setState(
-                        if (internalOnlinePlayerState == PlayerConstants.PlayerState.PLAYING || player.isPlaying)
+                        if (_internalOnlinePlayerState.value == PlayerConstants.PlayerState.PLAYING || player.isPlaying)
                             PlaybackStateCompat.STATE_PLAYING else PlaybackStateCompat.STATE_PAUSED,
                         if(player.currentMediaItem?.isLocal == false) (currentSecond.value * 1000).toLong() else player.currentPosition,
                         1f
@@ -1866,7 +2232,7 @@ class PlayerService : Service(),
                 }
                 .build()
         )
-        Timber.d("PlayerService updateUnifiedMediasessionData onlineplayer playing ${internalOnlinePlayerState == PlayerConstants.PlayerState.PLAYING} localplayer playing ${player?.isPlaying}")
+        Timber.d("PlayerService updateUnifiedMediasessionData onlineplayer playing ${_internalOnlinePlayerState.value == PlayerConstants.PlayerState.PLAYING} localplayer playing ${player?.isPlaying}")
     }
 
     inner class LegacyNotificationActionReceiver() : BroadcastReceiver() {
@@ -1882,7 +2248,7 @@ class PlayerService : Service(),
                     Action.pause.value -> {
                         player.pause()
                         if (!GlobalSharedData.riTuneCastActive)
-                            internalOnlinePlayer.value?.pause()
+                            _internalOnlinePlayer.value?.pause()
                         else
                             coroutineScope.launch {
                                 riTuneClient.sendCommand(
@@ -1898,7 +2264,7 @@ class PlayerService : Service(),
                             it.player.play()
                         else {
                             if (!GlobalSharedData.riTuneCastActive)
-                                internalOnlinePlayer.value?.play()
+                                _internalOnlinePlayer.value?.play()
                             else
                                 coroutineScope.launch {
                                     riTuneClient.sendCommand(
@@ -1928,7 +2294,7 @@ class PlayerService : Service(),
                             it.player.seamlessQueue(currentMediaItem)
 
                             if(!GlobalSharedData.riTuneCastActive)
-                                internalOnlinePlayer.value?.play()
+                                _internalOnlinePlayer.value?.play()
                             else
                                 coroutineScope.launch {
                                     riTuneClient.sendCommand(
@@ -1977,7 +2343,7 @@ class PlayerService : Service(),
 
         if (notification == null) {
             isNotificationStarted = false
-            //makeInvincible(false)
+
             runCatching {
                 stopForeground(false)
             }.onFailure {
@@ -1990,11 +2356,11 @@ class PlayerService : Service(),
 
         if ((player.isPlaying || isPlayingNow) && !isNotificationStarted) {
             isNotificationStarted = true
-            runCatching {
-                startForegroundService( intent<PlayerService>())
-            }.onFailure {
-                Timber.e("PlayerServiceFailed startForegroundService onEvents ${it.stackTraceToString()}")
-            }
+//            runCatching {
+//                startForegroundService( intent<PlayerService>())
+//            }.onFailure {
+//                Timber.e("PlayerServiceFailed startForegroundService onEvents ${it.stackTraceToString()}")
+//            }
             startForeground()
 
             sendOpenEqualizerIntent()
@@ -2253,7 +2619,7 @@ class PlayerService : Service(),
         } else {
             NotificationCompat.Builder(this)
         }
-            .setContentTitle(currentMediaItem?.mediaMetadata?.title)
+            .setContentTitle(cleanPrefix(currentMediaItem?.mediaMetadata?.title.toString()))
             .setContentText(currentMediaItem?.mediaMetadata?.artist)
             //.setSubText(currentMediaItem?.mediaMetadata?.artist)
             .setContentInfo(currentMediaItem?.mediaMetadata?.albumTitle)
@@ -2294,7 +2660,7 @@ class PlayerService : Service(),
     private fun createNotificationChannel() {
         if (!isAtLeastAndroid8) return
 
-        notificationManager = applicationContext.getSystemService<NotificationManager>()
+        notificationManager = getSystemService(NotificationManager::class.java)
 
         notificationManager?.run {
             if (getNotificationChannel(NOTIFICATION_CHANNEL_ID) == null) {
@@ -2302,7 +2668,7 @@ class PlayerService : Service(),
                     NotificationChannel(
                         NOTIFICATION_CHANNEL_ID,
                         NOTIFICATION_CHANNEL_ID,
-                        NotificationManager.IMPORTANCE_LOW
+                        NotificationManager.IMPORTANCE_HIGH
                     ).apply {
                         setSound(null, null)
                         enableLights(false)
@@ -2316,7 +2682,7 @@ class PlayerService : Service(),
                     NotificationChannel(
                         SLEEPTIMER_NOTIFICATION_CHANNEL_ID,
                         SLEEPTIMER_NOTIFICATION_CHANNEL_ID,
-                        NotificationManager.IMPORTANCE_LOW
+                        NotificationManager.IMPORTANCE_HIGH
                     ).apply {
                         setSound(null, null)
                         enableLights(false)
@@ -2464,11 +2830,11 @@ class PlayerService : Service(),
                     if (player.currentMediaItem?.isLocal == false)
                         player.pauseAtEndOfMediaItems = true else player.pauseAtEndOfMediaItems = false
 
-                    if (player.currentMediaItem?.isLocal == false && (player.playbackState == Player.STATE_ENDED || internalOnlinePlayerState == PlayerConstants.PlayerState.ENDED)
+                    if (player.currentMediaItem?.isLocal == false && (player.playbackState == Player.STATE_ENDED || _internalOnlinePlayerState.value == PlayerConstants.PlayerState.ENDED)
                         && lastProcessedIndex != player.currentMediaItemIndex
                     ) {
 
-                        Timber.d("PlayerService initializePositionObserver INSIDE player.playbackState ${player.playbackState} internalOnlinePlayerState ${internalOnlinePlayerState} lastProcessedIndex $lastProcessedIndex player.currentMediaItemIndex ${player.currentMediaItemIndex}")
+                        Timber.d("PlayerService initializePositionObserver INSIDE player.playbackState ${player.playbackState} internalOnlinePlayerState ${_internalOnlinePlayerState} lastProcessedIndex $lastProcessedIndex player.currentMediaItemIndex ${player.currentMediaItemIndex}")
 
                         val queueLoopType = preferences.getEnum(
                             queueLoopTypeKey,
@@ -2477,7 +2843,7 @@ class PlayerService : Service(),
 
                         when (queueLoopType) {
                             QueueLoopType.RepeatOne -> {
-                                internalOnlinePlayer.value?.seekTo(0f)
+                               _internalOnlinePlayer.value?.seekTo(0f)
                                 Timber.d("PlayerService initializePositionObserver Repeat: RepeatOne fired")
                             }
 
@@ -2521,7 +2887,6 @@ class PlayerService : Service(),
 
     private fun getSystemMediaVolume(): Int {
         return 100 // set to max
-//        val audioManager = getSystemService(AUDIO_SERVICE) as? AudioManager
 //        val maxMediaVolume = audioManager?.getStreamMaxVolume(AudioManager.STREAM_MUSIC) ?: 15
 //        val minVolume = maxMediaVolume.div(3)
 //        val volumeOnlinePlayer =  (((audioManager?.getStreamVolume(AudioManager.STREAM_MUSIC) ?: minVolume) * 100) / maxMediaVolume)
@@ -2539,10 +2904,13 @@ class PlayerService : Service(),
             get() = this@PlayerService.internalOnlinePlayer.value
 
         val onlinePlayerPlayingState: Boolean
-            get() = this@PlayerService.internalOnlinePlayerState == PlayerConstants.PlayerState.PLAYING
+            get() = this@PlayerService.internalOnlinePlayerState.value == PlayerConstants.PlayerState.PLAYING
 
-        val onlinePlayerState: PlayerConstants.PlayerState
+        val onlinePlayerState: StateFlow<PlayerConstants.PlayerState>
             get() = this@PlayerService.internalOnlinePlayerState
+
+        val onlinePlayerBufferedFraction: StateFlow<Float>
+            get() = this@PlayerService.internalOnlineBufferedFraction
 
         val onlinePlayerCurrentDuration: Float
             get() = this@PlayerService.currentDuration.value
@@ -2550,8 +2918,8 @@ class PlayerService : Service(),
         val onlinePlayerCurrentSecond: Float
             get() = this@PlayerService.currentSecond.value
 
-        val onlinePlayerView: YouTubePlayerView?
-            get() = this@PlayerService.internalOnlinePlayerView.value
+        val onlinePlayerView: StateFlow<YouTubePlayerView?>
+            get() = this@PlayerService.internalOnlinePlayerView
 
         val cache: Cache
             get() = this@PlayerService.cache
@@ -2767,21 +3135,6 @@ class PlayerService : Service(),
         }
     }
 
-    class ServiceRestartReceiver : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
-            Timber.d("PlayerService ServiceRestartReceiver onReceive")
-            runCatching {
-                val intent = context.intent<PlayerService>()
-                if (isAtLeastAndroid8)
-                    context.startForegroundService(intent)
-                else
-                    context.startService(intent)
-            }.onFailure {
-                Timber.e("Failed ServiceRestartReceiver stopService in PlayerService ${it.stackTraceToString()}")
-            }
-        }
-    }
-
     fun initializeUnifiedSessionCallback() {
         Timber.d("PlayerService InitializeUnifiedSessionCallback")
         val currentMediaItem = binder.player.currentMediaItem
@@ -2796,7 +3149,7 @@ class PlayerService : Service(),
                             it.player.play()
                         else {
                             if (!GlobalSharedData.riTuneCastActive)
-                                internalOnlinePlayer.value?.play()
+                                _internalOnlinePlayer.value?.play()
                             else
                                 coroutineScope.launch {
                                     riTuneClient.sendCommand(
@@ -2812,7 +3165,7 @@ class PlayerService : Service(),
                         Timber.d("PlayerService InitializeUnifiedSessionCallback onPauseClick")
                         it.player.pause()
                         if (!GlobalSharedData.riTuneCastActive) {
-                            internalOnlinePlayer.value?.pause()
+                            _internalOnlinePlayer.value?.pause()
                         } else {
                             coroutineScope.launch {
                                 riTuneClient.sendCommand(
@@ -2827,7 +3180,7 @@ class PlayerService : Service(),
                         val newPosition = (second / 1000).toFloat()
                         Timber.d("PlayerService InitializeUnifiedSessionCallback onSeekPosTo ${newPosition}")
                         if (!GlobalSharedData.riTuneCastActive)
-                            internalOnlinePlayer.value?.seekTo(newPosition)
+                            _internalOnlinePlayer.value?.seekTo(newPosition)
                         else
                             coroutineScope.launch {
                                 riTuneClient.sendCommand(
@@ -2838,9 +3191,9 @@ class PlayerService : Service(),
                                     )
                                 )
                             }
-                        CoroutineScope(Dispatchers.Main).launch {
-                            currentSecond.value = second.toFloat()
-                        }
+
+                        currentSecond.value = second.toFloat()
+
                     },
                     onPlayNext = {
                         //it.player.playNext()
@@ -2876,7 +3229,7 @@ class PlayerService : Service(),
                                     it.player.seamlessQueue(currentMediaItem)
 
                                     if(!GlobalSharedData.riTuneCastActive)
-                                        internalOnlinePlayer.value?.play()
+                                        _internalOnlinePlayer.value?.play()
                                     else
                                         coroutineScope.launch {
                                             riTuneClient.sendCommand(
@@ -2927,12 +3280,15 @@ class PlayerService : Service(),
         }
     }
 
-    private companion object {
+    companion object {
         const val NOTIFICATION_ID = 1001
         val NOTIFICATION_CHANNEL_ID = globalContext().resources.getString(R.string.player_notification_channel_id)  //"Player Notification"
 
         const val SLEEPTIMER_NOTIFICATION_ID = 1002
         val SLEEPTIMER_NOTIFICATION_CHANNEL_ID = globalContext().resources.getString(R.string.sleep_timer_notification_channel_id) //"Sleep Timer Notification"
+
+        const val ACTION_UPDATE_PHONE_LISTENER = "it.fast4x.riplay.action.UPDATE_PHONE_LISTENER"
+        const val EXTRA_ENABLE_LISTENER = "enable_listener"
 
 
     }

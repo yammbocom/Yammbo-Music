@@ -968,7 +968,7 @@
     <string name="restore_from_other_backup">Ripristina da altro backup</string>
     <string name="import_the_database_be_carefull">Importa il database da altri backup. Fai attenzione, potresti dover reinstallare l\'app.</string>
     <string name="enable_fullscreen">Abilita modalità schermo intero</string>
-    <string name="enable_fullscreen_info">Fullscreen hide system bars</string>
+    <string name="enable_fullscreen_info"></string>
     <string name="invalid_token">Token non valido</string>
     <string name="unknown_title">Titolo sconosciuto</string>
     <string name="unknown_artist">Artista sconosciuto</string>
@@ -1274,4 +1274,16 @@
     <string name="equalizer_dance">Dance</string>
     <string name="equalizer_acoustic">Acoustic</string>
     <string name="equalizer_reset">Reset</string>
+    <string name="homepage_classic">Classic</string>
+    <string name="homepage_extended">Extended</string>
+    <string name="homepage_type">Homepage type</string>
+    <string name="set_as_ringtone">Set as ringtone</string>
+    <string name="ringtone_successfully_set">Ringtone successfully set</string>
+    <string name="failed_to_set_ringtone">Failed to set ringtone</string>
+    <string name="permission_granted">Permission granted</string>
+    <string name="permission_denied">Permission denied</string>
+    <string name="permission_required">Permission required</string>
+    <string name="now_playing_title">NOW PLAYING</string>
+    <string name="local_now_playing_title">LOCAL</string>
+    <string name="online_now_playing_title">ONLINE</string>
 </resources>
