@@ -37,7 +37,7 @@ class CrashReporter (private val LOG_PATH: String) : Thread.UncaughtExceptionHan
 
             val logFile = File(
                 LOG_PATH,
-                "RiPlay_crash_log.txt"
+                "Yammbo_crash_log.txt"
             )
             if (!logFile.exists()) {
                 logFile.createNewFile()
