@@ -1289,4 +1289,5 @@ Volume BAS : titre précédent</string>
     <string name="now_playing_title">NOW PLAYING</string>
     <string name="local_now_playing_title">LOCAL</string>
     <string name="online_now_playing_title">ONLINE</string>
+    <string name="subscription_free">Free Plan</string>
 </resources>

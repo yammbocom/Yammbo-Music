@@ -1058,12 +1058,11 @@ fun UiSettings(
                         valueText = {
                             when (it) {
                                 HomeScreenTabs.Default -> stringResource(R.string._default)
-                                HomeScreenTabs.LocalSongs -> stringResource(R.string.on_device)
-                                HomeScreenTabs.Songs -> stringResource(R.string.songs)
-                                HomeScreenTabs.Albums -> stringResource(R.string.albums)
-                                HomeScreenTabs.Artists -> stringResource(R.string.artists)
-                                HomeScreenTabs.Playlists -> stringResource(R.string.playlists)
+                                HomeScreenTabs.Inicio -> stringResource(R.string.home)
+                                HomeScreenTabs.Top50 -> stringResource(R.string.top_50)
+                                HomeScreenTabs.MyMusic -> stringResource(R.string.my_music)
                                 HomeScreenTabs.Search -> stringResource(R.string.search)
+                                HomeScreenTabs.MyAccount -> stringResource(R.string.my_account)
                             }
                         }
                     )

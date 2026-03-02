@@ -1299,11 +1299,10 @@ fun OnlinePlayer(
                     .background(
                         Brush.verticalGradient(
                             0.5f to if (playerBackgroundColors == PlayerBackgroundColors.CoverColorGradient) dynamicColorPalette.background1 else colorPalette().background1,
-                            1.0f to if (blackgradient) Color.Black
-                            else if ((playerBackgroundColors == PlayerBackgroundColors.CoverColorGradient) && transparentBackgroundActionBarPlayer) dynamicColorPalette.background2
+                            1.0f to if (blackgradient) {
+                                if (lightTheme) Color.White else Color.Black
+                            } else if ((playerBackgroundColors == PlayerBackgroundColors.CoverColorGradient) && transparentBackgroundActionBarPlayer) dynamicColorPalette.background2
                             else colorPalette().background2,
-                            //0.0f to colorPalette().background0,
-                            //1.0f to colorPalette().background2,
                             startY = 0.0f,
                             endY = 1500.0f
                         )

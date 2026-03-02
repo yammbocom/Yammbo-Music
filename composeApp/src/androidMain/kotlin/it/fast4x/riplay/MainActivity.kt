@@ -1101,9 +1101,9 @@ class MainActivity :
                 ) {
                     openTabFromShortcut =
                         when (intent?.action) {
-                            action_songs -> HomeScreenTabs.Songs.index
-                            action_albums -> HomeScreenTabs.Albums.index
-                            action_library -> HomeScreenTabs.Playlists.index
+                            action_songs -> HomeScreenTabs.MyMusic.index
+                            action_albums -> HomeScreenTabs.MyMusic.index
+                            action_library -> HomeScreenTabs.MyMusic.index
                             action_search -> -2
                             action_musicidentifier -> -3
                             else -> -1

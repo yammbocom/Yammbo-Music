@@ -48,6 +48,7 @@ import it.fast4x.riplay.utils.formatMillis
 import it.fast4x.riplay.utils.isLocal
 import it.fast4x.riplay.utils.typography
 import timber.log.Timber
+import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 import kotlin.math.roundToLong
 
@@ -86,6 +87,13 @@ fun SeekBar(
 
     LaunchedEffect(value) {
         if (!isDragging.targetState) {
+            draggingValue = value
+        }
+    }
+
+    LaunchedEffect(isDragging.targetState) {
+        if (!isDragging.targetState) {
+            delay(100)
             draggingValue = value
         }
     }

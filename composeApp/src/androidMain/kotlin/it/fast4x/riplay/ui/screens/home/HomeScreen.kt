@@ -82,9 +82,13 @@ fun HomeScreen(
 
     var initialtabIndex =
             when (openTabFromShortcut1) {
-            -1 -> when (preferences.getEnum(indexNavigationTabKey, HomeScreenTabs.Default)) {
-                HomeScreenTabs.Default -> HomeScreenTabs.LocalSongs.index
-                else -> preferences.getEnum(indexNavigationTabKey, HomeScreenTabs.LocalSongs).index
+            -1 -> try {
+                when (preferences.getEnum(indexNavigationTabKey, HomeScreenTabs.Default)) {
+                    HomeScreenTabs.Default -> HomeScreenTabs.Inicio.index
+                    else -> preferences.getEnum(indexNavigationTabKey, HomeScreenTabs.Inicio).index
+                }
+            } catch (_: Exception) {
+                HomeScreenTabs.Inicio.index
             }
             else -> openTabFromShortcut1
         }
@@ -98,8 +102,12 @@ fun HomeScreen(
 
     val homePageType by rememberObservedPreference(homePageTypeKey, HomePagetype.Classic)
 
-    if (tabIndex == -2) navController.navigate(NavRoutes.search.name)
+    if (tabIndex == -2 || tabIndex == 3) {
+        onTabChanged(0)
+        navController.navigate(NavRoutes.search.name)
+    }
     if (tabIndex == -3) {
+        onTabChanged(0)
         if (isEnabledMusicIdentifier)
             navController.navigate(NavRoutes.musicIdentifier.name)
         else {
@@ -114,14 +122,11 @@ fun HomeScreen(
         onTabChanged,
         miniPlayer,
         navBarContent = { Item ->
-//            Item(0, if (!isLoggedIn())
-//                stringResource(R.string.quick_picks) else stringResource(R.string.home),
-//                if (!isLoggedIn()) R.drawable.sparkles else R.drawable.internet)
             Item(0, stringResource(R.string.home), R.drawable.home)
-            Item(1, stringResource(R.string.songs), R.drawable.musical_notes)
-            Item(2, stringResource(R.string.artists), R.drawable.music_artist)
-            Item(3, stringResource(R.string.albums), R.drawable.music_album)
-            Item(4, stringResource(R.string.playlists), R.drawable.music_library)
+            Item(1, stringResource(R.string.top_50), R.drawable.trending)
+            Item(2, stringResource(R.string.my_music), R.drawable.musical_notes)
+            Item(3, stringResource(R.string.search), R.drawable.search)
+            Item(4, stringResource(R.string.my_account), R.drawable.person)
         }
     ) { currentTabIndex ->
         saveableStateHolder.SaveableStateProvider(key = currentTabIndex) {
@@ -195,7 +200,25 @@ fun HomeScreen(
 
                 }
 
-                1 -> HomeSongs(
+                1 -> Top50Tab(
+                    navController = navController
+                )
+
+                2 -> MyMusicTab(
+                    onSongsClick = { onTabChanged(10) },
+                    onArtistsClick = { onTabChanged(11) },
+                    onAlbumsClick = { onTabChanged(12) },
+                    onPlaylistsClick = { onTabChanged(13) }
+                )
+
+                // 3 = Search, handled above (navigates to search screen)
+
+                4 -> MyAccountTab(
+                    navController = navController
+                )
+
+                // Sub-screens from MyMusicTab
+                10 -> HomeSongs(
                     navController = navController,
                     onSearchClick = {
                         navController.navigate(NavRoutes.search.name)
@@ -205,7 +228,7 @@ fun HomeScreen(
                     }
                 )
 
-                2 -> HomeArtists(
+                11 -> HomeArtists(
                     navController = navController,
                     onArtistClick = {
                         if (!it.id.startsWith(LOCAL_KEY_PREFIX))
@@ -220,7 +243,7 @@ fun HomeScreen(
                     }
                 )
 
-                3 -> HomeAlbums(
+                12 -> HomeAlbums(
                     navController = navController,
                     onAlbumClick = {
                         if (!it.id.startsWith(LOCAL_KEY_PREFIX))
@@ -235,7 +258,7 @@ fun HomeScreen(
                     }
                 )
 
-                4 -> HomePlaylists(
+                13 -> HomePlaylists(
                     navController = navController,
                     onPlaylistClick = {
                         if (!it.isOnDevice)
@@ -249,7 +272,6 @@ fun HomeScreen(
                     onSettingsClick = {
                         navController.navigate(NavRoutes.settings.name)
                     }
-
                 )
 
             }

@@ -95,6 +95,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
+import android.content.Intent
+import it.fast4x.riplay.service.PlayerService
 import timber.log.Timber
 
 @UnstableApi
@@ -163,6 +165,7 @@ fun AccountsSettings(
                     icon = R.drawable.close,
                     iconColor = colorPalette().text,
                     onClick = {
+                        context.stopService(Intent(context, PlayerService::class.java))
                         val token = authManager.getAccessToken()
                         if (token != null) {
                             CoroutineScope(Dispatchers.IO).launch {

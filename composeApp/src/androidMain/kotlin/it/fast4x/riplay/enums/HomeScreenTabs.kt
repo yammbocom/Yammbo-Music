@@ -2,22 +2,20 @@ package it.fast4x.riplay.enums
 
 enum class HomeScreenTabs {
     Default,
-    LocalSongs,
-    Songs,
-    Artists,
-    Albums,
-    Playlists,
-    Search;
+    Inicio,
+    Top50,
+    MyMusic,
+    Search,
+    MyAccount;
 
     val index: Int
         get() = when (this) {
             Default -> 100
-            LocalSongs -> 0
-            Songs -> 1
-            Artists -> 2
-            Albums -> 3
-            Playlists -> 4
-            Search -> 5
+            Inicio -> 0
+            Top50 -> 1
+            MyMusic -> 2
+            Search -> 3
+            MyAccount -> 4
         }
 
 }

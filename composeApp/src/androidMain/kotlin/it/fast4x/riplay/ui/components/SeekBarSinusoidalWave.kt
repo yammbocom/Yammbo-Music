@@ -59,6 +59,7 @@ import it.fast4x.riplay.utils.colorPalette
 import it.fast4x.riplay.utils.formatMillis
 import it.fast4x.riplay.utils.isLocal
 import it.fast4x.riplay.utils.typography
+import kotlinx.coroutines.delay
 import kotlin.math.PI
 import kotlin.math.roundToInt
 import kotlin.math.roundToLong
@@ -91,6 +92,13 @@ fun SeekBarSinusoidalWave(
 
     LaunchedEffect(value) {
         if (!isDragging.targetState) {
+            draggingValue = value
+        }
+    }
+
+    LaunchedEffect(isDragging.targetState) {
+        if (!isDragging.targetState) {
+            delay(100)
             draggingValue = value
         }
     }

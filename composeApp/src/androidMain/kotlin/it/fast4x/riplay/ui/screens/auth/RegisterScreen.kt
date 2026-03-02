@@ -22,12 +22,15 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -67,6 +70,13 @@ fun RegisterScreen(
     val accountCreatedSuccessText = stringResource(R.string.auth_account_created_success)
     val registrationFailedText = stringResource(R.string.auth_registration_failed)
 
+    LaunchedEffect(successMessage) {
+        if (successMessage != null) {
+            delay(2000)
+            navController.popBackStack()
+        }
+    }
+
     val textFieldColors = OutlinedTextFieldDefaults.colors(
         focusedBorderColor = colors.accent,
         unfocusedBorderColor = colors.textDisabled,
@@ -81,6 +91,7 @@ fun RegisterScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(colors.background0)
+            .imePadding()
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,

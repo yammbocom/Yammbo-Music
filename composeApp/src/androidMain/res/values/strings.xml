@@ -47,6 +47,17 @@
     <string name="disliked">Disliked</string>
     <string name="quick_picks">Quick picks</string>
     <string name="songs">Songs</string>
+    <string name="top_50">Top 50</string>
+    <string name="my_music">Mi Música</string>
+    <string name="my_account">Mi Cuenta</string>
+    <string name="top_50_most_played">Tus 50 canciones más escuchadas</string>
+    <string name="local_songs">Canciones</string>
+    <string name="subscription_active">Suscripción activa</string>
+    <string name="subscription_inactive">Sin suscripción</string>
+    <string name="subscription_free">Plan Gratuito</string>
+    <string name="pricing">Precios</string>
+    <string name="logout">Cerrar sesión</string>
+    <string name="logout_confirmation">¿Estás seguro de que quieres cerrar sesión?</string>
     <string name="other_versions">Other versions</string>
     <string name="album_no_alternative_version">This album doesn\'t have any alternative version</string>
     <string name="enqueue">Enqueue</string>

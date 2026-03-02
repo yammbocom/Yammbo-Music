@@ -2,8 +2,7 @@
 <manifest xmlns:tools="http://schemas.android.com/tools"
     xmlns:android="http://schemas.android.com/apk/res/android"
     tools:ignore="ExtraText"
-    android:installLocation="preferExternal"
-    package="it.fast4x.riplay">
+    android:installLocation="preferExternal">
 
     <uses-sdk tools:overrideLibrary="com.my.kizzyrpc"/>
 
@@ -174,10 +173,10 @@
         </activity>
 
         <activity
-            android:name=".extensions.crashreporter.CrashReporterActivity"
+            android:name="it.fast4x.riplay.extensions.crashreporter.CrashReporterActivity"
             android:process=":crash_reporter"
             android:exported="false"
-            android:theme="@style/Theme.RiPlay"
+            android:theme="@style/Theme.YamboMusic"
             android:excludeFromRecents="true" />
 
         <receiver android:name="it.fast4x.riplay.ui.widgets.PlayerVerticalWidgetReceiver"

@@ -84,7 +84,7 @@ fun GetSeekBar(
 
     val playerTimelineType by rememberObservedPreference(
         playerTimelineTypeKey,
-        PlayerTimelineType.Default
+        PlayerTimelineType.Wavy
     )
     var scrubbingPosition by remember(mediaId) {
         mutableStateOf<Long?>(null)

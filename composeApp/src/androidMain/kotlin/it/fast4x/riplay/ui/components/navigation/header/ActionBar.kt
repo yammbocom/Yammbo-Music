@@ -459,21 +459,21 @@ fun ActionBar(
                     .clickable { expanded = !expanded }
             )
         else HeaderIcon( R.drawable.internet, tint = colorPalette().accent, size = 30.dp ) { expanded = !expanded }
-    } else HeaderIcon( R.drawable.burger, tint = colorPalette().accent ) { expanded = !expanded }
 
-    // Define actions for when item inside menu clicked,
-    // and when user clicks on places other than the menu (dismiss)
-    val onItemClick: (NavRoutes) -> Unit = {
-        expanded = false
-        navController.navigate(it.name)
+        // Define actions for when item inside menu clicked,
+        // and when user clicks on places other than the menu (dismiss)
+        val onItemClick: (NavRoutes) -> Unit = {
+            expanded = false
+            navController.navigate(it.name)
+        }
+        val onDismissRequest: () -> Unit = { expanded = false }
+
+        // Hamburger menu
+        HamburgerMenu(
+            expanded = expanded,
+            onItemClick = onItemClick,
+            onDismissRequest = onDismissRequest
+        )
     }
-    val onDismissRequest: () -> Unit = { expanded = false }
-
-    // Hamburger menu
-    HamburgerMenu(
-        expanded = expanded,
-        onItemClick = onItemClick,
-        onDismissRequest = onDismissRequest
-    )
 // END
 }
