@@ -179,6 +179,28 @@
             android:theme="@style/Theme.YamboMusic"
             android:excludeFromRecents="true" />
 
+        <service
+            android:name="it.fast4x.riplay.service.PlayerService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback"
+            android:enabled="true"
+            android:stopWithTask="false">
+
+            <intent-filter>
+                <action android:name="android.intent.action.MEDIA_BUTTON" />
+            </intent-filter>
+
+        </service>
+
+        <service android:name="it.fast4x.riplay.service.PlayerMediaBrowserService"
+            android:exported="true"
+            android:enabled="true"
+            tools:ignore="ExportedService">
+            <intent-filter>
+                <action android:name="android.media.browse.MediaBrowserService" />
+            </intent-filter>
+        </service>
+
         <receiver android:name="it.fast4x.riplay.ui.widgets.PlayerVerticalWidgetReceiver"
             android:exported="true">
             <intent-filter>
@@ -197,23 +219,6 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/player_horizontal_widget_info" />
         </receiver>
-
-        <service
-            android:name="it.fast4x.riplay.service.PlayerService"
-            android:exported="false"
-            android:foregroundServiceType="mediaPlayback"
-            android:enabled="true"
-            android:stopWithTask="false">
-        </service>
-
-        <service android:name="it.fast4x.riplay.service.PlayerMediaBrowserService"
-            android:exported="true"
-            android:enabled="true"
-            tools:ignore="ExportedService">
-            <intent-filter>
-                <action android:name="android.media.browse.MediaBrowserService" />
-            </intent-filter>
-        </service>
 
         <receiver android:name="androidx.media3.session.MediaButtonReceiver"
             android:exported="true">

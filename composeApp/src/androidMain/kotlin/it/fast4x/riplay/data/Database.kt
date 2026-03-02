@@ -1541,6 +1541,9 @@ interface Database {
     @Query("DELETE FROM QueuedMediaItem")
     fun clearQueuedMediaItems()
 
+    @Query("DELETE FROM QueuedMediaItem WHERE mediaItem IS NULL")
+    fun clearOldEmptyQueuedMediaItems()
+
     @Query("SELECT * FROM SearchQuery WHERE `query` LIKE :query ORDER BY id DESC")
     fun queries(query: String): Flow<List<SearchQuery>>
 
@@ -2914,7 +2917,7 @@ interface Database {
 
     @Transaction
     fun insert(mediaItem: MediaItem, block: (Song) -> Song = { it }) {
-        var title = mediaItem.mediaMetadata.title!!.toString()
+        var title = mediaItem.mediaMetadata.title.toString()
         if(!title.startsWith(EXPLICIT_PREFIX, true) && mediaItem.isExplicit){
             title = EXPLICIT_PREFIX + title
         }

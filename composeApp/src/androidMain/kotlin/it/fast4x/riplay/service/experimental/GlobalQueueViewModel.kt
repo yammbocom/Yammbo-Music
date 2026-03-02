@@ -113,9 +113,9 @@ class GlobalQueueViewModel() : ViewModel(), ViewModelProvider.Factory {
             val excludeSongWithDurationLimit =
                 preferences.getEnum(excludeSongsWithDurationLimitKey, DurationInMinutes.Disabled)
             if (excludeSongWithDurationLimit != DurationInMinutes.Disabled) {
-                val excludedSong = mediaItem.mediaMetadata.extras?.getString("durationText")?.let { it1 ->
+                val excludedSong = (mediaItem.mediaMetadata.extras?.getString("durationText")?.let { it1 ->
                     durationTextToMillis(it1)
-                }!! <= excludeSongWithDurationLimit.minutesInMilliSeconds
+                } ?: 0) <= excludeSongWithDurationLimit.minutesInMilliSeconds
 
                 if (excludedSong)
                     CoroutineScope(Dispatchers.Main).launch {
@@ -153,9 +153,9 @@ class GlobalQueueViewModel() : ViewModel(), ViewModelProvider.Factory {
 
             if (excludeSongWithDurationLimit != DurationInMinutes.Disabled) {
                 filteredMediaItems = mediaItems.filter {
-                    it.mediaMetadata.extras?.getString("durationText")?.let { it1 ->
+                    (it.mediaMetadata.extras?.getString("durationText")?.let { it1 ->
                         durationTextToMillis(it1)
-                    }!! < excludeSongWithDurationLimit.minutesInMilliSeconds
+                    } ?: 0) < excludeSongWithDurationLimit.minutesInMilliSeconds
                 }
 
                 val excludedSongs = mediaItems.size - filteredMediaItems.size
@@ -216,7 +216,8 @@ class GlobalQueueViewModel() : ViewModel(), ViewModelProvider.Factory {
 
         println("LoadMasterQueue loadPersistentQueue is enabled, processing")
         Database.asyncQuery {
-            val queuedSong = queuedMediaItems()
+            clearOldEmptyQueuedMediaItems()
+            val queuedSong = try { queuedMediaItems() } catch (e: Exception) { emptyList() }
 
             if (queuedSong.isEmpty()) return@asyncQuery
 

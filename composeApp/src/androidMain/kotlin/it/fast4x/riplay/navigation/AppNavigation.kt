@@ -84,15 +84,18 @@ import it.fast4x.riplay.extensions.rewind.RewindListScreen
 import it.fast4x.riplay.extensions.rewind.RewindScreen
 import it.fast4x.riplay.extensions.ritune.improved.RiTuneSelector
 import it.fast4x.riplay.ui.components.LocalGlobalSheetState
+import it.fast4x.riplay.ui.components.themed.SmartMessage
 import it.fast4x.riplay.ui.screens.auth.ForgotPasswordScreen
 import it.fast4x.riplay.ui.screens.auth.LoginScreen
 import it.fast4x.riplay.ui.screens.auth.RegisterScreen
 import it.fast4x.riplay.ui.screens.events.EventsScreen
 import it.fast4x.riplay.ui.screens.moodandchip.ChipListScreen
+import it.fast4x.riplay.ui.screens.onboarding.OnboardingScreen
 import it.fast4x.riplay.ui.screens.ondevice.OnDevicePlaylistScreen
 import it.fast4x.riplay.ui.screens.player.controller.PlayerScreen
 import it.fast4x.riplay.extensions.yammboapi.YammboAuthManager
 import it.fast4x.riplay.utils.MusicIdentifier
+import java.net.URLEncoder
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalAnimationApi::class,
     ExperimentalMaterialApi::class, ExperimentalTextApi::class, ExperimentalComposeUiApi::class,
@@ -111,19 +114,6 @@ fun AppNavigation(
     val transitionEffect by rememberPreference(transitionEffectKey, TransitionEffect.Scale)
 
     @Composable
-    fun customScaffold(content: @Composable () -> Unit) {
-        Scaffold(
-            bottomBar = {  }
-        ) { paddingValues ->
-            Surface(
-                modifier = Modifier.padding(paddingValues),
-                content = content
-            )
-        }
-    }
-
-
-    @Composable
     fun modalBottomSheetPage(
         showSheet: Boolean? = true,
         content: @Composable () -> Unit
@@ -137,7 +127,7 @@ fun AppNavigation(
         CustomModalBottomSheet(
             showSheet = showSheet == true,
             onDismissRequest = {
-                if (navController.currentBackStackEntry?.lifecycle?.currentState == Lifecycle.State.RESUMED)
+                //if (navController.currentBackStackEntry?.lifecycle?.currentState == Lifecycle.State.RESUMED)
                     navController.popBackStack()
             },
             containerColor = Color.Transparent,
@@ -214,6 +204,21 @@ fun AppNavigation(
             if (navController.currentBackStackEntry?.lifecycle?.currentState == Lifecycle.State.RESUMED) navController.popBackStack()
         }
 
+        composable(route = NavRoutes.home.name) {
+            HomeScreen(
+                navController = navController,
+                onPlaylistUrl = navigateToPlaylist,
+                miniPlayer = miniPlayer,
+                openTabFromShortcut = openTabFromShortcut
+            )
+        }
+
+        composable(route = NavRoutes.onBoarding.name) {
+            OnboardingScreen(){
+                SmartMessage("Permissions completed", context = context)
+            }
+        }
+
         composable(route = NavRoutes.ritunecontroller.name) {
             modalBottomSheetPage {
                 RiTuneControllerScreen()
@@ -269,14 +274,6 @@ fun AppNavigation(
             ForgotPasswordScreen(navController = navController)
         }
 
-        composable(route = NavRoutes.home.name) {
-            HomeScreen(
-                navController = navController,
-                onPlaylistUrl = navigateToPlaylist,
-                miniPlayer = miniPlayer,
-                openTabFromShortcut = openTabFromShortcut
-            )
-        }
 
         composable(
             route = "${NavRoutes.videoOrSongInfo.name}/{id}",
@@ -450,31 +447,8 @@ fun AppNavigation(
         }
 
         composable(route = NavRoutes.blacklist.name) {
-            //modalBottomSheetPage {
-                BlacklistScreen(navController, miniPlayer)
-            //}
+            BlacklistScreen(navController, miniPlayer)
         }
-
-        /*
-        composable(
-            route = "settingsPage/{index}",
-            arguments = listOf(
-                navArgument(
-                    name = "index",
-                    builder = { type = NavType.IntType }
-                )
-            )
-        ) { navBackStackEntry ->
-            val index = navBackStackEntry.arguments?.getInt("index") ?: 0
-
-            PlayerScaffold {
-                SettingsPage(
-                    section = SettingsSection.entries[index],
-                    pop = popDestination
-                )
-            }
-        }
-         */
 
         composable(
             route = "${NavRoutes.search.name}?text={text}",
@@ -587,13 +561,6 @@ fun AppNavigation(
         composable(
             route = NavRoutes.moodsPage.name
         ) { navBackStackEntry ->
-            /*
-            SimpleScaffold(navController = navController) {
-                MoodsPage(
-                    navController = navController
-                )
-            }
-             */
             MoodsPageScreen(
                 navController = navController,
                 miniPlayer = miniPlayer,
@@ -634,15 +601,12 @@ fun AppNavigation(
                 initialTextInput = query ,
                 onViewPlaylist = {},
                 onSearch = { newQuery ->
-                    navController.navigate(route = "${NavRoutes.searchResults.name}/${
-                        cleanString(
-                            newQuery
-                        )
-                    }")
+                    val encodedQuery = URLEncoder.encode(newQuery, "UTF-8")
+                    navController.navigate(route = "${NavRoutes.searchResults.name}/${encodedQuery}")
 
                     if (!context.preferences.getBoolean(pauseSearchHistoryKey, false)) {
                         Database.asyncTransaction {
-                            insert(SearchQuery(query = newQuery))
+                            insert(SearchQuery(query = encodedQuery))
                         }
                     }
                 },

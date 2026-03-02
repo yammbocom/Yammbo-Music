@@ -14,15 +14,15 @@
 package it.fast4x.riplay.extensions.audiovolume
 
 import android.content.Context
+import android.content.Context.AUDIO_SERVICE
 import android.media.AudioManager
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
 import androidx.core.content.getSystemService
 
-class AudioVolumeObserver(private val context: Context) {
-    private val mAudioManager: AudioManager =
-        context.getSystemService()!!
+class AudioVolumeObserver(private val context: Context, val audioManager: AudioManager) {
+
     private var contentObserver: AudioVolumeContentObserver? = null
 
     fun register(audioStreamType: Int, listener: OnAudioVolumeChangedListener) {
@@ -33,20 +33,22 @@ class AudioVolumeObserver(private val context: Context) {
         // +info: https://stackoverflow.com/a/35261443/904907
         contentObserver = AudioVolumeContentObserver(
             handler,
-            mAudioManager,
+            audioManager,
             audioStreamType,
             listener
         )
-        context.contentResolver.registerContentObserver(
-            Settings.System.CONTENT_URI,
-            true,
-            contentObserver!!
-        )
+        contentObserver?.let {
+            context.contentResolver.registerContentObserver(
+                Settings.System.CONTENT_URI,
+                true,
+                it
+            )
+        }
     }
 
     fun unregister() {
-        if (contentObserver != null) {
-            context.contentResolver.unregisterContentObserver(contentObserver!!)
+        contentObserver?.let {
+            context.contentResolver.unregisterContentObserver(it)
             contentObserver = null
         }
     }

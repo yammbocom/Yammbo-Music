@@ -558,29 +558,19 @@ object Environment {
 
         accountMenu()
             .body<AccountMenuResponse>()
-            .actions?.get(0)?.openPopupAction?.popup?.multiPageMenuRenderer
+            .actions?.firstOrNull()?.openPopupAction?.popup?.multiPageMenuRenderer
             ?.header?.activeAccountHeaderRenderer
             ?.toAccountInfo()
     }.onFailure {
         println("Error YoutubeLogin accountInfo(): ${it.stackTraceToString()}")
     }
 
-    suspend fun accountInfoList(): Result<List<AccountInfo?>?> = runCatching {
-        accountMenu()
-            .body<AccountMenuResponse>()
-            .actions?.get(0)?.openPopupAction?.popup?.multiPageMenuRenderer
-            ?.header?.activeAccountHeaderRenderer
-            ?.toAccountInfoList()
-    }
 
     suspend fun accountMenu(): HttpResponse {
         val response =
             client.post(_qkHMinedvm) {
                 setLogin(setLogin = true)
-                setBody(
-                    AccountMenuBody()
-                        //.copy(context = DefaultWeb.client.toContext(locale, visitorData, dataSyncId))
-                )
+                setBody(AccountMenuBody())
             }
 
         return response
@@ -924,10 +914,10 @@ object Environment {
 
             else -> {
                 LibraryPage(
-                    items = contents?.musicShelfRenderer?.contents!!
-                        .mapNotNull (MusicShelfRenderer.Content::musicResponsiveListItemRenderer)
-                        .mapNotNull { LibraryPage.fromMusicResponsiveListItemRenderer(it) },
-                    continuation = contents.musicShelfRenderer.continuations?.firstOrNull()?.
+                    items = contents?.musicShelfRenderer?.contents
+                        ?.mapNotNull (MusicShelfRenderer.Content::musicResponsiveListItemRenderer)
+                        ?.mapNotNull { LibraryPage.fromMusicResponsiveListItemRenderer(it) } ?: emptyList(),
+                    continuation = contents?.musicShelfRenderer?.continuations?.firstOrNull()?.
                     nextContinuationData?.continuation
                 )
             }
@@ -956,10 +946,10 @@ object Environment {
 
             else -> {
                 LibraryContinuationPage(
-                    items = contents?.musicShelfContinuation?.contents!!
-                        .mapNotNull (MusicShelfRenderer.Content::musicResponsiveListItemRenderer)
-                        .mapNotNull { LibraryPage.fromMusicResponsiveListItemRenderer(it) },
-                    continuation = contents.musicShelfContinuation.continuations?.firstOrNull()?.
+                    items = contents?.musicShelfContinuation?.contents
+                        ?.mapNotNull (MusicShelfRenderer.Content::musicResponsiveListItemRenderer)
+                        ?.mapNotNull { LibraryPage.fromMusicResponsiveListItemRenderer(it) } ?: emptyList(),
+                    continuation = contents?.musicShelfContinuation?.continuations?.firstOrNull()?.
                     nextContinuationData?.continuation
                 )
             }

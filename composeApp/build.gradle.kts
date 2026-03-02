@@ -258,8 +258,10 @@ kotlin {
             implementation(libs.math3)
             implementation(libs.toasty)
             implementation(libs.haze)
-            implementation(libs.androidyoutubeplayer)
-            implementation(libs.androidyoutubeplayer.custom.ui)
+            implementation(libs.androidyoutubeplayer) // replaced by project ayp
+            implementation(libs.androidyoutubeplayer.custom.ui) // replaced by project aypui
+            //implementation(project(":ayp"))
+            //implementation(project(":aypui"))
             implementation(libs.glance.widgets)
             implementation(libs.kizzy.rpc)
             implementation(libs.gson)
@@ -314,8 +316,8 @@ android {
         applicationId = "com.yambo.music"
         minSdk = 24
         targetSdk = 36
-        versionCode = 68
-        versionName = "0.7.68"
+        versionCode = 69
+        versionName = "0.7.69"
 
         multiDexEnabled = true
 
@@ -602,7 +604,7 @@ android {
             manifestPlaceholders["appName"] = "Yammbo Music"
             signingConfig = signingConfigs.getByName("release")
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            multiDexKeepProguard = File("multidex-config.txt")
+            multiDexKeepProguard = File("multidex-config.pro")
         }
     }
 

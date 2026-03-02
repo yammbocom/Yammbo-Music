@@ -246,6 +246,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import timber.log.Timber
 import java.net.Proxy
+import java.net.URLEncoder
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -263,8 +264,8 @@ class MainActivity :
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
             if (service is PlayerService.Binder) {
                 this@MainActivity.binder = service
-                //this@MainActivity.onlinePlayerPlayingState = service.onlinePlayerPlayingState
-                //this@MainActivity.onlinePlayerView = service.onlinePlayerView
+                service.cancelSleepTimer() // cancel sleep timer when service is connected, before app was closed
+
             }
 
 
@@ -336,9 +337,9 @@ class MainActivity :
         BackupViewModel(DatabaseBackupManager(this, Database), this)
     }
 
-    private val globalQueueViewModel: GlobalQueueViewModel by lazy {
-        ViewModelProvider(AppSharedScope)[GlobalQueueViewModel::class.java]
-    }
+//    private val globalQueueViewModel: GlobalQueueViewModel by lazy {
+//        ViewModelProvider(AppSharedScope)[GlobalQueueViewModel::class.java]
+//    }
 
 
 
@@ -396,11 +397,6 @@ class MainActivity :
             .setNegativeButton(getString(R.string.later), null)
             .setCancelable(false)
             .show()
-
-        // Hide autostart permission dialog after showing the dialog
-        preferences.edit(commit = true) {
-            putBoolean(showAutostartPermissionDialogKey, false)
-        }
     }
 
     private fun openAutostartSettings() {
@@ -451,10 +447,14 @@ class MainActivity :
 
         val intent = Intent(this, PlayerService::class.java)
 
-        if (isAtLeastAndroid8)
-            startForegroundService(intent)
-        else
-            startService(intent)
+        try {
+            if (isAtLeastAndroid8)
+                startForegroundService(intent)
+            else
+                startService(intent)
+        } catch (e: Exception) {
+            Timber.e("MainActivity onStart startService PlayerService Exception: $e")
+        }
 
         bindService(intent, serviceConnection, BIND_AUTO_CREATE)
 
@@ -510,21 +510,22 @@ class MainActivity :
             Objects.requireNonNull(sensorManager)
                 ?.registerListener(
                     sensorListener,
-                    sensorManager!!
-                        .getDefaultSensor(Sensor.TYPE_ACCELEROMETER),
+                    sensorManager
+                        ?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER),
                     SensorManager.SENSOR_DELAY_NORMAL
                 )
         }
 
         checkIfAppIsRunningInBackground()
 
+        // todo ritune in the future add a try catch
         //registerNsdService()
-        discoverNsdServices(
-            onServiceFound = {
-                //riTuneDevices.value = it
-                riTuneDevices = it.map { it.toRiTuneDevice() }.toMutableStateList()
-            }
-        )
+//        discoverNsdServices(
+//            onServiceFound = {
+//                //riTuneDevices.value = it
+//                riTuneDevices = it.map { it.toRiTuneDevice() }.toMutableStateList()
+//            }
+//        )
 
         isclosebackgroundPlayerEnabled = preferences.getBoolean(closebackgroundPlayerKey, false)
 
@@ -672,6 +673,9 @@ class MainActivity :
     )
     @ExperimentalPermissionsApi
     fun startApp() {
+
+        // Hide autostart permission dialog after showing the dialog
+        preferences.edit(commit = true) { putBoolean(showAutostartPermissionDialogKey, false) }
 
         // Used in QuickPics for load data from remote instead of last saved in SharedPreferences
         preferences.edit(commit = true) { putBoolean(loadedDataKey, false) }
@@ -1171,7 +1175,7 @@ class MainActivity :
                             LocalSelectedQueue provides selectedQueue.value,
                             LocalAudioTagger provides audioTaggerViewModel,
                             LocalBackupManager provides backupManagerViewModel,
-                            LocalGlobalQueue provides globalQueueViewModel,
+                            //LocalGlobalQueue provides globalQueueViewModel,
                             LocalOnDeviceViewModel provides onDeviceViewModel
                             //LocalInternetAvailable provides isInternetAvailable
                         ) {
@@ -1203,15 +1207,9 @@ class MainActivity :
                                                 showPlayer = { localPlayerSheetState.expandSoft() },
                                                 hidePlayer = { localPlayerSheetState.collapseSoft() },
                                                 navController = navController,
-                                                //player = onlinePlayer,
-                                                //playerState = onlinePlayerState,
-                                                //currentDuration = currentDuration.value,
-                                                //currentSecond = currentSecond.value,
                                             )
                                         }
                                     },
-                                    //player = onlinePlayer,
-                                    //playerState = onlinePlayerState,
                                     openTabFromShortcut = openTabFromShortcut,
                                     authManager = authManager
                                 )
@@ -1245,7 +1243,6 @@ class MainActivity :
                                 val onlinePlayer: @Composable () -> Unit = {
                                     OnlinePlayer(
                                         navController = navController,
-                                        //playFromSecond = currentSecond.value,
                                         onlineCore = {
                                             binder?.player?.currentMediaItem?.let{
                                                 OnlinePlayerView(
@@ -1487,15 +1484,17 @@ class MainActivity :
                         }
 
                         "search" -> uri.getQueryParameter("q")?.let { query ->
-                            navController.navigate(route = "${NavRoutes.searchResults.name}/$query")
+                            val encodedQuery = URLEncoder.encode(query, "UTF-8")
+                            navController.navigate(route = "${NavRoutes.searchResults.name}/$encodedQuery")
                         }
 
                         else -> when {
                             path == "watch" -> uri.getQueryParameter("v")
                             uri.host == "youtu.be" -> path
                             path != "watch" && uri.host == null -> {
-                                path.let { query ->
-                                    navController.navigate(route = "${NavRoutes.searchResults.name}/$query")
+                                path?.let { query ->
+                                    val encodedQuery = URLEncoder.encode(query, "UTF-8")
+                                    navController.navigate(route = "${NavRoutes.searchResults.name}/$encodedQuery")
                                 }
                                 null
                             }
@@ -1582,6 +1581,8 @@ class MainActivity :
 
     override fun onResume() {
         super.onResume()
+
+        binder?.onlinePlayer?.setVolume(100) // maybe is needed when webview lost audiofocus
 
         preferences.edit(commit = true) { putBoolean(appIsRunningKey, true) }
 
@@ -1696,7 +1697,7 @@ val LocalAudioTagger = staticCompositionLocalOf<AudioTagViewModel> { error("No a
 
 val LocalBackupManager = staticCompositionLocalOf<BackupViewModel> { error("No backup manager provided") }
 
-val LocalGlobalQueue = staticCompositionLocalOf<GlobalQueueViewModel> { error("No player service queue provided") }
+//val LocalGlobalQueue = staticCompositionLocalOf<GlobalQueueViewModel> { error("No player service queue provided") }
 
 val LocalOnDeviceViewModel = staticCompositionLocalOf<OnDeviceViewModel> { error("No on device view model provided") }
 
