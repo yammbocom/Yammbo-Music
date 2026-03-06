@@ -1,6 +1,10 @@
 <div align="center">
 
-  <img src="./assets/branding/yammbo-music-icon.png" width="140" height="140" alt="Yammbo Music" style="border-radius: 28px;"/>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./assets/branding/yammbo-music-icon-white.svg" width="140" height="140">
+    <source media="(prefers-color-scheme: light)" srcset="./assets/branding/yammbo-music-icon-dark.svg" width="140" height="140">
+    <img src="./assets/branding/yammbo-music-icon-dark.svg" width="140" height="140" alt="Yammbo Music"/>
+  </picture>
 
   # Yammbo Music
 
@@ -19,15 +23,13 @@
 ## Capturas de pantalla
 
 <div align="center">
-  <img src="./assets/screenshots/01-home-dark.png" width="180" alt="Inicio - Tema oscuro"/>
+  <img src="./assets/screenshots/01-home-dark.png" width="200" alt="Inicio - Tema oscuro"/>
   &nbsp;&nbsp;
-  <img src="./assets/screenshots/02-home-light.png" width="180" alt="Inicio - Tema claro"/>
+  <img src="./assets/screenshots/02-home-light.png" width="200" alt="Inicio - Tema claro"/>
   &nbsp;&nbsp;
-  <img src="./assets/screenshots/03-player.png" width="180" alt="Reproductor"/>
+  <img src="./assets/screenshots/03-player.png" width="200" alt="Reproductor"/>
   &nbsp;&nbsp;
-  <img src="./assets/screenshots/04-lyrics.png" width="180" alt="Letras sincronizadas"/>
-  &nbsp;&nbsp;
-  <img src="./assets/screenshots/05-artist.png" width="180" alt="Vista de artista"/>
+  <img src="./assets/screenshots/05-artist.png" width="200" alt="Vista de artista"/>
 </div>
 
 ---
