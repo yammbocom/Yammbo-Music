@@ -21,6 +21,14 @@
 **crowdin.properties
 **__crowdin.properties
 
+###      KEYSTORES
+*.jks
+*.keystore
+
+###      APK BUILDS
+*.apk
+*.idsig
+
 
 
 ###     DEPENDENCIES
