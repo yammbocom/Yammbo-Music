@@ -1,181 +1,100 @@
-# RiPlay
-
 <div align="center">
-  <img src="./assets/design/latest/app_icon.svg" width="120" height="120" alt="RiPlay Icon"/>
-  <h2>RiPlay</h2>
 
-  <a href="https://github.com/fast4x/RiPlay/releases"><img src="https://img.shields.io/github/downloads/fast4x/RiPlay/total?label=Total%20Downloads&color=blue"></a>
-  <a href="https://github.com/fast4x/RiPlay/releases/latest"><img src="https://img.shields.io/github/downloads/fast4x/RiPlay/latest/total?label=Latest%20Release&color=green"></a>
-  <a href="https://github.com/fast4x/RiPlay/releases/latest"><img src="https://img.shields.io/github/v/release/fast4x/RiPlay?label=Version"></a>
-  <a href="https://github.com/fast4x/RiPlay/blob/main/LICENSE"><img src="https://img.shields.io/github/license/fast4x/RiPlay?label=License"></a>
-  <a href="https://github.com/fast4x/RiPlay/pulls"><img src="https://img.shields.io/github/issues-pr/fast4x/RiPlay?label=Pull%20Requests"></a>
-  <a href="https://github.com/fast4x/RiPlay/issues"><img src="https://img.shields.io/github/issues/fast4x/RiPlay?label=Issues"></a>
+  <img src="./assets/branding/yammbo-music-icon.png" width="120" height="120" alt="Yammbo Music"/>
+
+  # Yammbo Music
+
+  **Tu musica, tu estilo, tu experiencia.**
+
+  Una aplicacion de musica potente, personalizable y de codigo abierto basada en [RiPlay](https://github.com/fast4x/RiPlay).
+
+  <a href="https://github.com/yammbocom/Yammbo-Music/releases/latest"><img src="https://img.shields.io/github/v/release/yammbocom/Yammbo-Music?style=for-the-badge&color=FF6B35&label=Version"></a>
+  <a href="https://github.com/yammbocom/Yammbo-Music/releases"><img src="https://img.shields.io/github/downloads/yammbocom/Yammbo-Music/total?style=for-the-badge&color=4ECDC4&label=Descargas"></a>
+  <a href="https://github.com/yammbocom/Yammbo-Music/blob/main/LICENSE"><img src="https://img.shields.io/github/license/yammbocom/Yammbo-Music?style=for-the-badge&color=7B68EE&label=Licencia"></a>
+
 </div>
 
 ---
 
-## 🎵 About RiPlay
+## Que es Yammbo Music?
 
-RiPlay is a powerful, open-source music player designed for music lovers who want complete control over their listening experience. With support for both online and offline content, extensive customization options, and a beautiful interface, RiPlay transforms how you interact with your music collection.
+Yammbo Music es un reproductor de musica de codigo abierto construido sobre **RiPlay/RiMusic**. Ofrece una experiencia musical completa con soporte para contenido online y offline, personalizacion avanzada y una interfaz moderna.
 
----
-
-## ⚠️ Important Notice
-
-**RiPlay respects your privacy and operates transparently:**
-- 🛡️ **No data collection** – Your data stays on your device
-- 🚫 **No download or caching online content**
-- 🛡️ **For playing online content** – it uses the YouTube Player library as a wrapper around the official [IFrame Player API](https://developers.google.com/youtube/iframe_api_reference) inside a WebView
+> **Privacidad primero:** No recopilamos datos. Tu musica y preferencias se quedan en tu dispositivo.
 
 ---
 
-## ✨ Key Features
+## Caracteristicas principales
 
-### 🎧 Music Experience
-- Play songs, videos, artists, albums, playlists, and podcasts
-- Smart queues (audio/video mixed)
-- Listening statistics
-- Lyrics support: fetch, display, edit, translate
-- Listener level ranking with personal monthly and annual badge
-- Blacklist, can ignore artist, album, Song, Playlist, Device folder
-- Rewind, your year in music
+### Reproduccion
+- Canciones, videos, artistas, albums, playlists y podcasts
+- Colas inteligentes (audio/video)
+- Estadisticas de escucha y ranking de nivel
+- Letras: buscar, mostrar, editar y traducir
+- Lista negra para artistas, albums, canciones o carpetas
+- Resumen anual de tu musica
 
-### ⏰ Smart Features
-- Music Recognize (title & artist)
-- Sleep timer
-- Visualizer (microphone permission required)
-- Fast Share (direct sharing with installed apps)
-- Cast to another Android device / TV via [RiLink](https://github.com/fast4x/RiLink) (experimental)
-- Self-closing app scheduling
-- Events daily/weekly, new releases from your artists, auto backup and check update
-- Android Auto support
-- Android TV support (experimental)
-- Widget support (experimental)
+### Funciones inteligentes
+- Reconocimiento de musica (titulo y artista)
+- Temporizador de suspension
+- Visualizador de audio
+- Soporte para Android Auto y Android TV
+- Widgets para pantalla de inicio
+- Programacion de cierre automatico
+- Notificaciones de nuevos lanzamientos de tus artistas
 
-### 🎨 Customization
-- Themes
-- Audio controls: volume, speed, pitch, normalization, skip silence, bassboost
-- More options via [RiEqualizer](https://github.com/fast4x/RiEqualizer)
-
-### 🌐 Multilingual Support
-- Available in 50+ languages
-- Contributions welcome
+### Personalizacion
+- Temas y apariencia configurables
+- Controles de audio: volumen, velocidad, tono, normalizacion, saltar silencios, refuerzo de bajos
+- Navegacion personalizable
+- Soporte para 50+ idiomas
 
 ---
 
-## 🌍 Languages & Translators
-
-**European Languages**  
-- **English:** Alejandro Moctezuma, twistios, Smk90, CanIn, koliwan, Glich440, fast4x  
-- **Italian:** 32Dexter, Fabio Iotti, agefcgo, CiccioDerole, fast4x  
-- **German:** twistqj, nitro4542, twistios, materialred, OlimitLolli, Lolozweipunktnull, Seryoga1984, Conk, siggi1984  
-- **French:** Mickael81, esophagusdecency, NEVARLeVrai  
-- **Spanish:** MS-PC, Alejandro Moctezuma, Juan Ignacio Tejera, iOSStarWorld, Corotyest, DanielSevillano, Fabian Urra  
-- **Portuguese:** Juan Ignacio Tejera, ManuelCoimbra, NEVARLeVrai  
-- **Portuguese (Brazilian):** vs-machado, luxdev01, VitoriaLima1802, xSyntheticWave, RegularWater, NEVARLeVrai  
-- **Russian:** Michael Müller, HighMode, koliwan, Nebula-Mechanica, Alnoer, kptmx, Crayz310, Vladimir, siggi1984  
-- **Ukrainian:** Avin, Michael Müller, NiXT0y, Crayz310  
-- **Polish:** Krzysztof, severitysingular, Zduniusz, AntoniNowak, roklc, Adam Kop  
-- **Dutch:** BabyBenefactor  
-- **Swedish:** sebbe.ekman, Dženan  
-- **Norwegian:** Xyrcon  
-- **Danish:** cultcats  
-- **Finnish:** Smk90, rikalaj  
-- **Czech:** ikanakova, JZITNIK-github  
-- **Hungarian:** Zan1456, Ndvok  
-- **Romanian:** OrangeZXZ  
-- **Greek:** Marinkas  
-- **Turkish:** LeonDayi, OpenSoftware-World, abfreeman, 2010furs, Muha Aliss  
-- **Catalan:** Adrià Martínez, Aniol, EMC_Translator  
-- **Basque:** iazkue  
-- **Galician:** zordor, ninjum  
-- **Serbian (Cyrillic/Latin):** IvanMaksimovic77  
-
-**Asian Languages**  
-- **Chinese Simplified:** benhaotang, SharkChan0622  
-- **Chinese Traditional:** YeeTW, SharkChan0622  
-- **Japanese:** maboroshin, Mid_Vur_Shaan  
-- **Korean:** ZeroZero00, TsyQax  
-- **Vietnamese:** teaminh  
-- **Hindi:** NikunjKhangwal, Sharunkumar, Th3-C0der  
-- **Bangla:** Ann Naser Nabil  
-- **Tamil:** Vignesh-p-s  
-- **Telugu:** SureshTimma  
-- **Malayalam:** chayotic, XDreamist  
-- **Sinhala:** VINULA2007  
-- **Odia:** redpanda9348, Get100percent  
-- **Filipino:** Clyde-Timonera  
-- **Indonesian:** luthfialfarabi, teddysulaimanGL, Fausta Ahmad  
-
-**Middle Eastern & African Languages**  
-- **Arabic:** ABS zarzis, Ahmad Al Juwaisri  
-- **Hebrew:** opcitgv, TheCreeperDuck  
-- **Persian:** CUMOON  
-- **Afrikaans:** HelloZebra1133  
-
-**Other Languages**  
-- **Azerbaijani:** Nizami Səmidov, Notesuree  
-- **Bashkir:** Shilave malay  
-- **Esperanto:** kefiiris  
-- **Estonian:** beez276  
-- **Interlingua:** softinterlingua  
-
----
-
-## 📲 Installation
-**What version to use?**
-- Full, all features
-- Base, as Full but without check update
+## Descargar
 
 <div align="center">
-  <a href="https://github.com/fast4x/RiPlay/releases/latest">
-    <img src="./assets/images/getItGithub.png" alt="Download from GitHub" height="80">
-  </a>
-  <a href="https://apt.izzysoft.de/fdroid/index/apk/it.fast4x.riplay">
-    <img src="./assets/images/getItIzzyOnDroid.png" alt="Download from IzzyOnDroid" height="80">
-  </a>
-  <a href="https://accrescent.app/app/it.fast4x.riplay">
-    <img src="./assets/images/getItAccrescent.png" alt="Download from Accrescent" height="80">
-  </a>
- <a href="https://www.openapk.net/riplay/it.fast4x.riplay/">
-    <img src="./assets/images/getItOpenapk.png" alt="Download from OpenAPK" height="80">
+  <a href="https://github.com/yammbocom/Yammbo-Music/releases/latest">
+    <img src="./assets/getItGithub.png" alt="Descargar desde GitHub" height="80">
   </a>
 </div>
 
 ---
 
-## ❓ Need Help?
+## Construido con
 
-- 📖 [Wiki & FAQs](https://github.com/fast4x/RiPlay/wiki/FAQs)  
-- 💬 [Telegram Group](https://t.me/riplay_app)  
-- 🌐 [Reddit Community](https://www.reddit.com/r/RiMusicApp/)
-
----
-
-## 🤝 Contributing
-
-- Pull requests welcome under GPL3.0 license  
-- Develop new features or fix bugs  
-- Translate or improve translations via [Crowdin](https://crwd.in/rimusic/37f0755f4e2cf99351844c27c86df0f12540778)
+| Tecnologia | Uso |
+|-----------|-----|
+| **Kotlin** | Lenguaje principal |
+| **Jetpack Compose** | UI moderna y reactiva |
+| **Kotlin Multiplatform** | Arquitectura multiplataforma |
 
 ---
 
-## 🙏 Acknowledgments
+## Creditos y agradecimientos
 
-RiPlay wouldn't be possible without the amazing work of these projects and contributors:
+Yammbo Music es un fork de [RiPlay](https://github.com/fast4x/RiPlay), que a su vez esta basado en [RiMusic](https://github.com/fast4x/RiMusic) y [ViMusic](https://github.com/vfsfitvnm/ViMusic). Agradecemos a todos los contribuidores originales por su increible trabajo.
 
-- [RiMusic](https://github.com/fast4x/RiMusic) – Me & contributors  
-- [ViMusic](https://github.com/vfsfitvnm/ViMusic) – foundation  
-- [Android YouTube Player](https://github.com/PierfrancescoSoffritti/android-youtube-player) – YouTube Player wrapper  
-- [Ionicons](https://github.com/ionic-team/ionicons) – icons  
-- [FlatIcon.com](https://www.flaticon.com/) – icons & stickers  
-- [Translator](https://github.com/therealbush/translator) – Google Translate library  
-- [KuGou](https://www.kugou.com) & [LrcLib](https://lrclib.net) – lyrics  
-- [HypnoticCanvas](https://mikepenz.github.io/HypnoticCanvas/) – shaders for Compose  
-- [AudioTag.info](https://audiotag.info) – music recognition API
+| Proyecto | Contribucion |
+|----------|-------------|
+| [RiPlay](https://github.com/fast4x/RiPlay) | Proyecto base |
+| [ViMusic](https://github.com/vfsfitvnm/ViMusic) | Fundacion original |
+| [Android YouTube Player](https://github.com/PierfrancescoSoffritti/android-youtube-player) | Wrapper de YouTube Player |
+| [KuGou](https://www.kugou.com) & [LrcLib](https://lrclib.net) | Proveedor de letras |
+| [AudioTag.info](https://audiotag.info) | API de reconocimiento musical |
+
+---
+
+## Licencia
+
+Este proyecto esta licenciado bajo **GPL-3.0**. Consulta el archivo [LICENSE](LICENSE) para mas detalles.
 
 ---
 
 <div align="center">
-  <i>Made with ❤️ by the RiPlay community</i>
+
+  **Yammbo Music** &mdash; by [yammbo.com](https://yammbo.com)
+
+  *Fork de [RiPlay](https://github.com/fast4x/RiPlay) con personalizaciones y funcionalidades exclusivas.*
+
 </div>
