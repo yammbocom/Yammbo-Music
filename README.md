@@ -1,6 +1,6 @@
 <div align="center">
 
-  <img src="./assets/branding/yammbo-music-icon.png" width="120" height="120" alt="Yammbo Music"/>
+  <img src="./assets/branding/yammbo-music-icon.png" width="140" height="140" alt="Yammbo Music" style="border-radius: 28px;"/>
 
   # Yammbo Music
 
@@ -8,17 +8,33 @@
 
   Una aplicacion de musica potente, personalizable y de codigo abierto basada en [RiPlay](https://github.com/fast4x/RiPlay).
 
-  <a href="https://github.com/yammbocom/Yammbo-Music/releases/latest"><img src="https://img.shields.io/github/v/release/yammbocom/Yammbo-Music?style=for-the-badge&color=FF6B35&label=Version"></a>
-  <a href="https://github.com/yammbocom/Yammbo-Music/releases"><img src="https://img.shields.io/github/downloads/yammbocom/Yammbo-Music/total?style=for-the-badge&color=4ECDC4&label=Descargas"></a>
-  <a href="https://github.com/yammbocom/Yammbo-Music/blob/main/LICENSE"><img src="https://img.shields.io/github/license/yammbocom/Yammbo-Music?style=for-the-badge&color=7B68EE&label=Licencia"></a>
+  <a href="https://github.com/yammbocom/Yammbo-Music/releases/latest"><img src="https://img.shields.io/github/v/release/yammbocom/Yammbo-Music?style=for-the-badge&color=2ECC71&label=Version"></a>
+  <a href="https://github.com/yammbocom/Yammbo-Music/releases"><img src="https://img.shields.io/github/downloads/yammbocom/Yammbo-Music/total?style=for-the-badge&color=3498DB&label=Descargas"></a>
+  <a href="https://github.com/yammbocom/Yammbo-Music/blob/main/LICENSE"><img src="https://img.shields.io/github/license/yammbocom/Yammbo-Music?style=for-the-badge&color=9B59B6&label=Licencia"></a>
 
+</div>
+
+---
+
+## Capturas de pantalla
+
+<div align="center">
+  <img src="./assets/screenshots/01-home-dark.png" width="180" alt="Inicio - Tema oscuro"/>
+  &nbsp;&nbsp;
+  <img src="./assets/screenshots/02-home-light.png" width="180" alt="Inicio - Tema claro"/>
+  &nbsp;&nbsp;
+  <img src="./assets/screenshots/03-player.png" width="180" alt="Reproductor"/>
+  &nbsp;&nbsp;
+  <img src="./assets/screenshots/04-lyrics.png" width="180" alt="Letras sincronizadas"/>
+  &nbsp;&nbsp;
+  <img src="./assets/screenshots/05-artist.png" width="180" alt="Vista de artista"/>
 </div>
 
 ---
 
 ## Que es Yammbo Music?
 
-Yammbo Music es un reproductor de musica de codigo abierto construido sobre **RiPlay/RiMusic**. Ofrece una experiencia musical completa con soporte para contenido online y offline, personalizacion avanzada y una interfaz moderna.
+Yammbo Music es un reproductor de musica de codigo abierto construido sobre **RiPlay/RiMusic**. Ofrece una experiencia musical completa con soporte para contenido online y offline, personalizacion avanzada y una interfaz moderna — disponible en tema oscuro y claro.
 
 > **Privacidad primero:** No recopilamos datos. Tu musica y preferencias se quedan en tu dispositivo.
 
@@ -30,7 +46,7 @@ Yammbo Music es un reproductor de musica de codigo abierto construido sobre **Ri
 - Canciones, videos, artistas, albums, playlists y podcasts
 - Colas inteligentes (audio/video)
 - Estadisticas de escucha y ranking de nivel
-- Letras: buscar, mostrar, editar y traducir
+- Letras sincronizadas: buscar, mostrar, editar y traducir
 - Lista negra para artistas, albums, canciones o carpetas
 - Resumen anual de tu musica
 
@@ -40,13 +56,12 @@ Yammbo Music es un reproductor de musica de codigo abierto construido sobre **Ri
 - Visualizador de audio
 - Soporte para Android Auto y Android TV
 - Widgets para pantalla de inicio
-- Programacion de cierre automatico
 - Notificaciones de nuevos lanzamientos de tus artistas
 
 ### Personalizacion
-- Temas y apariencia configurables
+- Tema oscuro y claro
 - Controles de audio: volumen, velocidad, tono, normalizacion, saltar silencios, refuerzo de bajos
-- Navegacion personalizable
+- Navegacion personalizable (Inicio, Top 50, Mi Musica, Buscar, Mi Cuenta)
 - Soporte para 50+ idiomas
 
 ---
@@ -93,7 +108,7 @@ Este proyecto esta licenciado bajo **GPL-3.0**. Consulta el archivo [LICENSE](LI
 
 <div align="center">
 
-  **Yammbo Music** &mdash; by [yammbo.com](https://yammbo.com)
+  **Yammbo Music** · by [yammbo.com](https://yammbo.com)
 
   *Fork de [RiPlay](https://github.com/fast4x/RiPlay) con personalizaciones y funcionalidades exclusivas.*
 
