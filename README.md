@@ -110,8 +110,6 @@ Este proyecto esta licenciado bajo **GPL-3.0**. Consulta el archivo [LICENSE](LI
 
 <div align="center">
 
-  **Yammbo Music** · by [yammbo.com](https://yammbo.com)
-
-  *Fork de [RiPlay](https://github.com/fast4x/RiPlay) con personalizaciones y funcionalidades exclusivas.*
+  **Yammbo Music** · by [yammbo.com](https://link.yammbo.com/services)
 
 </div>
