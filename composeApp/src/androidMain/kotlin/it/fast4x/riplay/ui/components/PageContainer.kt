@@ -29,18 +29,25 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.yambo.music.R
+import it.fast4x.riplay.enums.NavigationBarPosition
+import it.fast4x.riplay.enums.NavRoutes
 import it.fast4x.riplay.enums.PlayerPosition
 import it.fast4x.riplay.enums.TransitionEffect
 import it.fast4x.riplay.enums.UiType
+import it.fast4x.riplay.extensions.preferences.homeScreenTabIndexKey
 import it.fast4x.riplay.extensions.preferences.playerPositionKey
 import it.fast4x.riplay.extensions.preferences.rememberPreference
 import it.fast4x.riplay.extensions.preferences.transitionEffectKey
 import it.fast4x.riplay.ui.components.navigation.header.AppHeader
-import it.fast4x.riplay.ui.screens.localplaylist.LocalPlaylistSongs
+import it.fast4x.riplay.ui.components.navigation.nav.HorizontalNavigationBar
 import it.fast4x.riplay.utils.colorPalette
+import it.fast4x.riplay.extensions.preferences.preferences
 
 @Composable
 fun PageContainer(
@@ -52,12 +59,36 @@ fun PageContainer(
     val transitionEffect by rememberPreference(transitionEffectKey, TransitionEffect.Scale)
     val playerPosition by rememberPreference(playerPositionKey, PlayerPosition.Bottom)
 
+    val context = LocalContext.current
+
+    val navigationBar = HorizontalNavigationBar(
+        tabIndex = -1,
+        onTabChanged = { index ->
+            context.preferences.edit().putInt(homeScreenTabIndexKey, index).apply()
+            navController.navigate(NavRoutes.home.name) {
+                popUpTo(NavRoutes.home.name) { inclusive = true }
+            }
+        },
+        navController = navController
+    )
+    navigationBar.add { Item ->
+        Item(0, stringResource(R.string.home), R.drawable.home)
+        Item(1, stringResource(R.string.top_50), R.drawable.trending)
+        Item(2, stringResource(R.string.my_music), R.drawable.musical_notes)
+        Item(3, stringResource(R.string.search), R.drawable.search)
+        Item(4, stringResource(R.string.my_account), R.drawable.person)
+    }
+
     androidx.compose.material3.Scaffold(
         modifier = modifier,
         containerColor = colorPalette().background0,
         topBar = {
             if( UiType.RiPlay.isCurrent() )
                 AppHeader( navController ).Draw()
+        },
+        bottomBar = {
+            if ( NavigationBarPosition.Bottom.isCurrent() )
+                navigationBar.Draw()
         }
     ) {
         //**

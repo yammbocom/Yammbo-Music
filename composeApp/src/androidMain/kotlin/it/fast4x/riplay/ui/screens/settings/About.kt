@@ -32,12 +32,10 @@ import it.fast4x.riplay.utils.typography
 @Composable
 fun About() {
     val uriHandler = LocalUriHandler.current
-    //val context = LocalContext.current
 
     Column(
         modifier = Modifier
             .background(colorPalette().background0)
-            //.fillMaxSize()
             .fillMaxHeight()
             .fillMaxWidth(
                 if (NavigationBarPosition.Right.isCurrent())
@@ -46,14 +44,6 @@ fun About() {
                     1f
             )
             .verticalScroll(rememberScrollState())
-            /*
-            .padding(
-                LocalPlayerAwareWindowInsets.current
-                    .only(WindowInsetsSides.Vertical + WindowInsetsSides.End)
-                    .asPaddingValues()
-            )
-
-             */
     ) {
         HeaderWithIcon(
             title = stringResource(R.string.about),
@@ -70,10 +60,9 @@ fun About() {
                 .fillMaxSize()
         ) {
             BasicText(
-                text = "Yammbo Music ${BuildConfig.VERSION_NAME} (${BuildConfig.BUILD_VARIANT})",
+                text = "Yammbo Music v${BuildConfig.VERSION_NAME}",
                 style = typography().s.secondary,
-
-                )
+            )
         }
 
         SettingsGroupSpacer()
@@ -81,12 +70,50 @@ fun About() {
         SettingsEntryGroupText(title = stringResource(R.string.social))
 
         SettingsEntry(
-            online = false,
-            offline = false,
-            title = "Yammbo Music",
-            text = "music.yammbo.com",
+            title = "Facebook",
+            text = "",
             onClick = {
-                uriHandler.openUri("https://music.yammbo.com")
+                uriHandler.openUri("https://www.facebook.com/yammbo")
+            }
+        )
+
+        SettingsEntry(
+            title = "Instagram",
+            text = "",
+            onClick = {
+                uriHandler.openUri("https://instagram.com/yammbo_com")
+            }
+        )
+
+        SettingsEntry(
+            title = "X (Twitter)",
+            text = "",
+            onClick = {
+                uriHandler.openUri("https://x.com/yammbo_com")
+            }
+        )
+
+        SettingsEntry(
+            title = "TikTok",
+            text = "",
+            onClick = {
+                uriHandler.openUri("https://www.tiktok.com/@yammbo_com")
+            }
+        )
+
+        SettingsEntry(
+            title = "WhatsApp",
+            text = "",
+            onClick = {
+                uriHandler.openUri("https://api.whatsapp.com/send?phone=5623464876")
+            }
+        )
+
+        SettingsEntry(
+            title = "GitHub",
+            text = "",
+            onClick = {
+                uriHandler.openUri("https://github.com/yammbocom")
             }
         )
 
@@ -95,28 +122,36 @@ fun About() {
         SettingsEntryGroupText(title = stringResource(R.string.troubleshooting))
 
         SettingsEntry(
+            title = "Yammbo Music",
+            text = "",
+            onClick = {
+                uriHandler.openUri("https://music.yammbo.com")
+            }
+        )
+
+        SettingsEntry(
+            title = "Centro de Ayuda",
+            text = "",
+            onClick = {
+                uriHandler.openUri("https://yammbo.zohodesk.com/portal/en/kb/yammbo-llc")
+            }
+        )
+
+        SettingsEntry(
+            title = "Chat en Vivo",
+            text = "",
+            onClick = {
+                uriHandler.openUri("https://tawk.to/yammbo")
+            }
+        )
+
+        SettingsEntry(
             title = stringResource(R.string.report_an_issue),
-            text = "Contactar soporte",
+            text = "",
             onClick = {
                 uriHandler.openUri("https://music.yammbo.com/support")
             }
         )
-
-//        SettingsGroupSpacer()
-//
-//        Title(
-//            title = stringResource(R.string.contributors)
-//        )
-//
-//        SettingsEntryGroupText(title = "${ countTranslators() } " + stringResource(R.string.translators))
-//        SettingsDescription(text = stringResource(R.string.in_alphabetical_order))
-//        ShowTranslators()
-//
-//        SettingsGroupSpacer()
-//
-//        SettingsEntryGroupText(title = "${ countDevelopers() } " + "Developers / Designers")
-//        SettingsDescription(text = stringResource(R.string.in_alphabetical_order))
-//        ShowDevelopers()
 
         SettingsGroupSpacer(
             modifier = Modifier.height(Dimensions.bottomSpacer)

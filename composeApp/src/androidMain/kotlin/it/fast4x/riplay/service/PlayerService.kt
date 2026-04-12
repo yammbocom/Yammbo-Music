@@ -511,6 +511,7 @@ class PlayerService : Service(),
                 withContext(Dispatchers.Main) {
                     player.loadMasterQueue(
                         onLoaded = {
+                            binder.isQueueReady.value = true
                             /* todo improve restore position from saved queue
                             val seconds = it.div(1000)
                             playFromSecond = seconds.toFloat()
@@ -599,15 +600,16 @@ class PlayerService : Service(),
                         }
                     }
                     //fallback if online player not fire state ended
-                    if (currentDuration.value > 0 && preferences.getEnum(queueLoopTypeKey, QueueLoopType.Default) == QueueLoopType.Default) {
+                    if (currentDuration.value > 0) {
                         if (currentSecond.value >= currentDuration.value - 0.5f) {
                             if (_internalOnlinePlayerState.value == PlayerConstants.PlayerState.PLAYING) {
                                 Timber.d("PlayerService Watchdog: End of online track detected by time, forcing playNext()")
-                                handlePlayNext()
-//                                withContext(Dispatchers.Main) {
-//                                    player.playNext()
-//                                }
-
+                                val loopType = preferences.getEnum(queueLoopTypeKey, QueueLoopType.RepeatAll)
+                                if (loopType == QueueLoopType.RepeatOne) {
+                                    _internalOnlinePlayer.value?.seekTo(0f)
+                                } else {
+                                    handlePlayNext()
+                                }
                             }
                         }
                     }
@@ -1021,7 +1023,7 @@ class PlayerService : Service(),
 
         unifiedMediaSession = MediaSessionCompat(this, "PlayerService")
 
-        val repeatMode = preferences.getEnum(queueLoopTypeKey, QueueLoopType.Default).type
+        val repeatMode = preferences.getEnum(queueLoopTypeKey, QueueLoopType.RepeatAll).type
 
         unifiedMediaSession.setFlags(
             MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS or
@@ -1084,7 +1086,7 @@ class PlayerService : Service(),
                 addAnalyticsListener(PlaybackStatsListener(false, this@PlayerService))
             }
 
-        player.repeatMode = preferences.getEnum(queueLoopTypeKey, QueueLoopType.Default).type
+        player.repeatMode = preferences.getEnum(queueLoopTypeKey, QueueLoopType.RepeatAll).type
 
         player.skipSilenceEnabled = preferences.getBoolean(skipSilenceKey, false)
         player.pauseAtEndOfMediaItems = true
@@ -1226,10 +1228,10 @@ class PlayerService : Service(),
                             }
 
                         }
-//                        PlayerConstants.PlayerState.ENDED -> {
-//                            Timber.d("PlayerService onlinePlayerView: onStateChange ENDED regular playNext()")
-//                            player.playNext()
-//                        }
+                        PlayerConstants.PlayerState.ENDED -> {
+                            Timber.d("PlayerService onlinePlayerView: onStateChange ENDED regular playNext()")
+                            handlePlayNext()
+                        }
                         else -> {}
                     }
 
@@ -1650,6 +1652,7 @@ class PlayerService : Service(),
         if (mediaItem == null) return
 
         currentSecond.value = 0F
+        _internalOnlinePlayerState.value = PlayerConstants.PlayerState.UNSTARTED
 
 //        if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED) {
 //            Timber.d("PlayerService: MediaItem transition ignored (Reason: Playlist Changed)")
@@ -1716,7 +1719,7 @@ class PlayerService : Service(),
                 //Timber.d("PlayerService onMediaItemTransition system volume ${getSystemMediaVolume()}")
 
                 if (!GlobalSharedData.riTuneCastActive)
-                    _internalOnlinePlayer.value?.cueVideo(it.mediaId, playFromSecond)
+                    _internalOnlinePlayer.value?.loadVideo(it.mediaId, playFromSecond)
                 else
                     coroutineScope.launch {
                         riTuneClient.sendCommand(
@@ -1731,6 +1734,7 @@ class PlayerService : Service(),
                 //startFadeAnimator(player = _internalOnlinePlayer, volumeDevice = getSystemMedifaVolume(), duration = 5, fadeIn = true) {}
                 //if (checkVolumeLevel)
                 _internalOnlinePlayer.value?.setVolume(getSystemMediaVolume())
+                playFromSecond = 0f
 
             }
 
@@ -1862,8 +1866,7 @@ class PlayerService : Service(),
                     Timber.w("PlayerService maybeRecoverPlaybackError: try to recover player error")
                     localMediaItem?.let {
                         if (!GlobalSharedData.riTuneCastActive) {
-                            _internalOnlinePlayer.value?.cueVideo(it.mediaId, playFromSecond)
-                            //_internalOnlinePlayer.value?.loadVideo(it.mediaId, playFromSecond)
+                            _internalOnlinePlayer.value?.loadVideo(it.mediaId, playFromSecond)
 
                             _internalOnlinePlayer.value?.setVolume(getSystemMediaVolume())
                         } else {
@@ -1889,7 +1892,7 @@ class PlayerService : Service(),
         if (!preferences.getBoolean(autoLoadSongsInQueueKey, true)
             || preferences.getEnum(
                 queueLoopTypeKey,
-                defaultValue = QueueLoopType.Default
+                defaultValue = QueueLoopType.RepeatAll
             ) == QueueLoopType.RepeatAll
         ) return
 
@@ -2259,7 +2262,7 @@ class PlayerService : Service(),
                     PlaybackStateCompat.ACTION_SKIP_TO_NEXT or
                     PlaybackStateCompat.ACTION_SEEK_TO
 
-        val notificationPlayerFirstIcon = preferences.getEnum(notificationPlayerFirstIconKey, NotificationButtons.Repeat)
+        val notificationPlayerFirstIcon = preferences.getEnum(notificationPlayerFirstIconKey, NotificationButtons.Shuffle)
         val notificationPlayerSecondIcon = preferences.getEnum(notificationPlayerSecondIconKey, NotificationButtons.Favorites)
 
         val firstCustomAction = NotificationButtons.entries
@@ -2324,7 +2327,7 @@ class PlayerService : Service(),
         override fun onReceive(context: Context, intent: Intent) {
             Timber.d("MainActivity onReceive intent.action: ${intent.action}")
             val currentMediaItem = binder.player.currentMediaItem
-            val queueLoopType = preferences.getEnum(queueLoopTypeKey, defaultValue = QueueLoopType.Default)
+            val queueLoopType = preferences.getEnum(queueLoopTypeKey, defaultValue = QueueLoopType.RepeatAll)
             binder.let {
                 when (intent.action) {
                     Action.pause.value -> {
@@ -2529,7 +2532,7 @@ class PlayerService : Service(),
             }
             queueLoopTypeKey -> {
                 player.repeatMode =
-                    sharedPreferences.getEnum(queueLoopTypeKey, QueueLoopType.Default).type
+                    sharedPreferences.getEnum(queueLoopTypeKey, QueueLoopType.RepeatAll).type
             }
 //            closebackgroundPlayerKey -> {
 //                    isclosebackgroundPlayerEnabled = sharedPreferences.getBoolean(key, false)
@@ -2649,7 +2652,7 @@ class PlayerService : Service(),
         ).build()
 
 
-        val notificationPlayerFirstIcon = preferences.getEnum(notificationPlayerFirstIconKey, NotificationButtons.Repeat)
+        val notificationPlayerFirstIcon = preferences.getEnum(notificationPlayerFirstIconKey, NotificationButtons.Shuffle)
         val notificationPlayerSecondIcon = preferences.getEnum(notificationPlayerSecondIconKey, NotificationButtons.Favorites)
 
         val firstCustomAction = NotificationButtons.entries
@@ -2916,7 +2919,7 @@ class PlayerService : Service(),
 
                         val queueLoopType = preferences.getEnum(
                             queueLoopTypeKey,
-                            defaultValue = QueueLoopType.Default
+                            defaultValue = QueueLoopType.RepeatAll
                         )
 
                         when (queueLoopType) {
@@ -2925,23 +2928,7 @@ class PlayerService : Service(),
                                 Timber.d("PlayerService initializePositionObserver Repeat: RepeatOne fired")
                             }
 
-
-                            QueueLoopType.Default -> {
-                                //withContext(Dispatchers.Main) {
-                                    val hasNext = binder.player.hasNextMediaItem()
-                                    Timber.d("PlayerService initializePositionObserver Repeat: Default fired")
-                                    if (hasNext) {
-                                        lastProcessedIndex = binder.player.currentMediaItemIndex
-                                        handlePlayNext()
-                                        //binder.player.playNext()
-                                        firedNext = true
-                                        Timber.d("PlayerService initializePositionObserver Repeat: Default fired next")
-                                    }
-                                //}
-                            }
-
-                            QueueLoopType.RepeatAll -> {
-                                //withContext(Dispatchers.Main) {
+                            else -> {
                                     val hasNext = binder.player.hasNextMediaItem()
                                     Timber.d("PlayerService initializePositionObserver Repeat: RepeatAll fired")
                                     if (!hasNext) {
@@ -2949,12 +2936,10 @@ class PlayerService : Service(),
                                         Timber.d("PlayerService initializePositionObserver Repeat: RepeatAll fired first")
                                     } else {
                                         lastProcessedIndex = player.currentMediaItemIndex
+                                        firedNext = true
                                         handlePlayNext()
-                                        //player.playNext()
                                         Timber.d("PlayerService initializePositionObserver Repeat: RepeatAll fired next")
                                     }
-                                //}
-
                             }
                         }
                         withContext(Dispatchers.IO) {
@@ -2964,7 +2949,6 @@ class PlayerService : Service(),
                     withContext(Dispatchers.IO) {
                         delay(200)
                     }
-                    firedNext = false
                 }
             }
         }
@@ -3015,6 +2999,8 @@ class PlayerService : Service(),
     open inner class Binder : AndroidBinder() {
         val player: ExoPlayer
             get() = this@PlayerService.player
+
+        val isQueueReady = MutableStateFlow(false)
 
         val onlinePlayer: YouTubePlayer?
             get() = this@PlayerService.internalOnlinePlayer.value
@@ -3254,7 +3240,7 @@ class PlayerService : Service(),
     fun initializeUnifiedSessionCallback() {
         Timber.d("PlayerService InitializeUnifiedSessionCallback")
         val currentMediaItem = binder.player.currentMediaItem
-        val queueLoopType = preferences.getEnum(queueLoopTypeKey, defaultValue = QueueLoopType.Default)
+        val queueLoopType = preferences.getEnum(queueLoopTypeKey, defaultValue = QueueLoopType.RepeatAll)
         binder.let {
             unifiedMediaSession.setCallback(
                 PlayerMediaSessionCallback(

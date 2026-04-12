@@ -87,6 +87,14 @@ data class YammboUser(
     @SerialName("access_token") val accessToken: String? = null
 )
 
+// Subscription status response from /app-music/subscription-status
+@Serializable
+data class SubscriptionStatusResponse(
+    val subscribed: Boolean = false,
+    val plan: String? = null,
+    @SerialName("renews_at") val renewsAt: String? = null
+)
+
 // Forgot password response: {"status":"We have emailed your password reset link."} or error
 // Laravel may return success text in either `status` or `message` field
 @Serializable

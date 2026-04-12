@@ -68,6 +68,15 @@ object YammboApiService {
         Timber.e("YammboApi forgotPassword error: ${it.message}")
     }
 
+    suspend fun checkSubscription(userId: Int): Result<SubscriptionStatusResponse> = runCatching {
+        client.get("https://music.yammbo.com/app-music/subscription-status") {
+            header("Accept", "application/json")
+            url { parameters.append("user_id", userId.toString()) }
+        }.body<SubscriptionStatusResponse>()
+    }.onFailure {
+        Timber.e("YammboApi checkSubscription error: ${it.message}")
+    }
+
     suspend fun logout(token: String): Result<AuthResponse> = runCatching {
         client.get("$BASE_URL/logout") {
             header("Authorization", "Bearer $token")

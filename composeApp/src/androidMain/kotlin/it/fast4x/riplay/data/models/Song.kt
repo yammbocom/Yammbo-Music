@@ -5,8 +5,10 @@ import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import it.fast4x.riplay.commonutils.LOCAL_KEY_PREFIX
+import it.fast4x.riplay.commonutils.YAMBO_TRACK_SHARE_BASEURL
 import it.fast4x.riplay.commonutils.YTM_VIDEOORSONG_SHARE_BASEURL
 import it.fast4x.riplay.commonutils.YT_VIDEOORSONG_SHARE_BASEURL
+import it.fast4x.riplay.commonutils.slugify
 import it.fast4x.riplay.commonutils.cleanPrefix
 import it.fast4x.riplay.commonutils.durationTextToMillis
 import it.fast4x.riplay.commonutils.setDisLikeState
@@ -39,6 +41,10 @@ data class Song(
     val shareYTMUrl: String?
         get() = if(!id.startsWith(LOCAL_KEY_PREFIX))
             id.let { "${YTM_VIDEOORSONG_SHARE_BASEURL}$it" } else null
+
+    val shareYamboUrl: String?
+        get() = if(!id.startsWith(LOCAL_KEY_PREFIX))
+            "${YAMBO_TRACK_SHARE_BASEURL}$id/${slugify(title)}" else null
 
     val formattedTotalPlayTime: String
         get() {

@@ -187,7 +187,9 @@ internal class LegacyYouTubePlayerView(
   }
 
   internal fun onStop() {
-    webViewYouTubePlayer.youtubePlayer.pause()
+    if (!webViewYouTubePlayer.isBackgroundPlaybackEnabled) {
+      webViewYouTubePlayer.youtubePlayer.pause()
+    }
     playbackResumer.onLifecycleStop()
     canPlay = false
   }

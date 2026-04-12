@@ -53,7 +53,7 @@ import it.fast4x.riplay.utils.LazyListContainer
 @ExperimentalAnimationApi
 @UnstableApi
 @Composable
-fun  HomeSettings() {
+fun  HomeSettings(navController: androidx.navigation.NavController? = null) {
     var showListenerLevels by rememberPreference(showListenerLevelsKey, true)
     var showTips by rememberPreference(showTipsKey, true)
     var showRelatedAlbums by rememberPreference(showRelatedAlbumsKey, true)
@@ -96,6 +96,7 @@ fun  HomeSettings() {
                         onClick = {}
                     )
                 }
+
 
                 settingsItem(
                     isHeader = true

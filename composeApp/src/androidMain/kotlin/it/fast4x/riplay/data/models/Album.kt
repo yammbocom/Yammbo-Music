@@ -3,6 +3,8 @@ package it.fast4x.riplay.data.models
 import androidx.compose.runtime.Immutable
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import it.fast4x.riplay.commonutils.YAMBO_ALBUM_SHARE_BASEURL
+import it.fast4x.riplay.commonutils.slugify
 
 @Immutable
 @Entity
@@ -22,6 +24,9 @@ data class Album(
 
     val shareYTMUrl: String?
         get() = shareUrl?.replace("www.","music.")
+
+    val shareYamboUrl: String?
+        get() = "${YAMBO_ALBUM_SHARE_BASEURL}$id/${slugify(title ?: "album")}"
 
     fun toggleBookmark(): Album {
         return copy(

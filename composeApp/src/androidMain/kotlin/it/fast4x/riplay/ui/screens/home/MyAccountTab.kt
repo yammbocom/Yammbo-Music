@@ -20,10 +20,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import it.fast4x.riplay.extensions.yammboapi.YammboApiService
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -42,17 +44,19 @@ import it.fast4x.riplay.extensions.preferences.colorPaletteModeKey
 import it.fast4x.riplay.extensions.preferences.navigationBarPositionKey
 import it.fast4x.riplay.extensions.preferences.rememberPreference
 import android.content.Intent
+import it.fast4x.riplay.LocalPlayerServiceBinder
 import it.fast4x.riplay.service.PlayerService
 import it.fast4x.riplay.extensions.yammboapi.YammboAuthManager
 import it.fast4x.riplay.ui.components.themed.ConfirmationDialog
 import it.fast4x.riplay.ui.components.themed.HeaderWithIcon
-import it.fast4x.riplay.ui.components.themed.Switch
+import androidx.compose.foundation.clickable
 import it.fast4x.riplay.ui.screens.settings.SettingsEntry
-import it.fast4x.riplay.ui.screens.settings.SwitchSettingEntry
 import it.fast4x.riplay.ui.styling.Dimensions
 import it.fast4x.riplay.utils.colorPalette
 import it.fast4x.riplay.utils.typography
 import it.fast4x.riplay.ui.styling.semiBold
+import android.content.Intent
+import android.net.Uri
 
 
 @Composable
@@ -61,6 +65,7 @@ fun MyAccountTab(
 ) {
     val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
+    val binder = LocalPlayerServiceBinder.current
     val authManager = remember { YammboAuthManager(context) }
 
     val userName = authManager.getUserName()
@@ -74,6 +79,20 @@ fun MyAccountTab(
     )
 
     var showLogoutDialog by remember { mutableStateOf(false) }
+    var isSubscribed by remember { mutableStateOf(authManager.isSubscriptionActive()) }
+    var subscriptionPlan by remember { mutableStateOf(authManager.getSubscriptionPlan()) }
+
+    // Check subscription status from backend on load
+    LaunchedEffect(Unit) {
+        val userId = authManager.getUserId()
+        if (userId > 0) {
+            YammboApiService.checkSubscription(userId).onSuccess { response ->
+                authManager.saveSubscriptionStatus(response)
+                isSubscribed = response.subscribed
+                subscriptionPlan = response.plan.orEmpty()
+            }
+        }
+    }
 
     val colors = colorPalette()
     val typo = typography()
@@ -83,6 +102,8 @@ fun MyAccountTab(
             text = stringResource(R.string.logout_confirmation),
             onDismiss = { showLogoutDialog = false },
             onConfirm = {
+                binder?.player?.stop()
+                binder?.player?.clearMediaItems()
                 context.stopService(Intent(context, PlayerService::class.java))
                 authManager.logout()
                 showLogoutDialog = false
@@ -169,13 +190,17 @@ fun MyAccountTab(
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(12.dp))
-                        .background(colors.textDisabled.copy(alpha = 0.2f))
+                        .background(
+                            if (isSubscribed) colors.accent.copy(alpha = 0.2f)
+                            else colors.textDisabled.copy(alpha = 0.2f)
+                        )
                         .padding(horizontal = 12.dp, vertical = 6.dp)
                 ) {
                     BasicText(
-                        text = stringResource(R.string.subscription_free),
+                        text = if (isSubscribed) subscriptionPlan.ifEmpty { "Premium" }
+                               else stringResource(R.string.subscription_free),
                         style = typo.xs.semiBold.copy(
-                            color = colors.textSecondary
+                            color = if (isSubscribed) colors.accent else colors.textSecondary
                         )
                     )
                 }
@@ -207,10 +232,10 @@ fun MyAccountTab(
                 onClick = {
                     val userId = authManager.getUserId()
                     val pricingUrl = if (userId > 0)
-                        "https://music.yammbo.com/app-pricing?user_id=$userId"
+                        "https://music.yammbo.com/app-music/pricing?user_id=$userId"
                     else
-                        "https://music.yammbo.com/app-pricing"
-                    uriHandler.openUri(pricingUrl)
+                        "https://music.yammbo.com/app-music/pricing"
+                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(pricingUrl)))
                 },
                 trailingContent = {
                     Image(
@@ -222,18 +247,38 @@ fun MyAccountTab(
                 }
             )
 
-            // Theme toggle
-            SwitchSettingEntry(
+            // Theme selector - 3 buttons
+            SettingsEntry(
                 title = stringResource(R.string.theme),
-                text = when (colorPaletteMode) {
-                    ColorPaletteMode.Light -> stringResource(R.string.light)
-                    ColorPaletteMode.Dark -> stringResource(R.string.dark)
-                    ColorPaletteMode.System -> stringResource(R.string.system)
-                    else -> stringResource(R.string.dark)
-                },
-                isChecked = colorPaletteMode == ColorPaletteMode.Dark,
-                onCheckedChange = {
-                    colorPaletteMode = if (it) ColorPaletteMode.Dark else ColorPaletteMode.Light
+                text = "",
+                onClick = {},
+                trailingContent = {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        listOf(
+                            Triple("Claro", ColorPaletteMode.Light, colorPaletteMode == ColorPaletteMode.Light),
+                            Triple("Oscuro", ColorPaletteMode.Dark, colorPaletteMode == ColorPaletteMode.Dark),
+                            Triple("Auto", ColorPaletteMode.System, colorPaletteMode == ColorPaletteMode.System)
+                        ).forEach { (label, mode, isActive) ->
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (isActive) colors.accent else colors.background2)
+                                    .clickable { colorPaletteMode = mode }
+                                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                BasicText(
+                                    text = label,
+                                    style = typo.xs.semiBold.copy(
+                                        color = if (isActive) colors.background0 else colors.textSecondary
+                                    )
+                                )
+                            }
+                        }
+                    }
                 }
             )
 

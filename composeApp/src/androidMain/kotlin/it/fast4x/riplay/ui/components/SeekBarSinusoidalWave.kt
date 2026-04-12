@@ -227,7 +227,7 @@ fun SeekBarSinusoidalWave(
                     }
                 }
             }
-            .height(scrubberRadius + 44.dp)
+            .height(scrubberRadius + 34.dp)
     ) {
 
 
@@ -309,8 +309,8 @@ data class SinusoidalWaveParams(
 fun generateSinusoidalParams(seed: String): SinusoidalWaveParams {
     val random = Random(seed.hashCode())
     return SinusoidalWaveParams(
-        frequency = random.nextFloat() * 4f + 2f,
-        amplitude = random.nextFloat() * 0.6f + 0.3f,
+        frequency = random.nextFloat() * 2f + 2f,
+        amplitude = random.nextFloat() * 0.10f + 0.10f,
         phase = random.nextFloat() * PI.toFloat() * 2
     )
 }

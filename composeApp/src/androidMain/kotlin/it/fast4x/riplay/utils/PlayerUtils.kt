@@ -186,6 +186,8 @@ fun Player.forceSeekToNext() {
 
 fun Player.playNext() {
     forceSeekToNext()
+    playWhenReady = true
+    prepare()
     CoroutineScope(Dispatchers.Main).launch {
         restoreGlobalVolume()
     }
@@ -426,10 +428,9 @@ fun Player.togglePlayPause() {
 
 fun Player.toggleRepeatMode() {
     repeatMode = when (repeatMode) {
-        REPEAT_MODE_OFF -> REPEAT_MODE_ALL
         REPEAT_MODE_ALL -> REPEAT_MODE_ONE
-        REPEAT_MODE_ONE -> REPEAT_MODE_OFF
-        else -> throw IllegalStateException()
+        REPEAT_MODE_ONE -> REPEAT_MODE_ALL
+        else -> REPEAT_MODE_ALL
     }
 }
 

@@ -229,6 +229,7 @@ import it.fast4x.riplay.extensions.preferences.queueLoopTypeKey
 import it.fast4x.riplay.extensions.preferences.queueTypeKey
 import it.fast4x.riplay.extensions.preferences.rememberObservedPreference
 import it.fast4x.riplay.extensions.preferences.rememberPreference
+import it.fast4x.riplay.extensions.preferences.rememberObservedPreference
 import it.fast4x.riplay.extensions.preferences.showButtonPlayerAddToPlaylistKey
 import it.fast4x.riplay.extensions.preferences.showButtonPlayerArrowKey
 import it.fast4x.riplay.extensions.preferences.showButtonPlayerDiscoverKey
@@ -859,7 +860,7 @@ fun OnlinePlayer(
     var darkMuted by rememberSaveable { mutableStateOf(0) }
 
 
-    val colorPaletteMode by rememberPreference(colorPaletteModeKey, ColorPaletteMode.System)
+    val colorPaletteMode by rememberObservedPreference(colorPaletteModeKey, ColorPaletteMode.System)
 
     var lightTheme =
         colorPaletteMode == ColorPaletteMode.Light || (colorPaletteMode == ColorPaletteMode.System && (!isSystemInDarkTheme()))
@@ -887,7 +888,7 @@ fun OnlinePlayer(
                 playerBackgroundColors == PlayerBackgroundColors.CoverColorGradient ||
                 playerBackgroundColors == PlayerBackgroundColors.AnimatedGradient
 
-    LaunchedEffect(mediaItem.mediaId, updateBrush) {
+    LaunchedEffect(mediaItem.mediaId, updateBrush, color, colorPaletteMode) {
         if (playerBackgroundColors == PlayerBackgroundColors.CoverColorGradient ||
             playerBackgroundColors == PlayerBackgroundColors.CoverColor ||
             playerBackgroundColors == PlayerBackgroundColors.AnimatedGradient || updateBrush
@@ -919,6 +920,8 @@ fun OnlinePlayer(
                 dynamicColorPalette = color
             }
 
+        } else {
+            dynamicColorPalette = color
         }
     }
 
@@ -3144,30 +3147,6 @@ fun OnlinePlayer(
                                     .size(24.dp)
                             )
 
-                            Column(
-                                verticalArrangement = Arrangement.Center,
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                            ) {
-                                Text(
-                                    stringResource(R.string.now_playing_title),
-                                    style = typography().xs,
-                                    color = colorPalette().text,
-                                    modifier = Modifier
-                                        .clickable {
-                                            onDismiss()
-                                            navController.navigate(NavRoutes.home.name)
-                                        }
-                                )
-                                Text(
-                                    if (mediaItem.isLocal)
-                                        stringResource(R.string.local_now_playing_title)
-                                    else stringResource(R.string.online_now_playing_title),
-                                    color = colorPalette().text,
-                                    style = typography().xxs,
-                                )
-                            }
-
-                            /*
                             Image(
                                 painter = painterResource(R.drawable.yambo_icon),
                                 contentDescription = null,
@@ -3178,11 +3157,8 @@ fun OnlinePlayer(
                                         navController.navigate(NavRoutes.home.name)
                                     }
                                     .rotate(rotationAngle)
-                                    //.padding(10.dp)
                                     .size(24.dp)
-
                             )
-                             */
 
                             if (!showButtonPlayerMenu)
                                 Image(

@@ -30,6 +30,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.navigation.NavController
 import it.fast4x.riplay.extensions.persist.persist
 import it.fast4x.environment.Environment
+import it.fast4x.environment.models.NavigationEndpoint
 import it.fast4x.environment.models.bodies.BrowseBody
 import it.fast4x.environment.models.bodies.ContinuationBody
 import it.fast4x.environment.models.bodies.SearchBody
@@ -80,6 +81,7 @@ import it.fast4x.riplay.ui.components.themed.MenuEntry
 import it.fast4x.riplay.ui.components.themed.Title2Actions
 import it.fast4x.riplay.ui.styling.secondary
 import it.fast4x.riplay.utils.forcePlay
+import it.fast4x.riplay.utils.forcePlayAtIndex
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.combine
@@ -216,6 +218,7 @@ fun SearchResultScreen(
                             val menuState = LocalGlobalSheetState.current
                             val thumbnailSizeDp = Dimensions.thumbnails.song
                             val thumbnailSizePx = thumbnailSizeDp.px
+                            val songItemsPage by persist<Environment.ItemsPage<Environment.SongItem>?>("searchResults/$query/songs")
 
                             ItemsPage(
                                 tag = "searchResults/$query/songs",
@@ -281,11 +284,19 @@ fun SearchResultScreen(
                                                         )
                                                     },
                                                     onClick = {
+                                                        val allSongs = songItemsPage?.items ?: emptyList()
+                                                        val mediaItems = allSongs.map { it.asMediaItem }
+                                                        val index = allSongs.indexOfFirst { it.key == song.key }
                                                         localBinder?.stopRadio()
-                                                        localBinder?.player?.forcePlay(song.asMediaItem)
-                                                        //fastPlay(song.asMediaItem, localBinder)
-                                                        //forceRecompose = true
-                                                        localBinder?.setupRadio(song.info?.endpoint)
+                                                        if (mediaItems.size > 1) {
+                                                            localBinder?.player?.forcePlayAtIndex(mediaItems, if (index >= 0) index else 0)
+                                                        } else {
+                                                            localBinder?.player?.forcePlay(song.asMediaItem)
+                                                        }
+                                                        localBinder?.setupRadio(
+                                                            song.info?.endpoint
+                                                                ?: NavigationEndpoint.Endpoint.Watch(videoId = song.key)
+                                                        )
                                                     }
                                                 ),
                                             //disableScrollingText = disableScrollingText,

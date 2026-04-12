@@ -14,6 +14,9 @@ class YammboAuthManager(context: Context) {
         private const val KEY_USER_NAME = "user_name"
         private const val KEY_USER_AVATAR = "user_avatar"
         private const val KEY_IS_LOGGED_IN = "is_logged_in"
+        private const val KEY_SUBSCRIPTION_ACTIVE = "subscription_active"
+        private const val KEY_SUBSCRIPTION_PLAN = "subscription_plan"
+        private const val KEY_SUBSCRIPTION_RENEWS_AT = "subscription_renews_at"
     }
 
     private val prefs: SharedPreferences =
@@ -56,6 +59,18 @@ class YammboAuthManager(context: Context) {
 
     fun getUserId(): Int = prefs.getInt(KEY_USER_ID, 0)
 
+    fun isSubscriptionActive(): Boolean = prefs.getBoolean(KEY_SUBSCRIPTION_ACTIVE, false)
+
+    fun getSubscriptionPlan(): String = prefs.getString(KEY_SUBSCRIPTION_PLAN, "").orEmpty()
+
+    fun saveSubscriptionStatus(response: SubscriptionStatusResponse) {
+        prefs.edit {
+            putBoolean(KEY_SUBSCRIPTION_ACTIVE, response.subscribed)
+            putString(KEY_SUBSCRIPTION_PLAN, response.plan.orEmpty())
+            putString(KEY_SUBSCRIPTION_RENEWS_AT, response.renewsAt.orEmpty())
+        }
+    }
+
     fun logout() {
         prefs.edit {
             remove(KEY_ACCESS_TOKEN)
@@ -64,6 +79,9 @@ class YammboAuthManager(context: Context) {
             remove(KEY_USER_NAME)
             remove(KEY_USER_AVATAR)
             putBoolean(KEY_IS_LOGGED_IN, false)
+            putBoolean(KEY_SUBSCRIPTION_ACTIVE, false)
+            remove(KEY_SUBSCRIPTION_PLAN)
+            remove(KEY_SUBSCRIPTION_RENEWS_AT)
         }
     }
 }

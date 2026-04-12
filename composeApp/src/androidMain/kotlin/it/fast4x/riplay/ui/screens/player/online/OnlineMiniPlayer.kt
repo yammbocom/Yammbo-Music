@@ -143,7 +143,8 @@ fun OnlineMiniPlayer(
     val hapticFeedback = LocalHapticFeedback.current
 
     binder?.player ?: return
-    if (binder.player.currentTimeline.windowCount == 0) return
+    val isQueueReady by binder.isQueueReady.collectAsState()
+    if (!isQueueReady && binder.player.currentTimeline.windowCount == 0) return
 
     val playerState = binder.onlinePlayerState.collectAsState()
     val shouldBePlaying = playerState.value == PlayerConstants.PlayerState.PLAYING

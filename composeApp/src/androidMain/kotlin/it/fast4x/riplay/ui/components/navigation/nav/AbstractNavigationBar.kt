@@ -75,7 +75,7 @@ abstract class AbstractNavigationBar(
     abstract fun Draw()
 
     @Composable
-    fun buttonList(): MutableList<@Composable () -> Unit> = remember { buttonList }
+    fun buttonList(): MutableList<@Composable () -> Unit> = buttonList
 }
 
 internal class NavigationButton(

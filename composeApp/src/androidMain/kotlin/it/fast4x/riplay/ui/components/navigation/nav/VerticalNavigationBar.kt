@@ -72,6 +72,7 @@ class VerticalNavigationBar(
 
     @Composable
     override fun add(buttons: @Composable (@Composable (Int, String, Int) -> Unit) -> Unit ) {
+        buttonList.clear()
         val transition = updateTransition( targetState = tabIndex, label = null )
         val isLandscape: Boolean = isLandscape
 

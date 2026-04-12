@@ -39,6 +39,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.yambo.music.R
@@ -81,6 +82,7 @@ fun LoginScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(colors.background0)
+            .imePadding()
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -154,6 +156,13 @@ fun LoginScreen(
                         .onSuccess { response ->
                             if (response.isSuccess) {
                                 authManager.saveUser(response)
+                                // Check subscription status after login
+                                val userId = authManager.getUserId()
+                                if (userId > 0) {
+                                    YammboApiService.checkSubscription(userId).onSuccess { subResponse ->
+                                        authManager.saveSubscriptionStatus(subResponse)
+                                    }
+                                }
                                 navController.navigate(NavRoutes.home.name) {
                                     popUpTo(NavRoutes.login.name) { inclusive = true }
                                 }

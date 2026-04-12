@@ -243,6 +243,7 @@ import it.fast4x.riplay.extensions.preferences.queueDurationExpandedKey
 import it.fast4x.riplay.extensions.preferences.queueLoopTypeKey
 import it.fast4x.riplay.extensions.preferences.queueTypeKey
 import it.fast4x.riplay.extensions.preferences.rememberPreference
+import it.fast4x.riplay.extensions.preferences.rememberObservedPreference
 import it.fast4x.riplay.utils.seamlessPlay
 import it.fast4x.riplay.ui.styling.semiBold
 import it.fast4x.riplay.utils.setQueueLoopState
@@ -834,7 +835,7 @@ fun LocalPlayer(
 
 
 
-    val colorPaletteMode by rememberPreference(colorPaletteModeKey, ColorPaletteMode.System)
+    val colorPaletteMode by rememberObservedPreference(colorPaletteModeKey, ColorPaletteMode.System)
 
     var lightTheme = colorPaletteMode == ColorPaletteMode.Light || (colorPaletteMode == ColorPaletteMode.System && (!isSystemInDarkTheme()))
     var ratio = if (lightTheme) 1f else 0.5f
@@ -862,7 +863,7 @@ fun LocalPlayer(
                 playerBackgroundColors == PlayerBackgroundColors.AnimatedGradient
 
 
-        LaunchedEffect(mediaItem.mediaId, updateBrush) {
+        LaunchedEffect(mediaItem.mediaId, updateBrush, color, colorPaletteMode) {
             if (playerBackgroundColors == PlayerBackgroundColors.CoverColorGradient ||
                 playerBackgroundColors == PlayerBackgroundColors.CoverColor ||
                 playerBackgroundColors == PlayerBackgroundColors.AnimatedGradient || updateBrush
@@ -893,7 +894,9 @@ fun LocalPlayer(
                 dynamicColorPalette = color
             }
 
-        }
+        } else {
+                dynamicColorPalette = color
+            }
         println("Player after getting dynamic color ${dynamicColorPalette}")
     }
 

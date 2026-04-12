@@ -94,6 +94,8 @@ import it.fast4x.riplay.utils.colorPalette
 import it.fast4x.riplay.utils.typography
 import it.fast4x.riplay.utils.LazyListContainer
 import it.fast4x.riplay.utils.forcePlay
+import it.fast4x.environment.models.NavigationEndpoint
+import androidx.compose.ui.platform.LocalFocusManager
 
 @UnstableApi
 @ExperimentalFoundationApi
@@ -108,6 +110,7 @@ fun OnlineSearch(
     decorationBox: @Composable (@Composable () -> Unit) -> Unit,
 ) {
     val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
     var history by persistList<SearchQuery>("search/online/history")
 
     var reloadHistory by remember {
@@ -233,9 +236,9 @@ fun OnlineSearch(
                         )
                     }
 
-                    suggestions.recommendedSong.let {
+                    suggestions.recommendedSong.let { songItem ->
                         item {
-                            it?.asMediaItem?.let { mediaItem ->
+                            songItem?.asMediaItem?.let { mediaItem ->
                                 SongItem(
                                     song = mediaItem,
                                     thumbnailSizePx = songThumbnailSizePx,
@@ -259,8 +262,13 @@ fun OnlineSearch(
                                                 )
                                             },
                                             onClick = {
+                                                focusManager.clearFocus()
+                                                binder?.stopRadio()
                                                 binder?.player?.forcePlay(mediaItem)
-                                                //fastPlay(mediaItem, binder)
+                                                binder?.setupRadio(
+                                                    songItem.info?.endpoint
+                                                        ?: NavigationEndpoint.Endpoint.Watch(videoId = songItem.key)
+                                                )
                                             }
                                         ),
                                     //disableScrollingText = disableScrollingText,

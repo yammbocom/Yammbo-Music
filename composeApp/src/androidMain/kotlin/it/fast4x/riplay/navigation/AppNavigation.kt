@@ -94,7 +94,10 @@ import it.fast4x.riplay.ui.screens.onboarding.OnboardingScreen
 import it.fast4x.riplay.ui.screens.ondevice.OnDevicePlaylistScreen
 import it.fast4x.riplay.ui.screens.player.controller.PlayerScreen
 import it.fast4x.riplay.extensions.yammboapi.YammboAuthManager
+import it.fast4x.riplay.ui.screens.settings.YammboWebViewScreen
 import it.fast4x.riplay.utils.MusicIdentifier
+import android.util.Base64
+import java.net.URLDecoder
 import java.net.URLEncoder
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalAnimationApi::class,
@@ -618,6 +621,23 @@ fun AppNavigation(
         ) { navBackStackEntry ->
             WelcomeScreen(
                 navController = navController
+            )
+        }
+
+        composable(
+            route = "${NavRoutes.webview.name}/{encodedUrl}",
+            arguments = listOf(
+                navArgument(
+                    name = "encodedUrl",
+                    builder = { type = NavType.StringType }
+                )
+            )
+        ) { navBackStackEntry ->
+            val encodedUrl = navBackStackEntry.arguments?.getString("encodedUrl") ?: ""
+            val url = String(Base64.decode(encodedUrl, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING))
+            YammboWebViewScreen(
+                url = url,
+                onBack = { navController.popBackStack() }
             )
         }
     }

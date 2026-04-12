@@ -107,6 +107,7 @@ class HorizontalNavigationBar(
 
     @Composable
     override fun add(buttons: @Composable (@Composable (Int, String, Int) -> Unit) -> Unit) {
+        buttonList.clear()
         val transition = updateTransition(targetState = tabIndex, label = null)
 
         buttons { index, text, iconId ->

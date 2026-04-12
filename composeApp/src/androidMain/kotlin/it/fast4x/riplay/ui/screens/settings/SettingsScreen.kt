@@ -56,6 +56,7 @@ import it.fast4x.riplay.ui.components.themed.SmartMessage
 import it.fast4x.riplay.ui.components.themed.StringListDialog
 import it.fast4x.riplay.ui.components.themed.Switch
 import it.fast4x.riplay.ui.components.themed.ValueSelectorDialog
+import it.fast4x.riplay.ui.components.SubscriptionGateOverlay
 import it.fast4x.riplay.ui.styling.color
 import it.fast4x.riplay.ui.styling.secondary
 import it.fast4x.riplay.ui.styling.semiBold
@@ -104,10 +105,10 @@ fun SettingsScreen(
             ) { currentTabIndex ->
                 saveableStateHolder.SaveableStateProvider(currentTabIndex) {
                     when (currentTabIndex) {
-                        0 -> GeneralSettings(navController = navController)
-                        1 -> UiSettings(navController = navController)
-                        2 -> AppearanceSettings(navController = navController)
-                        3 -> HomeSettings()
+                        0 -> SubscriptionGateOverlay { GeneralSettings(navController = navController) }
+                        1 -> SubscriptionGateOverlay { UiSettings(navController = navController) }
+                        2 -> SubscriptionGateOverlay { AppearanceSettings(navController = navController) }
+                        3 -> SubscriptionGateOverlay { HomeSettings(navController = navController) }
                         4 -> DataSettings()
                         5 -> {
                             val activity = navController.context as? it.fast4x.riplay.MainActivity

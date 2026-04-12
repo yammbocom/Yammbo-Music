@@ -6,8 +6,10 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 import it.fast4x.riplay.commonutils.MONTHLY_PREFIX
 import it.fast4x.riplay.commonutils.PINNED_PREFIX
+import it.fast4x.riplay.commonutils.YAMBO_PLAYLIST_SHARE_BASEURL
 import it.fast4x.riplay.commonutils.YTM_PLAYLIST_SHARE_BASEURL
 import it.fast4x.riplay.commonutils.YT_PLAYLIST_SHARE_BASEURL
+import it.fast4x.riplay.commonutils.slugify
 
 @Immutable
 @Entity
@@ -27,6 +29,9 @@ data class Playlist(
         get() = browseId?.let { "$YT_PLAYLIST_SHARE_BASEURL${it.removePrefix("MPSP")}" }
     val shareYTMUrlAsPodcast: String?
         get() =  browseId?.let { "$YTM_PLAYLIST_SHARE_BASEURL${it.removePrefix("MPSP")}" }
+
+    val shareYamboUrl: String?
+        get() = browseId?.let { "${YAMBO_PLAYLIST_SHARE_BASEURL}${it.removePrefix("VL")}/${slugify(name)}" }
 
     val isPinned: Boolean
         get() = name.startsWith(PINNED_PREFIX)

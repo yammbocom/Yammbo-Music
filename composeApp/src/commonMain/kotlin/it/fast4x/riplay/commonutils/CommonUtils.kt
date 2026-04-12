@@ -20,6 +20,19 @@ const val YTM_ARTIST_SHARE_BASEURL = "https://music.youtube.com/channel/"
 const val YT_ALBUM_SHARE_BASEURL = "https://www.youtube.com/browse/"
 const val YTM_ALBUM_SHARE_BASEURL = "https://music.youtube.com/browse/"
 
+const val YAMBO_TRACK_SHARE_BASEURL = "https://music.yammbo.com/track/"
+const val YAMBO_ARTIST_SHARE_BASEURL = "https://music.yammbo.com/artist/"
+const val YAMBO_ALBUM_SHARE_BASEURL = "https://music.yammbo.com/album/"
+const val YAMBO_PLAYLIST_SHARE_BASEURL = "https://music.yammbo.com/playlist/"
+
+fun slugify(text: String): String {
+    return text.lowercase()
+        .replace(Regex("[^a-z0-9\\s-]"), "")
+        .trim()
+        .replace(Regex("\\s+"), "-")
+        .replace(Regex("-+"), "-")
+}
+
 
 /**
  * Assumption: all prefixes end with ":" and have at least 1 (other) character.
