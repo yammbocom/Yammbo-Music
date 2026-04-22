@@ -359,7 +359,7 @@ class MainActivity :
             permissionsToRequest.add(Manifest.permission.READ_EXTERNAL_STORAGE)
         }
 
-        if (isAtLeastAndroid12 && preferences.getBoolean(resumeOrPausePlaybackWhenDeviceKey, false))
+        if (isAtLeastAndroid12 && preferences.getBoolean(resumeOrPausePlaybackWhenDeviceKey, true))
             permissionsToRequest.add(Manifest.permission.BLUETOOTH_CONNECT)
 
 
@@ -470,6 +470,23 @@ class MainActivity :
         super.onCreate(savedInstanceState)
 
         authManager = it.fast4x.riplay.extensions.yammboapi.YammboAuthManager(this)
+
+        // Initialize AdMob
+        it.fast4x.riplay.extensions.ads.YammboAdManager.initialize(this)
+
+        // Force-enable Android Auto support (PlayerMediaBrowserService) on every launch.
+        // The user explicitly wants Android Auto active by default.
+        runCatching {
+            val component = android.content.ComponentName(
+                this,
+                it.fast4x.riplay.service.PlayerMediaBrowserService::class.java
+            )
+            packageManager.setComponentEnabledSetting(
+                component,
+                android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
+                android.content.pm.PackageManager.DONT_KILL_APP
+            )
+        }
 
 //        if (BuildConfig.DEBUG) {
 //            StrictMode.setThreadPolicy(
@@ -700,6 +717,9 @@ class MainActivity :
         Timber.d("MainActivity.onCreate launchedFromNotification: $launchedFromNotification intent $intent.action")
 
         intentUriData = intent.data ?: intent.getStringExtra(Intent.EXTRA_TEXT)?.toUri()
+
+        // Handle Yammbo TV pairing deep link (QR scanned from TV while app is installed)
+        intent.data?.let { handleTvLinkDeepLink(it) }
 
         with(preferences) {
             if (getBoolean(isKeepScreenOnEnabledKey, false)) {
@@ -1196,7 +1216,20 @@ class MainActivity :
                                     navController = navController,
                                     miniPlayer = {
 
-                                        if (binder?.currentMediaItemAsSong?.isLocal == true)
+                                        // Observe current media item REACTIVELY so this branch
+                                        // re-evaluates when the song loads. Previously the read of
+                                        // `binder?.currentMediaItemAsSong` was a non-observable
+                                        // getter, so on cold start the lambda ran once while
+                                        // currentMediaItem was still null, picked the Online branch,
+                                        // and never recomposed when the song actually loaded.
+                                        var currentItem by remember { mutableStateOf<MediaItem?>(null) }
+                                        LaunchedEffect(binder) {
+                                            val b = binder ?: return@LaunchedEffect
+                                            currentItem = b.currentMediaItemFlow.value
+                                            b.currentMediaItemFlow.collect { currentItem = it }
+                                        }
+
+                                        if (currentItem?.isLocal == true)
                                             LocalMiniPlayer(
                                                 showPlayer = { localPlayerSheetState.expandSoft() },
                                                 hidePlayer = { localPlayerSheetState.collapseSoft() },
@@ -1597,7 +1630,31 @@ class MainActivity :
         }
         appRunningInBackground = false
 
+        refreshSubscriptionStatusIfNeeded()
+
         Timber.d("MainActivity.onResume $appRunningInBackground")
+    }
+
+    // Re-check subscription on every resume so cancelled/expired subs flip
+    // the app back to free-tier restrictions without requiring logout/login.
+    // Cheap: single GET to /app-music/subscription-status, runs in IO scope.
+    private fun refreshSubscriptionStatusIfNeeded() {
+        if (!::authManager.isInitialized) return
+        if (!authManager.isLoggedIn()) return
+        val userId = authManager.getUserId()
+        if (userId <= 0) return
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            runCatching {
+                it.fast4x.riplay.extensions.yammboapi.YammboApiService
+                    .checkSubscription(userId)
+                    .onSuccess { response ->
+                        authManager.saveSubscriptionStatus(response)
+                    }
+            }.onFailure { e ->
+                Timber.w("MainActivity.refreshSubscriptionStatus failed: ${e.message}")
+            }
+        }
     }
 
     override fun onPause() {
@@ -1619,7 +1676,51 @@ class MainActivity :
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         intentUriData = intent.data ?: intent.getStringExtra(Intent.EXTRA_TEXT)?.toUri()
+        intent.data?.let { handleTvLinkDeepLink(it) }
+    }
 
+    /**
+     * When the user scans the TV QR code on their phone, Android routes
+     * https://music.yammbo.com/tv-link?code=... here via the intent filter.
+     * If the user is already logged in we confirm the pairing in one tap
+     * using the stored Sanctum token — no email/password re-entry.
+     */
+    private fun handleTvLinkDeepLink(uri: android.net.Uri) {
+        if (uri.host != "music.yammbo.com") return
+        val path = uri.path ?: return
+        if (!path.startsWith("/tv-link")) return
+
+        val code = uri.getQueryParameter("code")?.trim()?.uppercase().orEmpty()
+        if (code.isEmpty()) return
+
+        val authManager = it.fast4x.riplay.extensions.yammboapi.YammboAuthManager(this)
+        val token = authManager.getAccessToken()
+
+        if (!authManager.isLoggedIn() || token.isNullOrEmpty()) {
+            SmartMessage(
+                "Inicia sesión en la app para vincular tu TV.",
+                type = PopupType.Warning,
+                context = this
+            )
+            return
+        }
+
+        lifecycleScope.launch {
+            val result = it.fast4x.riplay.extensions.yammboapi.YammboApiService
+                .tvLinkConfirmFromApp(code, token)
+
+            val status = result.getOrNull() ?: -1
+            val (message, type) = when (status) {
+                200 -> "¡TV vinculada! Vuelve a tu televisor." to PopupType.Success
+                401 -> "Tu sesión expiró. Vuelve a iniciar sesión." to PopupType.Error
+                404 -> "Código inválido." to PopupType.Error
+                409 -> "Este código ya fue utilizado." to PopupType.Warning
+                410 -> "El código expiró. Genera uno nuevo en la TV." to PopupType.Error
+                422 -> "Código requerido." to PopupType.Error
+                else -> "No se pudo vincular la TV. Revisa tu conexión." to PopupType.Error
+            }
+            SmartMessage(message, type = type, context = this@MainActivity)
+        }
     }
 
 

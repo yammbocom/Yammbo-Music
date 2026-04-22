@@ -1,15 +1,11 @@
 package it.fast4x.riplay.extensions.fastshare
 
 import android.content.ActivityNotFoundException
-import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.net.Uri
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -18,7 +14,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.requiredHeight
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -31,11 +26,13 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -46,20 +43,18 @@ import com.yambo.music.R
 import it.fast4x.riplay.data.models.Album
 import it.fast4x.riplay.data.models.Artist
 import it.fast4x.riplay.data.models.Playlist
-import it.fast4x.riplay.enums.LinkType
 import it.fast4x.riplay.enums.PopupType
 import it.fast4x.riplay.enums.ThumbnailRoundness
 import it.fast4x.riplay.extensions.preferences.rememberObservedPreference
 import it.fast4x.riplay.extensions.preferences.thumbnailRoundnessKey
 import it.fast4x.riplay.ui.components.CustomModalBottomSheet
 import it.fast4x.riplay.ui.components.themed.SmartMessage
-import it.fast4x.riplay.ui.components.themed.TitleMiniSection
 import it.fast4x.riplay.utils.asSong
 import it.fast4x.riplay.utils.colorPalette
 import it.fast4x.riplay.utils.copyTextToClipboard
-import it.fast4x.riplay.utils.globalContext
 import it.fast4x.riplay.utils.thumbnailShape
 import it.fast4x.riplay.utils.typography
+import kotlinx.coroutines.launch
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
@@ -71,63 +66,50 @@ fun FastShare(
     onDismissRequest: () -> Unit,
     content: Any,
 ) {
-    var typeOfUrl by remember { mutableStateOf(LinkType.Yammbo) }
     var urlToShare by remember { mutableStateOf("") }
     var shareTitle by remember { mutableStateOf("") }
+    var shareArtist by remember { mutableStateOf("") }
+    var thumbnailUrl by remember { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(Unit, typeOfUrl) {
-        shareTitle = when (content) {
-            is MediaItem -> content.asSong.let { "${it.title} - ${it.artistsText ?: ""}" }
-            is Playlist -> content.name
-            is Album -> "${content.title ?: ""} - ${content.authorsText ?: ""}"
-            is Artist -> content.name ?: ""
-            else -> ""
+    LaunchedEffect(Unit) {
+        when (content) {
+            is MediaItem -> content.asSong.let {
+                shareTitle = it.title
+                shareArtist = it.artistsText ?: ""
+                thumbnailUrl = it.thumbnailUrl
+                urlToShare = it.shareYamboUrl ?: ""
+            }
+            is Playlist -> {
+                shareTitle = content.name
+                shareArtist = ""
+                thumbnailUrl = null
+                urlToShare = content.shareYamboUrl ?: ""
+            }
+            is Album -> {
+                shareTitle = content.title ?: ""
+                shareArtist = content.authorsText ?: ""
+                thumbnailUrl = content.thumbnailUrl
+                urlToShare = content.shareYamboUrl ?: ""
+            }
+            is Artist -> {
+                shareTitle = content.name ?: ""
+                shareArtist = ""
+                thumbnailUrl = content.thumbnailUrl
+                urlToShare = content.shareYamboUrl ?: ""
+            }
         }
-        urlToShare = when (typeOfUrl) {
-            LinkType.Yammbo -> {
-                when (content) {
-                    is MediaItem -> content.asSong.shareYamboUrl
-                    is Playlist -> content.shareYamboUrl
-                    is Album -> content.shareYamboUrl
-                    is Artist -> content.shareYamboUrl
-                    else -> ""
-                }
-            }
-            LinkType.Main -> {
-                when (content) {
-                    is MediaItem -> content.asSong.shareYTUrl
-                    is Playlist -> {
-                        if (!content.isPodcast) content.shareYTUrl
-                        else content.shareYTUrlAsPodcast
-                    }
-                    is Album -> content.shareYTUrl
-                    is Artist -> content.shareYTUrl
-                    else -> ""
-                }
-            }
-            LinkType.Alternative -> {
-                when (content) {
-                    is MediaItem -> content.asSong.shareYTMUrl
-                    is Playlist -> {
-                        if (!content.isPodcast) content.shareYTMUrl
-                        else content.shareYTMUrlAsPodcast
-                    }
-                    is Album -> content.shareYTMUrl
-                    is Artist -> content.shareYTMUrl
-                    else -> ""
-                }
-            }
-        }.toString()
     }
 
-    if (urlToShare == "") return
+    if (urlToShare.isEmpty()) return
 
     val thumbnailRoundness by rememberObservedPreference(
         thumbnailRoundnessKey,
         ThumbnailRoundness.Heavy
     )
 
-    val context = globalContext()
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var isGeneratingImage by remember { mutableStateOf(false) }
 
     CustomModalBottomSheet(
         showSheet = showFastShare,
@@ -152,124 +134,98 @@ fun FastShare(
         },
         shape = thumbnailRoundness.shape()
     ) {
+        val shareToApp = { packageName: String? ->
+            if (!isGeneratingImage) {
+                isGeneratingImage = true
+                scope.launch {
+                    val imageUri = ShareImageGenerator.generateShareImage(
+                        context, shareTitle, shareArtist, thumbnailUrl, urlToShare
+                    )
+                    isGeneratingImage = false
+                    if (imageUri != null) {
+                        shareWithImage(context, packageName, imageUri, shareTitle, urlToShare)
+                    } else {
+                        classicShare(urlToShare, context, "$shareTitle - $shareArtist")
+                    }
+                }
+            }
+        }
+
         Column(
             modifier = Modifier
-                .padding(all = 20.dp)
+                .padding(horizontal = 24.dp, vertical = 16.dp)
                 .background(colorPalette().background0)
                 .fillMaxWidth()
         ) {
-            // === Link type selector + Copy ===
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .border(
-                        BorderStroke(1.dp, colorPalette().accent),
-                        shape = thumbnailShape()
-                    )
-            ) {
-                TitleMiniSection(title = "Copiar enlace")
-                Row(
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
-                ) {
-                    LinkType.entries.forEach { linkType ->
-                        Text(
-                            linkType.textName,
-                            fontSize = typography().xxs.fontSize,
-                            fontFamily = typography().xxs.fontFamily,
-                            fontWeight = typography().xxs.fontWeight,
-                            color = if (typeOfUrl == linkType) colorPalette().accent else colorPalette().textSecondary,
-                            modifier = Modifier
-                                .clickable { typeOfUrl = linkType }
-                                .padding(horizontal = 8.dp, vertical = 4.dp)
-                        )
-                    }
-                }
-                Row(
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .requiredHeight(60.dp)
-                        .background(colorPalette().background2, shape = thumbnailShape())
-                        .padding(horizontal = 20.dp)
-                        .fillMaxWidth()
-                ) {
-                    Text(
-                        text = urlToShare,
-                        fontSize = typography().xs.fontSize,
-                        fontFamily = typography().xs.fontFamily,
-                        fontWeight = typography().xs.fontWeight,
-                        fontStyle = typography().xs.fontStyle,
-                        color = colorPalette().text,
-                        modifier = Modifier
-                            .fillMaxWidth(0.9f)
-                            .clickable { copyTextToClipboard(urlToShare, context) }
-                    )
-                    Image(
-                        painter = painterResource(R.drawable.copy),
-                        colorFilter = ColorFilter.tint(colorPalette().text),
-                        contentDescription = "Copy link",
-                        modifier = Modifier
-                            .size(24.dp)
-                            .clickable { copyTextToClipboard(urlToShare, context) }
-                    )
-                }
+            // === Song info header ===
+            Text(
+                text = shareTitle,
+                color = colorPalette().text,
+                fontWeight = FontWeight.Bold,
+                fontSize = 18.sp,
+                maxLines = 1
+            )
+            if (shareArtist.isNotEmpty()) {
+                Text(
+                    text = shareArtist,
+                    color = colorPalette().textSecondary,
+                    fontSize = 14.sp,
+                    maxLines = 1
+                )
             }
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // === Compartir ===
+            // === Copy link ===
+            Row(
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(colorPalette().background2)
+                    .clickable { copyTextToClipboard(urlToShare, context) }
+                    .padding(horizontal = 16.dp, vertical = 14.dp)
+            ) {
+                Text(
+                    text = urlToShare,
+                    fontSize = 12.sp,
+                    color = colorPalette().textSecondary,
+                    maxLines = 1,
+                    modifier = Modifier.weight(1f)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Image(
+                    painter = painterResource(R.drawable.copy),
+                    colorFilter = ColorFilter.tint(colorPalette().accent),
+                    contentDescription = "Copy",
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // === Social media buttons ===
             Text(
-                text = "Compartir",
-                color = colorPalette().text,
-                fontWeight = FontWeight.Bold,
-                fontSize = 16.sp,
+                text = "Compartir en",
+                color = colorPalette().textSecondary,
+                fontSize = 13.sp,
                 modifier = Modifier.padding(bottom = 12.dp)
             )
 
-            // Social media story buttons row
             Row(
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                // Instagram Stories
-                SocialShareButton(
-                    icon = R.drawable.share_social,
-                    label = "Instagram",
-                    onClick = {
-                        shareToInstagramStory(context, shareTitle, urlToShare)
-                    }
-                )
-                // WhatsApp Status
-                SocialShareButton(
-                    icon = R.drawable.share_social,
-                    label = "WhatsApp",
-                    onClick = {
-                        shareToWhatsApp(context, shareTitle, urlToShare)
-                    }
-                )
-                // Facebook Stories
-                SocialShareButton(
-                    icon = R.drawable.share_social,
-                    label = "Facebook",
-                    onClick = {
-                        shareToFacebookStory(context, shareTitle, urlToShare)
-                    }
-                )
-                // TikTok
-                SocialShareButton(
-                    icon = R.drawable.share_social,
-                    label = "TikTok",
-                    onClick = {
-                        shareToTikTok(context, shareTitle, urlToShare)
-                    }
-                )
+                SocialShareButton(R.drawable.share_social, "Instagram") { shareToApp("com.instagram.android") }
+                SocialShareButton(R.drawable.share_social, "WhatsApp") { shareToApp("com.whatsapp") }
+                SocialShareButton(R.drawable.share_social, "Facebook") { shareToApp("com.facebook.katana") }
+                SocialShareButton(R.drawable.share_social, "TikTok") { shareToApp("com.zhiliaoapp.musically") }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
-            // General share button
+            // === General share button ===
             Row(
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically,
@@ -277,7 +233,7 @@ fun FastShare(
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
                     .background(colorPalette().accent)
-                    .clickable { classicShare(urlToShare, context, shareTitle) }
+                    .clickable { shareToApp(null) }
                     .padding(vertical = 14.dp)
             ) {
                 Image(
@@ -288,12 +244,14 @@ fun FastShare(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Compartir con otras apps",
+                    text = if (isGeneratingImage) "Generando imagen..." else "Compartir con otras apps",
                     color = colorPalette().onAccent,
                     fontWeight = FontWeight.Bold,
                     fontSize = 14.sp
                 )
             }
+
+            Spacer(modifier = Modifier.height(8.dp))
         }
     }
 }
@@ -327,81 +285,56 @@ private fun SocialShareButton(
     }
 }
 
-private fun shareToInstagramStory(context: Context, title: String, url: String) {
+private fun shareWithImage(
+    context: Context,
+    packageName: String?,
+    imageUri: Uri?,
+    title: String,
+    url: String
+) {
     try {
-        // Try Instagram Stories share
-        val intent = Intent("com.instagram.share.ADD_TO_STORY").apply {
-            setPackage("com.instagram.android")
-            type = "text/plain"
-            putExtra(Intent.EXTRA_TEXT, "$title\n$url")
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
-        if (intent.resolveActivity(context.packageManager) != null) {
-            context.startActivity(intent)
+        if (imageUri != null) {
+            val intent = Intent(Intent.ACTION_SEND).apply {
+                type = "image/png"
+                putExtra(Intent.EXTRA_STREAM, imageUri)
+                putExtra(Intent.EXTRA_TEXT, "$title\n$url")
+                putExtra(Intent.EXTRA_SUBJECT, title)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                if (packageName != null) setPackage(packageName)
+            }
+            if (packageName != null) {
+                context.startActivity(intent)
+            } else {
+                val chooser = Intent.createChooser(intent, null)
+                chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                context.startActivity(chooser)
+            }
         } else {
-            // Fallback: share to Instagram feed
-            val fallback = Intent(Intent.ACTION_SEND).apply {
-                setPackage("com.instagram.android")
+            // Fallback to text share
+            val intent = Intent(Intent.ACTION_SEND).apply {
                 type = "text/plain"
                 putExtra(Intent.EXTRA_TEXT, "$title\n$url")
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                if (packageName != null) setPackage(packageName)
             }
-            context.startActivity(fallback)
-        }
-    } catch (e: ActivityNotFoundException) {
-        SmartMessage("Instagram no está instalado", PopupType.Error, context = context)
-    }
-}
-
-private fun shareToWhatsApp(context: Context, title: String, url: String) {
-    try {
-        val intent = Intent(Intent.ACTION_SEND).apply {
-            setPackage("com.whatsapp")
-            type = "text/plain"
-            putExtra(Intent.EXTRA_TEXT, "$title\n$url")
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
-        context.startActivity(intent)
-    } catch (e: ActivityNotFoundException) {
-        SmartMessage("WhatsApp no está instalado", PopupType.Error, context = context)
-    }
-}
-
-private fun shareToFacebookStory(context: Context, title: String, url: String) {
-    try {
-        val intent = Intent("com.facebook.stories.ADD_TO_STORY").apply {
-            setPackage("com.facebook.katana")
-            type = "text/plain"
-            putExtra(Intent.EXTRA_TEXT, "$title\n$url")
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
-        if (intent.resolveActivity(context.packageManager) != null) {
-            context.startActivity(intent)
-        } else {
-            val fallback = Intent(Intent.ACTION_SEND).apply {
-                setPackage("com.facebook.katana")
-                type = "text/plain"
-                putExtra(Intent.EXTRA_TEXT, "$title\n$url")
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            if (packageName != null) {
+                context.startActivity(intent)
+            } else {
+                val chooser = Intent.createChooser(intent, null)
+                chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                context.startActivity(chooser)
             }
-            context.startActivity(fallback)
         }
     } catch (e: ActivityNotFoundException) {
-        SmartMessage("Facebook no está instalado", PopupType.Error, context = context)
-    }
-}
-
-private fun shareToTikTok(context: Context, title: String, url: String) {
-    try {
-        val intent = Intent(Intent.ACTION_SEND).apply {
-            setPackage("com.zhiliaoapp.musically")
-            type = "text/plain"
-            putExtra(Intent.EXTRA_TEXT, "$title\n$url")
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        val appName = when (packageName) {
+            "com.instagram.android" -> "Instagram"
+            "com.whatsapp" -> "WhatsApp"
+            "com.facebook.katana" -> "Facebook"
+            "com.zhiliaoapp.musically" -> "TikTok"
+            else -> "La app"
         }
-        context.startActivity(intent)
-    } catch (e: ActivityNotFoundException) {
-        SmartMessage("TikTok no está instalado", PopupType.Error, context = context)
+        SmartMessage("$appName no está instalado", PopupType.Error, context = context)
     }
 }
 

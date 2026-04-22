@@ -87,7 +87,9 @@ import it.fast4x.riplay.ui.components.LocalGlobalSheetState
 import it.fast4x.riplay.ui.components.themed.SmartMessage
 import it.fast4x.riplay.ui.screens.auth.ForgotPasswordScreen
 import it.fast4x.riplay.ui.screens.auth.LoginScreen
+import it.fast4x.riplay.ui.screens.auth.LoginScreenTV
 import it.fast4x.riplay.ui.screens.auth.RegisterScreen
+import it.fast4x.riplay.utils.isTVDevice
 import it.fast4x.riplay.ui.screens.events.EventsScreen
 import it.fast4x.riplay.ui.screens.moodandchip.ChipListScreen
 import it.fast4x.riplay.ui.screens.onboarding.OnboardingScreen
@@ -263,10 +265,17 @@ fun AppNavigation(
         }
 
         composable(route = NavRoutes.login.name) {
-            LoginScreen(
-                navController = navController,
-                authManager = authManager
-            )
+            if (isTVDevice()) {
+                LoginScreenTV(
+                    navController = navController,
+                    authManager = authManager
+                )
+            } else {
+                LoginScreen(
+                    navController = navController,
+                    authManager = authManager
+                )
+            }
         }
 
         composable(route = NavRoutes.register.name) {

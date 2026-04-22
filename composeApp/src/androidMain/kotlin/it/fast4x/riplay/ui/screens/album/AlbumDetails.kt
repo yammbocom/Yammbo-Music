@@ -562,8 +562,10 @@ fun AlbumDetails(
                                             AsyncImage(
                                                 model = album?.thumbnailUrl?.resize(1200, 1200),
                                                 contentDescription = "loading...",
+                                                contentScale = ContentScale.Crop,
                                                 modifier = Modifier
                                                     .fillMaxWidth()
+                                                    .aspectRatio(3f / 4f)
                                                     .align(Alignment.Center)
                                                     .fadingEdge(
                                                         top = WindowInsets.systemBars

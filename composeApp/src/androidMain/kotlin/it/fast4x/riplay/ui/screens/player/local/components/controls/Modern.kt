@@ -242,6 +242,7 @@ fun InfoAlbumAndArtistModern(
                         color = colorPalette().favoritesIcon,
                         icon = getLikeState(mediaId),
                         onClick = {
+                            if (!it.fast4x.riplay.extensions.ads.PremiumGuard.checkFeature(it.fast4x.riplay.utils.globalContext(), it.fast4x.riplay.extensions.ads.PremiumFeature.Like)) return@IconButton
                             if (!isNetworkConnected(appContext()) && isYtSyncEnabled()) {
                                 SmartMessage(appContext().resources.getString(R.string.no_connection), context = appContext(), type = PopupType.Error)
                             } else if (!isYtSyncEnabled()){

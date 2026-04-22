@@ -108,3 +108,30 @@ data class ForgotPasswordResponse(
     val firstError: String? get() =
         errors?.values?.firstOrNull()?.firstOrNull() ?: if (!isSuccess) message else null
 }
+
+// TV Link (QR device pairing)
+@Serializable
+data class TvLinkGenerateResponse(
+    val code: String? = null,
+    @SerialName("expires_in") val expiresIn: Int = 600,
+    @SerialName("confirm_url") val confirmUrl: String? = null
+)
+
+// poll returns one of: {status:"pending"}, {status:"linked", access_token, user}, {status:"expired"}, {status:"invalid"}
+@Serializable
+data class TvLinkPollResponse(
+    val status: String? = null,
+    @SerialName("access_token") val accessToken: String? = null,
+    val user: TvLinkUser? = null
+)
+
+@Serializable
+data class TvLinkUser(
+    val id: Int? = null,
+    val email: String? = null,
+    @SerialName("first_name") val firstName: String? = null,
+    @SerialName("last_name") val lastName: String? = null
+)
+
+@Serializable
+data class TvLinkPollRequest(val code: String)

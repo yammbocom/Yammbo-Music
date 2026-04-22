@@ -13,6 +13,7 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.jetbrainsCompose)
     alias(libs.plugins.room)
+    alias(libs.plugins.google.services)
 }
 
 
@@ -225,6 +226,11 @@ kotlin {
             implementation(libs.kotlin.coroutines.guava)
             implementation(libs.kotlin.concurrent.futures)
             implementation(libs.androidx.webkit)
+            implementation(libs.androidx.browser)
+            implementation(libs.play.services.ads)
+            implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
+            implementation("com.google.firebase:firebase-messaging")
+            implementation("com.google.firebase:firebase-config")
             //implementation(libs.room.backup)
             implementation(libs.workmanager)
             implementation(libs.accompanist)
@@ -275,6 +281,10 @@ kotlin {
             implementation(libs.multidex)
             implementation(libs.jsoup)
 
+            // QR code generation for TV device pairing
+            // Note: 1.1.2+ requires Kotlin 2.3.0; this project uses 2.1.0
+            implementation("io.github.alexzhirkevich:qrose:1.0.1")
+
         }
 
     }
@@ -316,8 +326,8 @@ android {
         applicationId = "com.yambo.music"
         minSdk = 24
         targetSdk = 36
-        versionCode = 69
-        versionName = "0.7.69"
+        versionCode = 72
+        versionName = "0.7.72"
 
         multiDexEnabled = true
 

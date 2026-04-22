@@ -56,7 +56,7 @@ fun MusicAnimation(
     val playerState = binder?.onlinePlayerState?.collectAsState()
     val isOnlinePlayRunning = playerState?.value == PlayerConstants.PlayerState.PLAYING
 
-    val nowPlayingIndicator by rememberPreference(nowPlayingIndicatorKey, MusicAnimationType.Bubbles)
+    val nowPlayingIndicator by rememberPreference(nowPlayingIndicatorKey, MusicAnimationType.Disabled)
     if (nowPlayingIndicator == MusicAnimationType.Disabled) return
 
     val animatablesWithSteps = remember {

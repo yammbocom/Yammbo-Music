@@ -85,4 +85,43 @@ object YammboApiService {
     }.onFailure {
         Timber.e("YammboApi logout error: ${it.message}")
     }
+
+    // TV Link (QR device pairing)
+    private const val TV_LINK_BASE = "https://music.yammbo.com/api/v1/tv-link"
+
+    suspend fun tvLinkGenerate(): Result<TvLinkGenerateResponse> = runCatching {
+        client.post("$TV_LINK_BASE/generate") {
+            contentType(ContentType.Application.Json)
+            header("Accept", "application/json")
+        }.body<TvLinkGenerateResponse>()
+    }.onFailure {
+        Timber.e("YammboApi tvLinkGenerate error: ${it.message}")
+    }
+
+    suspend fun tvLinkPoll(code: String): Result<TvLinkPollResponse> = runCatching {
+        client.post("$TV_LINK_BASE/poll") {
+            contentType(ContentType.Application.Json)
+            header("Accept", "application/json")
+            setBody(TvLinkPollRequest(code = code))
+        }.body<TvLinkPollResponse>()
+    }.onFailure {
+        Timber.e("YammboApi tvLinkPoll error: ${it.message}")
+    }
+
+    /**
+     * Confirms a TV pairing code as the currently logged-in mobile user.
+     * Uses Sanctum Bearer auth with the existing app token.
+     * Returns the raw HTTP status code so callers can show friendly errors.
+     */
+    suspend fun tvLinkConfirmFromApp(code: String, bearerToken: String): Result<Int> = runCatching {
+        val response = client.post("$TV_LINK_BASE/confirm-app") {
+            contentType(ContentType.Application.Json)
+            header("Accept", "application/json")
+            header("Authorization", "Bearer $bearerToken")
+            setBody(TvLinkPollRequest(code = code))
+        }
+        response.status.value
+    }.onFailure {
+        Timber.e("YammboApi tvLinkConfirmFromApp error: ${it.message}")
+    }
 }

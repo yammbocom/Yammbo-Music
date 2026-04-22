@@ -217,7 +217,7 @@ inline val ColorPalette.collapsedPlayerProgressBar: Color
 
 
 inline val ColorPalette.favoritesIcon: Color
-    get() = red
+    get() = accent
 
 inline val ColorPalette.shimmer: Color
     get() = Color(0xff838383)
@@ -227,7 +227,7 @@ inline val ColorPalette.primaryButton: Color
 
 
 inline val ColorPalette.favoritesOverlay: Color
-    get() = red.copy(alpha = 0.4f)
+    get() = accent.copy(alpha = 0.4f)
 
 inline val ColorPalette.overlay: Color
     get() = Color.Black.copy(alpha = 0.5f)

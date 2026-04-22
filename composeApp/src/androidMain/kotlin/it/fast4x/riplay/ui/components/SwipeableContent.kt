@@ -150,7 +150,11 @@ fun SwipeableQueueItem(
         Database.likedAt(mediaItem.mediaId).distinctUntilChanged().collect { likedAt = it }
     }
     val onFavourite: () -> Unit = {
-        if (!isNetworkConnected(appContext()) && isYtSyncEnabled()) {
+        if (!it.fast4x.riplay.extensions.ads.PremiumGuard.checkFeature(
+            context, it.fast4x.riplay.extensions.ads.PremiumFeature.Like
+        )) {
+            // blocked for free users
+        } else if (!isNetworkConnected(appContext()) && isYtSyncEnabled()) {
             SmartMessage(appContext().resources.getString(R.string.no_connection), context = appContext(), type = PopupType.Error)
         } else if (!isYtSyncEnabled()){
             mediaItemToggleLike(mediaItem)
@@ -234,7 +238,11 @@ fun SwipeablePlaylistItem(
         Database.likedAt(mediaItem.mediaId).distinctUntilChanged().collect { likedAt = it }
     }
     val onFavourite: () -> Unit = {
-        if (!isNetworkConnected(appContext()) && isYtSyncEnabled()) {
+        if (!it.fast4x.riplay.extensions.ads.PremiumGuard.checkFeature(
+            context, it.fast4x.riplay.extensions.ads.PremiumFeature.Like
+        )) {
+            // blocked for free users
+        } else if (!isNetworkConnected(appContext()) && isYtSyncEnabled()) {
             SmartMessage(appContext().resources.getString(R.string.no_connection), context = appContext(), type = PopupType.Error)
         } else if (!isYtSyncEnabled()){
             mediaItemToggleLike(mediaItem)

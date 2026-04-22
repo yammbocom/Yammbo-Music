@@ -129,7 +129,9 @@ import it.fast4x.riplay.ui.styling.center
 import it.fast4x.riplay.ui.styling.color
 import it.fast4x.riplay.extensions.preferences.colorPaletteModeKey
 import it.fast4x.riplay.extensions.preferences.expandedplayerKey
+import androidx.core.content.edit
 import it.fast4x.riplay.extensions.preferences.isShowingSynchronizedLyricsKey
+import it.fast4x.riplay.extensions.preferences.preferences
 import it.fast4x.riplay.utils.languageDestination
 import it.fast4x.riplay.utils.languageDestinationName
 import it.fast4x.riplay.extensions.preferences.lyricsAlignmentKey
@@ -208,7 +210,28 @@ fun Lyrics(
         val binder = LocalPlayerServiceBinder.current
 
         var showlyricsthumbnail by rememberPreference(showlyricsthumbnailKey, false)
-        var isShowingSynchronizedLyrics by rememberPreference(isShowingSynchronizedLyricsKey, false)
+
+        // One-time migration (v0.7.70): pre-existing users had this preference
+        // stored as `false` from earlier versions, so the new default=true was
+        // not taking effect for them. We run the migration *inside* this
+        // composable so it only touches storage when the user actually opens
+        // lyrics — avoiding any startup-path work. Runs synchronously once per
+        // composable lifetime via `remember`, completing before the pref read
+        // below so rememberPreference picks up the new value immediately.
+        remember {
+            val prefs = context.preferences
+            // NOTE: unique migration key (timestamp-tagged) so it runs even for
+            // users who had the v0.7.70 pre-release with an earlier, ineffective
+            // migration key already set.
+            val migrationKey = "syncedLyricsForceOn_2026_04_19"
+            if (!prefs.getBoolean(migrationKey, false)) {
+                prefs.edit(commit = true) {
+                    putBoolean(isShowingSynchronizedLyricsKey, true)
+                    putBoolean(migrationKey, true)
+                }
+            }
+        }
+        var isShowingSynchronizedLyrics by rememberPreference(isShowingSynchronizedLyricsKey, true)
         var invalidLrc by remember(mediaId, isShowingSynchronizedLyrics) { mutableStateOf(false) }
         var isPicking by remember(mediaId, isShowingSynchronizedLyrics) { mutableStateOf(false) }
         var lyricsColor by rememberPreference(

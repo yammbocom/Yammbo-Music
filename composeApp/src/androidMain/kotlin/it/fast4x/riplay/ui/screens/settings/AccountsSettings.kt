@@ -140,45 +140,46 @@ fun AccountsSettings(
                     1f
             )
             .verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp)
     ) {
-        HeaderWithIcon(
-            title = stringResource(R.string.tab_accounts),
-            iconId = R.drawable.person,
-            enabled = false,
-            showIcon = true,
-            modifier = Modifier,
-            onClick = {}
-        )
+        Spacer(modifier = Modifier.height(40.dp))
 
         /****** YAMMBO MUSIC ACCOUNT ******/
         if (authManager != null) {
-            SettingsGroupSpacer()
-            SettingsEntryGroupText(title = "Yammbo Music")
+            SettingsCard(title = "Yammbo Music") {
+                if (authManager.isLoggedIn()) {
+                    BasicText(
+                        text = "Logged in as ${authManager.getUserEmail()}",
+                        style = typography().xxs.copy(color = colorPalette().textSecondary),
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
 
-            if (authManager.isLoggedIn()) {
-                SettingsDescription(text = "Logged in as ${authManager.getUserEmail()}")
-
-                ButtonBarSettingEntry(
-                    isEnabled = true,
-                    title = "Logout",
-                    text = "Sign out of your Yammbo Music account",
-                    icon = R.drawable.close,
-                    iconColor = colorPalette().text,
-                    onClick = {
-                        context.stopService(Intent(context, PlayerService::class.java))
-                        val token = authManager.getAccessToken()
-                        if (token != null) {
-                            CoroutineScope(Dispatchers.IO).launch {
-                                YammboApiService.logout(token)
+                    ButtonBarSettingEntry(
+                        isEnabled = true,
+                        title = "Logout",
+                        text = "Sign out of your Yammbo Music account",
+                        icon = R.drawable.close,
+                        iconColor = colorPalette().text,
+                        onClick = {
+                            context.stopService(Intent(context, PlayerService::class.java))
+                            val token = authManager.getAccessToken()
+                            if (token != null) {
+                                CoroutineScope(Dispatchers.IO).launch {
+                                    YammboApiService.logout(token)
+                                }
                             }
+                            authManager.logout()
+                            onLogout?.invoke()
                         }
-                        authManager.logout()
-                        onLogout?.invoke()
-                    }
-                )
-            } else {
-                SettingsDescription(text = "Not logged in")
+                    )
+                } else {
+                    BasicText(
+                        text = "Not logged in",
+                        style = typography().xxs.copy(color = colorPalette().textSecondary)
+                    )
+                }
             }
+            Spacer(modifier = Modifier.height(12.dp))
         }
         /****** YAMMBO MUSIC ACCOUNT ******/
 
@@ -205,8 +206,7 @@ fun AccountsSettings(
 
 
 
-        SettingsGroupSpacer()
-        SettingsEntryGroupText(title = stringResource(R.string.title_youtube_music))
+        SettingsCard(title = stringResource(R.string.title_youtube_music)) {
 
         SwitchSettingEntry(
             title = stringResource(R.string.enable_youtube_music_login),
@@ -357,6 +357,8 @@ fun AccountsSettings(
             )
         }
 
+        } // SettingsCard YouTube
+        Spacer(modifier = Modifier.height(12.dp))
     /****** YOUTUBE LOGIN ******/
 
 
@@ -372,8 +374,7 @@ fun AccountsSettings(
             key = discordAccountNameKey,
             defaultValue = ""
         )
-        SettingsGroupSpacer()
-        SettingsEntryGroupText(title = stringResource(R.string.social_discord))
+        SettingsCard(title = stringResource(R.string.social_discord)) {
         SwitchSettingEntry(
             isEnabled = isAtLeastAndroid81,
             title = stringResource(R.string.discord_enable_rich_presence),
@@ -460,6 +461,8 @@ fun AccountsSettings(
         }
 
 
+        } // SettingsCard Discord
+        Spacer(modifier = Modifier.height(12.dp))
         /****** DISCORD ******/
 
         /****** LASTFM ******/
@@ -471,8 +474,7 @@ fun AccountsSettings(
             LastFmScrobbleType.Simple
         )
 
-        SettingsGroupSpacer()
-        SettingsEntryGroupText(title = stringResource(R.string.title_lastfm))
+        SettingsCard(title = stringResource(R.string.title_lastfm)) {
 
         SwitchSettingEntry(
             title = stringResource(R.string.enable_lastfm),
@@ -545,11 +547,12 @@ fun AccountsSettings(
             }
         }
 
+        } // SettingsCard LastFm
+        Spacer(modifier = Modifier.height(12.dp))
         /****** LASTFM ******/
 
         /**** MUSIC IDENTIFIER ******/
-        SettingsGroupSpacer()
-        SettingsEntryGroupText(title = stringResource(R.string.title_music_identifier))
+        SettingsCard(title = stringResource(R.string.title_music_identifier)) {
 
         SwitchSettingEntry(
             title = stringResource(R.string.enable_music_identifier),
@@ -641,6 +644,7 @@ fun AccountsSettings(
                 }
             }
         }
+        } // SettingsCard MusicIdentifier
         /**** MUSIC IDENTIFIER ******/
 
         Spacer(modifier = Modifier.height(Dimensions.bottomSpacer))

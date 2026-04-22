@@ -17,6 +17,7 @@ class YammboAuthManager(context: Context) {
         private const val KEY_SUBSCRIPTION_ACTIVE = "subscription_active"
         private const val KEY_SUBSCRIPTION_PLAN = "subscription_plan"
         private const val KEY_SUBSCRIPTION_RENEWS_AT = "subscription_renews_at"
+        private const val KEY_DISMISSED_NOTIFICATION_IDS = "dismissed_notification_ids"
     }
 
     private val prefs: SharedPreferences =
@@ -46,6 +47,21 @@ class YammboAuthManager(context: Context) {
         }
     }
 
+    fun saveTvLinkUser(token: String, user: TvLinkUser?) {
+        prefs.edit {
+            putString(KEY_ACCESS_TOKEN, token)
+            putInt(KEY_USER_ID, user?.id ?: 0)
+            putString(KEY_USER_EMAIL, user?.email.orEmpty())
+            val displayName = listOfNotNull(user?.firstName, user?.lastName)
+                .joinToString(" ")
+                .trim()
+                .ifEmpty { user?.email.orEmpty() }
+            putString(KEY_USER_NAME, displayName)
+            putString(KEY_USER_AVATAR, "")
+            putBoolean(KEY_IS_LOGGED_IN, true)
+        }
+    }
+
     fun getAccessToken(): String? = prefs.getString(KEY_ACCESS_TOKEN, null)
 
     fun isLoggedIn(): Boolean = prefs.getBoolean(KEY_IS_LOGGED_IN, false)
@@ -68,6 +84,19 @@ class YammboAuthManager(context: Context) {
             putBoolean(KEY_SUBSCRIPTION_ACTIVE, response.subscribed)
             putString(KEY_SUBSCRIPTION_PLAN, response.plan.orEmpty())
             putString(KEY_SUBSCRIPTION_RENEWS_AT, response.renewsAt.orEmpty())
+        }
+    }
+
+    fun getDismissedNotificationIds(): Set<String> {
+        val raw = prefs.getString(KEY_DISMISSED_NOTIFICATION_IDS, "") ?: ""
+        return raw.split(",").filter { it.isNotEmpty() }.toSet()
+    }
+
+    fun dismissNotification(id: String) {
+        val current = getDismissedNotificationIds()
+        val updated = current + id
+        prefs.edit {
+            putString(KEY_DISMISSED_NOTIFICATION_IDS, updated.joinToString(","))
         }
     }
 

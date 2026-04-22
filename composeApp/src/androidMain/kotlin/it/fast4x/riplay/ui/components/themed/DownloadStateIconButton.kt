@@ -66,7 +66,12 @@ fun DownloadStateIconButton(
                     indication = indication ?: ripple(bounded = false),
                     interactionSource = remember { MutableInteractionSource() },
                     enabled = enabled,
-                    onClick = onClick
+                    onClick = {
+                        val ctx = it.fast4x.riplay.utils.globalContext()
+                        if (it.fast4x.riplay.extensions.ads.PremiumGuard.checkFeature(ctx, it.fast4x.riplay.extensions.ads.PremiumFeature.Download)) {
+                            onClick()
+                        }
+                    }
                 )
                 .then(modifier)
         )

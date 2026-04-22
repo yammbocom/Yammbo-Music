@@ -55,6 +55,10 @@ accompanist = "0.37.3"
 jsoup = "1.15.3"
 newpipeExt = "c1336db"
 webkit = "1.15.0"
+browser = "1.8.0"
+playServicesAds = "24.4.0"
+firebaseBom = "33.7.0"
+googleServices = "4.4.2"
 recyclerview = "1.4.0"
 
 
@@ -129,6 +133,8 @@ kotlinx-coroutines-swing = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-
 hypnoticcanvas = {group = "com.mikepenz.hypnoticcanvas", name = "hypnoticcanvas", version.ref = "hypnoticcanvas"}
 hypnoticcanvas-shaders = {group = "com.mikepenz.hypnoticcanvas", name = "hypnoticcanvas-shaders", version.ref = "hypnoticcanvas"}
 androidx-webkit = { group = "androidx.webkit", name = "webkit", version.ref = "webkit" }
+androidx-browser = { group = "androidx.browser", name = "browser", version.ref = "browser" }
+play-services-ads = { group = "com.google.android.gms", name = "play-services-ads", version.ref = "playServicesAds" }
 okhttp-dnsoverhttps = { group = "com.squareup.okhttp3", name = "okhttp-dnsoverhttps", version.ref = "okhttpDnsOverHttps" }
 #room-backup = { group = "de.raphaelebner", name = "roomdatabasebackup", version = "1.1.0" }
 reorderable = { module = "sh.calvin.reorderable:reorderable", version.ref = "reorderable" }
@@ -141,6 +147,9 @@ accompanist = { group = "com.google.accompanist", name = "accompanist-permission
 jsoup = { group = "org.jsoup", name = "jsoup", version.ref = "jsoup"}
 newpipeExt = { module = "com.github.TeamNewPipe:NewPipeExtractor", version.ref = "newpipeExt" }
 recyclerview = { group = "androidx.recyclerview", name = "recyclerview", version.ref = "recyclerview" }
+firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }
+firebase-messaging = { group = "com.google.firebase", name = "firebase-messaging" }
+firebase-config = { group = "com.google.firebase", name = "firebase-config" }
 
 
 [plugins]
@@ -154,5 +163,6 @@ jetbrainsCompose = { id = "org.jetbrains.compose", version.ref = "compose-plugin
 kotlin-ksp = { id = "com.google.devtools.ksp", version.ref = "kotlin-ksp" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin"}
 room = { id = "androidx.room", version.ref = "room" }
+google-services = { id = "com.google.gms.google-services", version.ref = "googleServices" }
 
 

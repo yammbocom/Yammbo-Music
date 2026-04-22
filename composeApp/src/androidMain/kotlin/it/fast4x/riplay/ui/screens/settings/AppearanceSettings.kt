@@ -1010,7 +1010,7 @@ fun AppearanceSettings(
                     transparentbar = true
                     playerType = PlayerType.Essential
                     showlyricsthumbnail = false
-                    expandedplayer = true
+                    expandedplayer = false
                     thumbnailType = ThumbnailType.Modern
                     playerThumbnailSize = PlayerThumbnailSize.Big
                     showTotalTimeQueue = false
@@ -1050,7 +1050,7 @@ fun AppearanceSettings(
                     playerControlsType = PlayerControlsType.Essential
                     transparentbar = true
                     playerType = PlayerType.Modern
-                    expandedplayer = true
+                    expandedplayer = false
                     fadingedge = true
                     thumbnailFadeEx = 4f
                     thumbnailSpacing = -32f
@@ -1100,7 +1100,7 @@ fun AppearanceSettings(
                     playerControlsType = PlayerControlsType.Essential
                     transparentbar = true
                     playerType = PlayerType.Modern
-                    expandedplayer = true
+                    expandedplayer = false
                     showTotalTimeQueue = false
                     transparentBackgroundActionBarPlayer = true
                     showRemainingSongTime = true
@@ -1237,7 +1237,7 @@ fun AppearanceSettings(
                     colorPaletteMode = ColorPaletteMode.System
                     transparentbar = false
                     playerType = PlayerType.Essential
-                    expandedplayer = true
+                    expandedplayer = false
                     playerThumbnailSize = PlayerThumbnailSize.Big
                     showTotalTimeQueue = false
                     transparentBackgroundActionBarPlayer = true

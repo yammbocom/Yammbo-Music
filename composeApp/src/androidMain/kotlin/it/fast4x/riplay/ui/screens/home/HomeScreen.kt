@@ -46,10 +46,26 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import androidx.compose.runtime.LaunchedEffect
+import it.fast4x.riplay.extensions.yammboapi.YammboAuthManager
 import it.fast4x.riplay.ui.components.ScreenContainer
+import it.fast4x.riplay.ui.components.themed.NotificationPopupData
+import it.fast4x.riplay.ui.components.themed.YammboNotificationPopup
 import it.fast4x.riplay.ui.screens.home.homepages.HomePage
 import it.fast4x.riplay.ui.screens.home.homepages.HomePageExtended
 import kotlin.system.exitProcess
+
+private fun compareVersions(v1: String, v2: String): Int {
+    val parts1 = v1.split(".").map { it.toIntOrNull() ?: 0 }
+    val parts2 = v2.split(".").map { it.toIntOrNull() ?: 0 }
+    val maxLen = maxOf(parts1.size, parts2.size)
+    for (i in 0 until maxLen) {
+        val p1 = parts1.getOrElse(i) { 0 }
+        val p2 = parts2.getOrElse(i) { 0 }
+        if (p1 != p2) return p1.compareTo(p2)
+    }
+    return 0
+}
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -101,6 +117,68 @@ fun HomeScreen(
     )
 
     val homePageType by rememberObservedPreference(homePageTypeKey, HomePagetype.Classic)
+
+    // Firebase Remote Config — in-app notification popup
+    val notifContext = LocalContext.current
+    val authManager = remember { YammboAuthManager(notifContext) }
+    var pendingNotification by remember { mutableStateOf<NotificationPopupData?>(null) }
+
+    LaunchedEffect(Unit) {
+        try {
+            val remoteConfig = com.google.firebase.remoteconfig.FirebaseRemoteConfig.getInstance()
+            remoteConfig.setDefaultsAsync(mapOf(
+                "notification_active" to false,
+                "notification_id" to "",
+                "notification_title" to "",
+                "notification_message" to "",
+                "notification_video_url" to "",
+                "notification_button_text" to "",
+                "notification_button_url" to "",
+                "notification_min_version" to ""
+            ))
+            remoteConfig.fetchAndActivate().addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    val isActive = remoteConfig.getBoolean("notification_active")
+                    val notifId = remoteConfig.getString("notification_id")
+                    val title = remoteConfig.getString("notification_title")
+                    val message = remoteConfig.getString("notification_message")
+                    val minVersion = remoteConfig.getString("notification_min_version")
+
+                    if (isActive && notifId.isNotEmpty() && title.isNotEmpty()) {
+                        val dismissed = authManager.getDismissedNotificationIds()
+                        if (notifId !in dismissed) {
+                            val appVersion = com.yambo.music.BuildConfig.VERSION_NAME
+                            val showForVersion = minVersion.isEmpty() ||
+                                compareVersions(appVersion, minVersion) < 0
+
+                            if (showForVersion) {
+                                pendingNotification = NotificationPopupData(
+                                    id = notifId,
+                                    title = title,
+                                    message = message,
+                                    videoUrl = remoteConfig.getString("notification_video_url").ifEmpty { null },
+                                    buttonText = remoteConfig.getString("notification_button_text").ifEmpty { null },
+                                    buttonUrl = remoteConfig.getString("notification_button_url").ifEmpty { null }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            timber.log.Timber.e("Remote Config error: ${e.message}")
+        }
+    }
+
+    pendingNotification?.let { notification ->
+        YammboNotificationPopup(
+            notification = notification,
+            onDismiss = {
+                authManager.dismissNotification(notification.id)
+                pendingNotification = null
+            }
+        )
+    }
 
     if (tabIndex == -2 || tabIndex == 3) {
         onTabChanged(0)
@@ -304,14 +382,18 @@ fun HomeScreen(
     }
     */
 
-    // Exit app when user uses back
+    // Back button behavior:
+    //  - On a non-home route → pop back stack
+    //  - On Mi Música sub-tabs (10..13) → go back to Mi Música tab (2)
+    //  - On any home tab other than Inicio (1..4) → go to Inicio (0)
+    //  - On Inicio (0) → press twice to exit
     val context = LocalContext.current
     var confirmCount by remember { mutableIntStateOf( 0 ) }
     val playerSheetState = LocalPlayerSheetState.current
     BackHandler(
         enabled = !playerSheetState.isExpanded
     ) {
-        // Prevent this from being applied when user is not on HomeScreen
+        // Not on HomeScreen route: standard pop
         if( NavRoutes.home.isNotHere( navController ) )  {
             if ( navController.currentBackStackEntry?.lifecycle?.currentState == Lifecycle.State.RESUMED )
                 navController.popBackStack()
@@ -319,6 +401,19 @@ fun HomeScreen(
             return@BackHandler
         }
 
+        // Mi Música sub-tabs (Songs 10, Artists 11, Albums 12, Playlists 13) → back to Mi Música tab
+        if (tabIndex in 10..13) {
+            onTabChanged(2)
+            return@BackHandler
+        }
+
+        // Any home tab other than Inicio → back to Inicio
+        if (tabIndex != 0) {
+            onTabChanged(0)
+            return@BackHandler
+        }
+
+        // On Inicio: press twice to exit
         if( confirmCount == 0 ) {
             SmartMessage(
                 context.resources.getString(R.string.press_once_again_to_exit),

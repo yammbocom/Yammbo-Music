@@ -9,6 +9,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.SessionCommand
 import it.fast4x.riplay.data.models.Song
 import it.fast4x.riplay.utils.asMediaItem
+import it.fast4x.riplay.utils.isLocal
 import it.fast4x.riplay.utils.forcePlayAtIndex
 import it.fast4x.riplay.utils.playNext
 import it.fast4x.riplay.utils.playPrevious
@@ -175,9 +176,10 @@ class PlayerMediaSessionCallback (
                     val keyEvent = it.extras?.getParcelable<KeyEvent>(Intent.EXTRA_KEY_EVENT)
                     when(keyEvent?.keyCode) {
                         KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> {
-                            if (binder.player.isPlaying || binder.onlinePlayerPlayingState)
-                                onPause()
-                            else onPlay()
+                            val isOnline = binder.player.currentMediaItem?.isLocal != true
+                            val isPlaying = if (isOnline) binder.onlinePlayerPlayingState else binder.player.isPlaying
+                            Timber.d("MediaSessionCallback PLAY_PAUSE: isOnline=$isOnline isPlaying=$isPlaying")
+                            if (isPlaying) onPause() else onPlay()
 
                             return true
                         }

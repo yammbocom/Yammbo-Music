@@ -23,6 +23,7 @@ abstract class AbstractNavigationBar(
     val modifier: Modifier = Modifier
 ) {
     internal val buttonList: MutableList<@Composable () -> Unit> = mutableListOf()
+    internal var buttonsProvider: (@Composable (@Composable (Int, String, Int) -> Unit) -> Unit)? = null
 
     @ReadOnlyComposable
     @Composable

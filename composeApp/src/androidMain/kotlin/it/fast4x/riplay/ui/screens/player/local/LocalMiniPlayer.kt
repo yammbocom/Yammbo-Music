@@ -186,6 +186,12 @@ fun LocalMiniPlayer(
 
     LaunchedEffect(updateLike, updateDislike) {
         if (updateLike) {
+            if (!it.fast4x.riplay.extensions.ads.PremiumGuard.checkFeature(
+                context, it.fast4x.riplay.extensions.ads.PremiumFeature.Like
+            )) {
+                updateLike = false
+                return@LaunchedEffect
+            }
             if (!isNetworkConnected(appContext()) && isYtSyncEnabled()) {
                 SmartMessage(appContext().resources.getString(R.string.no_connection), context = appContext(), type = PopupType.Error)
             } else if (!isYtSyncEnabled()){
@@ -485,8 +491,14 @@ fun LocalMiniPlayer(
                        icon = R.drawable.play_skip_forward,
                        color = colorPalette().iconButtonPlayer,
                        onClick = {
-                           binder.player.playNext()
-                           if (effectRotationEnabled) isRotated = !isRotated
+                           val ctx = it.fast4x.riplay.utils.globalContext()
+                           if (it.fast4x.riplay.extensions.ads.YammboAdManager.canSkip(ctx)) {
+                               it.fast4x.riplay.extensions.ads.YammboAdManager.recordSkip()
+                               binder.player.playNext()
+                               if (effectRotationEnabled) isRotated = !isRotated
+                           } else {
+                               it.fast4x.riplay.extensions.ads.PremiumGuard.checkFeature(ctx, it.fast4x.riplay.extensions.ads.PremiumFeature.SkipSong)
+                           }
                        },
                        modifier = Modifier
                            .rotate(rotationAngle)

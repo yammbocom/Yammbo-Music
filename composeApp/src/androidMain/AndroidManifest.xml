@@ -34,6 +34,9 @@
     <!-- Required only to get installed app for direct share intent -->
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
 
+    <!-- Required for AdMob -->
+    <uses-permission android:name="com.google.android.gms.permission.AD_ID" />
+
     <!-- Required to get bluetooth device connected/disconnected like headset-->
     <uses-permission android:name="android.permission.BLUETOOTH" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
@@ -84,6 +87,10 @@
         android:usesCleartextTraffic="false"
         tools:targetApi="tiramisu"
         android:hardwareAccelerated="true">
+
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-1890269745181275~1885997896" />
 
         <activity
             android:name="it.fast4x.riplay.MainActivity"
@@ -158,6 +165,16 @@
                 <data android:scheme="vnd.youtube.launch" />
             </intent-filter>
 
+            <!-- Yammbo TV pairing deep link: open app when user scans the QR from TV -->
+            <intent-filter android:autoVerify="false">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" />
+                <data android:host="music.yammbo.com" />
+                <data android:pathPrefix="/tv-link" />
+            </intent-filter>
+
             <!-- Share filter -->
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
@@ -190,6 +207,14 @@
                 <action android:name="android.intent.action.MEDIA_BUTTON" />
             </intent-filter>
 
+        </service>
+
+        <service
+            android:name="it.fast4x.riplay.extensions.yammboapi.YammboFirebaseService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
         </service>
 
         <service android:name="it.fast4x.riplay.service.PlayerMediaBrowserService"
@@ -255,7 +280,15 @@
             android:resource="@xml/automotive_app_desc"/>
 
         <meta-data android:name="com.google.android.gms.car.notification.SmallIcon"
-            android:resource="@drawable/app_icon" />
+            android:resource="@drawable/yambo_icon" />
+
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/yambo_icon" />
+
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/colorPrimary" />
 
     </application>
 </manifest>

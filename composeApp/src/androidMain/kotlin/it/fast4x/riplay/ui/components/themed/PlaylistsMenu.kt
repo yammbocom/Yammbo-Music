@@ -183,6 +183,11 @@ class PlaylistsMenu private constructor(
             override var value: String = ""
 
             override fun onSet( newValue: String ) {
+                if (!it.fast4x.riplay.extensions.ads.PremiumGuard.checkFeature(
+                    it.fast4x.riplay.utils.globalContext(),
+                    it.fast4x.riplay.extensions.ads.PremiumFeature.CreatePlaylist
+                )) return
+
                 Database.asyncTransaction {
                     val playlistId = insert(Playlist(name = newValue) )
                     onAdd(

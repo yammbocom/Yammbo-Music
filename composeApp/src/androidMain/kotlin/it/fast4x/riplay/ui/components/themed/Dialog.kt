@@ -200,12 +200,15 @@ fun ConfirmationDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         modifier = modifier,
+        containerColor = colorPalette().background1,
+        textContentColor = colorPalette().text,
 
         text = {
             Column {
                 Text(
                     text = text,
-                    style = typography().m
+                    style = typography().m,
+                    color = colorPalette().text
                 )
 
                 if (checkBoxText.isNotEmpty()) {
@@ -223,7 +226,8 @@ fun ConfirmationDialog(
                         Spacer(Modifier.width(8.dp))
                         Text(
                             text = checkBoxText,
-                            style = typography().xs.medium
+                            style = typography().xs.medium,
+                            color = colorPalette().text
                         )
                     }
                 }

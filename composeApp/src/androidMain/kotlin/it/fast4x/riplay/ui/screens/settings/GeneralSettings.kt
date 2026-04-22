@@ -215,7 +215,7 @@ fun GeneralSettings(
     var closeWithBackButton by rememberPreference(closeWithBackButtonKey, true)
     var resumeOrPausePlaybackWhenDevice by rememberPreference(
         resumeOrPausePlaybackWhenDeviceKey,
-        false
+        true
     )
 
     var resumeOrPausePlaybackWhenCall by rememberPreference(
@@ -234,7 +234,7 @@ fun GeneralSettings(
     }
 
     var skipSilence by rememberPreference(skipSilenceKey, false)
-    var skipMediaOnError by rememberPreference(skipMediaOnErrorKey, false)
+    var skipMediaOnError by rememberPreference(skipMediaOnErrorKey, true)
     var volumeNormalization by rememberPreference(volumeNormalizationKey, false)
     var isConnectionMeteredEnabled by rememberPreference(isConnectionMeteredEnabledKey, true)
 
@@ -284,7 +284,7 @@ fun GeneralSettings(
     var excludeSongWithDurationLimit by rememberPreference(excludeSongsWithDurationLimitKey, DurationInMinutes.Disabled)
     var excludeSongsIfAreVideos by rememberPreference(excludeSongIfIsVideoKey, false)
     var playlistindicator by rememberPreference(playlistindicatorKey, false)
-    var nowPlayingIndicator by rememberPreference(nowPlayingIndicatorKey, MusicAnimationType.Bubbles)
+    var nowPlayingIndicator by rememberPreference(nowPlayingIndicatorKey, MusicAnimationType.Disabled)
     var discoverIsEnabled by rememberPreference(discoverKey, false)
     var isPauseOnVolumeZeroEnabled by rememberPreference(isPauseOnVolumeZeroEnabledKey, false)
 

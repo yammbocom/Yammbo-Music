@@ -190,6 +190,9 @@ import it.fast4x.riplay.enums.SwipeAnimationNoThumbnail
 import it.fast4x.riplay.enums.ThumbnailCoverType
 import it.fast4x.riplay.enums.ThumbnailRoundness
 import it.fast4x.riplay.enums.ThumbnailType
+import it.fast4x.riplay.extensions.ads.PremiumFeature
+import it.fast4x.riplay.extensions.ads.PremiumGuard
+import it.fast4x.riplay.extensions.ads.YammboAdManager
 import it.fast4x.riplay.extensions.equalizer.InternalEqualizerScreen
 import it.fast4x.riplay.extensions.preferences.VinylSizeKey
 import it.fast4x.riplay.extensions.preferences.actionExpandedKey
@@ -397,7 +400,13 @@ fun OnlinePlayer(
     val binder = LocalPlayerServiceBinder.current
 
     binder?.player ?: return
-    if (binder.player.currentTimeline.windowCount == 0) return
+    // NOTE: we intentionally do NOT early-return on empty timeline here.
+    // That check used to sit between the binder and the DisposableListener
+    // registered further below, so on the very first cold-launch play the
+    // composable returned before the listener was attached and never saw the
+    // timeline getting populated. The real "nothing to render" guard is
+    //   val mediaItem = nullableMediaItem ?: return
+    // just after the listener is attached — by then state is observable.
 
     val playerState = binder.onlinePlayerState.collectAsState()
     val shouldBePlaying = playerState.value == PlayerConstants.PlayerState.PLAYING
@@ -407,6 +416,14 @@ fun OnlinePlayer(
     }
 
 
+
+    // Show interstitial ad if pending (triggered by song change in PlayerService)
+    val adActivity = LocalContext.current as? android.app.Activity
+    LaunchedEffect(nullableMediaItem) {
+        adActivity?.let { activity ->
+            YammboAdManager.showInterstitialIfPending(activity)
+        }
+    }
 
     var isRotated by rememberSaveable { mutableStateOf(false) }
     val rotationAngle by animateFloatAsState(
@@ -1089,7 +1106,11 @@ fun OnlinePlayer(
                         //if (thumbnailTapEnabled && !showthumbnail) {
                         if (thumbnailTapEnabled) {
                             if (isShowingVisualizer) isShowingVisualizer = false
-                            isShowingLyrics = !isShowingLyrics
+                            if (isShowingLyrics || PremiumGuard.isPremium(context)) {
+                                isShowingLyrics = !isShowingLyrics
+                            } else {
+                                PremiumGuard.checkFeature(context, PremiumFeature.Lyrics)
+                            }
                         }
                     },
 //                    onDoubleClick = {
@@ -1965,7 +1986,11 @@ fun OnlinePlayer(
                                     onClick = {
                                         if (isShowingVisualizer) isShowingVisualizer =
                                             !isShowingVisualizer
-                                        isShowingLyrics = !isShowingLyrics
+                                        if (isShowingLyrics || PremiumGuard.isPremium(context)) {
+                                            isShowingLyrics = !isShowingLyrics
+                                        } else {
+                                            PremiumGuard.checkFeature(context, PremiumFeature.Lyrics)
+                                        }
                                     },
                                     modifier = Modifier
                                         .size(24.dp),
@@ -2326,7 +2351,11 @@ fun OnlinePlayer(
                                         onClick = {
                                             if (thumbnailTapEnabled && !showthumbnail) {
                                                 if (isShowingVisualizer) isShowingVisualizer = false
-                                                isShowingLyrics = !isShowingLyrics
+                                                if (isShowingLyrics || PremiumGuard.isPremium(context)) {
+                                                    isShowingLyrics = !isShowingLyrics
+                                                } else {
+                                                    PremiumGuard.checkFeature(context, PremiumFeature.Lyrics)
+                                                }
                                             }
                                         },
 //                                        onDoubleClick = {
@@ -2995,7 +3024,11 @@ fun OnlinePlayer(
                                         onClick = {
                                             if (thumbnailTapEnabled && !showthumbnail) {
                                                 if (isShowingVisualizer) isShowingVisualizer = false
-                                                isShowingLyrics = !isShowingLyrics
+                                                if (isShowingLyrics || PremiumGuard.isPremium(context)) {
+                                                    isShowingLyrics = !isShowingLyrics
+                                                } else {
+                                                    PremiumGuard.checkFeature(context, PremiumFeature.Lyrics)
+                                                }
                                             }
                                         },
                                         onDoubleClick = {
@@ -3365,7 +3398,11 @@ fun OnlinePlayer(
                                                     if (index == pagerState.settledPage && thumbnailTapEnabled) {
                                                         if (isShowingVisualizer) isShowingVisualizer =
                                                             false
-                                                        isShowingLyrics = !isShowingLyrics
+                                                        if (isShowingLyrics || PremiumGuard.isPremium(context)) {
+                                                            isShowingLyrics = !isShowingLyrics
+                                                        } else {
+                                                            PremiumGuard.checkFeature(context, PremiumFeature.Lyrics)
+                                                        }
                                                     }
                                                     if (index != pagerState.settledPage) {
                                                         binder.player.playAtIndex(index)
@@ -3602,6 +3639,7 @@ fun OnlinePlayer(
                                         color = colorPalette().favoritesIcon,
                                         icon = getLikeState(mediaItem.mediaId),
                                         onClick = {
+                                            if (!PremiumGuard.checkFeature(context, PremiumFeature.Like)) return@IconButton
                                             if (!isNetworkConnected(appContext()) && isYtSyncEnabled()) {
                                                 SmartMessage(
                                                     appContext().resources.getString(R.string.no_connection),

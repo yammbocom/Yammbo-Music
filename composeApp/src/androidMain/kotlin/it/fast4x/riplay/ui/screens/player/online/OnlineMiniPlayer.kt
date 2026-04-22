@@ -38,6 +38,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.neverEqualPolicy
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -63,6 +64,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
+import androidx.media3.common.Timeline
 import androidx.media3.common.util.UnstableApi
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
@@ -142,24 +144,43 @@ fun OnlineMiniPlayer(
 
     val hapticFeedback = LocalHapticFeedback.current
 
-    binder?.player ?: return
-    val isQueueReady by binder.isQueueReady.collectAsState()
-    if (!isQueueReady && binder.player.currentTimeline.windowCount == 0) return
+    val currentBinder = binder ?: return
+    val player = currentBinder.player ?: return
 
-    val playerState = binder.onlinePlayerState.collectAsState()
-    val shouldBePlaying = playerState.value == PlayerConstants.PlayerState.PLAYING
-
-    var nullableMediaItem by remember {
-        mutableStateOf(binder.player.currentMediaItem, neverEqualPolicy())
-    }
-
-    binder.player.DisposableListener {
-        object : Player.Listener {
+    // Observe the current media item through produceState — this is the
+    // canonical Compose bridge between callback-based APIs (ExoPlayer listener)
+    // and Compose state. Unlike the previous DisposableListener pattern, this
+    // keys on the player instance, starts with a fresh synchronous read, and
+    // cannot be "skipped" by an early-return ordering bug. It fixes the
+    // cold-launch case where the mini player stayed hidden until the user
+    // navigated to another section.
+    val nullableMediaItem by produceState<MediaItem?>(
+        initialValue = player.currentMediaItem,
+        key1 = player
+    ) {
+        val listener = object : Player.Listener {
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-                nullableMediaItem = mediaItem
+                value = mediaItem
+            }
+            override fun onTimelineChanged(timeline: Timeline, reason: Int) {
+                // Catch races: if our initial read happened before the item
+                // was wired up but after the queue was populated.
+                if (value == null) value = player.currentMediaItem
             }
         }
+        player.addListener(listener)
+        // Re-sync AFTER registration to close the window between composition
+        // and listener attachment.
+        value = player.currentMediaItem
+        awaitDispose { player.removeListener(listener) }
     }
+
+    // Keep a passive dependency on isQueueReady so persistent-queue restores
+    // still trigger recomposition — but do NOT use it as a hide guard.
+    val isQueueReady by currentBinder.isQueueReady.collectAsState()
+
+    val playerState = currentBinder.onlinePlayerState.collectAsState()
+    val shouldBePlaying = playerState.value == PlayerConstants.PlayerState.PLAYING
 
     val mediaItem = nullableMediaItem ?: return
 
@@ -177,6 +198,13 @@ fun OnlineMiniPlayer(
 
     LaunchedEffect(updateLike, updateDislike) {
         if (updateLike) {
+            if (!it.fast4x.riplay.extensions.ads.PremiumGuard.checkFeature(
+                context,
+                it.fast4x.riplay.extensions.ads.PremiumFeature.Like
+            )) {
+                updateLike = false
+                return@LaunchedEffect
+            }
             if (!isNetworkConnected(appContext()) && isYtSyncEnabled()) {
                 SmartMessage(appContext().resources.getString(R.string.no_connection), context = appContext(), type = PopupType.Error)
             } else if (!isYtSyncEnabled()){
@@ -515,8 +543,14 @@ fun OnlineMiniPlayer(
                        icon = R.drawable.play_skip_forward,
                        color = colorPalette().iconButtonPlayer,
                        onClick = {
-                           binder.player.playNext()
-                           if (effectRotationEnabled) isRotated = !isRotated
+                           val ctx = it.fast4x.riplay.utils.globalContext()
+                           if (it.fast4x.riplay.extensions.ads.YammboAdManager.canSkip(ctx)) {
+                               it.fast4x.riplay.extensions.ads.YammboAdManager.recordSkip()
+                               binder.player.playNext()
+                               if (effectRotationEnabled) isRotated = !isRotated
+                           } else {
+                               it.fast4x.riplay.extensions.ads.PremiumGuard.checkFeature(ctx, it.fast4x.riplay.extensions.ads.PremiumFeature.SkipSong)
+                           }
                        },
                        modifier = Modifier
                            .rotate(rotationAngle)

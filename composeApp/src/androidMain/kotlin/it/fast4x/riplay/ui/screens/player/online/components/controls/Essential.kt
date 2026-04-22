@@ -10,7 +10,9 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
+import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -59,7 +61,9 @@ import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.PlayerConstan
 import it.fast4x.riplay.data.Database
 import it.fast4x.riplay.LocalPlayerServiceBinder
 import com.yambo.music.R
+import androidx.compose.ui.focus.onFocusChanged
 import it.fast4x.riplay.utils.appContext
+import it.fast4x.riplay.utils.isTVDevice
 import it.fast4x.riplay.commonutils.cleanPrefix
 import it.fast4x.riplay.utils.colorPalette
 import it.fast4x.riplay.enums.ButtonState
@@ -268,6 +272,10 @@ fun InfoAlbumAndArtistEssential(
                         color = colorPalette().favoritesIcon,
                         icon = getLikeState(mediaItem.mediaId),
                         onClick = {
+                            if (!it.fast4x.riplay.extensions.ads.PremiumGuard.checkFeature(
+                                it.fast4x.riplay.utils.globalContext(),
+                                it.fast4x.riplay.extensions.ads.PremiumFeature.Like
+                            )) return@IconButton
                             if (!isNetworkConnected(appContext()) && isYtSyncEnabled()) {
                                 SmartMessage(appContext().resources.getString(R.string.no_connection), context = appContext(), type = PopupType.Error)
                             } else if (!isYtSyncEnabled()){
@@ -470,6 +478,16 @@ fun ControlsEssential(
     val currentMediaItem = mediaItem
     var lightTheme = colorPaletteMode == ColorPaletteMode.Light || (colorPaletteMode == ColorPaletteMode.System && (!isSystemInDarkTheme()))
 
+    // TV D-pad focus highlight state for main transport controls.
+    // Only used when running on a TV — on phones/tablets these remain false.
+    val isTvCtx = isTVDevice()
+    var prevFocused by remember { mutableStateOf(false) }
+    var playFocused by remember { mutableStateOf(false) }
+    var nextFocused by remember { mutableStateOf(false) }
+    // Capture accent from the @Composable context so non-composable Modifier
+    // blocks (applyIf) can use it without invoking colorPalette() inside them.
+    val accentColor = colorPalette().accent
+
     val binder = LocalPlayerServiceBinder.current
     binder?.player?.DisposableListener {
         object : Player.Listener {
@@ -490,6 +508,10 @@ fun ControlsEssential(
                 color = colorPalette().favoritesIcon,
                 icon = getLikeState(mediaItem.mediaId),
                 onClick = {
+                    if (!it.fast4x.riplay.extensions.ads.PremiumGuard.checkFeature(
+                        it.fast4x.riplay.utils.globalContext(),
+                        it.fast4x.riplay.extensions.ads.PremiumFeature.Like
+                    )) return@IconButton
                     if (!isNetworkConnected(appContext()) && isYtSyncEnabled()) {
                         SmartMessage(appContext().resources.getString(R.string.no_connection), context = appContext(), type = PopupType.Error)
                     } else if (!isYtSyncEnabled()){
@@ -567,6 +589,18 @@ fun ControlsEssential(
         contentDescription = null,
         colorFilter = ColorFilter.tint(colorPalette().text),
         modifier = Modifier
+            .then(if (isTvCtx) Modifier.onFocusChanged { prevFocused = it.isFocused } else Modifier)
+            .then(if (isTvCtx) Modifier.focusable() else Modifier)
+            .clip(CircleShape)
+            .background(
+                if (isTvCtx && prevFocused) colorPalette().accent.copy(alpha = 0.28f)
+                else Color.Transparent
+            )
+            .border(
+                width = if (isTvCtx && prevFocused) 2.dp else 0.dp,
+                color = if (isTvCtx && prevFocused) colorPalette().accent else Color.Transparent,
+                shape = CircleShape
+            )
             .combinedClickable(
                 indication = ripple(bounded = false),
                 interactionSource = remember { MutableInteractionSource() },
@@ -588,6 +622,8 @@ fun ControlsEssential(
 
     Box(
         modifier = Modifier
+            .then(if (isTvCtx) Modifier.onFocusChanged { playFocused = it.isFocused } else Modifier)
+            .then(if (isTvCtx) Modifier.focusable() else Modifier)
             .combinedClickable(
                 indication = ripple(bounded = false),
                 interactionSource = remember { MutableInteractionSource() },
@@ -610,6 +646,9 @@ fun ControlsEssential(
                 )
             }
             .applyIf(playerPlayButtonType == PlayerPlayButtonType.Circle) { clip(CircleShape) }
+            .applyIf(isTvCtx && playFocused) {
+                border(3.dp, accentColor, RoundedCornerShape(playPauseRoundness))
+            }
             .background(
                 when (playerPlayButtonType) {
                     PlayerPlayButtonType.CircularRibbed, PlayerPlayButtonType.Disabled -> Color.Transparent
@@ -687,12 +726,30 @@ fun ControlsEssential(
         contentDescription = null,
         colorFilter = ColorFilter.tint(colorPalette().text),
         modifier = Modifier
+            .then(if (isTvCtx) Modifier.onFocusChanged { nextFocused = it.isFocused } else Modifier)
+            .then(if (isTvCtx) Modifier.focusable() else Modifier)
+            .clip(CircleShape)
+            .background(
+                if (isTvCtx && nextFocused) colorPalette().accent.copy(alpha = 0.28f)
+                else Color.Transparent
+            )
+            .border(
+                width = if (isTvCtx && nextFocused) 2.dp else 0.dp,
+                color = if (isTvCtx && nextFocused) colorPalette().accent else Color.Transparent,
+                shape = CircleShape
+            )
             .combinedClickable(
                 indication = ripple(bounded = false),
                 interactionSource = remember { MutableInteractionSource() },
                 onClick = {
-                    onNext()
-                    if (effectRotationEnabled) isRotated = !isRotated
+                    val ctx = it.fast4x.riplay.utils.globalContext()
+                    if (it.fast4x.riplay.extensions.ads.YammboAdManager.canSkip(ctx)) {
+                        it.fast4x.riplay.extensions.ads.YammboAdManager.recordSkip()
+                        onNext()
+                        if (effectRotationEnabled) isRotated = !isRotated
+                    } else {
+                        it.fast4x.riplay.extensions.ads.PremiumGuard.checkFeature(ctx, it.fast4x.riplay.extensions.ads.PremiumFeature.SkipSong)
+                    }
                 },
                 onLongClick = {}
             )

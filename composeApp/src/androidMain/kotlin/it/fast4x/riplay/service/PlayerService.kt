@@ -120,6 +120,7 @@ import it.fast4x.riplay.enums.NotificationButtons
 import it.fast4x.riplay.enums.PopupType
 import it.fast4x.riplay.enums.PresetsReverb
 import it.fast4x.riplay.enums.QueueLoopType
+import it.fast4x.riplay.extensions.ads.YammboAdManager
 import it.fast4x.riplay.extensions.audiovolume.AudioVolumeObserver
 import it.fast4x.riplay.extensions.audiovolume.OnAudioVolumeChangedListener
 import it.fast4x.riplay.extensions.discord.DiscordPresenceManager
@@ -197,6 +198,7 @@ import it.fast4x.riplay.extensions.preferences.isEnabledLastfmKey
 import it.fast4x.riplay.extensions.preferences.lastfmScrobbleTypeKey
 import it.fast4x.riplay.extensions.preferences.lastfmSessionTokenKey
 import it.fast4x.riplay.extensions.preferences.parentalControlEnabledKey
+import it.fast4x.riplay.extensions.preferences.timerEndTimeKey
 import it.fast4x.riplay.extensions.preferences.wallpaperTypeKey
 import it.fast4x.riplay.extensions.ritune.improved.RiTuneClient
 import it.fast4x.riplay.extensions.ritune.improved.models.RiTuneConnectionStatus
@@ -250,7 +252,6 @@ import java.util.Objects
 import kotlin.collections.map
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
-import kotlin.system.exitProcess
 import kotlin.time.Duration.Companion.minutes
 import android.os.Binder as AndroidBinder
 import androidx.core.graphics.scale
@@ -470,6 +471,8 @@ class PlayerService : Service(),
         initializeUnifiedMediaSession()
 
         startForeground()
+
+        checkAndRestoreTimer()
 
         initializeBitmapProvider()
         initializeAudioManager()
@@ -1195,6 +1198,7 @@ class PlayerService : Service(),
                                         localMediaItem?.let { item ->
                                             if (currentPlayer != null) {
                                                 Timber.d("PlayerService onlinePlayerView: Try reload song/video")
+                                                currentPlayer.pause()
                                                 currentPlayer.cueVideo(item.mediaId, playFromSecond)
                                             } else {
                                                 Timber.w("PlayerService onlinePlayerView: Recovery - _internalOnlinePlayer is not defined, impossible to continue")
@@ -1298,9 +1302,10 @@ class PlayerService : Service(),
                             )
 
                         localMediaItem?.let {
-                            if (!GlobalSharedData.riTuneCastActive)
+                            if (!GlobalSharedData.riTuneCastActive) {
+                                youTubePlayer.pause()
                                 youTubePlayer.cueVideo(it.mediaId, playFromSecond)
-                            else coroutineScope.launch {
+                            } else coroutineScope.launch {
                                     riTuneClient.sendCommand(
                                         RiTuneRemoteCommand(
                                             "load",
@@ -1499,7 +1504,7 @@ class PlayerService : Service(),
         try {
             unregisterReceiver(legacyNotificationActionReceiver)
         } catch (e: Exception) {
-            Timber.e("PlayerService onDestroy unregisterReceiver ${e.stackTraceToString()}")
+            Timber.e("PlayerService onDestroy unregisterReceiver ${e.message}")
         }
 
         if (this::unifiedMediaSession.isInitialized) {
@@ -1532,6 +1537,8 @@ class PlayerService : Service(),
         }
 
 
+        coroutineScope.cancel()
+
         runCatching {
 
             preferences.unregisterOnSharedPreferenceChangeListener(this)
@@ -1539,14 +1546,21 @@ class PlayerService : Service(),
             cache.release()
             loudnessEnhancer?.release()
             audioVolumeObserver.unregister()
-            positionObserverJob?.cancel()
             bluetoothReceiver?.unregister()
-
             discordPresenceManager?.onStop()
 
-            coroutineScope.launch { delay(500) }
+            positionObserverJob?.cancel()
+            positionObserverJob = null
+            riTuneObserverJob?.cancel()
+            riTuneObserverJob = null
+            timerJob?.cancel()
+            timerJob = null
+            unstartedWatchdogJob?.cancel()
+            unstartedWatchdogJob = null
+            volumeNormalizationJob?.cancel()
+            volumeNormalizationJob = null
 
-            coroutineScope.cancel()
+            notificationManager?.cancelAll()
 
         }.onFailure {
             Timber.e("Failed onDestroy in PlayerService ${it.stackTraceToString()}")
@@ -1651,6 +1665,9 @@ class PlayerService : Service(),
 
         if (mediaItem == null) return
 
+        // Track song change for interstitial ads
+        it.fast4x.riplay.extensions.ads.YammboAdManager.onSongChanged(this@PlayerService)
+
         currentSecond.value = 0F
         _internalOnlinePlayerState.value = PlayerConstants.PlayerState.UNSTARTED
 
@@ -1718,9 +1735,10 @@ class PlayerService : Service(),
 
                 //Timber.d("PlayerService onMediaItemTransition system volume ${getSystemMediaVolume()}")
 
-                if (!GlobalSharedData.riTuneCastActive)
+                if (!GlobalSharedData.riTuneCastActive) {
+                    _internalOnlinePlayer.value?.pause()
                     _internalOnlinePlayer.value?.loadVideo(it.mediaId, playFromSecond)
-                else
+                } else {
                     coroutineScope.launch {
                         riTuneClient.sendCommand(
                             RiTuneRemoteCommand(
@@ -1730,9 +1748,7 @@ class PlayerService : Service(),
                             )
                         )
                     }
-                //_internalOnlinePlayer.value?.loadVideo(it.mediaId, playFromSecond)
-                //startFadeAnimator(player = _internalOnlinePlayer, volumeDevice = getSystemMedifaVolume(), duration = 5, fadeIn = true) {}
-                //if (checkVolumeLevel)
+                }
                 _internalOnlinePlayer.value?.setVolume(getSystemMediaVolume())
                 playFromSecond = 0f
 
@@ -1866,6 +1882,7 @@ class PlayerService : Service(),
                     Timber.w("PlayerService maybeRecoverPlaybackError: try to recover player error")
                     localMediaItem?.let {
                         if (!GlobalSharedData.riTuneCastActive) {
+                            _internalOnlinePlayer.value?.pause()
                             _internalOnlinePlayer.value?.loadVideo(it.mediaId, playFromSecond)
 
                             _internalOnlinePlayer.value?.setVolume(getSystemMediaVolume())
@@ -2171,7 +2188,7 @@ class PlayerService : Service(),
      */
 
     private fun initializeBluetoothConnect() {
-        if (!preferences.getBoolean(resumeOrPausePlaybackWhenDeviceKey, false)) return
+        if (!preferences.getBoolean(resumeOrPausePlaybackWhenDeviceKey, true)) return
 
         bluetoothReceiver = BluetoothConnectReceiver(
             context = this,
@@ -2996,6 +3013,26 @@ class PlayerService : Service(),
     }
 
 
+    private fun checkAndRestoreTimer() {
+        val savedEndTime = preferences.getLong(timerEndTimeKey, 0)
+
+        if (savedEndTime != 0L) {
+            val currentTime = System.currentTimeMillis()
+            val remainingMillis = savedEndTime - currentTime
+
+            if (remainingMillis > 0) {
+                Timber.d("PlayerService Timer restoration detected. Remaining: $remainingMillis ms")
+
+                timerJob = coroutineScope.timer(remainingMillis) {
+                    binder.executeStopServiceLogic()
+                }
+            } else {
+                Timber.d("PlayerService Timer expired while service was dead. Stopping now.")
+                binder.executeStopServiceLogic()
+            }
+        }
+    }
+
     open inner class Binder : AndroidBinder() {
         val player: ExoPlayer
             get() = this@PlayerService.player
@@ -3032,6 +3069,10 @@ class PlayerService : Service(),
         val currentMediaItemAsSong: Song?
             get() = this@PlayerService.player.currentMediaItem?.asSong
 
+        /** Reactive stream of the current MediaItem — safe to collectAsState() */
+        val currentMediaItemFlow: StateFlow<MediaItem?>
+            get() = this@PlayerService.currentMediaItemState
+
         val riTuneClient: RiTuneClient
             @Synchronized
             get() = this@PlayerService.riTuneClient
@@ -3057,34 +3098,43 @@ class PlayerService : Service(),
         fun startSleepTimer(delayMillis: Long) {
             timerJob?.cancel()
 
-            Timber.d("PlayerService startSleepTimer delayMillis $delayMillis")
+            val endTime = System.currentTimeMillis() + delayMillis
+            preferences.edit { putLong(timerEndTimeKey, endTime) }
+
+            Timber.d("PlayerService startSleepTimer delayMillis $delayMillis, scheduled for $endTime")
 
             timerJob = coroutineScope.timer(delayMillis) {
-                Timber.d("PlayerService startSleepTimer stop delay close service")
-                val notification = NotificationCompat
-                    .Builder(this@PlayerService, SLEEPTIMER_NOTIFICATION_CHANNEL_ID)
-                    .setContentTitle("Self closing timer ended")
-                    .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-                    .setAutoCancel(true)
-                    .setOnlyAlertOnce(true)
-                    .setShowWhen(true)
-                    .setSmallIcon(R.drawable.app_icon)
-                    .build()
-
-                player.saveMasterQueue(currentSecond.value.toInt())
-
-                notificationManager?.notify(SLEEPTIMER_NOTIFICATION_ID, notification)
-
-                stopSelf()
-                onDestroy()
-                exitProcess(0)
+                Timber.d("PlayerService timer finished naturally")
+                executeStopServiceLogic()
             }
+        }
+
+        fun executeStopServiceLogic() {
+            preferences.edit { putLong(timerEndTimeKey, 0) }
+
+            player.saveMasterQueue(currentSecond.value.toInt())
+
+            val notification = NotificationCompat
+                .Builder(this@PlayerService, SLEEPTIMER_NOTIFICATION_CHANNEL_ID)
+                .setContentTitle("Self closing timer ended")
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setAutoCancel(true)
+                .setOnlyAlertOnce(true)
+                .setShowWhen(true)
+                .setSmallIcon(R.drawable.app_icon)
+                .build()
+
+            notificationManager?.notify(SLEEPTIMER_NOTIFICATION_ID, notification)
+
+            stopSelf()
+            onDestroy()
         }
 
         fun cancelSleepTimer() {
             Timber.d("PlayerService cancelSleepTimer")
             timerJob?.cancel()
             timerJob = null
+            preferences.edit { putLong(timerEndTimeKey, 0) }
         }
 
         @UnstableApi
@@ -3246,13 +3296,41 @@ class PlayerService : Service(),
                 PlayerMediaSessionCallback(
                     binder = it,
                     onPlayClick = {
-                        Timber.d("PlayerService InitializeUnifiedSessionCallback onPlayClick")
+                        Timber.d("PlayerService InitializeUnifiedSessionCallback onPlayClick isLocal=${player.currentMediaItem?.isLocal} ytPlayer=${_internalOnlinePlayer.value != null} ytState=${_internalOnlinePlayerState.value}")
                         if (player.currentMediaItem?.isLocal == true)
                             it.player.play()
                         else {
-                            if (!GlobalSharedData.riTuneCastActive)
-                                _internalOnlinePlayer.value?.play()
-                            else
+                            if (!GlobalSharedData.riTuneCastActive) {
+                                val ytPlayer = _internalOnlinePlayer.value
+                                val currentMediaId = it.player.currentMediaItem?.mediaId
+                                if (ytPlayer != null) {
+                                    ytPlayer.play()
+                                    it.player.playWhenReady = true
+                                    Timber.d("PlayerService onPlayClick: YouTube player.play() called")
+                                    // Android Auto recovery: if state doesn't transition to PLAYING/BUFFERING
+                                    // within 800ms, the iframe was likely throttled — force-reload the video
+                                    // at the current position to recover playback.
+                                    if (currentMediaId != null) {
+                                        coroutineScope.launch {
+                                            kotlinx.coroutines.delay(800)
+                                            val state = _internalOnlinePlayerState.value
+                                            if (state != PlayerConstants.PlayerState.PLAYING &&
+                                                state != PlayerConstants.PlayerState.BUFFERING) {
+                                                Timber.w("PlayerService onPlayClick: state=$state after play(), forcing loadVideo recovery at ${currentSecond.value}s")
+                                                withContext(Dispatchers.Main) {
+                                                    ytPlayer.loadVideo(currentMediaId, currentSecond.value)
+                                                }
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    Timber.w("PlayerService onPlayClick: YouTube player is null, reloading current song")
+                                    localMediaItem?.let { item ->
+                                        it.player.playWhenReady = true
+                                        it.player.prepare()
+                                    }
+                                }
+                            } else
                                 coroutineScope.launch {
                                     riTuneClient.sendCommand(
                                         RiTuneRemoteCommand(
@@ -3298,11 +3376,15 @@ class PlayerService : Service(),
 
                     },
                     onPlayNext = {
-                        handlePlayNext()
-                        //player.playNext()
+                        handlePlayNext(isUserSkip = true)
                     },
                     onPlayPrevious = {
-                        player.playPrevious()
+                        if (YammboAdManager.canSkip(appContext())) {
+                            YammboAdManager.recordSkip()
+                            player.playPrevious()
+                        } else {
+                            Timber.d("PlayerService onPlayPrevious blocked (skip limit reached)")
+                        }
                     },
                     onPlayQueueItem = { queueId ->
                         val timelineIndex = queueId.toInt()
@@ -3356,14 +3438,21 @@ class PlayerService : Service(),
         }
     }
 
-    fun handlePlayNext() {
+    fun handlePlayNext(isUserSkip: Boolean = false) {
         val now = System.currentTimeMillis()
         if (now - lastPlayNextTime < debounceDelayMs) {
             Timber.d("PlayerService handlePlayNext ignored (too fast)")
             return
         }
+        if (isUserSkip) {
+            if (!YammboAdManager.canSkip(appContext())) {
+                Timber.d("PlayerService handlePlayNext blocked (skip limit reached)")
+                return
+            }
+            YammboAdManager.recordSkip()
+        }
         lastPlayNextTime = now
-        Timber.d("PlayerService handlePlayNext executed")
+        Timber.d("PlayerService handlePlayNext executed (userSkip=$isUserSkip)")
         coroutineScope.launch {
             withContext(Dispatchers.Main) {
                 player.playNext()

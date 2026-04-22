@@ -399,8 +399,9 @@ fun HomePage(
 
                 WelcomeMessage()
 
-                if (showListenerLevels)
-                    HomepageListenerLevelBadges(navController)
+                // Listener levels (Monthly/Annual badges) hidden — Yammbo Music customization
+                // if (showListenerLevels)
+                //     HomepageListenerLevelBadges(navController)
 
                 HomepageRewind(
                     showIfEndOfYear = true,

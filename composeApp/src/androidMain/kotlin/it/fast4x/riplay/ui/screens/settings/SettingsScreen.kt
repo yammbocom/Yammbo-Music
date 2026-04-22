@@ -293,85 +293,44 @@ fun SettingsEntry(
     offline: Boolean = true
 ) {
     Row(
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
-            .clickable(enabled = isEnabled, onClick = onClick)
-            //.alpha(if (isEnabled) .5f else 0.2f)
-            .padding(all = 12.dp)
             .fillMaxWidth()
-            //.background(colorPalette().background0.copy(if (isEnabled) 0.5f else 0.2f))
+            .clickable(enabled = isEnabled, onClick = onClick)
+            .padding(horizontal = 4.dp, vertical = 10.dp)
     ) {
-        Box(modifier = Modifier
-            .width(4.dp)
-            .height(30.dp)
-            .background(colorPalette().textSecondary)
-        )
-
         Column(
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier
-                .weight(1f)
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+            modifier = Modifier.weight(1f)
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier
-                    .fillMaxWidth()
-            ) {
-                BasicText(
-                    text = title,
-                    style = typography().xs.semiBold.copy(color = colorPalette().text),
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier
-                        .padding(bottom = 4.dp)
-                        .weight(1f)
-                )
-                trailingContent?.invoke()
+            BasicText(
+                text = title,
+                style = typography().xs.semiBold.copy(color = colorPalette().text),
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
 
-            }
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier
-                    .fillMaxWidth()
-            ) {
-
+            if (text.isNotEmpty()) {
                 BasicText(
                     text = text,
-                    style = typography().xs.semiBold.copy(color = colorPalette().textSecondary),
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.fillMaxWidth(.7f)
+                    style = typography().xxs.copy(color = colorPalette().textSecondary),
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis
                 )
-
-                Spacer(modifier = Modifier.weight(1f))
-//                SettingsContextIcons(
-//                    online = online,
-//                    offline = offline
-//                )
-
             }
 
             if (titleSecondary != null) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                ) {
-                    BasicText(
-                        text = titleSecondary,
-                        style = typography().xxs.secondary,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                        //modifier = Modifier
-                        //    .padding(vertical = 8.dp, horizontal = 24.dp)
-                    )
-                }
+                BasicText(
+                    text = titleSecondary,
+                    style = typography().xxs.secondary,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
-
         }
+
+        trailingContent?.invoke()
     }
 }
 
@@ -482,16 +441,18 @@ fun ImportantSettingsDescription(
 @Composable
 fun SettingsEntryGroupText(
     title: String,
-    color: Color = colorPalette().accent,
+    color: Color = colorPalette().textSecondary,
     uppercase: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     BasicText(
         text = if (uppercase) title.uppercase() else title,
-        style = typography().xs.semiBold.copy(color),
+        style = typography().xxs.copy(
+            color = color,
+            fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold
+        ),
         modifier = modifier
-            .padding(start = 12.dp)
-            //.padding(horizontal = 12.dp)
+            .padding(start = 16.dp, top = 8.dp, bottom = 4.dp)
     )
 }
 

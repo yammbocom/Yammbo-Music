@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicText
@@ -213,7 +214,6 @@ fun DataSettings() {
     Column(
         modifier = Modifier
             .background(colorPalette().background0)
-            //.fillMaxSize()
             .fillMaxHeight()
             .fillMaxWidth(
                 if (NavigationBarPosition.Right.isCurrent())
@@ -222,132 +222,127 @@ fun DataSettings() {
                     1f
             )
             .verticalScroll(rememberScrollState())
-
+            .padding(horizontal = 20.dp)
     ) {
-        HeaderWithIcon(
-            title = stringResource(R.string.tab_data),
-            iconId = R.drawable.server,
-            enabled = false,
-            showIcon = true,
-            modifier = Modifier,
-            onClick = {}
-        )
-
-        SettingsDescription(text = stringResource(R.string.cache_cleared))
+        Spacer(modifier = Modifier.height(40.dp))
 
         Coil.imageLoader(context).diskCache?.let { diskCache ->
             val diskCacheSize = remember(diskCache.size, cleanCacheImages) {
                 diskCache.size
             }
 
-            SettingsGroupSpacer()
-            SettingsEntryGroupText(title = stringResource(R.string.cache))
+            SettingsCard(title = stringResource(R.string.cache)) {
+                EnumValueSelectorSettingsEntry(
+                    title = stringResource(R.string.image_cache_max_size),
+                    titleSecondary = when (coilDiskCacheMaxSize) {
+                        CoilDiskCacheMaxSize.Custom -> Formatter.formatShortFileSize(context, diskCacheSize) +
+                                "/${Formatter.formatShortFileSize(context, coilCustomDiskCache.toLong() * 1000 * 1000)}" +
+                                stringResource(R.string.used)
+                        else -> Formatter.formatShortFileSize(context, diskCacheSize) +
+                                stringResource(R.string.used) +
+                                " (${diskCacheSize * 100 / coilDiskCacheMaxSize.bytes}%)"
+                    },
+                    trailingContent = {
+                        HeaderIconButton(
+                            icon = R.drawable.trash,
+                            enabled = true,
+                            color = colorPalette().text,
+                            onClick = { cleanCacheImages = true }
+                        )
+                    },
+                    selectedValue = coilDiskCacheMaxSize,
+                    onValueSelected = {
+                        coilDiskCacheMaxSize = it
+                        if (coilDiskCacheMaxSize == CoilDiskCacheMaxSize.Custom)
+                            showCoilCustomDiskCacheDialog = true
 
-            EnumValueSelectorSettingsEntry(
-                title = stringResource(R.string.image_cache_max_size),
-                titleSecondary = when (coilDiskCacheMaxSize) {
-                    CoilDiskCacheMaxSize.Custom -> Formatter.formatShortFileSize(context, diskCacheSize) +
-                            "/${Formatter.formatShortFileSize(context, coilCustomDiskCache.toLong() * 1000 * 1000)}" +
-                            stringResource(R.string.used)
-                    else -> Formatter.formatShortFileSize(context, diskCacheSize) +
-                            stringResource(R.string.used) +
-                            " (${diskCacheSize * 100 / coilDiskCacheMaxSize.bytes}%)"
-                },
-                trailingContent = {
-                    HeaderIconButton(
-                        icon = R.drawable.trash,
-                        enabled = true,
-                        color = colorPalette().text,
-                        onClick = { cleanCacheImages = true }
-                    )
-                },
-                selectedValue = coilDiskCacheMaxSize,
-                onValueSelected = {
-                    coilDiskCacheMaxSize = it
-                    if (coilDiskCacheMaxSize == CoilDiskCacheMaxSize.Custom)
-                        showCoilCustomDiskCacheDialog = true
-
-                    restartService = true
-                },
-                valueText = {
-                    when (it) {
-                        CoilDiskCacheMaxSize.Custom -> stringResource(R.string.custom)
-                        CoilDiskCacheMaxSize.`32MB` -> "32MB"
-                        CoilDiskCacheMaxSize.`64MB` -> "64MB"
-                        CoilDiskCacheMaxSize.`128MB` -> "128MB"
-                        CoilDiskCacheMaxSize.`256MB`-> "256MB"
-                        CoilDiskCacheMaxSize.`512MB`-> "512MB"
-                        CoilDiskCacheMaxSize.`1GB`-> "1GB"
-                        CoilDiskCacheMaxSize.`2GB` -> "2GB"
-                        CoilDiskCacheMaxSize.`4GB` -> "4GB"
-                        CoilDiskCacheMaxSize.`8GB` -> "8GB"
-                    }
-                }
-            )
-            RestartPlayerService(restartService, onRestart = { restartService = false } )
-
-            if (showCoilCustomDiskCacheDialog) {
-                InputNumericDialog(
-                    title = stringResource(R.string.set_custom_cache),
-                    placeholder = stringResource(R.string.enter_value_in_mb),
-                    value = coilCustomDiskCache.toString(),
-                    valueMin = "32",
-                    onDismiss = { showCoilCustomDiskCacheDialog = false },
-                    setValue = {
-                        //Log.d("customCache", it)
-                        coilCustomDiskCache = it.toInt()
-                        showCoilCustomDiskCacheDialog = false
                         restartService = true
+                    },
+                    valueText = {
+                        when (it) {
+                            CoilDiskCacheMaxSize.Custom -> stringResource(R.string.custom)
+                            CoilDiskCacheMaxSize.`32MB` -> "32MB"
+                            CoilDiskCacheMaxSize.`64MB` -> "64MB"
+                            CoilDiskCacheMaxSize.`128MB` -> "128MB"
+                            CoilDiskCacheMaxSize.`256MB`-> "256MB"
+                            CoilDiskCacheMaxSize.`512MB`-> "512MB"
+                            CoilDiskCacheMaxSize.`1GB`-> "1GB"
+                            CoilDiskCacheMaxSize.`2GB` -> "2GB"
+                            CoilDiskCacheMaxSize.`4GB` -> "4GB"
+                            CoilDiskCacheMaxSize.`8GB` -> "8GB"
+                        }
                     }
                 )
                 RestartPlayerService(restartService, onRestart = { restartService = false } )
+
+                if (showCoilCustomDiskCacheDialog) {
+                    InputNumericDialog(
+                        title = stringResource(R.string.set_custom_cache),
+                        placeholder = stringResource(R.string.enter_value_in_mb),
+                        value = coilCustomDiskCache.toString(),
+                        valueMin = "32",
+                        onDismiss = { showCoilCustomDiskCacheDialog = false },
+                        setValue = {
+                            coilCustomDiskCache = it.toInt()
+                            showCoilCustomDiskCacheDialog = false
+                            restartService = true
+                        }
+                    )
+                    RestartPlayerService(restartService, onRestart = { restartService = false } )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+                CacheSpaceIndicator(cacheType = CacheType.Images, horizontalPadding = 0.dp)
+                BasicText(
+                    text = stringResource(R.string.cache_cleared),
+                    style = it.fast4x.riplay.utils.typography().xxs.copy(
+                        color = colorPalette().textSecondary
+                    ),
+                    modifier = Modifier.padding(top = 8.dp)
+                )
             }
 
-            CacheSpaceIndicator(cacheType = CacheType.Images, horizontalPadding = 20.dp)
+            Spacer(modifier = Modifier.height(12.dp))
         }
 
-        SettingsGroupSpacer()
-
-        SettingsEntryGroupText(title = stringResource(R.string.title_backup_and_restore))
-
-        SettingsEntry(
-            isEnabled = backupUiState is BackupUiState.Idle,
-            title = stringResource(R.string.save_to_backup),
-            text = stringResource(R.string.export_the_database),
-            onClick = {
-                isExporting = true
+        SettingsCard(title = stringResource(R.string.title_backup_and_restore)) {
+            SettingsEntry(
+                isEnabled = backupUiState is BackupUiState.Idle,
+                title = stringResource(R.string.save_to_backup),
+                text = stringResource(R.string.export_the_database),
+                onClick = {
+                    isExporting = true
+                }
+            )
+            if (backupUiState is BackupUiState.BackingUp || backupUiState is BackupUiState.Restoring) {
+                Spacer(modifier = Modifier.height(8.dp))
+                CircularProgressIndicator()
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = if (backupUiState is BackupUiState.BackingUp) "Backup in progress..." else "Restore in progress..."
+                )
             }
-        )
-        SettingsDescription(text = stringResource(R.string.personal_preference))
-        if (backupUiState is BackupUiState.BackingUp || backupUiState is BackupUiState.Restoring) {
-            CircularProgressIndicator()
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = if (backupUiState is BackupUiState.BackingUp) "Backup in progress..." else "Restore in progress..."
+
+            SettingsEntry(
+                isEnabled = backupUiState is BackupUiState.Idle,
+                title = stringResource(R.string.restore_from_backup),
+                text = stringResource(R.string.import_the_database),
+                onClick = {
+                    isImporting = true
+                }
+            )
+            BasicText(
+                text = stringResource(
+                    R.string.existing_data_will_be_overwritten,
+                    context.applicationInfo.nonLocalizedLabel
+                ),
+                style = it.fast4x.riplay.utils.typography().xxs.copy(
+                    color = colorPalette().red,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold
+                ),
+                modifier = Modifier.padding(top = 8.dp)
             )
         }
-
-        SettingsEntry(
-            isEnabled = backupUiState is BackupUiState.Idle,
-            title = stringResource(R.string.restore_from_backup),
-            text = stringResource(R.string.import_the_database),
-            onClick = {
-                //restoreFromOtherFileExtension = false
-                isImporting = true
-            }
-        )
-//        SettingsEntry(
-//            title = stringResource(R.string.restore_from_other_backup),
-//            text = stringResource(R.string.import_the_database_be_carefull),
-//            onClick = {
-//                restoreFromOtherFileExtension = true
-//                isImporting = true
-//            }
-//        )
-        ImportantSettingsDescription(text = stringResource(
-            R.string.existing_data_will_be_overwritten,
-            context.applicationInfo.nonLocalizedLabel
-        ))
 
 //        SettingsGroupSpacer()
 //        SettingsEntryGroupText(title = stringResource(R.string.search_history))
@@ -389,8 +384,6 @@ fun DataSettings() {
 //            onClick = { clearEvents = true }
 //        )
 
-        SettingsGroupSpacer(
-            modifier = Modifier.height(Dimensions.bottomSpacer)
-        )
+        Spacer(modifier = Modifier.height(Dimensions.bottomSpacer))
     }
 }

@@ -27,6 +27,7 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import it.fast4x.riplay.extensions.ads.BannerAd
 import it.fast4x.riplay.utils.colorPalette
 import it.fast4x.riplay.enums.NavigationBarPosition
 import it.fast4x.riplay.enums.PlayerPosition
@@ -129,12 +130,14 @@ fun ScreenContainer(
                 else
                     Alignment.BottomCenter
 
-            Box(
+            Column(
                 Modifier
                     .padding( vertical = 5.dp )
                     .align( playerAlignment ),
-                content = { miniPlayer?.invoke() }
-            )
+            ) {
+                BannerAd()
+                miniPlayer?.invoke()
+            }
         }
     }
 }

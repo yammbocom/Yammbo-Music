@@ -1,5 +1,10 @@
 package it.fast4x.riplay.ui.components.themed
 
+import android.app.Activity
+import android.content.Intent
+import android.speech.RecognizerIntent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -28,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
@@ -44,9 +50,11 @@ import it.fast4x.riplay.ui.styling.secondary
 import it.fast4x.riplay.ui.styling.semiBold
 import it.fast4x.riplay.extensions.preferences.thumbnailRoundnessKey
 import it.fast4x.riplay.utils.colorPalette
+import it.fast4x.riplay.utils.isTVDevice
 import it.fast4x.riplay.ui.components.tab.toolbar.Descriptive
 import it.fast4x.riplay.ui.components.tab.toolbar.MenuIcon
 import it.fast4x.riplay.utils.typography
+import timber.log.Timber
 
 class Search private constructor(
     private val inputState: MutableState<String>,
@@ -91,16 +99,49 @@ class Search private constructor(
         innerTextField: @Composable () -> Unit,
         onBackClick: () -> Unit
     ) {
+        val context = LocalContext.current
+        val isTv = isTVDevice()
+        val iconSize = if (isTv) 28.dp else 18.dp
+
+        // Voice search launcher (Google's RecognizerIntent)
+        val voiceLauncher = rememberLauncherForActivityResult(
+            ActivityResultContracts.StartActivityForResult()
+        ) { result ->
+            if (result.resultCode == Activity.RESULT_OK) {
+                val matches = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+                val spoken = matches?.firstOrNull()
+                if (!spoken.isNullOrBlank()) {
+                    input = spoken
+                }
+            }
+        }
+
         Box(
             contentAlignment = Alignment.CenterStart,
-            modifier = Modifier.padding( horizontal = 10.dp )
+            modifier = Modifier.padding(horizontal = 10.dp)
         ) {
             IconButton(
-                onClick = {},
-                icon = R.drawable.search,
-                color = colorPalette().favoritesIcon,
-                modifier = Modifier.align( Alignment.CenterStart )
-                    .size(16.dp)
+                onClick = {
+                    val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                        putExtra(
+                            RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                            RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
+                        )
+                        putExtra(
+                            RecognizerIntent.EXTRA_PROMPT,
+                            context.getString(R.string.search)
+                        )
+                    }
+                    try {
+                        voiceLauncher.launch(intent)
+                    } catch (e: Exception) {
+                        Timber.w("Voice search not available: ${e.message}")
+                    }
+                },
+                icon = R.drawable.mic,
+                color = colorPalette().accent,
+                modifier = Modifier.align(Alignment.CenterStart)
+                    .size(iconSize)
             )
         }
         Box(
@@ -130,17 +171,20 @@ class Search private constructor(
             // Actual text from user
             innerTextField()
         }
-        Box(
-            contentAlignment = Alignment.CenterEnd,
-            modifier = Modifier.padding( start = 30.dp, end = 15.dp )
-        ) {
-            IconButton(
-                onClick = onBackClick,
-                icon = R.drawable.backspace_outline,
-                color = colorPalette().text.copy( alpha = .8f ), // A little dimmer to prevent eye-candy
-                modifier = Modifier.align( Alignment.CenterEnd )
-                                   .size( 16.dp )
-            )
+        // Clear button only appears when there's text in the input
+        if (input.isNotEmpty()) {
+            Box(
+                contentAlignment = Alignment.CenterEnd,
+                modifier = Modifier.padding(start = 30.dp, end = 15.dp)
+            ) {
+                IconButton(
+                    onClick = onBackClick,
+                    icon = R.drawable.close,
+                    color = colorPalette().text.copy(alpha = .8f),
+                    modifier = Modifier.align(Alignment.CenterEnd)
+                        .size(16.dp)
+                )
+            }
         }
     }
 
@@ -160,6 +204,8 @@ class Search private constructor(
         )
 
         val focusRequester = remember { FocusRequester() }
+        val isTv = isTVDevice()
+        val barHeight = if (isTv) 56.dp else 30.dp
 
         AnimatedVisibility(
             visible = isVisible,
@@ -189,6 +235,14 @@ class Search private constructor(
             var searchTerm by remember { mutableStateOf(
                 TextFieldValue( input, TextRange( input.length ) )
             )}
+
+            // Sync local TextFieldValue when `input` changes externally (e.g. voice search)
+            LaunchedEffect(input) {
+                if (searchTerm.text != input) {
+                    searchTerm = TextFieldValue(input, TextRange(input.length))
+                }
+            }
+
             BasicTextField(
                 value = searchTerm,
                 onValueChange = {
@@ -198,7 +252,7 @@ class Search private constructor(
                     )
                     input = it.text
                 },
-                textStyle = typography().xs.semiBold,
+                textStyle = if (isTv) typography().s.semiBold else typography().xs.semiBold,
                 singleLine = true,
                 maxLines = 1,
                 keyboardOptions = KeyboardOptions( imeAction = ImeAction.Done ),
@@ -217,7 +271,7 @@ class Search private constructor(
                         isFocused = true
                     }
                 },
-                modifier = Modifier.height( 30.dp )
+                modifier = Modifier.height(barHeight)
                     .fillMaxWidth()
                     .focusRequester(focusRequester)
                     .background(

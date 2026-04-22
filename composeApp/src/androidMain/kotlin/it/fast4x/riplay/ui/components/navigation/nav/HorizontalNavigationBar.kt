@@ -107,27 +107,7 @@ class HorizontalNavigationBar(
 
     @Composable
     override fun add(buttons: @Composable (@Composable (Int, String, Int) -> Unit) -> Unit) {
-        buttonList.clear()
-        val transition = updateTransition(targetState = tabIndex, label = null)
-
-        buttons { index, text, iconId ->
-
-            val color by transition.animateColor(label = "") {
-                if (it == index) colorPalette().text else colorPalette().textDisabled
-            }
-
-            val button: Button =
-                if (NavigationBarType.IconOnly.isCurrent())
-                    Button(iconId, color, 12.dp, 20.dp)
-                else
-                    TextIconButton(text, iconId, color, 0.dp, Dimensions.navigationRailIconOffset * 3)
-
-            val contentModifier = Modifier
-                .clip(RoundedCornerShape(12.dp))
-                .clickable(onClick = { onTabChanged(index) })
-
-            addButton(button, contentModifier)
-        }
+        buttonsProvider = buttons
     }
 
     @Composable
@@ -225,20 +205,66 @@ class HorizontalNavigationBar(
                     if (UiType.ViMusic.isCurrent() && NavRoutes.home.isNotHere(navController))
                         BackButton().Draw()
 
-                    Box(
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceEvenly,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(Color.Transparent)
+                            .fillMaxSize()
+                            .padding(horizontal = 8.dp),
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceEvenly,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .fillMaxSize()
-                                .horizontalScroll(scrollState),
-                            content = { buttonList().forEach { it() } }
-                        )
+                        val transition = updateTransition(targetState = tabIndex, label = null)
+                        // Collect tabs once per composition to adapt sizing for many vs few tabs
+                        val items = mutableListOf<Triple<Int, String, Int>>()
+                        buttonsProvider?.invoke { index, text, iconId ->
+                            items.add(Triple(index, text, iconId))
+                        }
+                        val isCompact = items.size > 5
+                        val pillHorizontalPadding = if (isCompact) 8.dp else 16.dp
+                        items.forEach { (index, text, iconId) ->
+                            val isSelected = tabIndex == index
+                            val iconColor by transition.animateColor(label = "") {
+                                if (it == index) colorPalette().accent else colorPalette().textDisabled
+                            }
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .clickable(onClick = { onTabChanged(index) })
+                                    .padding(vertical = 4.dp, horizontal = 2.dp)
+                            ) {
+                                Box(
+                                    contentAlignment = Alignment.Center,
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(16.dp))
+                                        .background(
+                                            if (isSelected) colorPalette().accent.copy(alpha = 0.15f)
+                                            else Color.Transparent
+                                        )
+                                        .padding(horizontal = pillHorizontalPadding, vertical = 4.dp)
+                                ) {
+                                    Button(iconId, iconColor, 0.dp, if (isCompact) 20.dp else 22.dp).Draw()
+                                }
+                                if (!NavigationBarType.IconOnly.isCurrent()) {
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    androidx.compose.foundation.text.BasicText(
+                                        text = text,
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                                        style = it.fast4x.riplay.utils.typography().xxs.copy(
+                                            color = iconColor,
+                                            fontWeight = if (isSelected)
+                                                androidx.compose.ui.text.font.FontWeight.SemiBold
+                                            else
+                                                androidx.compose.ui.text.font.FontWeight.Normal
+                                        )
+                                    )
+                                }
+                            }
+                        }
                     }
 
                     if (UiType.ViMusic.isCurrent() && showSearchIconInNav())

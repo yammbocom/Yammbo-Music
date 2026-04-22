@@ -241,6 +241,10 @@ fun InfoAlbumAndArtistModern(
                         color = colorPalette().favoritesIcon,
                         icon = getLikeState(mediaItem.mediaId),
                         onClick = {
+                            if (!it.fast4x.riplay.extensions.ads.PremiumGuard.checkFeature(
+                                it.fast4x.riplay.utils.globalContext(),
+                                it.fast4x.riplay.extensions.ads.PremiumFeature.Like
+                            )) return@IconButton
                             if (!isNetworkConnected(appContext()) && isYtSyncEnabled()) {
                                 SmartMessage(appContext().resources.getString(R.string.no_connection), context = appContext(), type = PopupType.Error)
                             } else if (!isYtSyncEnabled()){
@@ -631,8 +635,14 @@ fun ControlsModern(
                 indication = ripple(bounded = true),
                 interactionSource = remember { MutableInteractionSource() },
                 onClick = {
-                    onNext()
-                    if (effectRotationEnabled) isRotated = !isRotated
+                    val ctx = it.fast4x.riplay.utils.globalContext()
+                    if (it.fast4x.riplay.extensions.ads.YammboAdManager.canSkip(ctx)) {
+                        it.fast4x.riplay.extensions.ads.YammboAdManager.recordSkip()
+                        onNext()
+                        if (effectRotationEnabled) isRotated = !isRotated
+                    } else {
+                        it.fast4x.riplay.extensions.ads.PremiumGuard.checkFeature(ctx, it.fast4x.riplay.extensions.ads.PremiumFeature.SkipSong)
+                    }
                 },
                 onLongClick = {}
             )

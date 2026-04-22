@@ -25,6 +25,20 @@
 *.jks
 *.keystore
 
+###      SECRETS / CREDENTIALS
+# Firebase config (contains restricted project IDs and API keys)
+google-services.json
+**/google-services.json
+GoogleService-Info.plist
+**/GoogleService-Info.plist
+# Environment files
+.env
+.env.*
+!.env.example
+# Service account credentials
+*-firebase-adminsdk-*.json
+service-account*.json
+
 ###      APK BUILDS
 *.apk
 *.idsig

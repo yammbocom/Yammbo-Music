@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -251,8 +252,10 @@ fun ArtistOverview(
                                     1200
                                 ),
                                 contentDescription = "loading...",
+                                contentScale = ContentScale.Crop,
                                 modifier = Modifier
                                     .fillMaxWidth()
+                                    .aspectRatio(3f / 4f)
                                     .align(Alignment.Center)
                                     .fadingEdge(
                                         top = WindowInsets.systemBars

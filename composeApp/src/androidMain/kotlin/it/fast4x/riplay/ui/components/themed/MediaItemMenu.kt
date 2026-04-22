@@ -176,7 +176,9 @@ fun InHistoryMediaItemMenu(
         onHideFromDatabase = onHideFromDatabase,
         onDeleteFromDatabase = onDeleteFromDatabase,
         onAddToPreferites = {
-            if (!isNetworkConnected(globalContext()) && isYtSyncEnabled()){
+            if (!it.fast4x.riplay.extensions.ads.PremiumGuard.checkFeature(globalContext(), it.fast4x.riplay.extensions.ads.PremiumFeature.Like)) {
+                // blocked for free users
+            } else if (!isNetworkConnected(globalContext()) && isYtSyncEnabled()){
                 SmartMessage(globalContext().resources.getString(R.string.no_connection), context = globalContext(), type = PopupType.Error)
             } else if (!isYtSyncEnabled()){
                 Database.asyncTransaction {
@@ -1473,6 +1475,10 @@ fun MediaItemMenu(
                             color = colorPalette().favoritesIcon,
                             //color = if (likedAt == null) colorPalette().textDisabled else colorPalette().text,
                             onClick = {
+                                if (!it.fast4x.riplay.extensions.ads.PremiumGuard.checkFeature(
+                                    it.fast4x.riplay.utils.globalContext(),
+                                    it.fast4x.riplay.extensions.ads.PremiumFeature.Like
+                                )) return@IconButton
                                 if (!isNetworkConnected(appContext()) && isYtSyncEnabled()) {
                                     SmartMessage(appContext().resources.getString(R.string.no_connection), context = appContext(), type = PopupType.Error)
                                 } else if (!isYtSyncEnabled()){

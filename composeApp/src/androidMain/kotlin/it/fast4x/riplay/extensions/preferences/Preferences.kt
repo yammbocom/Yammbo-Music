@@ -432,7 +432,7 @@ const val stateMediaIdKey = "stateMediaId"
 const val statePositionKey = "statePosition"
 const val stateIsPlaying = "stateIsPlaying"
 
-
+const val timerEndTimeKey = "timerEndTime"
 
 inline fun <reified T : Enum<T>> SharedPreferences.getEnum(
     key: String,
