@@ -1,10 +1,6 @@
 <div align="center">
 
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="./assets/branding/yammbo-music-icon-white.svg" width="140" height="140">
-    <source media="(prefers-color-scheme: light)" srcset="./assets/branding/yammbo-music-icon-dark.svg" width="140" height="140">
-    <img src="./assets/branding/yammbo-music-icon-dark.svg" width="140" height="140" alt="Yammbo Music"/>
-  </picture>
+  <img src="./assets/branding/yammbo-music-app-icon.png" width="140" height="140" alt="Yammbo Music"/>
 
   # Yammbo Music
 
@@ -36,35 +32,68 @@
 
 ## Que es Yammbo Music?
 
-Yammbo Music es un reproductor de musica de codigo abierto construido sobre **RiPlay/RiMusic**. Ofrece una experiencia musical completa con soporte para contenido online y offline, personalizacion avanzada y una interfaz moderna — disponible en tema oscuro y claro.
+Yammbo Music es un reproductor de musica moderno construido sobre **RiPlay/RiMusic**. Ofrece una experiencia musical completa con soporte para contenido online y offline, suscripciones Premium, integracion con Android TV y Android Auto, letras sincronizadas, y una interfaz cuidada disponible en tema oscuro y claro.
 
-> **Privacidad primero:** No recopilamos datos. Tu musica y preferencias se quedan en tu dispositivo.
+> **Privacidad primero:** No recopilamos datos personales. Tu musica y preferencias se quedan en tu dispositivo.
 
 ---
 
 ## Caracteristicas principales
 
 ### Reproduccion
-- Canciones, videos, artistas, albums, playlists y podcasts
-- Colas inteligentes (audio/video)
-- Estadisticas de escucha y ranking de nivel
-- Letras sincronizadas: buscar, mostrar, editar y traducir
-- Lista negra para artistas, albums, canciones o carpetas
-- Resumen anual de tu musica
-
-### Funciones inteligentes
+- Canciones, videos, artistas, albumes, playlists y podcasts
+- Colas inteligentes (audio/video) con radio automatica
+- Letras sincronizadas por defecto: buscar, mostrar, editar y traducir
+- Estadisticas de escucha, ranking de nivel y resumen anual
+- Lista negra para artistas, albumes, canciones o carpetas
+- Temporizador de suspension persistente (sobrevive reinicios)
 - Reconocimiento de musica (titulo y artista)
-- Temporizador de suspension
 - Visualizador de audio
-- Soporte para Android Auto y Android TV
-- Widgets para pantalla de inicio
-- Notificaciones de nuevos lanzamientos de tus artistas
+
+### Yammbo Premium
+- **Sin anuncios** en toda la app
+- **Saltos ilimitados** (usuarios gratis: 6 saltos por hora)
+- **Descargas** de canciones para escuchar sin conexion
+- **Playlists personalizadas** ilimitadas
+- **Letras sincronizadas** siempre disponibles
+- **Configuracion avanzada** (calidad de audio, ajustes de reproduccion)
+- Suscripcion mensual o anual via **Stripe o PayPal**
+- Administra tu plan desde `Mi Cuenta → Gestionar suscripcion` (cancelar, reanudar, cambiar)
+- Cancelaciones respetan el periodo pagado (grace period)
+- La app detecta automaticamente cambios en tu suscripcion
+
+### Android TV
+- Soporte completo para Android TV (Leanback launcher)
+- Sidebar vertical de navegacion con focus states optimizados para control remoto
+- Vinculacion por codigo QR desde la TV: escanea, inicia sesion en el movil, listo
+- Controles de reproductor adaptados (skip/play/next con focus + escalado)
+- Enlace profundo: abrir `music.yammbo.com/tv-link` desde la app vincula tu cuenta al instante
+
+### Android Auto y reproduccion en movimiento
+- Integracion nativa con Android Auto
+- Controles de media session (auriculares, smartwatch, Bluetooth)
+- Recuperacion automatica tras errores de streaming
+- Temporizador de suspension que se cancela al conectar con Android Auto
+- Opcion de reanudar/pausar al conectar/desconectar dispositivos
+
+### Funciones sociales y de compartir
+- Compartir canciones con imagen generada (1080x1920) con portada y paleta de colores automatica
+- URLs cortas de Yammbo Music con redireccion inteligente
+- Notificaciones push de nuevos lanzamientos (Firebase)
+- Popups de novedades y anuncios (Firebase Remote Config)
 
 ### Personalizacion
-- Tema oscuro y claro
+- Tema oscuro y claro con paletas personalizables
 - Controles de audio: volumen, velocidad, tono, normalizacion, saltar silencios, refuerzo de bajos
 - Navegacion personalizable (Inicio, Top 50, Mi Musica, Buscar, Mi Cuenta)
+- Tabs de ajustes rediseniados (General, UI, Apariencia, Inicio, Datos, Cuentas, Otros)
 - Soporte para 50+ idiomas
+
+### Privacidad y seguridad
+- Autenticacion con Laravel Sanctum (tokens firmados)
+- Sin trackers de terceros fuera de los necesarios (Firebase FCM, AdMob en tier gratis)
+- Navegador embebido en modo oscuro sin barra de URL al scrollear
+- Keystores y credenciales locales nunca salen de tu dispositivo
 
 ---
 
@@ -85,6 +114,12 @@ Yammbo Music es un reproductor de musica de codigo abierto construido sobre **Ri
 | **Kotlin** | Lenguaje principal |
 | **Jetpack Compose** | UI moderna y reactiva |
 | **Kotlin Multiplatform** | Arquitectura multiplataforma |
+| **Firebase** | Notificaciones push y Remote Config |
+| **Google AdMob** | Monetizacion del tier gratuito |
+| **Stripe y PayPal** | Procesadores de pago para suscripciones |
+| **Chrome Custom Tabs** | Navegador embebido con branding propio |
+| **Laravel Sanctum** | Autenticacion del backend `music.yammbo.com` |
+| **Media3 ExoPlayer** | Motor de reproduccion |
 
 ---
 
@@ -97,8 +132,9 @@ Yammbo Music es un fork de [RiPlay](https://github.com/fast4x/RiPlay), que a su 
 | [RiPlay](https://github.com/fast4x/RiPlay) | Proyecto base |
 | [ViMusic](https://github.com/vfsfitvnm/ViMusic) | Fundacion original |
 | [Android YouTube Player](https://github.com/PierfrancescoSoffritti/android-youtube-player) | Wrapper de YouTube Player |
-| [KuGou](https://www.kugou.com) & [LrcLib](https://lrclib.net) | Proveedor de letras |
+| [KuGou](https://www.kugou.com) y [LrcLib](https://lrclib.net) | Proveedores de letras |
 | [AudioTag.info](https://audiotag.info) | API de reconocimiento musical |
+| [qrose](https://github.com/alexzhirkevich/qrose) | Generacion de codigos QR para TV |
 
 ---
 
