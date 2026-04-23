@@ -25,6 +25,15 @@
 *.jks
 *.keystore
 
+###      VLC NATIVES (desktop bundling)
+# libvlc.* + plugins are downloaded at build time, not committed.
+# See scripts/download-vlc-{win64,linux-x64,mac}.sh and composeApp/lib/README.md.
+composeApp/lib/*
+!composeApp/lib/README.md
+composeApp/lib-linux/
+composeApp/lib-mac/
+composeApp/lib-dist/
+
 ###      SECRETS / CREDENTIALS
 # Firebase config (contains restricted project IDs and API keys)
 google-services.json

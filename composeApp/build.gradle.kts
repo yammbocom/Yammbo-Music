@@ -209,6 +209,13 @@ kotlin {
             implementation(libs.coil.network.okhttp)
             runtimeOnly(libs.kotlinx.coroutines.swing)
 
+            // Yammbo backend (Sanctum login + subscription check) — same Ktor stack as Android.
+            // OkHttp engine works fine on JVM desktop.
+            implementation(libs.ktor.client.core)
+            implementation(libs.ktor.client.okhttp)
+            implementation(libs.ktor.client.content.negotiation)
+            implementation(libs.ktor.serialization.json)
+
             /*
             // Uncomment only for build jvm desktop version
             // Comment before build android version
@@ -696,39 +703,118 @@ java {
     }
 }
 
+// Desktop packaging version.
+//
+// Native installer formats (.msi, .dmg, .deb) require MAJOR >= 1 (macOS
+// rejects leading-zero major; Windows Installer does too), so we can't reuse
+// the Android versionName "0.7.73" verbatim. Instead we map it as
+// "1.<minor>.<patch>" — here 1.7.73. When bumping the Android versionName
+// minor/patch, bump the same digits here and keep major pinned at 1 until
+// the app has a proper 1.0 story.
+val desktopPackageVersion = "1.7.73"
+
 compose.desktop {
     application {
 
         mainClass = "MainKt"
 
-        version = "0.0.1"
-        group = "riplay"
+        version = desktopPackageVersion
+        group = "com.yambo.music"
 
+        // Bundle VLC native libraries from composeApp/lib/ into the installer.
+        // The `appResourcesRootDir` contents are copied to the app directory
+        // at install time, so at runtime {user.dir}/lib/ resolves inside the
+        // installed bundle — matching VlcjController's `addSearchPath` call.
         nativeDistributions {
-            vendor = "YammboMusic.DesktopApp"
-            description = "Yammbo Music Desktop Player"
+            appResourcesRootDir.set(project.layout.projectDirectory.dir("lib-dist"))
 
-            targetFormats(TargetFormat.Msi, TargetFormat.Deb, TargetFormat.Rpm)
-            packageName = "YammboMusic.DesktopApp"
-            packageVersion = "0.0.1"
+            vendor = "Yammbo LLC"
+            description = "Yammbo Music — desktop player"
+            copyright = "© 2026 Yammbo LLC"
 
-            /*
+            // One target per supported OS. Compose Desktop's packager only builds
+            // the current-OS target, so CI needs a matrix (see .github/workflows/
+            // desktop-release.yml) to produce all three.
+            //   - Msi: Windows installer
+            //   - Dmg: macOS disk image (Intel or Apple Silicon, whichever the
+            //          runner is)
+            //   - Deb: Debian/Ubuntu package
+            targetFormats(TargetFormat.Msi, TargetFormat.Dmg, TargetFormat.Deb)
+
+            packageName = "YammboMusic"
+            packageVersion = desktopPackageVersion
+
+            // Platform-specific installer icons. Files are generated from
+            // assets/branding/yammbo-music-app-icon.png via
+            // scripts/generate-desktop-icons.js (committed to the repo).
+            // Regenerate with:
+            //   node scripts/generate-desktop-icons.js
             val iconsRoot = project.file("desktop-icons")
             windows {
                 iconFile.set(iconsRoot.resolve("icon-windows.ico"))
+                menuGroup = "Yammbo"
+                // Stable UUID → successive .msi versions upgrade in-place.
+                // Generated once; NEVER change this value or upgrades break.
+                upgradeUuid = "9A2F3E7C-4B1A-4B2A-91E8-4F6E9C2A7A01"
             }
             macOS {
                 iconFile.set(iconsRoot.resolve("icon-mac.icns"))
+                bundleID = "com.yambo.music.desktop"
             }
             linux {
                 iconFile.set(iconsRoot.resolve("icon-linux.png"))
             }
-
-             */
         }
 
     }
 }
+
+// Stage VLC native libs into the per-platform appResources directory so
+// Compose Desktop picks them up for .msi/.dmg/.deb bundling.
+//
+// Layout convention (matches Compose Desktop's platform-aware lookup):
+//   composeApp/lib/             ← Windows DLLs  (download-vlc-win64.sh)
+//   composeApp/lib-linux/       ← Linux .so     (download-vlc-linux-x64.sh)
+//   composeApp/lib-mac/         ← macOS .dylib  (download-vlc-mac.sh)
+//   composeApp/lib-dist/
+//     windows/lib/              ← staged from composeApp/lib/
+//     linux/lib/                ← staged from composeApp/lib-linux/
+//     macos/lib/                ← staged from composeApp/lib-mac/
+val stageVlcForPackaging by tasks.registering(Copy::class) {
+    val src = project.layout.projectDirectory.dir("lib")
+    val dest = project.layout.projectDirectory.dir("lib-dist/windows/lib")
+    from(src)
+    into(dest)
+    onlyIf { src.asFile.exists() }
+}
+
+val stageVlcLinux by tasks.registering(Copy::class) {
+    val src = project.layout.projectDirectory.dir("lib-linux")
+    val dest = project.layout.projectDirectory.dir("lib-dist/linux/lib")
+    from(src)
+    into(dest)
+    onlyIf { src.asFile.exists() }
+}
+
+val stageVlcMac by tasks.registering(Copy::class) {
+    val src = project.layout.projectDirectory.dir("lib-mac")
+    val dest = project.layout.projectDirectory.dir("lib-dist/macos/lib")
+    from(src)
+    into(dest)
+    onlyIf { src.asFile.exists() }
+}
+
+// Mirror into the run-time working directory for `:composeApp:run` (dev mode),
+// which looks for {user.dir}/lib/libvlc.<ext>. In dev, user.dir is the project
+// root; `composeApp/lib` is already there, so no copy needed for `run`.
+listOf("package", "createDistributable", "packageReleaseDistributionForCurrentOS",
+       "packageMsi", "packageDeb", "packageRpm", "packageDmg",
+       "packageReleaseMsi", "packageReleaseDeb", "packageReleaseRpm", "packageReleaseDmg")
+    .forEach { name ->
+        tasks.matching { it.name == name }.configureEach {
+            dependsOn(stageVlcForPackaging, stageVlcLinux, stageVlcMac)
+        }
+    }
 
 compose.resources {
     publicResClass = true

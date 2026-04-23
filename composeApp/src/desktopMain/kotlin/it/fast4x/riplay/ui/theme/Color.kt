@@ -61,3 +61,7 @@ val md_theme_dark_inversePrimary = Color(0xFF000000)
 val md_theme_dark_surfaceTint = Color(0xFFFFFFFF)
 val md_theme_dark_outlineVariant = Color(0xFF3D3D3D)
 val md_theme_dark_scrim = Color(0xFF000000)
+
+// Yammbo brand accent — used for player controls, highlights, focus rings.
+// Keep in sync with Android's accent (#FF6B6B). Replaces the legacy RiPlay green.
+val YammboAccent = Color(0xFFFF6B6B)

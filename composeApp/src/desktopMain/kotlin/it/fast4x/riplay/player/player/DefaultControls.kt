@@ -23,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import it.fast4x.riplay.ui.theme.YammboAccent
 import extension.formatTimestamp
 import kotlin.math.roundToLong
 
@@ -49,13 +50,13 @@ fun DefaultControls(modifier: Modifier = Modifier, controller: PlayerController)
             if (state.isPlaying) {
                 IconButton(controller::pause) {
                     Icon(Icons.Filled.Pause, "pause media",
-                        tint = Color.Green,
+                        tint = YammboAccent,
                         modifier = Modifier.size(36.dp))
                 }
             } else {
                 IconButton(controller::play) {
                     Icon(Icons.Rounded.PlayArrow, "play media",
-                        tint = Color.Green,
+                        tint = YammboAccent,
                         modifier = Modifier.size(36.dp))
                 }
             }
@@ -88,7 +89,7 @@ fun DefaultControls(modifier: Modifier = Modifier, controller: PlayerController)
                         modifier = Modifier.width(300.dp),
                         colors = SliderDefaults.colors(
                             activeTrackColor = Color.White,
-                            thumbColor = Color.Green,
+                            thumbColor = YammboAccent,
                             inactiveTrackColor = Color.Gray
                         )
                     )
@@ -118,7 +119,7 @@ fun DefaultControls(modifier: Modifier = Modifier, controller: PlayerController)
                         IconButton(controller::pause) {
                             Icon(
                                 Icons.Filled.Pause, "pause media",
-                                tint = Color.Green,
+                                tint = YammboAccent,
                                 modifier = Modifier.size(36.dp)
                             )
                         }
@@ -126,7 +127,7 @@ fun DefaultControls(modifier: Modifier = Modifier, controller: PlayerController)
                         IconButton(controller::play) {
                             Icon(
                                 Icons.Rounded.PlayArrow, "play media",
-                                tint = Color.Green,
+                                tint = YammboAccent,
                                 modifier = Modifier.size(36.dp)
                             )
                         }
@@ -143,7 +144,7 @@ fun DefaultControls(modifier: Modifier = Modifier, controller: PlayerController)
                         valueRange = 0f..state.duration.toFloat(),
                         colors = SliderDefaults.colors(
                             activeTrackColor = Color.White,
-                            thumbColor = Color.Green,
+                            thumbColor = YammboAccent,
                             inactiveTrackColor = Color.Gray
                         ),
                         modifier = Modifier.fillMaxWidth(0.8f).padding(horizontal = 16.dp)
@@ -181,7 +182,7 @@ fun DefaultControls(modifier: Modifier = Modifier, controller: PlayerController)
                             modifier = Modifier.width(300.dp),
                             colors = SliderDefaults.colors(
                                 activeTrackColor = Color.White,
-                                thumbColor = Color.Green,
+                                thumbColor = YammboAccent,
                                 inactiveTrackColor = Color.Gray
                             )
                         )

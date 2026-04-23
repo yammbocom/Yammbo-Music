@@ -10,7 +10,7 @@ import it.fast4x.riplay.ui.theme.DesktopTheme
 import it.fast4x.riplay.commonutils.initializeEnvironment
 import org.jetbrains.compose.resources.painterResource
 import riplay.composeapp.generated.resources.Res
-import riplay.composeapp.generated.resources.app_icon
+import riplay.composeapp.generated.resources.yammbo_app_icon
 
 
 @OptIn(ExperimentalCoilApi::class)
@@ -19,12 +19,12 @@ fun main() = application {
         getAsyncImageLoader(context)
     }
     Window(
-       icon = painterResource(Res.drawable.app_icon),
+       icon = painterResource(Res.drawable.yammbo_app_icon),
         onCloseRequest = ::exitApplication,
         state = WindowState(
             placement = WindowPlacement.Maximized,
         ),
-        title = "Yammbo Music Desktop",
+        title = "Yammbo Music",
         undecorated = true
     ) {
         initializeEnvironment()

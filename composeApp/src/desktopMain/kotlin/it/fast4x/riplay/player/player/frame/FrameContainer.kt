@@ -21,7 +21,7 @@ import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.skia.Bitmap
 import riplay.composeapp.generated.resources.Res
-import riplay.composeapp.generated.resources.app_icon
+import riplay.composeapp.generated.resources.yammbo_app_icon
 
 @Composable
 fun FrameContainer(
@@ -49,9 +49,10 @@ fun FrameContainer(
                 )
             }
         } ?: Image(
-            painter = painterResource(Res.drawable.app_icon),
-            colorFilter = ColorFilter.tint(Color.Green.copy(alpha = 0.6f)),
-            contentDescription = "Logo",
+            // Yammbo logo as placeholder when no video frame is available.
+            // Kept untinted so the red+black artwork shows through.
+            painter = painterResource(Res.drawable.yammbo_app_icon),
+            contentDescription = "Yammbo Music",
             modifier = Modifier.fillMaxSize(0.7f)
         )
             //CircularProgressIndicator()

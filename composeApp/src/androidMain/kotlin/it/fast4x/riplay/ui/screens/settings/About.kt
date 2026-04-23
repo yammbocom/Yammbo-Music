@@ -169,14 +169,14 @@ fun About() {
                 subtitle = "Como protegemos tus datos",
                 iconId = R.drawable.shield_checkmark
             ) {
-                uriHandler.openUri("https://music.yammbo.com/privacy")
+                uriHandler.openUri("https://music.yammbo.com/pages/privacy-policy")
             }
             LinkRow(
                 title = "Terminos de Servicio",
                 subtitle = "Condiciones de uso",
                 iconId = R.drawable.singlepage
             ) {
-                uriHandler.openUri("https://music.yammbo.com/terms")
+                uriHandler.openUri("https://music.yammbo.com/pages/terms-of-service")
             }
         }
 

@@ -48,6 +48,7 @@ import it.fast4x.riplay.styling.Dimensions.layoutColumnBottomSpacer
 import it.fast4x.riplay.styling.Dimensions.layoutColumnTopPadding
 import it.fast4x.riplay.styling.Dimensions.layoutColumnsHorizontalPadding
 import it.fast4x.riplay.ui.components.MiniPlayer
+import it.fast4x.riplay.ui.components.YammboAccountWidget
 import it.fast4x.riplay.ui.pages.AlbumsPage
 import it.fast4x.riplay.ui.pages.SongsPage
 import it.fast4x.riplay.ui.screens.AlbumScreen
@@ -62,11 +63,11 @@ import org.jetbrains.compose.resources.painterResource
 import player.frame.FrameContainer
 import riplay.composeapp.generated.resources.Res
 import riplay.composeapp.generated.resources.album
-import riplay.composeapp.generated.resources.app_icon
 import riplay.composeapp.generated.resources.app_logo_text
 import riplay.composeapp.generated.resources.artists
 import riplay.composeapp.generated.resources.library
 import riplay.composeapp.generated.resources.musical_notes
+import riplay.composeapp.generated.resources.yammbo_app_icon
 import it.fast4x.riplay.player.vlcj.VlcjFrameController
 
 
@@ -614,28 +615,31 @@ fun CenterPanelContent(
     ) {
 
         Row(
-            horizontalArrangement = Arrangement.spacedBy(5.dp),
-            verticalAlignment = Alignment.Top
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
         ) {
             Image(
-                painter = painterResource(Res.drawable.app_icon),
-                colorFilter = ColorFilter.tint(Color.Green.copy(alpha = 0.6f)),
-                contentDescription = null,
+                // Yammbo brand icon — left untinted so the original red+black
+                // artwork is preserved. Clicking it returns to Home.
+                painter = painterResource(Res.drawable.yammbo_app_icon),
+                contentDescription = "Yammbo Music",
                 modifier = Modifier
-                    .size(36.dp)
+                    .size(40.dp)
                     .combinedClickable(
-                        onClick = {},
+                        onClick = { onHomeClick() },
                         onLongClick = {}
                     )
             )
             Text(
-                text = "Play",
+                text = "Yammbo Music",
                 color = Color.White,
-                fontSize = 25.sp,
-                modifier = Modifier.clickable {
-                    onHomeClick()
-                }
+                fontSize = 22.sp,
+                modifier = Modifier.clickable { onHomeClick() }
             )
+            // Push the account widget to the far right of the center column.
+            Spacer(Modifier.weight(1f))
+            YammboAccountWidget()
 //            Image(
 //                painter = painterResource(Res.drawable.app_logo_text),
 //                colorFilter = ColorFilter.tint(
