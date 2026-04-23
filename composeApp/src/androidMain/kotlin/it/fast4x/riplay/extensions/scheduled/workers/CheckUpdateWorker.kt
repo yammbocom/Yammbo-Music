@@ -26,65 +26,76 @@ class CheckUpdateWorker(context: Context, params: WorkerParameters) : CoroutineW
     }
 
     override suspend fun doWork(): Result {
-        // Yammbo: Update check disabled
-        Timber.d("CheckUpdateWorker: Disabled for Yammbo Music")
-        return Result.success()
-
-        @Suppress("UNREACHABLE_CODE")
         val context = applicationContext
 
         return try {
-            Timber.d("CheckUpdateWorker: Start...")
+            Timber.d("CheckUpdateWorker: Start (GitHub Releases)...")
 
             val client = OkHttpClient()
-            val urlVersionCode =
-                "https://raw.githubusercontent.com/fast4x/RiPlay/main/updatedVersion/updatedVersionCode.ver"
+            // GitHub Releases API — the /latest endpoint always points to the
+            // most recent non-prerelease, non-draft release. No auth needed for
+            // public repos; GitHub's 60 req/h unauth limit per IP is plenty for
+            // a daily/weekly check.
+            val releasesUrl =
+                "https://api.github.com/repos/yammbocom/Yammbo-Music/releases/latest"
 
-            val request = Request.Builder().url(urlVersionCode).build()
+            val request = Request.Builder()
+                .url(releasesUrl)
+                .header("Accept", "application/vnd.github+json")
+                .header("X-GitHub-Api-Version", "2022-11-28")
+                .header("User-Agent", "Yammbo-Music-UpdateChecker")
+                .build()
             val response: Response = client.newCall(request).execute()
 
             if (!response.isSuccessful) {
-                Timber.e("CheckUpdateWorker: Download failed ${response.code}")
-                return Result.retry()
+                Timber.e("CheckUpdateWorker: GitHub API returned ${response.code}")
+                return if (response.code in 500..599) Result.retry() else Result.success()
             }
 
-            val responseData = response.body?.string()
-
-            if (responseData != null) {
-                try {
-                    val file = File(context.filesDir, "UpdatedVersionCode.ver")
-                    file.writeText(responseData)
-                    Timber.d("CheckUpdateWorker: File updated successfully with new data")
-                } catch (e: Exception) {
-                    Timber.e(e, "CheckUpdateWorker: Error writing file")
-                    return Result.failure()
+            val body = response.body?.string()
+                ?: run {
+                    Timber.e("CheckUpdateWorker: empty response body")
+                    return Result.retry()
                 }
-            } else {
-                Timber.e("CheckUpdateWorker: Response body is null")
-                return Result.retry()
+
+            val json = org.json.JSONObject(body)
+            val tagName = json.optString("tag_name").ifBlank {
+                Timber.e("CheckUpdateWorker: tag_name missing in release JSON")
+                return Result.success()
+            }
+            // Tag format: "v0.7.73" → versionName "0.7.73"
+            val remoteVersionName = tagName.removePrefix("v").trim()
+            // versionCode derived from the last dotted segment (project invariant:
+            // versionName "0.7.N" pairs with versionCode N).
+            val remoteVersionCode = remoteVersionName.substringAfterLast('.')
+                .toIntOrNull() ?: 0
+
+            val productName = "Yammbo Music"
+            val fileLine = "$remoteVersionCode-$remoteVersionName-$productName\n"
+
+            try {
+                File(context.filesDir, "UpdatedVersionCode.ver").writeText(fileLine)
+                Timber.d("CheckUpdateWorker: cached remote $remoteVersionName ($remoteVersionCode)")
+            } catch (e: Exception) {
+                Timber.e(e, "CheckUpdateWorker: writing .ver failed")
+                return Result.failure()
             }
 
-            val (updatedProductName, updatedVersionName, updatedVersionCode) = getAvailableUpdateInfo()
-
-            Timber.d("CheckUpdateWorker: updatedVersionName $updatedVersionName updatedProductName $updatedProductName updatedVersionCode $updatedVersionCode")
-
-
-            if (updatedVersionCode <= getVersionCode()) {
-                Timber.d("CheckUpdateWorker: No new version available")
+            val localVersionCode = getVersionCode()
+            if (remoteVersionCode <= localVersionCode) {
+                Timber.d("CheckUpdateWorker: up to date (local=$localVersionCode remote=$remoteVersionCode)")
                 return Result.success()
             }
 
-
-            val message = buildString {
-                appendLine("New version available: $updatedVersionName")
-            }
-
-            showNotification(context, message)
+            showNotification(
+                context,
+                "Nueva versión disponible: $remoteVersionName"
+            )
 
             Result.success()
 
         } catch (e: Exception) {
-            Timber.e(e, "CheckUpdateWorker: Error generic: ${e.message}")
+            Timber.e(e, "CheckUpdateWorker: ${e.message}")
             Result.retry()
         }
     }

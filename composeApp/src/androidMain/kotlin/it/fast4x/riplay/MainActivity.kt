@@ -798,8 +798,10 @@ class MainActivity :
                 ColorPaletteMode.System
             )
 
-            // Yammbo: Update check disabled
-            /*
+            // Yammbo: update check fires once on cold start (background WorkManager
+            // job runs daily/weekly per GeneralSettings). Limited to the `full`
+            // variant because the Play Store (minimal) variant uses its own
+            // update flow.
             if (preferences.getEnum(
                     checkUpdateStateKey,
                     CheckUpdateState.Enabled
@@ -810,7 +812,6 @@ class MainActivity :
                     checkAndDownloadNewVersionCode()
                 }
             }
-            */
 
 
             val coroutineScope = rememberCoroutineScope()

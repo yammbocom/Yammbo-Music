@@ -1,12 +1,22 @@
 #-dontshrink
--dontobfuscate
+# Obfuscation is ENABLED in release builds (Phase 30 hardening).
+# R8 will rename classes/methods to single letters; use -keep rules below for
+# anything referenced by string (manifest, reflection, serialization, JNI).
 #-dontoptimize
-#-repackageclasses 'defpackage'
+-repackageclasses ''
 
 -keep public class * extends android.app.Service
 -keep public class * extends android.app.Activity
 -keep public class * extends android.content.BroadcastReceiver
 -keep public class * extends android.content.ContentProvider
+
+# Firebase services are registered by fully-qualified name in AndroidManifest
+-keep class com.google.firebase.messaging.FirebaseMessagingService { *; }
+-keep class it.fast4x.riplay.extensions.yammboapi.YammboFirebaseService { *; }
+
+# Play Services Ads resolves some classes by name at runtime
+-keep class com.google.android.gms.ads.** { *; }
+-dontwarn com.google.android.gms.ads.**
 
 -keep,allowobfuscation,allowshrinking class kotlin.coroutines.Continuation
 

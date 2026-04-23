@@ -1,5 +1,40 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
+    <!--
+        Certificate pinning for the Yammbo Music backend.
+
+        Two pins are declared per Android docs recommendation:
+          1. The current leaf certificate (music.yammbo.com, Let's Encrypt, ~90d rotation).
+          2. The intermediate CA (Let's Encrypt R13) as a backup so leaf rotation
+             doesn't brick the app if we miss a pin update.
+
+        `expiration` is a failsafe — after this date Android silently disables
+        pinning for this domain, preventing a bricked release from locking out
+        users. Renew the pins (and bump expiration) before this date.
+
+        How to regenerate the leaf pin:
+          echo | openssl s_client -servername music.yammbo.com \
+            -connect music.yammbo.com:443 2>/dev/null \
+            | openssl x509 -pubkey -noout \
+            | openssl pkey -pubin -outform der \
+            | openssl dgst -sha256 -binary \
+            | openssl enc -base64
+    -->
+    <domain-config>
+        <domain includeSubdomains="false">music.yammbo.com</domain>
+        <pin-set expiration="2026-10-22">
+            <!-- Leaf: CN=music.yammbo.com -->
+            <pin digest="SHA-256">qxxFuw13Fr8NIbByH89KPM01HH5eB2fBH7ETL5XYJ3k=</pin>
+            <!-- Intermediate: Let's Encrypt R13 -->
+            <pin digest="SHA-256">AlSQhgtJirc8ahLyekmtX+Iw+v46yPYRLJt9Cq1GlB0=</pin>
+        </pin-set>
+        <!-- No user trust anchors here: user-installed CAs cannot MITM music.yammbo.com -->
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </domain-config>
+
+    <!-- Default policy for everything else (YouTube, AdMob, Firebase, etc.) -->
     <base-config cleartextTrafficPermitted="false">
         <trust-anchors>
             <certificates src="system" />

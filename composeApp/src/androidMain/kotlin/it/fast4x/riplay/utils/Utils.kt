@@ -646,15 +646,10 @@ fun getAvailableUpdateInfo(): Triple<String, String, Int> {
 }
 
 fun getUpdateDownloadUrl(): String {
-    val file = File(appContext().filesDir, "UpdatedVersionCode.ver")
-    var updatedVersionName = ""
-    if (file.exists()) {
-        val dataText = file.readText().substring(0, file.readText().length - 1).split("-")
-        updatedVersionName = if (dataText.size == 3) dataText[1] else ""
-    } else {
-        updatedVersionName = BuildConfig.VERSION_NAME
-    }
-    return "https://music.yammbo.com/releases/download/$updatedVersionName/yammbo-music-$updatedVersionName.apk"
+    // GitHub always redirects this URL to the actual assets of the latest
+    // release, so we don't need to embed a specific tag/APK filename. Works
+    // even if the asset naming convention changes.
+    return "https://github.com/yammbocom/Yammbo-Music/releases/latest"
 }
 
 @Composable
