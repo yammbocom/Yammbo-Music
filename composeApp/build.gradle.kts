@@ -333,8 +333,8 @@ android {
         applicationId = "com.yambo.music"
         minSdk = 24
         targetSdk = 36
-        versionCode = 73
-        versionName = "0.7.73"
+        versionCode = 74
+        versionName = "0.7.74"
 
         multiDexEnabled = true
 
@@ -711,7 +711,7 @@ java {
 // "1.<minor>.<patch>" — here 1.7.73. When bumping the Android versionName
 // minor/patch, bump the same digits here and keep major pinned at 1 until
 // the app has a proper 1.0 story.
-val desktopPackageVersion = "1.7.73"
+val desktopPackageVersion = "1.7.74"
 
 compose.desktop {
     application {

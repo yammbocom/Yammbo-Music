@@ -3,18 +3,19 @@
     <!--
         Certificate pinning for the Yammbo Music backend.
 
-        Two pins are declared per Android docs recommendation:
-          1. The current leaf certificate (music.yammbo.com, Let's Encrypt, ~90d rotation).
-          2. The intermediate CA (Let's Encrypt R13) as a backup so leaf rotation
-             doesn't brick the app if we miss a pin update.
+        Pins (defense in depth: 4 SPKI pins so cert/CA rotation doesn't brick the app):
+          1. Current leaf  (CN=yammbo.com,    Google Trust Services, ~90d rotation)
+          2. Current inter (Google Trust Services WE1, valid until 2029)
+          3. Backup leaf   (CN=music.yammbo.com, Let's Encrypt, kept for failback to LE)
+          4. Backup inter  (Let's Encrypt R13)
 
         `expiration` is a failsafe — after this date Android silently disables
         pinning for this domain, preventing a bricked release from locking out
         users. Renew the pins (and bump expiration) before this date.
 
-        How to regenerate the leaf pin:
+        How to regenerate pins:
           echo | openssl s_client -servername music.yammbo.com \
-            -connect music.yammbo.com:443 2>/dev/null \
+            -connect music.yammbo.com:443 -showcerts 2>/dev/null \
             | openssl x509 -pubkey -noout \
             | openssl pkey -pubin -outform der \
             | openssl dgst -sha256 -binary \
@@ -22,10 +23,14 @@
     -->
     <domain-config>
         <domain includeSubdomains="false">music.yammbo.com</domain>
-        <pin-set expiration="2026-10-22">
-            <!-- Leaf: CN=music.yammbo.com -->
+        <pin-set expiration="2027-04-30">
+            <!-- Leaf: CN=yammbo.com (GTS, since 2026-04-21) -->
+            <pin digest="SHA-256">4oU1hI8IrAHZACTpAkXw7HLQk3DEDAP/Diwa/w4E1Rg=</pin>
+            <!-- Intermediate: Google Trust Services WE1 (valid until 2029) -->
+            <pin digest="SHA-256">kIdp6NNEd8wsugYyyIYFsi1ylMCED3hZbSR8ZFsa/A4=</pin>
+            <!-- Backup leaf: CN=music.yammbo.com (Let's Encrypt, pre-2026-04-21) -->
             <pin digest="SHA-256">qxxFuw13Fr8NIbByH89KPM01HH5eB2fBH7ETL5XYJ3k=</pin>
-            <!-- Intermediate: Let's Encrypt R13 -->
+            <!-- Backup intermediate: Let's Encrypt R13 -->
             <pin digest="SHA-256">AlSQhgtJirc8ahLyekmtX+Iw+v46yPYRLJt9Cq1GlB0=</pin>
         </pin-set>
         <!-- No user trust anchors here: user-installed CAs cannot MITM music.yammbo.com -->
