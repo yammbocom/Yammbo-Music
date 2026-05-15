@@ -279,7 +279,10 @@ fun HomeSongs(
     )
 
     val backButtonFolder = Folder(name = "..", note = "Previous")
-    var showFolders by rememberPreference(showFoldersOnDeviceKey, true)
+    // Default OFF so the user sees ALL on-device tracks (including YTDLnis downloads)
+    // as a flat list instead of having to drill into folders. They can still toggle
+    // folder view back on from the on-device toolbar.
+    var showFolders by rememberPreference(showFoldersOnDeviceKey, false)
 
     var sortByOnDevice by rememberPreference(onDeviceSongSortByKey, OnDeviceSongSortBy.DateAdded)
     var sortByFolderOnDevice by rememberPreference(onDeviceFolderSortByKey, OnDeviceFolderSortBy.Title)

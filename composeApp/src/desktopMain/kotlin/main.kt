@@ -14,22 +14,40 @@ import riplay.composeapp.generated.resources.yammbo_app_icon
 
 
 @OptIn(ExperimentalCoilApi::class)
-fun main() = application {
-    setSingletonImageLoaderFactory { context ->
-        getAsyncImageLoader(context)
+fun main() {
+    runCatching {
+        val logDir = java.io.File(System.getProperty("user.home"), ".yammbo-music")
+        logDir.mkdirs()
+        val logFile = java.io.File(logDir, "yammbo-music.log")
+        val ps = java.io.PrintStream(java.io.FileOutputStream(logFile, true), true)
+        System.setOut(ps)
+        System.setErr(ps)
+        println("==== Yammbo Music started ${java.time.LocalDateTime.now()} pid=${ProcessHandle.current().pid()} ====")
+        println("user.dir=${System.getProperty("user.dir")}")
+        println("compose.application.resources.dir=${System.getProperty("compose.application.resources.dir")}")
     }
-    Window(
-       icon = painterResource(Res.drawable.yammbo_app_icon),
-        onCloseRequest = ::exitApplication,
-        state = WindowState(
-            placement = WindowPlacement.Maximized,
-        ),
-        title = "Yammbo Music",
-        undecorated = true
-    ) {
-        initializeEnvironment()
-        DesktopTheme {
-            ThreeColumnsApp()
+    Thread.setDefaultUncaughtExceptionHandler { t, e ->
+        System.err.println("UNCAUGHT in thread ${t.name}:")
+        e.printStackTrace(System.err)
+        System.err.flush()
+    }
+    initializeEnvironment()
+    application {
+        setSingletonImageLoaderFactory { context ->
+            getAsyncImageLoader(context)
+        }
+        Window(
+            icon = painterResource(Res.drawable.yammbo_app_icon),
+            onCloseRequest = ::exitApplication,
+            state = WindowState(
+                placement = WindowPlacement.Maximized,
+            ),
+            title = "Yammbo Music",
+            undecorated = true
+        ) {
+            DesktopTheme {
+                ThreeColumnsApp()
+            }
         }
     }
 }

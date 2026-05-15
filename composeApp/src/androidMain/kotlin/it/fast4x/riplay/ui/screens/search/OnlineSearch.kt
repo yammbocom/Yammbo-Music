@@ -227,6 +227,33 @@ fun OnlineSearch(
                     )
                 }
 
+                // Empty-query browse: a curated row of categories that pre-fill the
+                // search box. Gives the screen something useful before the user types,
+                // instead of the blank canvas we had before.
+                if (textFieldValue.text.isEmpty()) {
+                    item(key = "browse-title") {
+                        TitleMiniSection(
+                            title = stringResource(R.string.search_browse_title),
+                            modifier = Modifier
+                                .padding(start = 12.dp)
+                                .padding(top = 18.dp, bottom = 6.dp)
+                        )
+                    }
+                    item(key = "browse-grid") {
+                        BrowseCategoriesGrid(
+                            onCategoryClick = { categoryQuery ->
+                                onTextFieldValueChanged(
+                                    TextFieldValue(
+                                        text = categoryQuery,
+                                        selection = TextRange(categoryQuery.length)
+                                    )
+                                )
+                                onSearch(categoryQuery)
+                            }
+                        )
+                    }
+                }
+
                 suggestionsResult?.getOrNull()?.let { suggestions ->
 
                     item {

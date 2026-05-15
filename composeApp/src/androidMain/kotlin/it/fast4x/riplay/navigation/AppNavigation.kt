@@ -279,7 +279,7 @@ fun AppNavigation(
         }
 
         composable(route = NavRoutes.register.name) {
-            RegisterScreen(navController = navController)
+            RegisterScreen(navController = navController, authManager = authManager)
         }
 
         composable(route = NavRoutes.forgotPassword.name) {

@@ -333,8 +333,8 @@ android {
         applicationId = "com.yambo.music"
         minSdk = 24
         targetSdk = 36
-        versionCode = 74
-        versionName = "0.7.74"
+        versionCode = 79
+        versionName = "0.7.79"
 
         multiDexEnabled = true
 
@@ -766,6 +766,10 @@ compose.desktop {
             }
         }
 
+        buildTypes.release.proguard {
+            isEnabled.set(false)
+        }
+
     }
 }
 
@@ -809,7 +813,8 @@ val stageVlcMac by tasks.registering(Copy::class) {
 // root; `composeApp/lib` is already there, so no copy needed for `run`.
 listOf("package", "createDistributable", "packageReleaseDistributionForCurrentOS",
        "packageMsi", "packageDeb", "packageRpm", "packageDmg",
-       "packageReleaseMsi", "packageReleaseDeb", "packageReleaseRpm", "packageReleaseDmg")
+       "packageReleaseMsi", "packageReleaseDeb", "packageReleaseRpm", "packageReleaseDmg",
+       "prepareAppResources")
     .forEach { name ->
         tasks.matching { it.name == name }.configureEach {
             dependsOn(stageVlcForPackaging, stageVlcLinux, stageVlcMac)
@@ -819,6 +824,7 @@ listOf("package", "createDistributable", "packageReleaseDistributionForCurrentOS
 compose.resources {
     publicResClass = true
     generateResClass = always
+    packageOfResClass = "riplay.composeapp.generated.resources"
 }
 
 room {

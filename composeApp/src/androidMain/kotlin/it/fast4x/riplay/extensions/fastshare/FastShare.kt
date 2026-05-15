@@ -48,6 +48,7 @@ import it.fast4x.riplay.enums.ThumbnailRoundness
 import it.fast4x.riplay.extensions.preferences.rememberObservedPreference
 import it.fast4x.riplay.extensions.preferences.thumbnailRoundnessKey
 import it.fast4x.riplay.ui.components.CustomModalBottomSheet
+import it.fast4x.riplay.ui.components.themed.ConfirmationDialog
 import it.fast4x.riplay.ui.components.themed.SmartMessage
 import it.fast4x.riplay.utils.asSong
 import it.fast4x.riplay.utils.colorPalette
@@ -67,9 +68,11 @@ fun FastShare(
     content: Any,
 ) {
     var urlToShare by remember { mutableStateOf("") }
+    var ytUrlToShare by remember { mutableStateOf("") }
     var shareTitle by remember { mutableStateOf("") }
     var shareArtist by remember { mutableStateOf("") }
     var thumbnailUrl by remember { mutableStateOf<String?>(null) }
+    var pendingInstallApp by remember { mutableStateOf<DownloaderApp?>(null) }
 
     LaunchedEffect(Unit) {
         when (content) {
@@ -78,24 +81,28 @@ fun FastShare(
                 shareArtist = it.artistsText ?: ""
                 thumbnailUrl = it.thumbnailUrl
                 urlToShare = it.shareYamboUrl ?: ""
+                ytUrlToShare = it.shareYTUrl ?: it.shareYTMUrl ?: ""
             }
             is Playlist -> {
                 shareTitle = content.name
                 shareArtist = ""
                 thumbnailUrl = null
                 urlToShare = content.shareYamboUrl ?: ""
+                ytUrlToShare = content.shareYTUrl ?: content.shareYTMUrl ?: ""
             }
             is Album -> {
                 shareTitle = content.title ?: ""
                 shareArtist = content.authorsText ?: ""
                 thumbnailUrl = content.thumbnailUrl
                 urlToShare = content.shareYamboUrl ?: ""
+                ytUrlToShare = content.shareYTUrl ?: content.shareYTMUrl ?: ""
             }
             is Artist -> {
                 shareTitle = content.name ?: ""
                 shareArtist = ""
                 thumbnailUrl = content.thumbnailUrl
                 urlToShare = content.shareYamboUrl ?: ""
+                ytUrlToShare = content.shareYTUrl ?: content.shareYTMUrl ?: ""
             }
         }
     }
@@ -220,7 +227,14 @@ fun FastShare(
                 SocialShareButton(R.drawable.share_social, "Instagram") { shareToApp("com.instagram.android") }
                 SocialShareButton(R.drawable.share_social, "WhatsApp") { shareToApp("com.whatsapp") }
                 SocialShareButton(R.drawable.share_social, "Facebook") { shareToApp("com.facebook.katana") }
-                SocialShareButton(R.drawable.share_social, "TikTok") { shareToApp("com.zhiliaoapp.musically") }
+                SocialShareButton(R.drawable.share_social, "YTDLnis") {
+                    val url = ytUrlToShare.ifEmpty { urlToShare }
+                    if (url.isNotEmpty()) {
+                        shareUrlToDownloader(context, YTDLNIS_APP, url) {
+                            pendingInstallApp = YTDLNIS_APP
+                        }
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(20.dp))
@@ -253,6 +267,16 @@ fun FastShare(
 
             Spacer(modifier = Modifier.height(8.dp))
         }
+    }
+
+    pendingInstallApp?.let { app ->
+        ConfirmationDialog(
+            text = "${app.name} no está instalado.\n\n${app.description}\n\n¿Abrir su página oficial para descargarla?",
+            cancelText = "Cancelar",
+            confirmText = "Abrir GitHub",
+            onDismiss = { pendingInstallApp = null },
+            onConfirm = { openExternalUrl(context, app.githubUrl) }
+        )
     }
 }
 
@@ -331,7 +355,6 @@ private fun shareWithImage(
             "com.instagram.android" -> "Instagram"
             "com.whatsapp" -> "WhatsApp"
             "com.facebook.katana" -> "Facebook"
-            "com.zhiliaoapp.musically" -> "TikTok"
             else -> "La app"
         }
         SmartMessage("$appName no está instalado", PopupType.Error, context = context)
@@ -349,4 +372,46 @@ fun classicShare(content: String, context: Context, title: String = "") {
     val shareIntent = Intent.createChooser(sendIntent, null)
     shareIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     context.startActivity(shareIntent)
+}
+
+internal data class DownloaderApp(
+    val name: String,
+    val packageName: String,
+    val githubUrl: String,
+    val description: String
+)
+
+internal val YTDLNIS_APP = DownloaderApp(
+    name = "YTDLnis",
+    packageName = "com.deniscerri.ytdl",
+    githubUrl = "https://github.com/deniscerri/ytdlnis",
+    description = "YTDLnis es un descargador open-source basado en yt-dlp para audio y video de YouTube y cientos de sitios."
+)
+
+internal fun shareUrlToDownloader(
+    context: Context,
+    app: DownloaderApp,
+    url: String,
+    onAppMissing: () -> Unit
+) {
+    val intent = Intent(Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(Intent.EXTRA_TEXT, url)
+        setPackage(app.packageName)
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
+    try {
+        context.startActivity(intent)
+    } catch (e: ActivityNotFoundException) {
+        onAppMissing()
+    }
+}
+
+internal fun openExternalUrl(context: Context, url: String) {
+    runCatching {
+        val viewIntent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(viewIntent)
+    }
 }

@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.verticalScroll
@@ -24,9 +25,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.yambo.music.R
 import it.fast4x.riplay.enums.NavigationBarPosition
@@ -34,17 +39,26 @@ import it.fast4x.riplay.extensions.preferences.navigationBarPositionKey
 import it.fast4x.riplay.extensions.preferences.rememberPreference
 import it.fast4x.riplay.ui.components.themed.HeaderWithIcon
 import it.fast4x.riplay.ui.styling.Dimensions
+import it.fast4x.riplay.ui.styling.semiBold
 import it.fast4x.riplay.utils.colorPalette
 import it.fast4x.riplay.utils.typography
-import it.fast4x.riplay.ui.styling.semiBold
 
+
+// Per-section tint colors. Light alpha overlays on top of background gradient so the
+// active theme stays in charge — these only nudge each card so the user can tell them
+// apart at a glance (vs the symmetric grid we used before).
+private val SongsTint = Color(0xFFEF5350)      // red — match brand accent
+private val ArtistsTint = Color(0xFF5C6BC0)    // indigo
+private val AlbumsTint = Color(0xFFAB47BC)     // purple
+private val PlaylistsTint = Color(0xFFFFA726)  // amber
 
 @Composable
 fun MyMusicTab(
     onSongsClick: () -> Unit,
     onArtistsClick: () -> Unit,
     onAlbumsClick: () -> Unit,
-    onPlaylistsClick: () -> Unit
+    onPlaylistsClick: () -> Unit,
+    onDeviceClick: () -> Unit
 ) {
     val navigationBarPosition by rememberPreference(
         navigationBarPositionKey,
@@ -77,62 +91,243 @@ fun MyMusicTab(
                 onClick = {}
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // First row: Songs + Artists
+                // Hero — Canciones (full-width, prominent)
+                BentoHeroCard(
+                    iconId = R.drawable.musical_notes,
+                    label = stringResource(R.string.local_songs),
+                    hint = stringResource(R.string.my_music_hint_songs),
+                    tint = SongsTint,
+                    onClick = onSongsClick
+                )
+
+                // Two squares — Artistas + Álbumes
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    MyMusicCard(
-                        iconId = R.drawable.musical_notes,
-                        label = stringResource(R.string.local_songs),
-                        onClick = onSongsClick,
-                        modifier = Modifier.weight(1f)
-                    )
-                    MyMusicCard(
+                    BentoSquareCard(
                         iconId = R.drawable.person,
                         label = stringResource(R.string.artists),
+                        tint = ArtistsTint,
                         onClick = onArtistsClick,
                         modifier = Modifier.weight(1f)
                     )
-                }
-
-                // Second row: Albums + Playlists
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    MyMusicCard(
+                    BentoSquareCard(
                         iconId = R.drawable.album,
                         label = stringResource(R.string.albums),
+                        tint = AlbumsTint,
                         onClick = onAlbumsClick,
                         modifier = Modifier.weight(1f)
                     )
-                    MyMusicCard(
-                        iconId = R.drawable.library,
-                        label = stringResource(R.string.playlists),
-                        onClick = onPlaylistsClick,
-                        modifier = Modifier.weight(1f)
-                    )
                 }
+
+                // Wide — Listas de reproducción
+                BentoWideCard(
+                    iconId = R.drawable.library,
+                    label = stringResource(R.string.playlists),
+                    hint = stringResource(R.string.my_music_hint_playlists),
+                    tint = PlaylistsTint,
+                    onClick = onPlaylistsClick
+                )
+
+                // Accent banner — En mi dispositivo
+                OnDeviceBannerCard(onClick = onDeviceClick)
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 }
 
 @Composable
-private fun MyMusicCard(
+private fun BentoHeroCard(
     iconId: Int,
     label: String,
+    hint: String,
+    tint: Color,
+    onClick: () -> Unit
+) {
+    val colors = colorPalette()
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(140.dp)
+            .clip(RoundedCornerShape(24.dp))
+            .background(
+                Brush.linearGradient(
+                    colors = listOf(
+                        tint.copy(alpha = 0.32f),
+                        colors.background3.copy(alpha = 0.95f)
+                    )
+                )
+            )
+            .clickable(onClick = onClick)
+            .padding(20.dp)
+    ) {
+        // Decorative oversized icon at right
+        Image(
+            painter = painterResource(id = iconId),
+            contentDescription = null,
+            colorFilter = ColorFilter.tint(tint.copy(alpha = 0.35f)),
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .size(120.dp)
+        )
+
+        Column(
+            modifier = Modifier.align(Alignment.CenterStart),
+            verticalArrangement = Arrangement.Center
+        ) {
+            CategoryBadge(iconId = iconId, tint = tint, badgeSize = 44.dp, iconSize = 22.dp)
+            Spacer(modifier = Modifier.height(12.dp))
+            BasicText(
+                text = label,
+                style = typography().l.semiBold.copy(color = colors.text),
+                maxLines = 1
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            BasicText(
+                text = hint,
+                style = typography().xs.copy(color = colors.textSecondary),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
+@Composable
+private fun BentoSquareCard(
+    iconId: Int,
+    label: String,
+    tint: Color,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val colors = colorPalette()
+    Box(
+        modifier = modifier
+            .aspectRatio(1f)
+            .clip(RoundedCornerShape(22.dp))
+            .background(
+                Brush.linearGradient(
+                    colors = listOf(
+                        tint.copy(alpha = 0.22f),
+                        colors.background3.copy(alpha = 0.95f)
+                    )
+                )
+            )
+            .clickable(onClick = onClick)
+            .padding(16.dp)
+    ) {
+        Column(
+            modifier = Modifier.align(Alignment.BottomStart),
+            verticalArrangement = Arrangement.Bottom
+        ) {
+            BasicText(
+                text = label,
+                style = typography().m.semiBold.copy(color = colors.text),
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        CategoryBadge(
+            iconId = iconId,
+            tint = tint,
+            badgeSize = 44.dp,
+            iconSize = 22.dp,
+            modifier = Modifier.align(Alignment.TopStart)
+        )
+    }
+}
+
+@Composable
+private fun BentoWideCard(
+    iconId: Int,
+    label: String,
+    hint: String,
+    tint: Color,
+    onClick: () -> Unit
+) {
+    val colors = colorPalette()
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(110.dp)
+            .clip(RoundedCornerShape(22.dp))
+            .background(
+                Brush.linearGradient(
+                    colors = listOf(
+                        tint.copy(alpha = 0.28f),
+                        colors.background3.copy(alpha = 0.95f)
+                    )
+                )
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 18.dp, vertical = 14.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxSize(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            CategoryBadge(iconId = iconId, tint = tint, badgeSize = 52.dp, iconSize = 26.dp)
+            Spacer(modifier = Modifier.size(14.dp))
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.Center
+            ) {
+                BasicText(
+                    text = label,
+                    style = typography().m.semiBold.copy(color = colors.text),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                BasicText(
+                    text = hint,
+                    style = typography().xs.copy(color = colors.textSecondary),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CategoryBadge(
+    iconId: Int,
+    tint: Color,
+    badgeSize: Dp,
+    iconSize: Dp,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .size(badgeSize)
+            .clip(CircleShape)
+            .background(tint.copy(alpha = 0.85f)),
+        contentAlignment = Alignment.Center
+    ) {
+        Image(
+            painter = painterResource(id = iconId),
+            contentDescription = null,
+            colorFilter = ColorFilter.tint(Color.White),
+            modifier = Modifier.size(iconSize)
+        )
+    }
+}
+
+@Composable
+private fun OnDeviceBannerCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -140,32 +335,59 @@ private fun MyMusicCard(
 
     Box(
         modifier = modifier
-            .aspectRatio(1f)
-            .clip(RoundedCornerShape(16.dp))
-            .background(colors.background4)
+            .fillMaxWidth()
+            .height(108.dp)
+            .clip(RoundedCornerShape(22.dp))
+            .background(
+                Brush.linearGradient(
+                    colors = listOf(
+                        colors.accent.copy(alpha = 0.92f),
+                        colors.accent.copy(alpha = 0.55f)
+                    )
+                )
+            )
             .clickable(onClick = onClick)
-            .padding(16.dp),
-        contentAlignment = Alignment.Center
+            .padding(horizontal = 20.dp, vertical = 14.dp)
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-            modifier = Modifier.fillMaxSize()
+        Row(
+            modifier = Modifier.fillMaxSize(),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Image(
-                painter = painterResource(id = iconId),
-                contentDescription = label,
-                colorFilter = ColorFilter.tint(colors.accent),
-                modifier = Modifier.size(48.dp)
-            )
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.22f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.download),
+                    contentDescription = stringResource(R.string.on_device),
+                    colorFilter = ColorFilter.tint(colors.onAccent),
+                    modifier = Modifier.size(28.dp)
+                )
+            }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.size(14.dp))
 
-            BasicText(
-                text = label,
-                style = typography().m.semiBold.copy(color = colors.text),
-                maxLines = 1
-            )
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.Center
+            ) {
+                BasicText(
+                    text = stringResource(R.string.my_music_on_device_title),
+                    style = typography().m.semiBold.copy(color = colors.onAccent),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                BasicText(
+                    text = stringResource(R.string.my_music_on_device_subtitle),
+                    style = typography().xs.copy(color = colors.onAccent.copy(alpha = 0.88f)),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
         }
     }
 }

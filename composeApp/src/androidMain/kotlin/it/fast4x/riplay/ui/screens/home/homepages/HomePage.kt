@@ -113,6 +113,7 @@ import it.fast4x.riplay.ui.styling.color
 import it.fast4x.riplay.ui.styling.secondary
 import it.fast4x.riplay.ui.styling.semiBold
 import it.fast4x.riplay.utils.HomeDataCache
+import it.fast4x.riplay.utils.resolveFallbackTopSongId
 import it.fast4x.riplay.utils.asMediaItem
 import it.fast4x.riplay.utils.asSong
 import it.fast4x.riplay.utils.asVideoMediaItem
@@ -191,37 +192,57 @@ fun HomePage(
 
                 when (playEventType) {
                     PlayEventsType.MostPlayed -> {
-                        val songs = Database.trending(3).distinctUntilChanged().first()
+                        val thirtyDaysMs = 30L * 24L * 60L * 60L * 1000L
+                        val songs = Database.trending(
+                            limit = 3,
+                            period = thirtyDaysMs
+                        ).distinctUntilChanged().first()
                         val song = songs.firstOrNull { item ->
-                            blacklisted.value?.map { it.path }?.contains(item.id) == false
+                            // Treat blacklist=null (Flow still loading) as "no entries"
+                            // so we don't reject every candidate during the DB race.
+                            blacklisted.value?.none { bl -> bl.path == item.id } ?: true
                         }
                         val songId = if (song?.isLocal == true) song.mediaId else song?.id
 
-                        if (relatedPage == null || trending?.id != song?.id || trending?.mediaId != song?.id) {
-                            relatedPage = Environment.relatedPage(
-                                NextBody(
-                                    videoId = (songId ?: "HZnNt9nnEhw")
-                                )
-                            )?.getOrNull().let {
-                                it?.copy(
-                                    songs = it.songs?.filter { item ->
-                                        blacklisted.value?.map { it.path }?.contains(item.key) == false
-                                    },
-                                    artists = it.artists?.filter { item ->
-                                        blacklisted.value?.map { it.path }?.contains(item.key) == false
-                                    },
-                                    playlists = it.playlists?.filter { item ->
-                                        blacklisted.value?.map { it.path }?.contains(item.key) == false
-                                    },
-                                    albums = it.albums?.filter { item ->
-                                        blacklisted.value?.map { it.path }?.contains(item.key) == false
-                                    }
-                                )
+                        // Fallback: if user has no recent plays, seed Selecciones Rapidas
+                        // with the current top-charts track so the section is never empty.
+                        // Cached at process level → chartsPage fetched at most once.
+                        val effectiveSongId = songId ?: resolveFallbackTopSongId(
+                            preferredCountry = selectedCountryCode.name,
+                            homePage = homePage
+                        )
+
+                        if (effectiveSongId != null) {
+                            if (relatedPage == null || trending?.id != song?.id || trending?.mediaId != song?.id) {
+                                relatedPage = Environment.relatedPage(
+                                    NextBody(
+                                        videoId = effectiveSongId
+                                    )
+                                )?.getOrNull().let {
+                                    it?.copy(
+                                        songs = it.songs?.filter { item ->
+                                            blacklisted.value?.none { bl -> bl.path == item.key } ?: true
+                                        },
+                                        artists = it.artists?.filter { item ->
+                                            blacklisted.value?.none { bl -> bl.path == item.key } ?: true
+                                        },
+                                        playlists = it.playlists?.filter { item ->
+                                            blacklisted.value?.none { bl -> bl.path == item.key } ?: true
+                                        },
+                                        albums = it.albums?.filter { item ->
+                                            blacklisted.value?.none { bl -> bl.path == item.key } ?: true
+                                        }
+                                    )
+                                }
+                                HomeDataCache.relatedPage = relatedPage
                             }
-                            HomeDataCache.relatedPage = relatedPage
+                            // Only update `trending` (= "play all" anchor) when we have
+                            // a real user-trending song; don't pin it to a chart fallback.
+                            if (song != null) {
+                                trending = song
+                                HomeDataCache.trending = trending
+                            }
                         }
-                        trending = song
-                        HomeDataCache.trending = trending
                     }
 
                     PlayEventsType.LastPlayed, PlayEventsType.CasualPlayed -> {
@@ -229,36 +250,45 @@ fun HomePage(
                         val songs = Database.lastPlayed(numSongs).distinctUntilChanged().first()
                         val song = (if (playEventType == PlayEventsType.LastPlayed) songs
                         else songs.shuffled()).firstOrNull { item ->
-                            blacklisted.value?.map { it.path }?.contains(item.id) == false
+                            blacklisted.value?.none { bl -> bl.path == item.id } ?: true
                         }
                         val songId = if (song?.isLocal == true) song.mediaId else song?.id
 
-                        if (relatedPage == null || trending?.id != song?.id || trending?.mediaId != song?.id) {
-                            relatedPage =
-                                Environment.relatedPage(
-                                    NextBody(
-                                        videoId = (songId ?: "HZnNt9nnEhw")
-                                    )
-                                )?.getOrNull().let {
-                                    it?.copy(
-                                        songs = it.songs?.filter { item ->
-                                            blacklisted.value?.map { it.path }?.contains(item.key) == false
-                                        },
-                                        artists = it.artists?.filter { item ->
-                                            blacklisted.value?.map { it.path }?.contains(item.key) == false
-                                        },
-                                        playlists = it.playlists?.filter { item ->
-                                            blacklisted.value?.map { it.path }?.contains(item.key) == false
-                                        },
-                                        albums = it.albums?.filter { item ->
-                                            blacklisted.value?.map { it.path }?.contains(item.key) == false
-                                        }
-                                    )
-                                }
-                            HomeDataCache.relatedPage = relatedPage
+                        val effectiveSongId = songId ?: resolveFallbackTopSongId(
+                            preferredCountry = selectedCountryCode.name,
+                            homePage = homePage
+                        )
+
+                        if (effectiveSongId != null) {
+                            if (relatedPage == null || trending?.id != song?.id || trending?.mediaId != song?.id) {
+                                relatedPage =
+                                    Environment.relatedPage(
+                                        NextBody(
+                                            videoId = effectiveSongId
+                                        )
+                                    )?.getOrNull().let {
+                                        it?.copy(
+                                            songs = it.songs?.filter { item ->
+                                                blacklisted.value?.none { bl -> bl.path == item.key } ?: true
+                                            },
+                                            artists = it.artists?.filter { item ->
+                                                blacklisted.value?.none { bl -> bl.path == item.key } ?: true
+                                            },
+                                            playlists = it.playlists?.filter { item ->
+                                                blacklisted.value?.none { bl -> bl.path == item.key } ?: true
+                                            },
+                                            albums = it.albums?.filter { item ->
+                                                blacklisted.value?.none { bl -> bl.path == item.key } ?: true
+                                            }
+                                        )
+                                    }
+                                HomeDataCache.relatedPage = relatedPage
+                            }
+                            if (song != null) {
+                                trending = song
+                                HomeDataCache.trending = trending
+                            }
                         }
-                        trending = song
-                        HomeDataCache.trending = trending
                     }
 
                 }
@@ -707,7 +737,7 @@ fun HomePage(
                                 .padding(vertical = 4.dp)
                         )
                         LazyRow(contentPadding = endPaddingValues) {
-                            items(it.items.filter {item -> blacklisted.value?.map { it.path }?.contains(item?.key) == false }) { item ->
+                            items(it.items.filter { item -> blacklisted.value?.none { bl -> bl.path == item?.key } ?: true }) { item ->
                                 when (item) {
                                     is Environment.SongItem -> {
                                         Timber.d("Environment homePage SongItem: ${item.info?.name}")

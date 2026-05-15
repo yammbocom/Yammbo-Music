@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.annotation.OptIn
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -59,6 +60,7 @@ import it.fast4x.riplay.data.Database
 import it.fast4x.riplay.LocalPlayerServiceBinder
 import it.fast4x.riplay.LocalSelectedQueue
 import com.yambo.music.R
+import it.fast4x.riplay.commonutils.LOCAL_KEY_PREFIX
 import it.fast4x.riplay.commonutils.MODIFIED_PREFIX
 import it.fast4x.riplay.enums.ContentType
 import it.fast4x.riplay.enums.PopupType
@@ -103,7 +105,11 @@ import timber.log.Timber
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalDensity
@@ -490,12 +496,78 @@ suspend fun updateOnlineAlbum(albumId: String) {
 
 
 
+/**
+ * Shown when the user opens the song/video info screen for a local-device track
+ * (id prefixed with `LOCAL_KEY_PREFIX`). The online endpoint can't resolve these
+ * ids, so we render a small explanatory card instead of an infinite loader or
+ * a fully-blank screen.
+ */
+@Composable
+fun LocalSongInfoEmptyState() {
+    val windowInsets = WindowInsets.systemBars
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+        modifier = Modifier
+            .padding(
+                windowInsets
+                    .only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)
+                    .asPaddingValues()
+            )
+            .background(colorPalette().background0)
+            .fillMaxSize()
+            .padding(horizontal = 32.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(96.dp)
+                .clip(CircleShape)
+                .background(colorPalette().accent.copy(alpha = 0.12f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Image(
+                painter = painterResource(R.drawable.musical_notes),
+                contentDescription = null,
+                colorFilter = ColorFilter.tint(colorPalette().accent),
+                modifier = Modifier.size(40.dp)
+            )
+        }
+        Spacer(modifier = Modifier.height(20.dp))
+        BasicText(
+            text = stringResource(R.string.local_info_title),
+            style = typography().m.copy(
+                fontWeight = FontWeight.SemiBold,
+                color = colorPalette().text,
+                textAlign = TextAlign.Center
+            ),
+            maxLines = 2
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        BasicText(
+            text = stringResource(R.string.local_info_subtitle),
+            style = typography().xs.copy(
+                color = colorPalette().textSecondary,
+                textAlign = TextAlign.Center
+            ),
+            maxLines = 4
+        )
+    }
+}
+
 @UnstableApi
 @Composable
 fun ShowVideoOrSongInfo(
     videoId: String,
 ) {
     if (videoId.isBlank()) return
+
+    // Local files (MediaStore / on-device) have IDs prefixed with LOCAL_KEY_PREFIX
+    // and don't resolve via the online VideOrSongInfo endpoint — short-circuit to a
+    // friendly empty state instead of showing a permanent spinner / blank screen.
+    if (videoId.startsWith(LOCAL_KEY_PREFIX)) {
+        LocalSongInfoEmptyState()
+        return
+    }
 
     val thumbnailRoundness by rememberPreference(thumbnailRoundnessKey, ThumbnailRoundness.Heavy)
     val windowInsets = WindowInsets.systemBars
@@ -703,6 +775,11 @@ fun ShowVideoOrSongInfo(
 ) {
 
     if (videoId.isBlank()) return
+
+    if (videoId.startsWith(LOCAL_KEY_PREFIX)) {
+        LocalSongInfoEmptyState()
+        return
+    }
 
     val thumbnailRoundness by rememberPreference(thumbnailRoundnessKey, ThumbnailRoundness.Heavy)
 

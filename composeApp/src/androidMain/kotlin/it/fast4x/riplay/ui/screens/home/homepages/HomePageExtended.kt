@@ -98,7 +98,9 @@ import it.fast4x.riplay.utils.colorPalette
 import it.fast4x.riplay.ui.screens.settings.isYtLoggedIn
 import it.fast4x.riplay.extensions.preferences.quickPicsHomePageKey
 import it.fast4x.riplay.extensions.preferences.showListenerLevelsKey
+import it.fast4x.riplay.utils.HomeDataCache
 import it.fast4x.riplay.utils.isLocal
+import it.fast4x.riplay.utils.resolveFallbackTopSongId
 import it.fast4x.riplay.ui.components.ButtonsRow
 import it.fast4x.riplay.ui.components.themed.IconButton
 import kotlinx.coroutines.flow.first
@@ -194,17 +196,28 @@ fun HomePageExtended(
                     PlayEventsType.MostPlayed -> {
                         val songs = Database.trending(3).distinctUntilChanged().first()
                         val song = songs.firstOrNull { item ->
-                            blacklisted.value?.map { it.path }?.contains(item.id) == false
+                            blacklisted.value?.none { bl -> bl.path == item.id } ?: true
                         }
                         val songId = if (song?.isLocal == true) song.mediaId else song?.id
-                        if (relatedPageResult == null || trending?.id != song?.id || trending?.mediaId != song?.id) {
-                            relatedPageResult = Environment.relatedPage(
-                                NextBody(
-                                    videoId = (songId ?: "HZnNt9nnEhw")
+
+                        // Fallback to current top-charts when user has no recent plays.
+                        val effectiveSongId = songId ?: resolveFallbackTopSongId(
+                            preferredCountry = selectedCountryCode.name,
+                            homePage = homePageResult?.getOrNull()
+                        )
+
+                        if (effectiveSongId != null) {
+                            if (relatedPageResult == null || trending?.id != song?.id || trending?.mediaId != song?.id) {
+                                relatedPageResult = Environment.relatedPage(
+                                    NextBody(
+                                        videoId = effectiveSongId
+                                    )
                                 )
-                            )
+                            }
+                            if (song != null) {
+                                trending = song
+                            }
                         }
-                        trending = song
 
                     }
 
@@ -213,19 +226,29 @@ fun HomePageExtended(
                         val songs = Database.lastPlayed(numSongs).distinctUntilChanged().first()
                         val song = (if (playEventType == PlayEventsType.LastPlayed) songs
                             else songs.shuffled()).firstOrNull { item ->
-                            blacklisted.value?.map { it.path }?.contains(item.id) == false
+                            blacklisted.value?.none { bl -> bl.path == item.id } ?: true
                         }
                         val songId = if (song?.isLocal == true) song.mediaId else song?.id
                         Timber.d("HomePage Last played song $song relatedPageResult $relatedPageResult songId $songId")
-                        if (relatedPageResult == null || trending?.id != song?.id || trending?.mediaId != song?.id) {
-                            relatedPageResult =
-                                Environment.relatedPage(
-                                    NextBody(
-                                        videoId = (songId ?: "HZnNt9nnEhw")
+
+                        val effectiveSongId = songId ?: resolveFallbackTopSongId(
+                            preferredCountry = selectedCountryCode.name,
+                            homePage = homePageResult?.getOrNull()
+                        )
+
+                        if (effectiveSongId != null) {
+                            if (relatedPageResult == null || trending?.id != song?.id || trending?.mediaId != song?.id) {
+                                relatedPageResult =
+                                    Environment.relatedPage(
+                                        NextBody(
+                                            videoId = effectiveSongId
+                                        )
                                     )
-                                )
+                            }
+                            if (song != null) {
+                                trending = song
+                            }
                         }
-                        trending = song
 
                     }
 

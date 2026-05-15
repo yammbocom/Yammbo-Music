@@ -24,13 +24,11 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -44,13 +42,15 @@ import androidx.navigation.NavController
 import com.yambo.music.R
 import it.fast4x.riplay.enums.NavRoutes
 import it.fast4x.riplay.extensions.yammboapi.YammboApiService
+import it.fast4x.riplay.extensions.yammboapi.YammboAuthManager
 import it.fast4x.riplay.utils.colorPalette
 import it.fast4x.riplay.utils.typography
 import kotlinx.coroutines.launch
 
 @Composable
 fun RegisterScreen(
-    navController: NavController
+    navController: NavController,
+    authManager: YammboAuthManager
 ) {
     val coroutineScope = rememberCoroutineScope()
     var email by remember { mutableStateOf("") }
@@ -58,7 +58,6 @@ fun RegisterScreen(
     var confirmPassword by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-    var successMessage by remember { mutableStateOf<String?>(null) }
 
     val colors = colorPalette()
     val typo = typography()
@@ -66,16 +65,7 @@ fun RegisterScreen(
     val fillAllFieldsText = stringResource(R.string.auth_fill_all_fields)
     val passwordsNotMatchText = stringResource(R.string.auth_passwords_not_match)
     val passwordMinLengthText = stringResource(R.string.auth_password_min_length)
-    val accountCreatedVerifyText = stringResource(R.string.auth_account_created_verify)
-    val accountCreatedSuccessText = stringResource(R.string.auth_account_created_success)
     val registrationFailedText = stringResource(R.string.auth_registration_failed)
-
-    LaunchedEffect(successMessage) {
-        if (successMessage != null) {
-            delay(2000)
-            navController.popBackStack()
-        }
-    }
 
     val textFieldColors = OutlinedTextFieldDefaults.colors(
         focusedBorderColor = colors.accent,
@@ -170,15 +160,6 @@ fun RegisterScreen(
             )
         }
 
-        successMessage?.let { msg ->
-            Spacer(modifier = Modifier.height(12.dp))
-            BasicText(
-                text = msg,
-                style = typo.xxs.copy(color = colors.accent, textAlign = TextAlign.Center),
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
-
         Spacer(modifier = Modifier.height(24.dp))
 
         Button(
@@ -199,19 +180,23 @@ fun RegisterScreen(
                 }
                 isLoading = true
                 errorMessage = null
-                successMessage = null
                 coroutineScope.launch {
                     YammboApiService.register(email.trim(), password, confirmPassword)
                         .onSuccess { response ->
-                            if (response.isSuccess) {
-                                successMessage = if (response.status == "needs_email_verification")
-                                    accountCreatedVerifyText
-                                else
-                                    accountCreatedSuccessText
-                                errorMessage = null
+                            val accessToken = response.resolvedUser?.accessToken
+                            if (response.isSuccess && !accessToken.isNullOrEmpty()) {
+                                authManager.saveUser(response)
+                                val userId = authManager.getUserId()
+                                if (userId > 0) {
+                                    YammboApiService.checkSubscription(userId).onSuccess { subResponse ->
+                                        authManager.saveSubscriptionStatus(subResponse)
+                                    }
+                                }
+                                navController.navigate(NavRoutes.home.name) {
+                                    popUpTo(NavRoutes.login.name) { inclusive = true }
+                                }
                             } else {
                                 errorMessage = response.firstError ?: registrationFailedText
-                                successMessage = null
                             }
                         }
                         .onFailure { e ->

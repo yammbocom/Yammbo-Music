@@ -20,11 +20,17 @@ import kotlin.io.path.pathString
 class VlcjController : PlayerController {
 
     init {
-        //println("desktop VlcjController init ${System.setProperty("jna.library.path", System.getProperty("user.dir"))}")
-        addSearchPath(
-            RuntimeUtil.getLibVlcLibraryName(),
-            Paths.get(System.getProperty("user.dir"), "lib", "libvlc.dll").pathString
-        )
+        val resourcesDir = System.getProperty("compose.application.resources.dir")
+        val libDir = if (resourcesDir != null) {
+            Paths.get(resourcesDir, "lib")
+        } else {
+            Paths.get(System.getProperty("user.dir"), "composeApp", "lib").takeIf {
+                it.toFile().exists()
+            } ?: Paths.get(System.getProperty("user.dir"), "lib")
+        }
+        System.setProperty("jna.library.path", libDir.pathString)
+        System.setProperty("VLC_PLUGIN_PATH", libDir.resolve("plugins").pathString)
+        addSearchPath(RuntimeUtil.getLibVlcLibraryName(), libDir.pathString)
         NativeDiscovery().discover()
     }
 

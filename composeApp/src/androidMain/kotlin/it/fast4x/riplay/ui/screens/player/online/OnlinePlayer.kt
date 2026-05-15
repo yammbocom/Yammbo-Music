@@ -377,10 +377,12 @@ fun OnlinePlayer(
     onDismiss: () -> Unit,
 ) {
 
-    BackHandler(
-        enabled = playerSheetState.isExpanded,
-        onBack = onDismiss
-    )
+    // Back handling is centralized in HomeScreen's BackHandler so that:
+    //  - Expanded player is always collapsed first
+    //  - Tab navigation falls back to Inicio (0)
+    //  - Inicio uses a two-press confirm to exit
+    // Having a BackHandler here too caused races against playerSheetState.isExpanded
+    // (strict `value == upperBound`) and let back slip through to section navigation.
 
     val menuState = LocalGlobalSheetState.current
 
@@ -984,12 +986,21 @@ fun OnlinePlayer(
         it to (it - 64.dp).px
     }
 
+    // Stable cache key per video so navigating away and coming back avoids a
+    // fresh network round-trip + transformation cost (which was causing the
+    // perceptible cover delay after selecting a song from Search).
+    val playerCoverCacheKey = remember(mediaItem.mediaId) {
+        "player-cover:${mediaItem.mediaId}"
+    }
     val painter = rememberAsyncImagePainter(
         model = ImageRequest.Builder(LocalContext.current)
             .data(
                 mediaItem.mediaMetadata.artworkUri.toString().thumbnail(1200)
             )
             .size(1200, 1200)
+            .crossfade(true)
+            .memoryCacheKey(playerCoverCacheKey)
+            .diskCacheKey(playerCoverCacheKey)
             .transformations(LandscapeToSquareTransformation(1200))
             .transformations(
                 listOf(

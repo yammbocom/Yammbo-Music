@@ -100,40 +100,66 @@ object ShareImageGenerator {
 
     private fun loadCoverArt(thumbnailUrl: String?): Bitmap? {
         if (thumbnailUrl.isNullOrEmpty() || thumbnailUrl == "null") return null
-        return try {
-            // Request high resolution cover art
-            val highResSize = 1200
-            val url = when {
-                thumbnailUrl.contains("lh3.googleusercontent.com") -> {
-                    // YouTube Music thumbnails — request max quality
-                    val base = thumbnailUrl.split("=").firstOrNull() ?: thumbnailUrl
-                    "$base=w$highResSize-h$highResSize-l90-rj"
+
+        // Try a chain of progressively-lower resolution URLs. Stops at the first one
+        // that actually downloads — avoids the upscale-blur that happened when the
+        // single-attempt maxresdefault came back 404 and we fell straight to hqdefault.
+        val candidates = buildList {
+            when {
+                thumbnailUrl.contains("lh3.googleusercontent.com") ||
+                thumbnailUrl.contains("yt3.googleusercontent.com") ||
+                thumbnailUrl.contains("yt3.ggpht.com") -> {
+                    val base = thumbnailUrl.substringBefore("=", thumbnailUrl)
+                    add("$base=w2000-h2000-l90-rj")
+                    add("$base=w1200-h1200-l90-rj")
+                    add("$base=w800-h800-l90-rj")
+                    if (thumbnailUrl != base) add(thumbnailUrl) // original sized variant
                 }
                 thumbnailUrl.contains("i.ytimg.com") -> {
-                    // YouTube video thumbnails — use maxresdefault
-                    thumbnailUrl.replace("hqdefault", "maxresdefault")
-                        .replace("mqdefault", "maxresdefault")
-                        .replace("sddefault", "maxresdefault")
+                    // Try YT video thumbnail sizes from highest to lowest.
+                    val variants = listOf("maxresdefault", "sddefault", "hqdefault", "mqdefault")
+                    val normalised = thumbnailUrl
+                        .replace("hqdefault", "PLACEHOLDER")
+                        .replace("mqdefault", "PLACEHOLDER")
+                        .replace("sddefault", "PLACEHOLDER")
+                        .replace("maxresdefault", "PLACEHOLDER")
+                        .replace("default", "PLACEHOLDER")
+                    if (normalised.contains("PLACEHOLDER")) {
+                        variants.forEach { v -> add(normalised.replace("PLACEHOLDER", v)) }
+                    } else {
+                        add(thumbnailUrl)
+                    }
                 }
-                else -> thumbnailUrl
-            }
-            val connection = URL(url).openConnection().apply {
-                connectTimeout = 10000
-                readTimeout = 10000
-            }
-            BitmapFactory.decodeStream(connection.getInputStream())
-        } catch (e: Exception) {
-            // Fallback to original URL if high-res fails
-            try {
-                val connection = URL(thumbnailUrl).openConnection().apply {
-                    connectTimeout = 10000
-                    readTimeout = 10000
-                }
-                BitmapFactory.decodeStream(connection.getInputStream())
-            } catch (e2: Exception) {
-                null
+                else -> add(thumbnailUrl)
             }
         }
+
+        for (candidate in candidates) {
+            val bmp = fetchBitmap(candidate) ?: continue
+            // Reject obvious upscale candidates — anything smaller than the target
+            // would just get blown up by createScaledBitmap. Try the next URL instead.
+            if (minOf(bmp.width, bmp.height) >= COVER_SIZE) return bmp
+            // Keep as last-resort: if no candidate beats COVER_SIZE we'll return the
+            // largest one we've seen so far.
+            if (candidate == candidates.last()) return bmp
+            bmp.recycle()
+        }
+        return null
+    }
+
+    private fun fetchBitmap(url: String): Bitmap? = try {
+        val connection = URL(url).openConnection().apply {
+            connectTimeout = 10000
+            readTimeout = 10000
+        }
+        // Hint we'd like to downsample if the source is huge, so we don't allocate
+        // a 4000x4000 bitmap when we only need 680.
+        val options = BitmapFactory.Options().apply {
+            inPreferredConfig = Bitmap.Config.ARGB_8888
+        }
+        BitmapFactory.decodeStream(connection.getInputStream(), null, options)
+    } catch (_: Exception) {
+        null
     }
 
     private fun drawCoverArt(canvas: Canvas, coverBitmap: Bitmap?): Int {

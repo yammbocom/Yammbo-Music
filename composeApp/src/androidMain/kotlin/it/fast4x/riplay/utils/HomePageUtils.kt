@@ -9,6 +9,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.stringResource
 import it.fast4x.environment.Environment
 import it.fast4x.environment.requests.HomePage
+import it.fast4x.environment.requests.chartsPageComplete
 import com.yambo.music.R
 import it.fast4x.riplay.data.models.Song
 import it.fast4x.riplay.enums.MenuStyle
@@ -121,6 +122,10 @@ object HomeDataCache {
     var relatedPage: Environment.RelatedPage? = null
     var trending: Song? = null
 
+    // videoId of a current top-charts track. Used as seed for Selecciones Rapidas
+    // when the user has no recent plays so the section never stays empty.
+    var fallbackTopSongId: String? = null
+
     var lastCountryCode: String? = null
     var lastPlayEventType: PlayEventsType? = null
 
@@ -129,7 +134,54 @@ object HomeDataCache {
         discoverPage = null
         relatedPage = null
         trending = null
+        fallbackTopSongId = null
         lastCountryCode = null
         lastPlayEventType = null
     }
+}
+
+/**
+ * Resolve a "top of the moment" videoId to use as Selecciones Rápidas seed when the
+ * user has no recent plays. Tries multiple sources in order so we never get stuck on
+ * an infinite loader:
+ *   1. chartsPage(preferredCountry) — exact match if user set a country
+ *   2. chartsPage("")               — let YT auto-detect via IP
+ *   3. chartsPage("US")             — large catalog, reliable fallback
+ *   4. homePage tracks              — last resort, region-aware content already fetched
+ *
+ * `Countries.ZZ` ("Global") is mapped to "" because YT does not recognise ZZ and
+ * returns empty charts. Result is cached for the session lifetime.
+ */
+suspend fun resolveFallbackTopSongId(
+    preferredCountry: String,
+    homePage: HomePage?
+): String? {
+    HomeDataCache.fallbackTopSongId?.let { return it }
+
+    val normalised = if (preferredCountry.isBlank() || preferredCountry == "ZZ") "" else preferredCountry
+    val attempts = listOf(normalised, "", "US").distinct()
+
+    for (cc in attempts) {
+        val charts = Environment.chartsPageComplete(countryCode = cc).getOrNull() ?: continue
+        val pick = charts.songs?.firstOrNull { it.key.isNotEmpty() }?.key
+            ?: charts.trending?.firstOrNull { it.key.isNotEmpty() }?.key
+            ?: charts.videos?.firstOrNull { it.key.isNotEmpty() }?.key
+        if (!pick.isNullOrEmpty()) {
+            HomeDataCache.fallbackTopSongId = pick
+            return pick
+        }
+    }
+
+    // Final fallback: pluck a videoId from the already-fetched HomePage payload.
+    val fromHome = homePage?.sections
+        ?.flatMap { it.items.filterNotNull() }
+        ?.filterIsInstance<Environment.SongItem>()
+        ?.firstOrNull { it.key.isNotEmpty() }
+        ?.key
+    if (!fromHome.isNullOrEmpty()) {
+        HomeDataCache.fallbackTopSongId = fromHome
+        return fromHome
+    }
+
+    return null
 }

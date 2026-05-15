@@ -71,11 +71,23 @@ fun cleanString(text: String): String {
 }
 
 fun String?.thumbnail(size: Int): String? {
-    println("String->Thumbnail: $this")
+    val s = this ?: return null
+    val googleCdnSized = Regex("(https://(?:lh3|yt3)\\.googleusercontent\\.com/[^=]+)=w\\d+-h\\d+.*")
+    googleCdnSized.matchEntire(s)?.let { match ->
+        return "${match.groupValues[1]}=w$size-h$size-p-l90-rj"
+    }
     return when {
-        this?.startsWith("https://lh3.googleusercontent.com") == true -> "$this-w$size-h$size"
-        this?.startsWith("https://yt3.ggpht.com") == true -> "$this-w$size-h$size-s$size"
-        else -> this
+        s.startsWith("https://lh3.googleusercontent.com") ||
+        s.startsWith("https://yt3.googleusercontent.com") ->
+            "$s=w$size-h$size-p-l90-rj"
+        s.startsWith("https://i.ytimg.com") &&
+            !s.contains("/podcasts_artwork/") &&
+            !s.contains("/pl_c/") &&
+            !s.contains("/vi/") ->
+            "$s=w$size-h$size"
+        s.startsWith("https://yt3.ggpht.com") ->
+            "$s-w$size-h$size-s$size"
+        else -> s
     }
 }
 fun String?.thumbnail(): String? {

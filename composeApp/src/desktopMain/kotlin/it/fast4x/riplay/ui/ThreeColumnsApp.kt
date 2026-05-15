@@ -69,6 +69,7 @@ import riplay.composeapp.generated.resources.library
 import riplay.composeapp.generated.resources.musical_notes
 import riplay.composeapp.generated.resources.yammbo_app_icon
 import it.fast4x.riplay.player.vlcj.VlcjFrameController
+import it.fast4x.riplay.player.stream.resolveStreamUrl
 
 
 @Composable
@@ -88,24 +89,18 @@ fun ThreeColumnsApp() {
 //    val formatAudio =
 //        remember { mutableStateOf<PlayerResponse.StreamingData.AdaptiveFormat?>(null) }
 
+    var url by remember { mutableStateOf<String?>(null) }
+
     LaunchedEffect(videoId) {
         if (videoId.isEmpty()) return@LaunchedEffect
-
-//        Environment.player(
-//            body = PlayerBody(videoId = videoId)
-//        ).onSuccess {
-//                println("videoId  ${videoId} adaptiveFormats ${it.streamingData?.adaptiveFormats}")
-//                formatAudio.value =
-//                    it.streamingData?.autoMaxQualityFormat
-//                        .let {
-//                            // Specify range to avoid YouTube's throttling
-//                            it?.copy(url = "${it.url}&range=0-${it.contentLength ?: 10000000}")
-//                        }
-//            }
-        //println("videoId  ${videoId} formatAudio url inside ${formatAudio.value?.url}")
-
         nowPlayingSong = db.getSong(videoId)
         println("nowPlayingSong ${nowPlayingSong}")
+        val resolved = resolveStreamUrl(videoId)
+        if (resolved != null) {
+            url = resolved
+        } else {
+            println("ThreeColumnsApp: stream resolution failed for $videoId")
+        }
     }
 
     coroutineScope.launch {
@@ -133,10 +128,7 @@ fun ThreeColumnsApp() {
     */
 
 
-    //val urlAudio by remember { mutableStateOf(formatAudio.value?.url ?: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4") }
-    //var urlVideo by remember { mutableStateOf(formatVideo?.url ?: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4") }
-    var url by remember { mutableStateOf("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4") }
-    //val url by remember { mutableStateOf(formatAudio.value?.url) }
+    // url is declared above inside LaunchedEffect scope — resolved async via StreamResolver
 
     //val url =  formatAudio.value?.url //"https://rr4---sn-hpa7znzr.googlevideo.com/videoplayback?expire=1727471735&ei=Fsz2ZoyiPO7Si9oPpreTiAI&ip=178.19.172.167&id=o-ABmCff7qCeQd05V_WN5fpAFEfxHP3kxR6G55H_QdlBsh&itag=251&source=youtube&requiressl=yes&xpc=EgVo2aDSNQ%3D%3D&mh=43&mm=31%2C26&mn=sn-hpa7znzr%2Csn-4g5lznez&ms=au%2Conr&mv=m&mvi=4&pl=22&gcr=it&initcwndbps=2505000&vprv=1&svpuc=1&mime=audio%2Fwebm&rqh=1&gir=yes&clen=3291443&dur=194.901&lmt=1714829870710563&mt=1727449746&fvip=4&keepalive=yes&fexp=51299152&c=ANDROID_MUSIC&txp=2318224&sparams=expire%2Cei%2Cip%2Cid%2Citag%2Csource%2Crequiressl%2Cxpc%2Cgcr%2Cvprv%2Csvpuc%2Cmime%2Crqh%2Cgir%2Cclen%2Cdur%2Clmt&sig=AJfQdSswRQIhAP5IS0unA9IAhtAtkqY-63FGyG_eRi-FMMgNjWU1TWGzAiACd3c4niMxsPxXjp_55EylpIBysVBOpoD69oQ9xvF8bg%3D%3D&lsparams=mh%2Cmm%2Cmn%2Cms%2Cmv%2Cmvi%2Cpl%2Cinitcwndbps&lsig=ABPmVW0wRAIgZBP07jXYZ5_4xSrp_hZ9jvIOMPsfOa-grREDshQvzSYCIC7ImmFVJCeLUMVASEkedlXa-R4je3RVC_fu2WH8XTvj"
 

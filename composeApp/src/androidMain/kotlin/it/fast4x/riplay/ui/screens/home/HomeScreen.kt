@@ -11,6 +11,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.ExperimentalComposeUiApi
@@ -110,6 +111,10 @@ fun HomeScreen(
         }
 
     var (tabIndex, onTabChanged) = rememberPreference(homeScreenTabIndexKey, initialtabIndex)
+
+    // Tracks which hub (Mi Música = 2, En mi dispositivo = 14) navigated into the
+    // shared sub-tabs 10..13 so the back button returns to the correct hub.
+    var subTabsParent by rememberSaveable { mutableIntStateOf(2) }
 
     val isEnabledMusicIdentifier by rememberPreference(
         enableMusicIdentifierKey,
@@ -283,10 +288,11 @@ fun HomeScreen(
                 )
 
                 2 -> MyMusicTab(
-                    onSongsClick = { onTabChanged(10) },
-                    onArtistsClick = { onTabChanged(11) },
-                    onAlbumsClick = { onTabChanged(12) },
-                    onPlaylistsClick = { onTabChanged(13) }
+                    onSongsClick = { subTabsParent = 2; onTabChanged(10) },
+                    onArtistsClick = { subTabsParent = 2; onTabChanged(11) },
+                    onAlbumsClick = { subTabsParent = 2; onTabChanged(12) },
+                    onPlaylistsClick = { subTabsParent = 2; onTabChanged(13) },
+                    onDeviceClick = { onTabChanged(14) }
                 )
 
                 // 3 = Search, handled above (navigates to search screen)
@@ -352,6 +358,13 @@ fun HomeScreen(
                     }
                 )
 
+                14 -> OnDeviceTab(
+                    onSongsClick = { subTabsParent = 14; onTabChanged(10) },
+                    onArtistsClick = { subTabsParent = 14; onTabChanged(11) },
+                    onAlbumsClick = { subTabsParent = 14; onTabChanged(12) },
+                    onPlaylistsClick = { subTabsParent = 14; onTabChanged(13) }
+                )
+
             }
         }
     }
@@ -382,17 +395,24 @@ fun HomeScreen(
     }
     */
 
-    // Back button behavior:
+    // Back button behavior (single source of truth — no other BackHandler should compete):
+    //  - Expanded/partially expanded player → collapse the player first
     //  - On a non-home route → pop back stack
-    //  - On Mi Música sub-tabs (10..13) → go back to Mi Música tab (2)
+    //  - On Mi Música sub-tabs (10..14) → go back to Mi Música tab (2)
     //  - On any home tab other than Inicio (1..4) → go to Inicio (0)
     //  - On Inicio (0) → press twice to exit
     val context = LocalContext.current
     var confirmCount by remember { mutableIntStateOf( 0 ) }
     val playerSheetState = LocalPlayerSheetState.current
-    BackHandler(
-        enabled = !playerSheetState.isExpanded
-    ) {
+    BackHandler(enabled = true) {
+        // Player anywhere between collapsed and expanded → collapse it.
+        // Use !isCollapsed && !isDismissed instead of strict isExpanded so animation
+        // states and floating-point quirks (value vs upperBound) don't slip through.
+        if (!playerSheetState.isCollapsed && !playerSheetState.isDismissed) {
+            playerSheetState.collapseSoft()
+            return@BackHandler
+        }
+
         // Not on HomeScreen route: standard pop
         if( NavRoutes.home.isNotHere( navController ) )  {
             if ( navController.currentBackStackEntry?.lifecycle?.currentState == Lifecycle.State.RESUMED )
@@ -401,8 +421,14 @@ fun HomeScreen(
             return@BackHandler
         }
 
-        // Mi Música sub-tabs (Songs 10, Artists 11, Albums 12, Playlists 13) → back to Mi Música tab
+        // Shared sub-tabs (Songs 10, Artists 11, Albums 12, Playlists 13) → back to
+        // whichever hub launched them (Mi Música = 2, En mi dispositivo = 14).
         if (tabIndex in 10..13) {
+            onTabChanged(subTabsParent)
+            return@BackHandler
+        }
+        // En mi dispositivo hub (14) → back to Mi Música (2)
+        if (tabIndex == 14) {
             onTabChanged(2)
             return@BackHandler
         }

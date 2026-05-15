@@ -3,6 +3,8 @@ package it.fast4x.riplay.ui.components.navigation.nav
 
 import android.annotation.SuppressLint
 import androidx.compose.animation.animateColor
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.updateTransition
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -31,6 +33,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.platform.LocalDensity
@@ -220,35 +223,46 @@ class HorizontalNavigationBar(
                             items.add(Triple(index, text, iconId))
                         }
                         val isCompact = items.size > 5
-                        val pillHorizontalPadding = if (isCompact) 8.dp else 16.dp
                         items.forEach { (index, text, iconId) ->
                             val isSelected = tabIndex == index
                             val iconColor by transition.animateColor(label = "") {
                                 if (it == index) colorPalette().accent else colorPalette().textDisabled
                             }
+                            val iconScale by animateFloatAsState(
+                                targetValue = if (isSelected) 1.12f else 1f,
+                                animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
+                                label = "iconScale"
+                            )
+                            val indicatorWidth by animateDpAsState(
+                                targetValue = if (isSelected) 22.dp else 0.dp,
+                                animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
+                                label = "indicatorWidth"
+                            )
                             Column(
                                 horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Center,
+                                verticalArrangement = Arrangement.Top,
                                 modifier = Modifier
                                     .weight(1f)
                                     .clip(RoundedCornerShape(12.dp))
                                     .clickable(onClick = { onTabChanged(index) })
-                                    .padding(vertical = 4.dp, horizontal = 2.dp)
+                                    .padding(vertical = 6.dp, horizontal = 2.dp)
                             ) {
+                                // Top accent indicator that grows/shrinks when the tab activates
+                                Box(
+                                    modifier = Modifier
+                                        .size(width = indicatorWidth, height = 3.dp)
+                                        .clip(RoundedCornerShape(2.dp))
+                                        .background(colorPalette().accent)
+                                )
+                                Spacer(modifier = Modifier.height(6.dp))
                                 Box(
                                     contentAlignment = Alignment.Center,
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(16.dp))
-                                        .background(
-                                            if (isSelected) colorPalette().accent.copy(alpha = 0.15f)
-                                            else Color.Transparent
-                                        )
-                                        .padding(horizontal = pillHorizontalPadding, vertical = 4.dp)
+                                    modifier = Modifier.scale(iconScale)
                                 ) {
                                     Button(iconId, iconColor, 0.dp, if (isCompact) 20.dp else 22.dp).Draw()
                                 }
                                 if (!NavigationBarType.IconOnly.isCurrent()) {
-                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Spacer(modifier = Modifier.height(3.dp))
                                     androidx.compose.foundation.text.BasicText(
                                         text = text,
                                         maxLines = 1,

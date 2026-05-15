@@ -2,6 +2,7 @@ package it.fast4x.riplay.ui.screens.home
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -24,42 +26,52 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import it.fast4x.riplay.extensions.yammboapi.YammboApiService
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.navigation.NavController
+import android.content.Intent
+import android.net.Uri
 import com.yambo.music.R
+import it.fast4x.riplay.LocalPlayerServiceBinder
 import it.fast4x.riplay.enums.ColorPaletteMode
 import it.fast4x.riplay.enums.NavRoutes
 import it.fast4x.riplay.enums.NavigationBarPosition
+import it.fast4x.riplay.extensions.customtabs.YammboCustomTabs
 import it.fast4x.riplay.extensions.preferences.colorPaletteModeKey
 import it.fast4x.riplay.extensions.preferences.navigationBarPositionKey
 import it.fast4x.riplay.extensions.preferences.rememberPreference
-import android.content.Intent
-import android.net.Uri
-import it.fast4x.riplay.extensions.customtabs.YammboCustomTabs
-import androidx.lifecycle.compose.LifecycleResumeEffect
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import it.fast4x.riplay.LocalPlayerServiceBinder
-import it.fast4x.riplay.service.PlayerService
+import it.fast4x.riplay.extensions.yammboapi.YammboApiService
 import it.fast4x.riplay.extensions.yammboapi.YammboAuthManager
+import it.fast4x.riplay.service.PlayerService
 import it.fast4x.riplay.ui.components.themed.ConfirmationDialog
 import it.fast4x.riplay.ui.styling.Dimensions
 import it.fast4x.riplay.ui.styling.secondary
-import it.fast4x.riplay.ui.styling.semiBold
 import it.fast4x.riplay.utils.colorPalette
 import it.fast4x.riplay.utils.typography
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+
+
+// Section-coloured badge tints — reuse the same palette as Mi Música / OnDevice so
+// the user gets consistent colour identity across the app.
+private val SettingsTint = Color(0xFF5C6BC0)   // indigo
+private val PricingTint = Color(0xFFFFA726)    // amber
+private val PremiumTint = Color(0xFFAB47BC)    // purple
+private val LogoutTint = Color(0xFFEF5350)     // red
 
 
 @Composable
@@ -72,7 +84,6 @@ fun MyAccountTab(
 
     val userName = authManager.getUserName()
     val userEmail = authManager.getUserEmail()
-    val isLoggedIn = authManager.isLoggedIn()
 
     var colorPaletteMode by rememberPreference(colorPaletteModeKey, ColorPaletteMode.System)
     val navigationBarPosition by rememberPreference(
@@ -84,7 +95,6 @@ fun MyAccountTab(
     var isSubscribed by remember { mutableStateOf(authManager.isSubscriptionActive()) }
     var subscriptionPlan by remember { mutableStateOf(authManager.getSubscriptionPlan()) }
 
-    // Re-check subscription on every resume
     LifecycleResumeEffect(Unit) {
         val userId = authManager.getUserId()
         if (userId > 0) {
@@ -131,207 +141,71 @@ fun MyAccountTab(
                 else Dimensions.contentWidthRightBar
             )
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp)
+            .padding(horizontal = 16.dp)
     ) {
-        Spacer(modifier = Modifier.height(40.dp))
+        Spacer(modifier = Modifier.height(32.dp))
 
-        // Profile header
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(20.dp))
-                .background(colors.background1)
-                .padding(vertical = 32.dp, horizontal = 24.dp)
-        ) {
-            // Avatar
-            Box(
-                modifier = Modifier
-                    .size(80.dp)
-                    .clip(CircleShape)
-                    .background(colors.accent),
-                contentAlignment = Alignment.Center
-            ) {
-                BasicText(
-                    text = userName.take(1).uppercase().ifEmpty { "?" },
-                    style = typo.l.copy(
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 32.sp,
-                        color = colors.background0,
-                        textAlign = TextAlign.Center
-                    )
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            if (userName.isNotEmpty()) {
-                BasicText(
-                    text = userName,
-                    style = typo.l.copy(
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 20.sp
-                    )
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-            }
-
-            if (userEmail.isNotEmpty()) {
-                BasicText(
-                    text = userEmail,
-                    style = typo.s.secondary
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-            }
-
-            // Subscription badge
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(
-                        if (isSubscribed) colors.accent.copy(alpha = 0.15f)
-                        else colors.background0
-                    )
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Image(
-                        painter = painterResource(
-                            if (isSubscribed) R.drawable.star else R.drawable.shield_checkmark
-                        ),
-                        contentDescription = null,
-                        colorFilter = ColorFilter.tint(
-                            if (isSubscribed) colors.accent else colors.textSecondary
-                        ),
-                        modifier = Modifier.size(14.dp)
-                    )
-                    BasicText(
-                        text = if (isSubscribed) subscriptionPlan.ifEmpty { "Premium" }
-                        else stringResource(R.string.subscription_free),
-                        style = typo.xs.copy(
-                            fontWeight = FontWeight.SemiBold,
-                            color = if (isSubscribed) colors.accent else colors.textSecondary
-                        )
-                    )
-                }
-            }
-        }
+        ProfileHeroCard(
+            userName = userName,
+            userEmail = userEmail,
+            isSubscribed = isSubscribed,
+            subscriptionPlan = subscriptionPlan
+        )
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Subscription card
         if (!isSubscribed) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(colors.accent.copy(alpha = 0.1f))
-                    .clickable {
-                        openSubscriptionPage(context, authManager, isSubscribed = false)
-                    }
-                    .padding(20.dp)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        BasicText(
-                            text = "Hazte Premium",
-                            style = typo.xs.copy(
-                                fontWeight = FontWeight.Bold,
-                                color = colors.accent
-                            )
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        BasicText(
-                            text = "Musica sin limites, sin anuncios",
-                            style = typo.xxs.copy(
-                                color = colors.accent.copy(alpha = 0.8f)
-                            )
-                        )
-                    }
-                    Image(
-                        painter = painterResource(R.drawable.chevron_forward),
-                        contentDescription = null,
-                        colorFilter = ColorFilter.tint(colors.accent),
-                        modifier = Modifier.size(20.dp)
-                    )
+            PremiumPromoCard(
+                onClick = {
+                    openSubscriptionPage(context, authManager, isSubscribed = false)
                 }
-            }
-
+            )
             Spacer(modifier = Modifier.height(16.dp))
         }
 
-        // General section
-        AccountSectionCard(title = "General") {
+        // GENERAL
+        AccountSectionCard(title = stringResource(R.string.general).uppercase()) {
             AccountLinkRow(
                 title = stringResource(R.string.settings),
-                subtitle = "Personaliza tu experiencia",
-                iconId = R.drawable.settings
+                subtitle = stringResource(R.string.account_hint_settings),
+                iconId = R.drawable.settings,
+                tint = SettingsTint
             ) {
                 navController.navigate(NavRoutes.settings.name)
             }
+            AccountRowDivider()
             AccountLinkRow(
-                title = stringResource(R.string.pricing),
-                subtitle = if (isSubscribed) "Gestionar suscripcion" else "Ver planes disponibles",
-                iconId = R.drawable.globe
+                title = if (isSubscribed) stringResource(R.string.account_manage_sub)
+                else stringResource(R.string.pricing),
+                subtitle = if (isSubscribed) stringResource(R.string.account_hint_manage_sub)
+                else stringResource(R.string.account_hint_pricing),
+                iconId = if (isSubscribed) R.drawable.sparkles else R.drawable.globe,
+                tint = if (isSubscribed) PremiumTint else PricingTint
             ) {
                 openSubscriptionPage(context, authManager, isSubscribed)
             }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(14.dp))
 
-        // Appearance section
-        AccountSectionCard(title = stringResource(R.string.theme)) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp, horizontal = 4.dp)
-            ) {
-                listOf(
-                    "Claro" to ColorPaletteMode.Light,
-                    "Oscuro" to ColorPaletteMode.Dark,
-                    "Auto" to ColorPaletteMode.System
-                ).forEach { (label, mode) ->
-                    val isActive = colorPaletteMode == mode
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(
-                                if (isActive) colors.accent
-                                else colors.background0
-                            )
-                            .clickable { colorPaletteMode = mode }
-                            .padding(vertical = 14.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        BasicText(
-                            text = label,
-                            style = typo.xs.copy(
-                                fontWeight = FontWeight.SemiBold,
-                                color = if (isActive) colors.background0 else colors.textSecondary
-                            )
-                        )
-                    }
-                }
-            }
+        // APARIENCIA / TEMA
+        AccountSectionCard(title = stringResource(R.string.theme).uppercase()) {
+            ThemeSegmentedControl(
+                current = colorPaletteMode,
+                onSelect = { colorPaletteMode = it }
+            )
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(14.dp))
 
-        // Account actions
-        AccountSectionCard(title = "Cuenta") {
+        // CUENTA
+        AccountSectionCard(title = stringResource(R.string.account).uppercase()) {
             AccountLinkRow(
                 title = stringResource(R.string.logout),
-                subtitle = "Cerrar sesion",
+                subtitle = stringResource(R.string.account_hint_logout),
                 iconId = R.drawable.close,
-                tintColor = colors.red
+                tint = LogoutTint,
+                titleColor = LogoutTint
             ) {
                 showLogoutDialog = true
             }
@@ -342,25 +216,205 @@ fun MyAccountTab(
 }
 
 @Composable
+private fun ProfileHeroCard(
+    userName: String,
+    userEmail: String,
+    isSubscribed: Boolean,
+    subscriptionPlan: String
+) {
+    val colors = colorPalette()
+    val typo = typography()
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(24.dp))
+            .background(
+                Brush.linearGradient(
+                    colors = listOf(
+                        colors.accent.copy(alpha = 0.22f),
+                        colors.background2.copy(alpha = 0.85f)
+                    )
+                )
+            )
+            .padding(vertical = 28.dp, horizontal = 24.dp)
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            // Avatar with subtle accent ring
+            Box(
+                modifier = Modifier
+                    .size(96.dp)
+                    .clip(CircleShape)
+                    .background(colors.accent)
+                    .border(width = 3.dp, color = Color.White.copy(alpha = 0.18f), shape = CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                BasicText(
+                    text = userName.take(1).uppercase().ifEmpty { "?" },
+                    style = typo.l.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 38.sp,
+                        color = colors.onAccent,
+                        textAlign = TextAlign.Center
+                    )
+                )
+            }
+
+            Spacer(modifier = Modifier.height(18.dp))
+
+            if (userName.isNotEmpty()) {
+                BasicText(
+                    text = userName,
+                    style = typo.l.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 20.sp,
+                        color = colors.text,
+                        textAlign = TextAlign.Center
+                    ),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+            }
+
+            if (userEmail.isNotEmpty()) {
+                BasicText(
+                    text = userEmail,
+                    style = typo.s.secondary.copy(textAlign = TextAlign.Center),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.height(14.dp))
+            }
+
+            // Plan badge
+            val badgeBg = if (isSubscribed) PremiumTint.copy(alpha = 0.22f)
+            else colors.background0.copy(alpha = 0.6f)
+            val badgeFg = if (isSubscribed) PremiumTint else colors.textSecondary
+            Row(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(badgeBg)
+                    .padding(horizontal = 14.dp, vertical = 7.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Image(
+                    painter = painterResource(
+                        if (isSubscribed) R.drawable.sparkles else R.drawable.shield_checkmark
+                    ),
+                    contentDescription = null,
+                    colorFilter = ColorFilter.tint(badgeFg),
+                    modifier = Modifier.size(14.dp)
+                )
+                BasicText(
+                    text = if (isSubscribed) subscriptionPlan.ifEmpty { "Premium" }
+                    else stringResource(R.string.subscription_free),
+                    style = typo.xs.copy(
+                        fontWeight = FontWeight.SemiBold,
+                        color = badgeFg
+                    )
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PremiumPromoCard(onClick: () -> Unit) {
+    val colors = colorPalette()
+    val typo = typography()
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .background(
+                Brush.linearGradient(
+                    colors = listOf(
+                        PremiumTint.copy(alpha = 0.85f),
+                        colors.accent.copy(alpha = 0.78f)
+                    )
+                )
+            )
+            .clickable(onClick = onClick)
+            .padding(20.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.20f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Image(
+                    painter = painterResource(R.drawable.sparkles),
+                    contentDescription = null,
+                    colorFilter = ColorFilter.tint(Color.White),
+                    modifier = Modifier.size(26.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(14.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                BasicText(
+                    text = stringResource(R.string.account_get_premium_title),
+                    style = typo.m.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    ),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.height(3.dp))
+                BasicText(
+                    text = stringResource(R.string.account_get_premium_subtitle),
+                    style = typo.xs.copy(
+                        color = Color.White.copy(alpha = 0.9f)
+                    ),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            Image(
+                painter = painterResource(R.drawable.chevron_forward),
+                contentDescription = null,
+                colorFilter = ColorFilter.tint(Color.White),
+                modifier = Modifier.size(20.dp)
+            )
+        }
+    }
+}
+
+@Composable
 private fun AccountSectionCard(
     title: String,
     content: @Composable () -> Unit
 ) {
+    val colors = colorPalette()
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(colorPalette().background1)
-            .padding(16.dp)
+            .clip(RoundedCornerShape(18.dp))
+            .background(colors.background1)
+            .padding(horizontal = 16.dp, vertical = 14.dp)
     ) {
         BasicText(
-            text = title.uppercase(),
+            text = title,
             style = typography().xxs.copy(
                 fontWeight = FontWeight.SemiBold,
-                color = colorPalette().textSecondary
+                color = colors.textSecondary,
+                letterSpacing = 1.sp
             )
         )
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(6.dp))
         content()
     }
 }
@@ -370,28 +424,32 @@ private fun AccountLinkRow(
     title: String,
     subtitle: String,
     iconId: Int,
-    tintColor: androidx.compose.ui.graphics.Color = colorPalette().text,
+    tint: Color,
+    titleColor: Color? = null,
     onClick: () -> Unit
 ) {
+    val colors = colorPalette()
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
             .clickable(onClick = onClick)
-            .padding(vertical = 10.dp, horizontal = 4.dp)
+            .padding(vertical = 10.dp, horizontal = 2.dp)
     ) {
+        // Colored badge — gives each row its own identity (consistent with the rest
+        // of the app's section colours).
         Box(
-            contentAlignment = Alignment.Center,
             modifier = Modifier
                 .size(40.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(colorPalette().background0)
+                .clip(RoundedCornerShape(12.dp))
+                .background(tint.copy(alpha = 0.18f)),
+            contentAlignment = Alignment.Center
         ) {
             Image(
                 painter = painterResource(iconId),
                 contentDescription = null,
-                colorFilter = ColorFilter.tint(tintColor),
+                colorFilter = ColorFilter.tint(tint),
                 modifier = Modifier.size(20.dp)
             )
         }
@@ -399,22 +457,85 @@ private fun AccountLinkRow(
         Column(modifier = Modifier.weight(1f)) {
             BasicText(
                 text = title,
-                style = typography().xs.copy(
-                    fontWeight = FontWeight.Medium,
-                    color = tintColor
-                )
+                style = typography().s.copy(
+                    fontWeight = FontWeight.SemiBold,
+                    color = titleColor ?: colors.text
+                ),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
+            Spacer(modifier = Modifier.height(2.dp))
             BasicText(
                 text = subtitle,
-                style = typography().xxs.secondary
+                style = typography().xxs.secondary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
         Image(
             painter = painterResource(R.drawable.chevron_forward),
             contentDescription = null,
-            colorFilter = ColorFilter.tint(colorPalette().textDisabled),
+            colorFilter = ColorFilter.tint(colors.textDisabled),
             modifier = Modifier.size(16.dp)
         )
+    }
+}
+
+@Composable
+private fun AccountRowDivider() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(1.dp)
+            .background(colorPalette().background0.copy(alpha = 0.4f))
+    )
+}
+
+@Composable
+private fun ThemeSegmentedControl(
+    current: ColorPaletteMode,
+    onSelect: (ColorPaletteMode) -> Unit
+) {
+    val colors = colorPalette()
+    val typo = typography()
+    val options = listOf(
+        stringResource(R.string.light) to ColorPaletteMode.Light,
+        stringResource(R.string.dark) to ColorPaletteMode.Dark,
+        stringResource(R.string.auto) to ColorPaletteMode.System
+    )
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(colors.background0.copy(alpha = 0.6f))
+            .padding(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        options.forEach { (label, mode) ->
+            val isActive = current == mode
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(11.dp))
+                    .background(
+                        if (isActive) colors.accent
+                        else Color.Transparent
+                    )
+                    .clickable { onSelect(mode) }
+                    .padding(vertical = 12.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                BasicText(
+                    text = label,
+                    style = typo.xs.copy(
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (isActive) colors.onAccent else colors.textSecondary
+                    ),
+                    maxLines = 1
+                )
+            }
+        }
     }
 }
 

@@ -350,7 +350,10 @@ fun OnDeviceAlbumDetails(
                                             AsyncImage(
                                                 model = album?.thumbnailUrl?.resize(1200, 1200),
                                                 contentDescription = "loading...",
-                                                contentScale = ContentScale.FillBounds,
+                                                // Use Crop so embedded MediaStore album art (often
+                                                // non-square) keeps its aspect ratio instead of being
+                                                // stretched. Matches the online AlbumDetails behaviour.
+                                                contentScale = ContentScale.Crop,
                                                 modifier = Modifier
                                                     .fillMaxWidth()
                                                     .align(Alignment.Center)

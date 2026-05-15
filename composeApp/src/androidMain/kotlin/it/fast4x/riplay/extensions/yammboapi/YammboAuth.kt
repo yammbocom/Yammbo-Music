@@ -18,7 +18,8 @@ data class LoginRequest(
 data class RegisterRequest(
     val email: String,
     val password: String,
-    @SerialName("password_confirmation") val passwordConfirmation: String
+    @SerialName("password_confirmation") val passwordConfirmation: String,
+    @SerialName("token_name") val tokenName: String = "yambo_music_android"
 )
 
 @Serializable
