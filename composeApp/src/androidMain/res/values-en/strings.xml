@@ -1075,7 +1075,7 @@
     <string name="rw_thank_you">Thank You</string>
     <string name="rw_the_music_you_love_is_a_piece_of_you_sharing_it_is_the_best_way_to_connect_with_others">The music you love is a piece of you. Sharing it is the best way to connect with others.</string>
     <string name="rw_keep_listening_keep_sharing_keep_loving_never_hate_anyone">Keep listening, keep sharing, keep loving, never hate anyone.</string>
-    <string name="rw_riplay">RiPlay</string>
+    <string name="rw_riplay">Yammbo Music</string>
     <string name="your_in_music">Your %1$d in music</string>
     <string name="rw_your_listening_your_discoveries_your_obsessions_get_ready_to_relive_your_most_unforgettable_musical_moments">Your listening!\nYour discoveries!\nYour obsessions!\nGet ready to relive your most unforgettable musical moments.</string>
     <string name="rw_remember_your_privacy_is_respected_all_data_used_is_only_in_your_device_and_managed_by_you">Remember, your privacy is respected!\nAll data used is only in your device and managed by you.</string>
@@ -1290,8 +1290,76 @@
     <string name="no_albums">No albums</string>
     <string name="no_plaulists">No playlists</string>
     <string name="no_songs">No songs</string>
-    <string name="crash_title_ops_riplay_is_in_error_state">Ops! RiPlay is in error state</string>
+    <string name="crash_title_ops_riplay_is_in_error_state">Ops! Yammbo Music is in error state</string>
     <string name="crash_subtitle_the_application_crashed_unexpectedly_you_can_help_us_by_sending_this_log">The application crashed unexpectedly, you can help us by sending this log.</string>
     <string name="play_or_pause_when_receiving_a_call">Play or pause when receiving a call</string>
     <string name="subscription_free">Free Plan</string>
+
+    <!-- ===== Yammbo Music custom strings (EN) ===== -->
+    <!-- Mi Música tab -->
+    <string name="my_music_on_device_title">On my device</string>
+    <string name="my_music_on_device_subtitle">All your downloaded songs, artists, albums and playlists</string>
+    <string name="my_music_hint_songs">Your complete library</string>
+    <string name="my_music_hint_playlists">Saved and created playlists</string>
+    <string name="my_music_hint_artists">Your favorite artists</string>
+    <string name="my_music_hint_albums">Your saved albums</string>
+    <!-- On Device tab -->
+    <string name="on_device_hint_songs">Songs stored on this device</string>
+    <string name="on_device_hint_artists">Artists with downloaded music</string>
+    <string name="on_device_hint_albums">Albums saved locally</string>
+    <string name="on_device_hint_playlists">Folders and playlists on device</string>
+    <!-- Top 50 -->
+    <string name="top_50_empty_title">No Top 50 yet</string>
+    <string name="top_50_empty_subtitle">Start listening to your favorite songs and you\'ll see your 50 most-played here.</string>
+    <string name="top_50_most_played">Your 50 most-played songs</string>
+    <!-- Account tab -->
+    <string name="account_hint_settings">Customize your experience</string>
+    <string name="account_hint_pricing">View available plans</string>
+    <string name="account_hint_manage_sub">Renew, change or cancel your plan</string>
+    <string name="account_hint_logout">Sign out on this device</string>
+    <string name="account_manage_sub">Manage my subscription</string>
+    <string name="account_get_premium_title">Go Premium</string>
+    <string name="account_get_premium_subtitle">Unlimited music, no ads, with downloads</string>
+    <!-- Search tab — Explore / Browse -->
+    <string name="search_browse_title">Explore</string>
+    <string name="browse_cat_top_hits">Top Hits</string>
+    <string name="browse_q_top_hits">top hits</string>
+    <string name="browse_cat_pop">Pop</string>
+    <string name="browse_q_pop">pop</string>
+    <string name="browse_cat_reggaeton">Reggaeton</string>
+    <string name="browse_q_reggaeton">reggaeton</string>
+    <string name="browse_cat_latin">Latin</string>
+    <string name="browse_q_latin">latin</string>
+    <string name="browse_cat_hiphop">Hip-Hop</string>
+    <string name="browse_q_hiphop">hip hop</string>
+    <string name="browse_cat_rock">Rock</string>
+    <string name="browse_q_rock">rock</string>
+    <string name="browse_cat_electronic">Electronic</string>
+    <string name="browse_q_electronic">electronic</string>
+    <string name="browse_cat_chill">Chill</string>
+    <string name="browse_q_chill">chill</string>
+    <string name="browse_cat_workout">Workout</string>
+    <string name="browse_q_workout">workout</string>
+    <string name="browse_cat_classical">Classical</string>
+    <string name="browse_q_classical">classical</string>
+    <!-- Local song info -->
+    <string name="local_info_title">Local file on device</string>
+    <string name="local_info_subtitle">This song is stored on your device and has no online information. You can still play it normally.</string>
+    <!-- Subscription -->
+    <string name="subscription_active">Active subscription</string>
+    <string name="subscription_inactive">No subscription</string>
+    <!-- Share sheet -->
+    <string name="share_section_label">Share on</string>
+    <string name="share_generating_image">Generating image…</string>
+    <string name="share_with_other_apps">Share with other apps</string>
+    <string name="share_app_not_installed">%1$s isn\'t installed.\n\n%2$s\n\nOpen its official page to download it?</string>
+    <string name="share_open_github">Open GitHub</string>
+    <string name="share_app_not_installed_short">%1$s is not installed</string>
+    <string name="share_app_fallback_label">The app</string>
+    <!-- App update -->
+    <string name="app_update_download_now">Download update</string>
+    <string name="app_update_downloading">Downloading update…</string>
+    <string name="app_update_download_started">Downloading in the background. You\'ll see progress in your notifications.</string>
+    <string name="app_update_later">Later</string>
+    <string name="app_update_open_github">View on GitHub</string>
 </resources>

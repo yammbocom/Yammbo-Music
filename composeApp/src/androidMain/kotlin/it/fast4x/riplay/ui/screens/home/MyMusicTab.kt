@@ -2,7 +2,6 @@ package it.fast4x.riplay.ui.screens.home
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -37,6 +36,8 @@ import com.yambo.music.R
 import it.fast4x.riplay.enums.NavigationBarPosition
 import it.fast4x.riplay.extensions.preferences.navigationBarPositionKey
 import it.fast4x.riplay.extensions.preferences.rememberPreference
+import it.fast4x.riplay.ui.components.StaggeredEntry
+import it.fast4x.riplay.ui.components.pressable
 import it.fast4x.riplay.ui.components.themed.HeaderWithIcon
 import it.fast4x.riplay.ui.styling.Dimensions
 import it.fast4x.riplay.ui.styling.semiBold
@@ -99,47 +100,60 @@ fun MyMusicTab(
                     .padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Hero — Canciones (full-width, prominent)
-                BentoHeroCard(
-                    iconId = R.drawable.musical_notes,
-                    label = stringResource(R.string.local_songs),
-                    hint = stringResource(R.string.my_music_hint_songs),
-                    tint = SongsTint,
-                    onClick = onSongsClick
-                )
+                // Cards stagger in (40 ms each) on first composition. Indexes
+                // are sequential so the hero leads and the OnDevice banner
+                // finishes the chain.
+                StaggeredEntry(index = 0) {
+                    BentoHeroCard(
+                        iconId = R.drawable.musical_notes,
+                        label = stringResource(R.string.local_songs),
+                        hint = stringResource(R.string.my_music_hint_songs),
+                        tint = SongsTint,
+                        onClick = onSongsClick
+                    )
+                }
 
-                // Two squares — Artistas + Álbumes
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    BentoSquareCard(
-                        iconId = R.drawable.person,
-                        label = stringResource(R.string.artists),
-                        tint = ArtistsTint,
-                        onClick = onArtistsClick,
-                        modifier = Modifier.weight(1f)
-                    )
-                    BentoSquareCard(
-                        iconId = R.drawable.album,
-                        label = stringResource(R.string.albums),
-                        tint = AlbumsTint,
-                        onClick = onAlbumsClick,
-                        modifier = Modifier.weight(1f)
+                    Box(modifier = Modifier.weight(1f)) {
+                        StaggeredEntry(index = 1) {
+                            BentoSquareCard(
+                                iconId = R.drawable.person,
+                                label = stringResource(R.string.artists),
+                                tint = ArtistsTint,
+                                onClick = onArtistsClick,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    }
+                    Box(modifier = Modifier.weight(1f)) {
+                        StaggeredEntry(index = 2) {
+                            BentoSquareCard(
+                                iconId = R.drawable.album,
+                                label = stringResource(R.string.albums),
+                                tint = AlbumsTint,
+                                onClick = onAlbumsClick,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    }
+                }
+
+                StaggeredEntry(index = 3) {
+                    BentoWideCard(
+                        iconId = R.drawable.library,
+                        label = stringResource(R.string.playlists),
+                        hint = stringResource(R.string.my_music_hint_playlists),
+                        tint = PlaylistsTint,
+                        onClick = onPlaylistsClick
                     )
                 }
 
-                // Wide — Listas de reproducción
-                BentoWideCard(
-                    iconId = R.drawable.library,
-                    label = stringResource(R.string.playlists),
-                    hint = stringResource(R.string.my_music_hint_playlists),
-                    tint = PlaylistsTint,
-                    onClick = onPlaylistsClick
-                )
-
-                // Accent banner — En mi dispositivo
-                OnDeviceBannerCard(onClick = onDeviceClick)
+                StaggeredEntry(index = 4) {
+                    OnDeviceBannerCard(onClick = onDeviceClick)
+                }
             }
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -169,7 +183,7 @@ private fun BentoHeroCard(
                     )
                 )
             )
-            .clickable(onClick = onClick)
+            .pressable(onClick = onClick)
             .padding(20.dp)
     ) {
         // Decorative oversized icon at right
@@ -225,7 +239,7 @@ private fun BentoSquareCard(
                     )
                 )
             )
-            .clickable(onClick = onClick)
+            .pressable(onClick = onClick)
             .padding(16.dp)
     ) {
         Column(
@@ -271,7 +285,7 @@ private fun BentoWideCard(
                     )
                 )
             )
-            .clickable(onClick = onClick)
+            .pressable(onClick = onClick)
             .padding(horizontal = 18.dp, vertical = 14.dp)
     ) {
         Row(
@@ -346,7 +360,7 @@ private fun OnDeviceBannerCard(
                     )
                 )
             )
-            .clickable(onClick = onClick)
+            .pressable(onClick = onClick)
             .padding(horizontal = 20.dp, vertical = 14.dp)
     ) {
         Row(

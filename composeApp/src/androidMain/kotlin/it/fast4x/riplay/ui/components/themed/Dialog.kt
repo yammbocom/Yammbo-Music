@@ -1817,93 +1817,128 @@ fun NewVersionDialog (
     updatedVersionCode: Int,
     onDismiss: () -> Unit
 ) {
-    val uriHandler = LocalUriHandler.current
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val colors = colorPalette()
+    val typo = typography()
+    // Snooze: any dismissal (tap outside, "Más tarde", "Ver en GitHub")
+    // stamps this version as "seen". Cold start won't re-show the dialog
+    // until a strictly higher versionCode is published.
+    val (_, setDismissedVersion) = it.fast4x.riplay.extensions.preferences.rememberPreference(
+        it.fast4x.riplay.extensions.preferences.lastDismissedUpdateVersionCodeKey,
+        0
+    )
+    val snoozeAndDismiss: () -> Unit = {
+        setDismissedVersion(updatedVersionCode)
+        onDismiss()
+    }
     DefaultDialog(
-        onDismiss = { onDismiss() },
+        onDismiss = { snoozeAndDismiss() },
         content = {
+            // Title
             BasicText(
                 text = stringResource(R.string.update_available),
-                style = typography().s.bold.copy(color = colorPalette().text),
+                style = typo.s.bold.copy(color = colors.text),
             )
             Spacer(modifier = Modifier.height(10.dp))
+            // Version line
             BasicText(
-                text = String.format(stringResource(R.string.app_update_dialog_new),updatedVersionName),
-                style = typography().xs.semiBold.copy(color = colorPalette().text),
+                text = String.format(
+                    stringResource(R.string.app_update_dialog_new),
+                    updatedVersionName,
+                ),
+                style = typo.xs.semiBold.copy(color = colors.text),
             )
-            Spacer(modifier = Modifier.height(10.dp))
-            BasicText(
-                text = stringResource(R.string.actions_you_can_do),
-                style = typography().xs.semiBold.copy(color = colorPalette().textSecondary),
-            )
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(18.dp))
+
+            val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
+
+            // Primary action — direct DownloadManager fetch of the APK from
+            // the GitHub release asset. Progress shows in the system
+            // notification shade; tapping the completed notification opens
+            // the Package Installer. No browser detour.
             Row(
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
-                    .padding(bottom = 20.dp)
                     .fillMaxWidth()
-            ) {
-                BasicText(
-                    text = stringResource(R.string.open_the_github_releases_web_page_and_download_latest_version),
-                    style = typography().xxs.semiBold.copy(color = colorPalette().textSecondary),
-                    maxLines = 3,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.fillMaxWidth(0.8f)
-                )
-                Image(
-                    painter = painterResource(R.drawable.internet),
-                    contentDescription = null,
-                    colorFilter = ColorFilter.tint(colorPalette().shimmer),
-                    modifier = Modifier
-                        .size(30.dp)
-                        .clickable {
-                            onDismiss()
-                            uriHandler.openUri("https://music.yammbo.com")
-                        }
-                )
-            }
-            Spacer(modifier = Modifier.height(10.dp))
-            Row(
-                horizontalArrangement = Arrangement.SpaceBetween,
+                    .clip(androidx.compose.foundation.shape.RoundedCornerShape(14.dp))
+                    .background(colors.accent)
+                    .clickable {
+                        // Show feedback first so the user immediately sees the
+                        // tap registered, even if DownloadManager later fails.
+                        it.fast4x.riplay.ui.components.themed.SmartMessage(
+                            context.getString(R.string.app_update_download_started),
+                            it.fast4x.riplay.enums.PopupType.Info,
+                            context = context,
+                        )
+                        it.fast4x.riplay.utils.downloadUpdateApk(context, updatedVersionName)
+                        snoozeAndDismiss()
+                    }
+                    .padding(vertical = 14.dp, horizontal = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .padding(bottom = 20.dp)
-                    .fillMaxWidth()
+                horizontalArrangement = Arrangement.Center,
             ) {
-                BasicText(
-                    text = stringResource(R.string.download_latest_version_from_github_you_will_find_the_file_in_the_notification_area_and_you_can_install_by_clicking_on_it),
-                    style = typography().xxs.semiBold.copy(color = colorPalette().textSecondary),
-                    maxLines = 4,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.fillMaxWidth(0.8f)
-                )
                 Image(
                     painter = painterResource(R.drawable.downloaded),
                     contentDescription = null,
-                    colorFilter = ColorFilter.tint(colorPalette().shimmer),
-                    modifier = Modifier
-                        .size(30.dp)
-                        .clickable {
-                            onDismiss()
-                            uriHandler.openUri(getUpdateDownloadUrl())
-                        }
+                    colorFilter = ColorFilter.tint(colors.onAccent),
+                    modifier = Modifier.size(20.dp),
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                BasicText(
+                    text = stringResource(R.string.app_update_download_now),
+                    style = typo.xs.bold.copy(color = colors.onAccent),
                 )
             }
-//            Row(
-//                horizontalArrangement = Arrangement.SpaceBetween,
-//                verticalAlignment = Alignment.CenterVertically,
-//                modifier = Modifier
-//                    .padding(bottom = 20.dp)
-//                    .fillMaxWidth()
-//            ) {
-//                BasicText(
-//                    text = stringResource(R.string.f_droid_users_can_wait_for_the_update_info),
-//                    style = typography().xxs.semiBold.copy(color = colorPalette().textSecondary),
-//                    maxLines = 4,
-//                    overflow = TextOverflow.Ellipsis,
-//                    modifier = Modifier.fillMaxWidth()
-//                )
-//            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Secondary — open the GitHub Releases page in the browser. Lets
+            // power users inspect changelog, signatures, or pick a specific
+            // version before downloading.
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(androidx.compose.foundation.shape.RoundedCornerShape(14.dp))
+                    .background(colors.background2)
+                    .clickable {
+                        snoozeAndDismiss()
+                        uriHandler.openUri(
+                            "https://github.com/yammbocom/Yammbo-Music/releases/latest"
+                        )
+                    }
+                    .padding(vertical = 12.dp, horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center,
+            ) {
+                Image(
+                    painter = painterResource(R.drawable.internet),
+                    contentDescription = null,
+                    colorFilter = ColorFilter.tint(colors.text),
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                BasicText(
+                    text = stringResource(R.string.app_update_open_github),
+                    style = typo.xs.semiBold.copy(color = colors.text),
+                )
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            // Tertiary — snooze: stamps the version as seen and closes.
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(androidx.compose.foundation.shape.RoundedCornerShape(14.dp))
+                    .clickable { snoozeAndDismiss() }
+                    .padding(vertical = 10.dp, horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center,
+            ) {
+                BasicText(
+                    text = stringResource(R.string.app_update_later),
+                    style = typo.xxs.semiBold.copy(color = colors.textDisabled),
+                )
+            }
         }
 
     )

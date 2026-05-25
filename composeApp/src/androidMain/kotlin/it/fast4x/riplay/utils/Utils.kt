@@ -609,8 +609,14 @@ fun CheckAvailableNewVersion(
     updateAvailable: (Boolean) -> Unit
 ) {
     val (updatedVersionName, updatedProductName, updatedVersionCode) = getAvailableUpdateInfo()
-    if (updatedVersionCode > getVersionCode()) {
-        //if (updatedVersionCode > BuildConfig.VERSION_CODE)
+    // Snooze gate: if the user already tapped "Más tarde" on this exact
+    // versionCode, stay quiet until something strictly newer ships. Avoids
+    // pestering the user every cold start with the same dialog.
+    val (dismissedVersionCode, _) = it.fast4x.riplay.extensions.preferences.rememberPreference(
+        it.fast4x.riplay.extensions.preferences.lastDismissedUpdateVersionCodeKey,
+        0
+    )
+    if (updatedVersionCode > getVersionCode() && updatedVersionCode > dismissedVersionCode) {
         NewVersionDialog(
             updatedVersionName = updatedVersionName,
             updatedVersionCode = updatedVersionCode,
@@ -642,7 +648,7 @@ fun getAvailableUpdateInfo(): Triple<String, String, Int> {
         updatedProductName =  if(dataText.size == 3) dataText[2] else ""
     }
 
-    return Triple(updatedProductName, updatedVersionName, updatedVersionCode)
+    return Triple(updatedVersionName, updatedProductName, updatedVersionCode)
 }
 
 fun getUpdateDownloadUrl(): String {
@@ -650,6 +656,62 @@ fun getUpdateDownloadUrl(): String {
     // release, so we don't need to embed a specific tag/APK filename. Works
     // even if the asset naming convention changes.
     return "https://github.com/yammbocom/Yammbo-Music/releases/latest"
+}
+
+/**
+ * Direct APK asset URL for a specific GitHub release tag. Used by the
+ * in-app update flow: pass the tag's version name (e.g. "0.7.83") and the
+ * function returns the URL that DownloadManager can fetch directly without
+ * an HTML detour through the GitHub UI.
+ */
+fun getUpdateApkDirectUrl(versionName: String): String {
+    val cleaned = versionName.trim().removePrefix("v")
+    // music.yammbo.com is the canonical mirror — guaranteed up regardless of
+    // whether the matching GitHub Release was published. Apache serves the
+    // file with Content-Type application/vnd.android.package-archive so
+    // DownloadManager can install it via the system Package Installer once
+    // the user taps the completed notification.
+    return "https://music.yammbo.com/download/YammboMusic-v$cleaned.apk"
+}
+
+/**
+ * Enqueue the new release APK in Android's system DownloadManager. Progress
+ * shows in the notification shade; tapping the completed notification opens
+ * the Package Installer. Matches the upstream RiPlay UX so the user doesn't
+ * have to bounce out to a browser to grab the file.
+ */
+@SuppressLint("ObsoleteSdkInt")
+fun downloadUpdateApk(context: Context, versionName: String) {
+    val url = getUpdateApkDirectUrl(versionName)
+    val filename = "YammboMusic-v${versionName.trim().removePrefix("v")}.apk"
+    try {
+        val request = android.app.DownloadManager.Request(url.toUri())
+            .setTitle("Yammbo Music v$versionName")
+            .setDescription(context.getString(R.string.app_update_downloading))
+            .setNotificationVisibility(
+                android.app.DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED
+            )
+            .setDestinationInExternalPublicDir(
+                android.os.Environment.DIRECTORY_DOWNLOADS,
+                filename,
+            )
+            .setMimeType("application/vnd.android.package-archive")
+            .setAllowedOverMetered(true)
+            .setAllowedOverRoaming(true)
+        val dm = context.getSystemService(Context.DOWNLOAD_SERVICE)
+            as android.app.DownloadManager
+        dm.enqueue(request)
+    } catch (e: Exception) {
+        // If DownloadManager is disabled / no storage, fall back to opening
+        // the browser as a last resort so the user still has a path forward.
+        try {
+            val intent = android.content.Intent(
+                android.content.Intent.ACTION_VIEW,
+                url.toUri(),
+            ).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
+            context.startActivity(intent)
+        } catch (_: Exception) { }
+    }
 }
 
 @Composable

@@ -2544,7 +2544,9 @@ fun LocalPlayer(
                                 .conditional(playerType == PlayerType.Essential) { weight(1f) }
 
                         )
-                    } else {
+                    } else if (player.mediaItemCount > 0) {
+                                // Guard: empty queue makes mediaItemCount - 1 = -1 and
+                                // coerceIn(0, -1) throws during recomposition.
 
                                 val index = (if (!showthumbnail) {if (pagerStateFS.currentPage > binder.player.currentTimeline.windowCount) 0 else pagerStateFS.currentPage}
                                 else if (pagerState.currentPage > binder.player.currentTimeline.windowCount) 0 else pagerState.currentPage).coerceIn(0,(player.mediaItemCount) -1)
@@ -3392,7 +3394,9 @@ fun LocalPlayer(
                             //.weight(1f)
 
                         )
-                    } else if (!(swipeAnimationNoThumbnail == SwipeAnimationNoThumbnail.Scale && isDraggedFS)){
+                    } else if (!(swipeAnimationNoThumbnail == SwipeAnimationNoThumbnail.Scale && isDraggedFS) && player.mediaItemCount > 0){
+                                // Guard: empty queue makes mediaItemCount - 1 = -1 and
+                                // coerceIn(0, -1) throws during recomposition.
                                 val index = (if (!showthumbnail) {if (pagerStateFS.currentPage > binder.player.currentTimeline.windowCount) 0 else pagerStateFS.currentPage}
                                             else if (pagerState.currentPage > binder.player.currentTimeline.windowCount) 0 else pagerState.currentPage).coerceIn(0,(player.mediaItemCount) -1)
 

@@ -67,17 +67,18 @@ fun ModernTopAppBar(
         shadowElevation = 8.dp
     ) {
 
+        // Match the Scaffold's containerColor (background0) so the AppBar is
+        // visually continuous with whichever section is mounted below it. The
+        // old vertical gradient used `background1` which produced a faint but
+        // visible horizontal line at the AppBar / section boundary.
+        //
+        // Artist / album / song detail screens layer a cover image as the
+        // section body — those screens handle their own top-overlay scrim, so
+        // a solid `background0` band above is still legible there.
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(
-                            colorPalette().background1.copy(alpha = 0.85f),
-                            colorPalette().background1.copy(alpha = 0.95f)
-                        )
-                    )
-                )
+                .background(colorPalette().background0)
                 .padding(insetsPadding)
         ) {
 

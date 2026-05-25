@@ -924,7 +924,7 @@
     <string name="please_wait">Bitte warten</string>
     <string name="songs_liked_yt">Titel die auf YouTube mit \"Gefällt mir\" markiert sind</string>
     <string name="song_unliked_yt">Der Titel ist auf YouTube nicht mit \"Gefällt mir\" markiert</string>
-    <string name="add_rimusic_to_ytm_favorites">\"Gefällt mir\" Angaben aus RiPlay nach YouTube übertragen</string>
+    <string name="add_rimusic_to_ytm_favorites">\"Gefällt mir\" Angaben aus Yammbo Music nach YouTube übertragen</string>
     <string name="do_you_really_want_to_like_all_riplaytoytmusic">(geschätzte Zeit) ist benötigt um alle Titel mit \"Gefällt mir\" zu markieren. Dieser Prozess kann nach der Beendigung nicht fortgesetzt werden. Möchtest du fortfahren?</string>
     <string name="do_you_really_want_to_like_all">(geschätzte Zeit) ist benötigt um alle Titel mit \"Gefällt mir\" zu markieren. Du musst die App schließen, um diesen Prozess zu beenden. Möchtest du fortfahren?</string>
     <string name="songs_liked_yt_failed">Der Titel konnte auf YouTube nicht mit \"Gefällt mir\" markiert werden</string>
@@ -1075,7 +1075,7 @@
     <string name="rw_thank_you">Vielen Dank</string>
     <string name="rw_the_music_you_love_is_a_piece_of_you_sharing_it_is_the_best_way_to_connect_with_others">Die Musik, die du liebst, ist ein Stück von dir. Teilen ist der beste Weg, sich mit anderen zu verbinden.</string>
     <string name="rw_keep_listening_keep_sharing_keep_loving_never_hate_anyone">Höre weiterhin zu, teile weiter, liebe und hasse niemandem.</string>
-    <string name="rw_riplay">RiPlay</string>
+    <string name="rw_riplay">Yammbo Music</string>
     <string name="your_in_music">Deine %1$d in Musik</string>
     <string name="rw_your_listening_your_discoveries_your_obsessions_get_ready_to_relive_your_most_unforgettable_musical_moments">Dein Hörerlebnis! 
 Deine Entdeckungen! 
@@ -1293,7 +1293,7 @@ Mach dich bereit, deine unvergesslichsten musikalischen Momente noch einmal zu e
     <string name="no_albums">No albums</string>
     <string name="no_plaulists">No playlists</string>
     <string name="no_songs">No songs</string>
-    <string name="crash_title_ops_riplay_is_in_error_state">Ops! RiPlay is in error state</string>
+    <string name="crash_title_ops_riplay_is_in_error_state">Ops! Yammbo Music is in error state</string>
     <string name="crash_subtitle_the_application_crashed_unexpectedly_you_can_help_us_by_sending_this_log">The application crashed unexpectedly, you can help us by sending this log.</string>
     <string name="play_or_pause_when_receiving_a_call">Play or pause when receiving a call</string>
     <string name="subscription_free">Free Plan</string>

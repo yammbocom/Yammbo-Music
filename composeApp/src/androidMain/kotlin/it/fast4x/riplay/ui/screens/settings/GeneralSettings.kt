@@ -241,7 +241,7 @@ fun GeneralSettings(
     var useDnsOverHttpsType by rememberPreference(dnsOverHttpsTypeKey, DnsOverHttpsType.None)
 
 
-    var keepPlayerMinimized by rememberPreference(keepPlayerMinimizedKey,   false)
+    var keepPlayerMinimized by rememberPreference(keepPlayerMinimizedKey,   true)
 
     var disableClosingPlayerSwipingDown by rememberPreference(disableClosingPlayerSwipingDownKey, false)
 
@@ -377,7 +377,7 @@ fun GeneralSettings(
         Database.queriesCount().distinctUntilChanged()
     }.collectAsState(initial = 0)
 
-    var checkUpdateState by rememberPreference(checkUpdateStateKey, CheckUpdateState.Disabled)
+    var checkUpdateState by rememberPreference(checkUpdateStateKey, CheckUpdateState.Enabled)
 
     val internalEqualizer = LocalPlayerServiceBinder.current?.equalizer
 

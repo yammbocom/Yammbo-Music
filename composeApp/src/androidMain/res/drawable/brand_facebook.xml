@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Facebook brand glyph. White on tinted background. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M12,0C5.373,0 0,5.373 0,12c0,6.016 4.435,11 10.207,11.882V15.471H7.137V12h3.07v-2.621c0,-3.035 1.802,-4.689 4.554,-4.689c1.323,0 2.71,0.235 2.71,0.235v2.98H15.83c-1.502,0 -1.967,0.929 -1.967,1.886V12h3.358l-0.537,3.471H13.863v8.412C19.635,23 24,18 24,12c0,-6.627 -5.373,-12 -12,-12z"/>
+</vector>

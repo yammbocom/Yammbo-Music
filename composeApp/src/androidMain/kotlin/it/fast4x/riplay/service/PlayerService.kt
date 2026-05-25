@@ -367,6 +367,8 @@ class PlayerService : Service(),
 
     private var lastPlayNextTime = 0L
     private var debounceDelayMs = 2000L
+    private var consecutiveErrorSkips = 0
+    private val maxConsecutiveErrorSkips = 5
 
     /**
      * end online configuration
@@ -801,10 +803,18 @@ class PlayerService : Service(),
     }
 
     private fun playPlayback() {
-        if (localMediaItem?.isLocal == true)
+        if (localMediaItem?.isLocal == true) {
+            if (player.playbackState == Player.STATE_IDLE) {
+                Timber.w("PlayerService playPlayback: local player STATE_IDLE, forcing prepare()")
+                try { player.prepare() } catch (e: Throwable) {
+                    Timber.e("PlayerService playPlayback prepare() failed: ${e.message}")
+                }
+            }
+            player.playWhenReady = true
             player.play()
-        else
+        } else {
             _internalOnlinePlayer.value?.play()
+        }
     }
 
     private fun initializeMedleyMode() {
@@ -1325,7 +1335,7 @@ class PlayerService : Service(),
                     if (!isSkipMediaOnErrorEnabled()) return
                     val prev = binder.player.currentMediaItem ?: return
 
-                    handlePlayNext()
+                    handlePlayNext(dueToError = true)
                     //player.playNext()
 
                     SmartMessage(
@@ -1681,7 +1691,7 @@ class PlayerService : Service(),
         if (lastOnlineMediaId == newMediaId) {
             Timber.d("PlayerService: Transition ignored, same MediaID ($newMediaId) skipped")
 
-            handlePlayNext()
+            handlePlayNext(dueToError = true)
             //binder.player.playNext()
 
             //return
@@ -2494,6 +2504,8 @@ class PlayerService : Service(),
 
     @UnstableApi
     override fun onIsPlayingChanged(isPlaying: Boolean) {
+
+        if (isPlaying) consecutiveErrorSkips = 0
 
         if (closeServiceWhenPlayerPausedAfterMinutes != DurationInMinutes.Disabled) {
             if (!isPlaying && closingTimerStarted == false) {
@@ -3438,11 +3450,29 @@ class PlayerService : Service(),
         }
     }
 
-    fun handlePlayNext(isUserSkip: Boolean = false) {
+    fun handlePlayNext(isUserSkip: Boolean = false, dueToError: Boolean = false) {
         val now = System.currentTimeMillis()
         if (now - lastPlayNextTime < debounceDelayMs) {
             Timber.d("PlayerService handlePlayNext ignored (too fast)")
             return
+        }
+        if (dueToError) {
+            consecutiveErrorSkips++
+            if (consecutiveErrorSkips >= maxConsecutiveErrorSkips) {
+                Timber.w("PlayerService handlePlayNext aborted - too many consecutive error skips ($consecutiveErrorSkips)")
+                consecutiveErrorSkips = 0
+                lastPlayNextTime = now
+                coroutineScope.launch {
+                    withContext(Dispatchers.Main) {
+                        try { player.pause() } catch (_: Throwable) {}
+                    }
+                }
+                SmartMessage(
+                    message = this@PlayerService.getString(R.string.error_a_network_error_has_occurred),
+                    context = this@PlayerService
+                )
+                return
+            }
         }
         if (isUserSkip) {
             if (!YammboAdManager.canSkip(appContext())) {
@@ -3452,7 +3482,7 @@ class PlayerService : Service(),
             YammboAdManager.recordSkip()
         }
         lastPlayNextTime = now
-        Timber.d("PlayerService handlePlayNext executed (userSkip=$isUserSkip)")
+        Timber.d("PlayerService handlePlayNext executed (userSkip=$isUserSkip dueToError=$dueToError errorSkips=$consecutiveErrorSkips)")
         coroutineScope.launch {
             withContext(Dispatchers.Main) {
                 player.playNext()

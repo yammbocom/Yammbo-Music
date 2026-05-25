@@ -3,7 +3,6 @@ package it.fast4x.riplay.ui.screens.home
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -56,6 +55,8 @@ import it.fast4x.riplay.extensions.preferences.rememberPreference
 import it.fast4x.riplay.extensions.yammboapi.YammboApiService
 import it.fast4x.riplay.extensions.yammboapi.YammboAuthManager
 import it.fast4x.riplay.service.PlayerService
+import it.fast4x.riplay.ui.components.StaggeredEntry
+import it.fast4x.riplay.ui.components.pressable
 import it.fast4x.riplay.ui.components.themed.ConfirmationDialog
 import it.fast4x.riplay.ui.styling.Dimensions
 import it.fast4x.riplay.ui.styling.secondary
@@ -145,69 +146,81 @@ fun MyAccountTab(
     ) {
         Spacer(modifier = Modifier.height(32.dp))
 
-        ProfileHeroCard(
-            userName = userName,
-            userEmail = userEmail,
-            isSubscribed = isSubscribed,
-            subscriptionPlan = subscriptionPlan
-        )
+        // Stagger entry: hero leads, then promo (if free), then the three
+        // section cards land 40ms apart. Indexes match visual order.
+        StaggeredEntry(index = 0) {
+            ProfileHeroCard(
+                userName = userName,
+                userEmail = userEmail,
+                isSubscribed = isSubscribed,
+                subscriptionPlan = subscriptionPlan
+            )
+        }
 
         Spacer(modifier = Modifier.height(16.dp))
 
         if (!isSubscribed) {
-            PremiumPromoCard(
-                onClick = {
-                    openSubscriptionPage(context, authManager, isSubscribed = false)
-                }
-            )
+            StaggeredEntry(index = 1) {
+                PremiumPromoCard(
+                    onClick = {
+                        openSubscriptionPage(context, authManager, isSubscribed = false)
+                    }
+                )
+            }
             Spacer(modifier = Modifier.height(16.dp))
         }
 
-        // GENERAL
-        AccountSectionCard(title = stringResource(R.string.general).uppercase()) {
-            AccountLinkRow(
-                title = stringResource(R.string.settings),
-                subtitle = stringResource(R.string.account_hint_settings),
-                iconId = R.drawable.settings,
-                tint = SettingsTint
-            ) {
-                navController.navigate(NavRoutes.settings.name)
-            }
-            AccountRowDivider()
-            AccountLinkRow(
-                title = if (isSubscribed) stringResource(R.string.account_manage_sub)
-                else stringResource(R.string.pricing),
-                subtitle = if (isSubscribed) stringResource(R.string.account_hint_manage_sub)
-                else stringResource(R.string.account_hint_pricing),
-                iconId = if (isSubscribed) R.drawable.sparkles else R.drawable.globe,
-                tint = if (isSubscribed) PremiumTint else PricingTint
-            ) {
-                openSubscriptionPage(context, authManager, isSubscribed)
+        StaggeredEntry(index = 2) {
+            // GENERAL
+            AccountSectionCard(title = stringResource(R.string.general).uppercase()) {
+                AccountLinkRow(
+                    title = stringResource(R.string.settings),
+                    subtitle = stringResource(R.string.account_hint_settings),
+                    iconId = R.drawable.settings,
+                    tint = SettingsTint
+                ) {
+                    navController.navigate(NavRoutes.settings.name)
+                }
+                AccountRowDivider()
+                AccountLinkRow(
+                    title = if (isSubscribed) stringResource(R.string.account_manage_sub)
+                    else stringResource(R.string.pricing),
+                    subtitle = if (isSubscribed) stringResource(R.string.account_hint_manage_sub)
+                    else stringResource(R.string.account_hint_pricing),
+                    iconId = if (isSubscribed) R.drawable.sparkles else R.drawable.globe,
+                    tint = if (isSubscribed) PremiumTint else PricingTint
+                ) {
+                    openSubscriptionPage(context, authManager, isSubscribed)
+                }
             }
         }
 
         Spacer(modifier = Modifier.height(14.dp))
 
-        // APARIENCIA / TEMA
-        AccountSectionCard(title = stringResource(R.string.theme).uppercase()) {
-            ThemeSegmentedControl(
-                current = colorPaletteMode,
-                onSelect = { colorPaletteMode = it }
-            )
+        StaggeredEntry(index = 3) {
+            // APARIENCIA / TEMA
+            AccountSectionCard(title = stringResource(R.string.theme).uppercase()) {
+                ThemeSegmentedControl(
+                    current = colorPaletteMode,
+                    onSelect = { colorPaletteMode = it }
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(14.dp))
 
-        // CUENTA
-        AccountSectionCard(title = stringResource(R.string.account).uppercase()) {
-            AccountLinkRow(
-                title = stringResource(R.string.logout),
-                subtitle = stringResource(R.string.account_hint_logout),
-                iconId = R.drawable.close,
-                tint = LogoutTint,
-                titleColor = LogoutTint
-            ) {
-                showLogoutDialog = true
+        StaggeredEntry(index = 4) {
+            // CUENTA
+            AccountSectionCard(title = stringResource(R.string.account).uppercase()) {
+                AccountLinkRow(
+                    title = stringResource(R.string.logout),
+                    subtitle = stringResource(R.string.account_hint_logout),
+                    iconId = R.drawable.close,
+                    tint = LogoutTint,
+                    titleColor = LogoutTint
+                ) {
+                    showLogoutDialog = true
+                }
             }
         }
 
@@ -340,7 +353,7 @@ private fun PremiumPromoCard(onClick: () -> Unit) {
                     )
                 )
             )
-            .clickable(onClick = onClick)
+            .pressable(onClick = onClick)
             .padding(20.dp)
     ) {
         Row(
@@ -434,7 +447,7 @@ private fun AccountLinkRow(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick)
+            .pressable(onClick = onClick)
             .padding(vertical = 10.dp, horizontal = 2.dp)
     ) {
         // Colored badge — gives each row its own identity (consistent with the rest
@@ -522,7 +535,7 @@ private fun ThemeSegmentedControl(
                         if (isActive) colors.accent
                         else Color.Transparent
                     )
-                    .clickable { onSelect(mode) }
+                    .pressable(onClick = { onSelect(mode) })
                     .padding(vertical = 12.dp),
                 contentAlignment = Alignment.Center
             ) {

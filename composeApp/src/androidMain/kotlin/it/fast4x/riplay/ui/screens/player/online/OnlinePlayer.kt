@@ -2765,13 +2765,16 @@ fun OnlinePlayer(
                                         .conditional(playerType == PlayerType.Essential) { weight(1f) }
 
                                 )
-                            } else {
-
+                            } else if (binderPlayer.mediaItemCount > 0) {
+                                // Guard: when the queue is empty (e.g. app returned from background
+                                // after media was cleared), `mediaItemCount - 1 = -1` and the
+                                // subsequent coerceIn(0, -1) throws "Cannot coerce value to an
+                                // empty range" during recomposition. Skip Controls entirely.
                                 val index = (if (!showthumbnail) {
                                     if (pagerStateFS.currentPage > binder.player.currentTimeline.windowCount) 0 else pagerStateFS.currentPage
                                 } else if (pagerState.currentPage > binder.player.currentTimeline.windowCount) 0 else pagerState.currentPage).coerceIn(
                                     0,
-                                    (binderPlayer.mediaItemCount) - 1
+                                    binderPlayer.mediaItemCount - 1
                                 )
 
                                 Controls(
@@ -3785,7 +3788,11 @@ fun OnlinePlayer(
                                     //.weight(1f)
 
                                 )
-                            } else if (!(swipeAnimationNoThumbnail == SwipeAnimationNoThumbnail.Scale && isDraggedFS)) {
+                            } else if (!(swipeAnimationNoThumbnail == SwipeAnimationNoThumbnail.Scale && isDraggedFS) && binderPlayer.mediaItemCount > 0) {
+                                // Guard: when the queue is empty (e.g. app returned from background
+                                // after media was cleared), `mediaItemCount - 1 = -1` and the
+                                // subsequent coerceIn(0, -1) throws "Cannot coerce value to an
+                                // empty range" during recomposition. Skip Controls entirely.
                                 val index = (if (!showthumbnail) {
                                     if (pagerStateFS.currentPage > binder.player.currentTimeline.windowCount) 0 else pagerStateFS.currentPage
                                 } else if (pagerState.currentPage > binder.player.currentTimeline.windowCount) 0 else pagerState.currentPage).coerceIn(

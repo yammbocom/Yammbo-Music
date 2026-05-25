@@ -6,16 +6,22 @@ import android.speech.RecognizerIntent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -30,6 +36,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.SolidColor
@@ -205,11 +212,28 @@ class Search private constructor(
 
         val focusRequester = remember { FocusRequester() }
         val isTv = isTVDevice()
-        val barHeight = if (isTv) 56.dp else 30.dp
+        val barHeight = if (isTv) 56.dp else 40.dp
+
+        // Pill-shape container with a thin accent border that animates on focus.
+        // Mirrors the search bar redesign applied to OnlineSearch in v0.7.86 so
+        // every search across the app (online + biblioteca) feels consistent.
+        val searchInteractionSource = remember { MutableInteractionSource() }
+        val isSearchFocused by searchInteractionSource.collectIsFocusedAsState()
+        val animatedBorderAlpha by animateFloatAsState(
+            targetValue = if (isSearchFocused) 0.55f else 0.10f,
+            animationSpec = tween(220, easing = FastOutSlowInEasing),
+            label = "lib-search-border-alpha",
+        )
+        val animatedBgAlpha by animateFloatAsState(
+            targetValue = if (isSearchFocused) 1f else 0.94f,
+            animationSpec = tween(220, easing = FastOutSlowInEasing),
+            label = "lib-search-bg-alpha",
+        )
+        val searchBarShape = RoundedCornerShape(14.dp)
 
         AnimatedVisibility(
             visible = isVisible,
-            modifier = Modifier.padding(all = 10.dp)
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
                 .fillMaxWidth()
         ) {
             // Auto focus on search bar when it's visible
@@ -262,6 +286,7 @@ class Search private constructor(
                     keyboardController?.hide()
                 }),
                 cursorBrush = SolidColor(colorPalette().text),
+                interactionSource = searchInteractionSource,
                 decorationBox = {
                     columnScope.DecorationBox( it ) {
                         searchTerm = TextFieldValue( "" )
@@ -274,9 +299,15 @@ class Search private constructor(
                 modifier = Modifier.height(barHeight)
                     .fillMaxWidth()
                     .focusRequester(focusRequester)
+                    .clip(searchBarShape)
                     .background(
-                        colorPalette().background4,
-                        thumbnailRoundness.shape()
+                        color = colorPalette().background2.copy(alpha = animatedBgAlpha),
+                        shape = searchBarShape,
+                    )
+                    .border(
+                        width = 1.dp,
+                        color = colorPalette().accent.copy(alpha = animatedBorderAlpha),
+                        shape = searchBarShape,
                     )
             )
         }

@@ -31,14 +31,19 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.media3.common.MediaItem
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.yambo.music.R
 import it.fast4x.riplay.data.models.Album
 import it.fast4x.riplay.data.models.Artist
@@ -164,21 +169,47 @@ fun FastShare(
                 .background(colorPalette().background0)
                 .fillMaxWidth()
         ) {
-            // === Song info header ===
-            Text(
-                text = shareTitle,
-                color = colorPalette().text,
-                fontWeight = FontWeight.Bold,
-                fontSize = 18.sp,
-                maxLines = 1
-            )
-            if (shareArtist.isNotEmpty()) {
-                Text(
-                    text = shareArtist,
-                    color = colorPalette().textSecondary,
-                    fontSize = 14.sp,
-                    maxLines = 1
-                )
+            // === Hero card: thumbnail + title + artist ===
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(colorPalette().background2)
+                    .padding(12.dp)
+            ) {
+                if (!thumbnailUrl.isNullOrEmpty()) {
+                    AsyncImage(
+                        model = ImageRequest.Builder(context)
+                            .data(thumbnailUrl)
+                            .crossfade(true)
+                            .build(),
+                        contentDescription = null,
+                        modifier = Modifier
+                            .size(56.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(colorPalette().background1)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = shareTitle,
+                        color = colorPalette().text,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp,
+                        maxLines = 1
+                    )
+                    if (shareArtist.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = shareArtist,
+                            color = colorPalette().textSecondary,
+                            fontSize = 13.sp,
+                            maxLines = 1
+                        )
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(20.dp))
@@ -214,7 +245,7 @@ fun FastShare(
 
             // === Social media buttons ===
             Text(
-                text = "Compartir en",
+                text = stringResource(R.string.share_section_label),
                 color = colorPalette().textSecondary,
                 fontSize = 13.sp,
                 modifier = Modifier.padding(bottom = 12.dp)
@@ -224,10 +255,34 @@ fun FastShare(
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                SocialShareButton(R.drawable.share_social, "Instagram") { shareToApp("com.instagram.android") }
-                SocialShareButton(R.drawable.share_social, "WhatsApp") { shareToApp("com.whatsapp") }
-                SocialShareButton(R.drawable.share_social, "Facebook") { shareToApp("com.facebook.katana") }
-                SocialShareButton(R.drawable.share_social, "YTDLnis") {
+                SocialShareButton(
+                    icon = R.drawable.brand_instagram,
+                    label = "Instagram",
+                    brush = Brush.linearGradient(
+                        listOf(Color(0xFFFEDA77), Color(0xFFF58529), Color(0xFFDD2A7B), Color(0xFF8134AF))
+                    )
+                ) { shareToApp("com.instagram.android") }
+                SocialShareButton(
+                    icon = R.drawable.brand_whatsapp,
+                    label = "WhatsApp",
+                    brush = Brush.linearGradient(
+                        listOf(Color(0xFF25D366), Color(0xFF128C7E))
+                    )
+                ) { shareToApp("com.whatsapp") }
+                SocialShareButton(
+                    icon = R.drawable.brand_facebook,
+                    label = "Facebook",
+                    brush = Brush.linearGradient(
+                        listOf(Color(0xFF1877F2), Color(0xFF0A4A9C))
+                    )
+                ) { shareToApp("com.facebook.katana") }
+                SocialShareButton(
+                    icon = R.drawable.share_social,
+                    label = "YTDLnis",
+                    brush = Brush.linearGradient(
+                        listOf(Color(0xFF424242), Color(0xFF1B1B1B))
+                    )
+                ) {
                     val url = ytUrlToShare.ifEmpty { urlToShare }
                     if (url.isNotEmpty()) {
                         shareUrlToDownloader(context, YTDLNIS_APP, url) {
@@ -258,7 +313,10 @@ fun FastShare(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = if (isGeneratingImage) "Generando imagen..." else "Compartir con otras apps",
+                    text = if (isGeneratingImage)
+                        stringResource(R.string.share_generating_image)
+                    else
+                        stringResource(R.string.share_with_other_apps),
                     color = colorPalette().onAccent,
                     fontWeight = FontWeight.Bold,
                     fontSize = 14.sp
@@ -271,9 +329,9 @@ fun FastShare(
 
     pendingInstallApp?.let { app ->
         ConfirmationDialog(
-            text = "${app.name} no está instalado.\n\n${app.description}\n\n¿Abrir su página oficial para descargarla?",
-            cancelText = "Cancelar",
-            confirmText = "Abrir GitHub",
+            text = stringResource(R.string.share_app_not_installed, app.name, app.description),
+            cancelText = stringResource(R.string.cancel),
+            confirmText = stringResource(R.string.share_open_github),
             onDismiss = { pendingInstallApp = null },
             onConfirm = { openExternalUrl(context, app.githubUrl) }
         )
@@ -284,26 +342,37 @@ fun FastShare(
 private fun SocialShareButton(
     icon: Int,
     label: String,
+    brush: Brush? = null,
     onClick: () -> Unit
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(14.dp))
             .clickable(onClick = onClick)
-            .padding(8.dp)
+            .padding(horizontal = 8.dp, vertical = 6.dp)
     ) {
-        Image(
-            painter = painterResource(icon),
-            colorFilter = ColorFilter.tint(colorPalette().text),
-            contentDescription = label,
-            modifier = Modifier.size(36.dp)
-        )
-        Spacer(modifier = Modifier.height(4.dp))
+        val iconBox = Modifier
+            .size(52.dp)
+            .clip(RoundedCornerShape(14.dp))
+        Column(
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = if (brush != null) iconBox.background(brush) else iconBox.background(colorPalette().background2)
+        ) {
+            Image(
+                painter = painterResource(icon),
+                colorFilter = if (brush != null) ColorFilter.tint(Color.White) else ColorFilter.tint(colorPalette().text),
+                contentDescription = label,
+                modifier = Modifier.size(26.dp)
+            )
+        }
+        Spacer(modifier = Modifier.height(6.dp))
         Text(
             text = label,
             color = colorPalette().textSecondary,
             fontSize = 11.sp,
+            fontWeight = FontWeight.Medium,
             textAlign = TextAlign.Center
         )
     }
@@ -355,9 +424,13 @@ private fun shareWithImage(
             "com.instagram.android" -> "Instagram"
             "com.whatsapp" -> "WhatsApp"
             "com.facebook.katana" -> "Facebook"
-            else -> "La app"
+            else -> context.getString(R.string.share_app_fallback_label)
         }
-        SmartMessage("$appName no está instalado", PopupType.Error, context = context)
+        SmartMessage(
+            context.getString(R.string.share_app_not_installed_short, appName),
+            PopupType.Error,
+            context = context,
+        )
     }
 }
 

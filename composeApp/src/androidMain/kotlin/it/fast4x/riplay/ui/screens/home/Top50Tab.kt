@@ -58,7 +58,9 @@ import it.fast4x.riplay.extensions.preferences.disableScrollingTextKey
 import it.fast4x.riplay.extensions.preferences.navigationBarPositionKey
 import it.fast4x.riplay.extensions.preferences.rememberPreference
 import it.fast4x.riplay.ui.components.LocalGlobalSheetState
+import it.fast4x.riplay.ui.components.StaggeredEntry
 import it.fast4x.riplay.ui.components.SwipeablePlaylistItem
+import it.fast4x.riplay.ui.components.pressable
 import it.fast4x.riplay.ui.components.themed.HeaderWithIcon
 import it.fast4x.riplay.ui.components.themed.NonQueuedMediaItemMenu
 import it.fast4x.riplay.ui.items.SongItem
@@ -144,25 +146,27 @@ fun Top50Tab(
                 }
 
                 item(key = "hero") {
-                    Top50HeroCard(
-                        songCount = songs.size,
-                        onPlayAll = {
-                            if (songs.isNotEmpty()) {
-                                binder?.stopRadio()
-                                binder?.player?.forcePlayFromBeginning(
-                                    songs.map(Song::asMediaItem)
-                                )
+                    StaggeredEntry(index = 0) {
+                        Top50HeroCard(
+                            songCount = songs.size,
+                            onPlayAll = {
+                                if (songs.isNotEmpty()) {
+                                    binder?.stopRadio()
+                                    binder?.player?.forcePlayFromBeginning(
+                                        songs.map(Song::asMediaItem)
+                                    )
+                                }
+                            },
+                            onShuffleAll = {
+                                if (songs.isNotEmpty()) {
+                                    binder?.stopRadio()
+                                    binder?.player?.forcePlayFromBeginning(
+                                        songs.shuffled().map(Song::asMediaItem)
+                                    )
+                                }
                             }
-                        },
-                        onShuffleAll = {
-                            if (songs.isNotEmpty()) {
-                                binder?.stopRadio()
-                                binder?.player?.forcePlayFromBeginning(
-                                    songs.shuffled().map(Song::asMediaItem)
-                                )
-                            }
-                        }
-                    )
+                        )
+                    }
                 }
 
                 if (songs.isEmpty()) {
@@ -371,7 +375,7 @@ private fun HeroActionButton(
             .height(48.dp)
             .clip(RoundedCornerShape(14.dp))
             .background(bg)
-            .clickable(enabled = enabled, onClick = onClick)
+            .pressable(enabled = enabled, onClick = onClick)
             .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center

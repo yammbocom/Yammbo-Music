@@ -1,7 +1,6 @@
 package it.fast4x.riplay.ui.screens.search
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,6 +21,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.yambo.music.R
+import it.fast4x.riplay.ui.components.StaggeredEntry
+import it.fast4x.riplay.ui.components.pressable
 import it.fast4x.riplay.utils.typography
 
 
@@ -85,22 +86,28 @@ internal fun BrowseCategoriesGrid(
             .padding(horizontal = 12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        // Render 2 columns × 5 rows (10 categories total)
-        BrowseCategoryGrid.chunked(2).forEach { rowItems ->
+        // Render 2 columns × 5 rows (10 categories total). Each tile fades+
+        // slides up in sequence (40 ms stagger) for a "cards land one after
+        // the other" entry — same spec used across Mi Música / Top 50.
+        BrowseCategoryGrid.chunked(2).forEachIndexed { rowIndex, rowItems ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                rowItems.forEach { cat ->
+                rowItems.forEachIndexed { colIndex, cat ->
                     val label = stringResource(cat.labelRes)
                     val query = stringResource(cat.queryRes)
-                    CategoryTile(
-                        label = label,
-                        topColor = cat.topColor,
-                        bottomColor = cat.bottomColor,
-                        onClick = { onCategoryClick(query) },
-                        modifier = Modifier.weight(1f)
-                    )
+                    val tileIndex = rowIndex * 2 + colIndex
+                    Box(modifier = Modifier.weight(1f)) {
+                        StaggeredEntry(index = tileIndex) {
+                            CategoryTile(
+                                label = label,
+                                topColor = cat.topColor,
+                                bottomColor = cat.bottomColor,
+                                onClick = { onCategoryClick(query) },
+                            )
+                        }
+                    }
                 }
                 // Pad the final row if it ended up with a single item
                 if (rowItems.size == 1) {
@@ -121,6 +128,7 @@ private fun CategoryTile(
 ) {
     Box(
         modifier = modifier
+            .fillMaxWidth()
             .aspectRatio(2.4f)
             .clip(RoundedCornerShape(14.dp))
             .background(
@@ -128,7 +136,7 @@ private fun CategoryTile(
                     colors = listOf(topColor, bottomColor)
                 )
             )
-            .clickable(onClick = onClick)
+            .pressable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 12.dp)
     ) {
         BasicText(

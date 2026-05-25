@@ -159,9 +159,14 @@ fun Player.playAtIndex(mediaItemIndex: Int) {
 @SuppressLint("Range")
 @UnstableApi
 fun Player.forcePlayAtIndex(mediaItems: List<MediaItem>, mediaItemIndex: Int) {
+    if (mediaItems.isEmpty()) return
+    val safeIndex = mediaItemIndex.coerceIn(0, mediaItems.size - 1)
     //val filteredMediaItems = excludeMediaItems(mediaItems, globalContext())
     val filteredMediaItems = mediaItems
-    setMediaItems(filteredMediaItems, mediaItemIndex, C.TIME_UNSET)
+
+    try { stop() } catch (_: Throwable) {}
+    clearMediaItems()
+    setMediaItems(filteredMediaItems, safeIndex, C.TIME_UNSET)
 
     restoreGlobalVolume()
     playWhenReady = true

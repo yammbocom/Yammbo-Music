@@ -91,6 +91,19 @@ class YammboWebViewActivity : AppCompatActivity() {
                     }
                 }
             }
+
+            // Stamp the host's localStorage so the TWA migration modal knows
+            // a sideloaded APK is present. `navigator.getInstalledRelatedApps()`
+            // misses sideload installs; this is the bridge.
+            override fun onPageFinished(view: WebView, url: String?) {
+                super.onPageFinished(view, url)
+                if (url != null && url.contains("music.yammbo.com")) {
+                    view.evaluateJavascript(
+                        "try { localStorage.setItem('yambo_apk_installed', String(Date.now())); } catch(_) {}",
+                        null
+                    )
+                }
+            }
         }
 
         webView.webChromeClient = object : WebChromeClient() {

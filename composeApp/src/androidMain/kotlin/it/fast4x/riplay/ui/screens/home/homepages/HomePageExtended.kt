@@ -129,7 +129,7 @@ fun HomePageExtended(
     val binder = LocalPlayerServiceBinder.current
     val menuState = LocalGlobalSheetState.current
     val windowInsets = LocalPlayerAwareWindowInsets.current
-    var playEventType by rememberPreference(playEventsTypeKey, PlayEventsType.MostPlayed)
+    var playEventType by rememberPreference(playEventsTypeKey, PlayEventsType.CasualPlayed)
 
     var trending by remember { mutableStateOf<Song?>(null) }
     val trendingInit by remember { mutableStateOf<Song?>(null) }

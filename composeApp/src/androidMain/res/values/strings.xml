@@ -1030,7 +1030,20 @@
     <string name="invalid_token">Invalid token</string>
     <string name="unknown_title">Unknow title</string>
     <string name="unknown_artist">Unknow artist</string>
-    <string name="share_with_external_app">Share with external app</string>
+    <string name="share_with_external_app">Compartir con otra app</string>
+    <string name="share_section_label">Compartir en</string>
+    <string name="share_generating_image">Generando imagen…</string>
+    <string name="share_with_other_apps">Compartir con otras apps</string>
+    <string name="share_app_not_installed">%1$s no está instalado.\n\n%2$s\n\n¿Abrir su página oficial para descargarla?</string>
+    <string name="share_open_github">Abrir GitHub</string>
+    <string name="share_app_not_installed_short">%1$s no está instalado</string>
+    <string name="share_app_fallback_label">La app</string>
+    <!-- App update -->
+    <string name="app_update_download_now">Descargar actualización</string>
+    <string name="app_update_downloading">Descargando actualización…</string>
+    <string name="app_update_download_started">Descargando en segundo plano. Verás el progreso en tus notificaciones.</string>
+    <string name="app_update_later">Más tarde</string>
+    <string name="app_update_open_github">Ver en GitHub</string>
     <string name="play_now">Play now</string>
     <string name="shuffle_play">Shuffle play</string>
     <string name="resume_or_pause_playback">Resume or Pause playback</string>
@@ -1348,7 +1361,7 @@
     <string name="no_albums">No albums</string>
     <string name="no_plaulists">No playlists</string>
     <string name="no_songs">No songs</string>
-    <string name="crash_title_ops_riplay_is_in_error_state">Ops! RiPlay is in error state</string>
+    <string name="crash_title_ops_riplay_is_in_error_state">Ops! Yammbo Music is in error state</string>
     <string name="crash_subtitle_the_application_crashed_unexpectedly_you_can_help_us_by_sending_this_log">The application crashed unexpectedly, you can help us by sending this log.</string>
     <string name="play_or_pause_when_receiving_a_call">Play or pause when receiving a call</string>
 </resources>

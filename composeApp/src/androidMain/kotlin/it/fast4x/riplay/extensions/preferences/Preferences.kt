@@ -115,6 +115,10 @@ const val showButtonPlayerShuffleKey = "showButtonPlayerShuffle"
 const val isKeepScreenOnEnabledKey = "isKeepScreenOnEnabled"
 const val recommendationsNumberKey = "recommendationsNumber"
 const val checkUpdateStateKey = "checkUpdateState"
+// Snooze: stores the highest versionCode the user has tapped "Más tarde" on,
+// so the auto-update dialog stops firing on every cold start until a newer
+// release shows up.
+const val lastDismissedUpdateVersionCodeKey = "lastDismissedUpdateVersionCode"
 const val showButtonPlayerSleepTimerKey = "showButtonPlayerSleepTimer"
 const val keepPlayerMinimizedKey = "keepPlayerMinimized"
 const val isSwipeToActionEnabledKey = "isSwipeToActionEnabled"

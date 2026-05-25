@@ -172,7 +172,7 @@ class AutoBackupWorker(context: Context, params: WorkerParameters) : CoroutineWo
             val noblur = context.preferences.getBoolean(noblurKey, true)
             val fadingedge = context.preferences.getBoolean(fadingedgeKey, false)
             val carousel = context.preferences.getBoolean(carouselKey, true)
-            val keepPlayerMinimized = context.preferences.getBoolean(keepPlayerMinimizedKey, false)
+            val keepPlayerMinimized = context.preferences.getBoolean(keepPlayerMinimizedKey, true)
             val playerInfoShowIcons = context.preferences.getBoolean(playerInfoShowIconsKey, true)
             val showTopActionsBar = context.preferences.getBoolean(showTopActionsBarKey, true)
             val carouselSize = context.preferences.getEnum(carouselSizeKey, CarouselSize.Biggest)

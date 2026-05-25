@@ -501,7 +501,7 @@ fun Lyrics(
                         }
 
                         while (duration == C.TIME_UNSET) {
-                            delay(100)
+                            delay(50)
                             duration = withContext(Dispatchers.Main) {
                                 durationProvider()
                             }
@@ -988,8 +988,15 @@ fun Lyrics(
                         verticalArrangement = Arrangement.Center,
                         modifier = modifierBG
                             .background(
-                                if (isDisplayed && !showlyricsthumbnail) if (lyricsBackground == LyricsBackground.Black) Color.Black.copy(0.6f)
-                                else if (lyricsBackground == LyricsBackground.White) Color.White.copy(0.4f)
+                                // In light theme the Black overlay darkens the
+                                // bg too much (the screen is mostly white) and
+                                // makes the lyrics text feel washed out — tone
+                                // it down to a barely-visible 10 % so the
+                                // setting still adds a hint of contrast.
+                                if (isDisplayed && !showlyricsthumbnail) if (lyricsBackground == LyricsBackground.Black)
+                                    if (lightTheme) Color.Black.copy(0.10f) else Color.Black.copy(0.6f)
+                                else if (lyricsBackground == LyricsBackground.White)
+                                    if (lightTheme) Color.White.copy(0.20f) else Color.White.copy(0.4f)
                                 else Color.Transparent else Color.Transparent
                             )
                     ) {
@@ -1546,11 +1553,14 @@ fun Lyrics(
                         modifier = Modifier
                             .verticalFadingEdge()
                             .background(
-                                if (isDisplayed && !showlyricsthumbnail) if (lyricsBackground == LyricsBackground.Black) Color.Black.copy(
-                                    0.4f
-                                ) else if (lyricsBackground == LyricsBackground.White) Color.White.copy(
-                                    0.4f
-                                ) else Color.Transparent else Color.Transparent
+                                // Same tone-down in light theme as the other
+                                // lyrics container above. Keeps dark theme
+                                // unchanged.
+                                if (isDisplayed && !showlyricsthumbnail) if (lyricsBackground == LyricsBackground.Black)
+                                    if (lightTheme) Color.Black.copy(0.08f) else Color.Black.copy(0.4f)
+                                else if (lyricsBackground == LyricsBackground.White)
+                                    if (lightTheme) Color.White.copy(0.20f) else Color.White.copy(0.4f)
+                                else Color.Transparent else Color.Transparent
                             ),
                     ) {
                         Box(

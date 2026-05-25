@@ -238,8 +238,8 @@ fun DefaultUiSettings() {
     volumeNormalization = false
     var recommendationsNumber by rememberPreference(recommendationsNumberKey,   RecommendationsNumber.`20`)
     recommendationsNumber = RecommendationsNumber.`5`
-    var keepPlayerMinimized by rememberPreference(keepPlayerMinimizedKey,   false)
-    keepPlayerMinimized = false
+    var keepPlayerMinimized by rememberPreference(keepPlayerMinimizedKey,   true)
+    keepPlayerMinimized = true
     var disableIconButtonOnTop by rememberPreference(disableIconButtonOnTopKey, false)
     disableIconButtonOnTop = false
     var lastPlayerTimelineType by rememberPreference(lastPlayerTimelineTypeKey, PlayerTimelineType.Default)
@@ -541,7 +541,7 @@ fun UiSettings(
 
     var recommendationsNumber by rememberPreference(recommendationsNumberKey,   RecommendationsNumber.`20`)
 
-    var keepPlayerMinimized by rememberPreference(keepPlayerMinimizedKey,   false)
+    var keepPlayerMinimized by rememberPreference(keepPlayerMinimizedKey,   true)
 
     var disableIconButtonOnTop by rememberPreference(disableIconButtonOnTopKey, false)
     var lastPlayerTimelineType by rememberPreference(lastPlayerTimelineTypeKey, PlayerTimelineType.Default)

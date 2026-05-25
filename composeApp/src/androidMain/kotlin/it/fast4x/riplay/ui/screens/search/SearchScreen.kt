@@ -111,15 +111,11 @@ fun SearchScreen(
                 Column (
                     verticalArrangement = Arrangement.Center
                 ) {
-                   // if (applyFontPadding)
-                       Spacer(modifier = Modifier.padding(top = 5.dp))
-
                     IconButton(
                         onClick = {},
                         icon = R.drawable.search,
                         color = colorPalette().favoritesIcon,
                         modifier = Modifier
-                            //.align(Alignment.CenterStart)
                             .size(20.dp)
                     )
                 }
@@ -155,9 +151,6 @@ fun SearchScreen(
             Row (
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .padding(top = 5.dp)
-                    //.width(80.dp)
             ) {
 
                 if (isEnabledVoiceInput) {

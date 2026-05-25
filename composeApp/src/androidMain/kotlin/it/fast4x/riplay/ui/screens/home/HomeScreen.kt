@@ -34,6 +34,7 @@ import it.fast4x.riplay.enums.HomePagetype
 import it.fast4x.riplay.ui.components.themed.ConfirmationDialog
 import it.fast4x.riplay.ui.components.themed.SmartMessage
 import it.fast4x.riplay.utils.CheckAvailableNewVersion
+import it.fast4x.riplay.utils.checkAndDownloadNewVersionCode
 import it.fast4x.riplay.extensions.preferences.checkUpdateStateKey
 import it.fast4x.riplay.extensions.preferences.enableMusicIdentifierKey
 import it.fast4x.riplay.extensions.preferences.getEnum
@@ -85,10 +86,21 @@ fun HomeScreen(
 ) {
 
     var showNewversionDialog by remember {
-        mutableStateOf(true)
+        mutableStateOf(false)
     }
 
-    var checkUpdateState by rememberPreference(checkUpdateStateKey, CheckUpdateState.Disabled)
+    var checkUpdateState by rememberPreference(checkUpdateStateKey, CheckUpdateState.Enabled)
+
+    // Fetch latest release from GitHub on cold start, THEN flip the flag so
+    // CheckAvailableNewVersion (which reads UpdatedVersionCode.ver) runs with
+    // fresh data. Previously the dialog composed immediately, read an empty
+    // .ver file, dismissed itself, and never re-armed even after the fetch.
+    if (BuildConfig.BUILD_VARIANT == "full" && checkUpdateState == CheckUpdateState.Enabled) {
+        LaunchedEffect(Unit) {
+            checkAndDownloadNewVersionCode()
+            showNewversionDialog = true
+        }
+    }
 
     val saveableStateHolder = rememberSaveableStateHolder()
 
@@ -370,9 +382,11 @@ fun HomeScreen(
     }
 
 
-    // Yammbo: Update dialogs disabled
-    /*
-    if(BuildConfig.BUILD_VARIANT == "full") {
+    // Auto-show the update dialog as soon as the home tab mounts and the
+    // CheckUpdateWorker has cached a newer version. Limited to the `full`
+    // build variant so F-Droid / playstore builds don't compete with the
+    // store's own update channel.
+    if (BuildConfig.BUILD_VARIANT == "full") {
         if (showNewversionDialog && checkUpdateState == CheckUpdateState.Enabled)
             CheckAvailableNewVersion(
                 onDismiss = { showNewversionDialog = false },
@@ -393,7 +407,6 @@ fun HomeScreen(
                 onConfirm = { checkUpdateState = CheckUpdateState.Enabled },
             )
     }
-    */
 
     // Back button behavior (single source of truth — no other BackHandler should compete):
     //  - Expanded/partially expanded player → collapse the player first

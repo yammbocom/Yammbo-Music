@@ -152,6 +152,7 @@ import it.fast4x.riplay.extensions.preferences.isProxyEnabledKey
 import it.fast4x.riplay.extensions.preferences.languageAppKey
 import it.fast4x.riplay.extensions.preferences.loadedDataKey
 import it.fast4x.riplay.extensions.preferences.miniPlayerTypeKey
+import it.fast4x.riplay.extensions.preferences.keepPlayerMinimizedKey
 import it.fast4x.riplay.extensions.preferences.navigationBarPositionKey
 import it.fast4x.riplay.extensions.preferences.navigationBarTypeKey
 import it.fast4x.riplay.extensions.preferences.parentalControlEnabledKey
@@ -218,12 +219,10 @@ import it.fast4x.riplay.utils.playNext
 import it.fast4x.riplay.utils.resize
 import it.fast4x.riplay.utils.setDefaultPalette
 import it.fast4x.riplay.commonutils.thumbnail
-import it.fast4x.riplay.enums.CheckUpdateState
 import it.fast4x.riplay.extensions.databasebackup.BackupViewModel
 import it.fast4x.riplay.extensions.databasebackup.DatabaseBackupManager
 import it.fast4x.riplay.extensions.htmlreader.shazamSongInfoExtractor
 import it.fast4x.riplay.extensions.ondevice.OnDeviceViewModel
-import it.fast4x.riplay.extensions.preferences.checkUpdateStateKey
 import it.fast4x.riplay.extensions.preferences.resumeOrPausePlaybackWhenDeviceKey
 import it.fast4x.riplay.extensions.preferences.showSnowfallEffectKey
 import it.fast4x.riplay.extensions.ritune.toRiTuneDevice
@@ -232,7 +231,6 @@ import it.fast4x.riplay.service.experimental.GlobalQueueViewModel
 import it.fast4x.riplay.ui.components.Snowfall
 import it.fast4x.riplay.utils.GlobalSharedData.riTuneDevices
 import it.fast4x.riplay.utils.WebViewInfo
-import it.fast4x.riplay.utils.checkAndDownloadNewVersionCode
 import it.fast4x.riplay.utils.getWebViewInfo
 import it.fast4x.riplay.utils.isAtLeastAndroid12
 import it.fast4x.riplay.utils.isManufacturerWithAutostart
@@ -473,6 +471,18 @@ class MainActivity :
 
         // Initialize AdMob
         it.fast4x.riplay.extensions.ads.YammboAdManager.initialize(this)
+
+        // One-shot migration: force keepPlayerMinimized=true for upgraders.
+        // Previous versions had inconsistent defaults that left the pref at false.
+        runCatching {
+            val migrationKey = "keepPlayerMinimized_default_migration_v084"
+            if (!preferences.getBoolean(migrationKey, false)) {
+                preferences.edit()
+                    .putBoolean(keepPlayerMinimizedKey, true)
+                    .putBoolean(migrationKey, true)
+                    .apply()
+            }
+        }
 
         // Force-enable Android Auto support (PlayerMediaBrowserService) on every launch.
         // The user explicitly wants Android Auto active by default.
@@ -798,20 +808,9 @@ class MainActivity :
                 ColorPaletteMode.System
             )
 
-            // Yammbo: update check fires once on cold start (background WorkManager
-            // job runs daily/weekly per GeneralSettings). Limited to the `full`
-            // variant because the Play Store (minimal) variant uses its own
-            // update flow.
-            if (preferences.getEnum(
-                    checkUpdateStateKey,
-                    CheckUpdateState.Enabled
-                ) == CheckUpdateState.Enabled
-                && BuildConfig.BUILD_VARIANT == "full"
-            ) {
-                LaunchedEffect(Unit) {
-                    checkAndDownloadNewVersionCode()
-                }
-            }
+            // Yammbo: update check is now driven from HomeScreen (it awaits the
+            // network call before deciding whether to show the dialog).
+            // Background WorkManager job still runs daily/weekly per GeneralSettings.
 
 
             val coroutineScope = rememberCoroutineScope()

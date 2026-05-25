@@ -179,7 +179,7 @@ fun OnboardingScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("RiPlay") },
+                title = { Text("Yammbo Music") },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface,
                     titleContentColor = MaterialTheme.colorScheme.onSurface

@@ -98,7 +98,7 @@ fun getLastYTVideoId() = appContext().preferences.getString(lastVideoIdKey, "")
 fun getLastYTVideoSeconds() = appContext().preferences.getFloat(lastVideoSecondsKey, 0f)
 fun getPlayerTimelineType() = appContext().preferences.getEnum(playerTimelineTypeKey, PlayerTimelineType.Wavy)
 fun getPlaybackFadeAudioDuration() = appContext().preferences.getEnum(playbackFadeAudioDurationKey, DurationInMilliseconds.Disabled)
-fun getKeepPlayerMinimized() = appContext().preferences.getBoolean(keepPlayerMinimizedKey, false)
+fun getKeepPlayerMinimized() = appContext().preferences.getBoolean(keepPlayerMinimizedKey, true)
 fun getlastFmSessionKey() = appContext().preferences.getString(lastfmSessionTokenKey, "")
 
 fun ytAccountName() = appContext().preferences.getString(ytAccountNameKey, "")

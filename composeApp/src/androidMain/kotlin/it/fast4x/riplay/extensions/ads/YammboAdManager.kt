@@ -19,7 +19,7 @@ object YammboAdManager {
     // below — that device alone will serve Google test ads while prod IDs remain active.
     // The hashed ID appears in logcat on first ad load:
     //   "Use RequestConfiguration.Builder.setTestDeviceIds(Arrays.asList(\"ABC...\"))"
-    private const val USE_TEST_ADS = false
+    private const val USE_TEST_ADS = true
     private val TEST_DEVICE_IDS: List<String> = emptyList()
 
     private const val PROD_BANNER_AD_UNIT_ID = "ca-app-pub-1890269745181275/1516165794"
