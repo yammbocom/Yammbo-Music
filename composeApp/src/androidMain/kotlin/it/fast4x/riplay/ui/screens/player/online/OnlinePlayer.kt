@@ -2279,6 +2279,7 @@ fun OnlinePlayer(
                             userScrollEnabled = !((albumCoverRotation || (animatedGradient == AnimatedGradient.Random && tempGradient == gradients[14])) && (isShowingLyrics || showthumbnail)),
                             modifier = Modifier
                         ) { it ->
+                            if (it >= binder.player.mediaItemCount) return@HorizontalPager
 
                             var currentRotation by rememberSaveable {
                                 mutableFloatStateOf(0f)
@@ -2581,6 +2582,7 @@ fun OnlinePlayer(
                                                     )
                                                     .conditional(fadingedge) { horizontalFadingEdge() }
                                             ) { it ->
+                                                if (it >= binder.player.mediaItemCount) return@HorizontalPager
 
                                                 val coverPainter = rememberAsyncImagePainter(
                                                     model = ImageRequest.Builder(LocalContext.current)
@@ -2891,6 +2893,7 @@ fun OnlinePlayer(
                                 false
                             }
                     ) { it ->
+                        if (it >= binder.player.mediaItemCount) return@HorizontalPager
 
                         var currentRotation by rememberSaveable {
                             mutableFloatStateOf(0f)
@@ -3348,6 +3351,11 @@ fun OnlinePlayer(
                                                 )
                                             }
                                     ) { index ->
+                                        // Empty-queue guard: al volver de background con queue cleared,
+                                        // pagerState.pageCount aún puede tener el valor viejo, invocando
+                                        // este lambda con index >= mediaItemCount → getMediaItemAt(index)
+                                        // tira IndexOutOfBoundsException en Choreographer.doFrame.
+                                        if (index >= binder.player.mediaItemCount) return@VerticalPager
 
                                         val coverPainter = rememberAsyncImagePainter(
                                             model = ImageRequest.Builder(LocalContext.current)

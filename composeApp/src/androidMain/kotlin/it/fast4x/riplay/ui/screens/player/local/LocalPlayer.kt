@@ -2093,6 +2093,7 @@ fun LocalPlayer(
                      userScrollEnabled = !((albumCoverRotation || (animatedGradient == AnimatedGradient.Random && tempGradient == gradients[14])) && (isShowingLyrics || showthumbnail)),
                      modifier = Modifier
                  ) { it ->
+                     if (it >= binder.player.mediaItemCount) return@HorizontalPager
 
                      var currentRotation by rememberSaveable {
                          mutableFloatStateOf(0f)
@@ -2377,6 +2378,7 @@ fun LocalPlayer(
                                              .conditional(fadingedge) { horizontalFadingEdge() }
                                          ) {
                                          it ->
+                                         if (it >= binder.player.mediaItemCount) return@HorizontalPager
 
                                          val coverPainter = rememberAsyncImagePainter(
                                              model = ImageRequest.Builder(LocalContext.current)
@@ -2636,6 +2638,7 @@ fun LocalPlayer(
                                 false
                             }
                     ) { it ->
+                        if (it >= player.mediaItemCount) return@HorizontalPager
 
                         var currentRotation by rememberSaveable {
                             mutableFloatStateOf(0f)
@@ -3071,6 +3074,7 @@ fun LocalPlayer(
                                              )
                                          }
                                  ){ index ->
+                                     if (index >= binder.player.mediaItemCount) return@VerticalPager
 
                                      val coverPainter = rememberAsyncImagePainter(
                                          model = ImageRequest.Builder(LocalContext.current)
