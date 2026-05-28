@@ -700,7 +700,13 @@ fun downloadUpdateApk(context: Context, versionName: String) {
             .setAllowedOverRoaming(true)
         val dm = context.getSystemService(Context.DOWNLOAD_SERVICE)
             as android.app.DownloadManager
-        dm.enqueue(request)
+        val downloadId = dm.enqueue(request)
+        // Launch the Package Installer the moment the download finishes so the
+        // user doesn't have to hunt for the notification. Requires the manifest
+        // REQUEST_INSTALL_PACKAGES permission; if "install unknown apps" isn't
+        // granted yet the system installer prompts for it. The notification tap
+        // is the fallback when the app is backgrounded at completion time.
+        registerUpdateInstallReceiver(context.applicationContext, dm, downloadId)
     } catch (e: Exception) {
         // If DownloadManager is disabled / no storage, fall back to opening
         // the browser as a last resort so the user still has a path forward.
@@ -712,6 +718,62 @@ fun downloadUpdateApk(context: Context, versionName: String) {
             context.startActivity(intent)
         } catch (_: Exception) { }
     }
+}
+
+private fun registerUpdateInstallReceiver(
+    appContext: Context,
+    dm: android.app.DownloadManager,
+    downloadId: Long,
+) {
+    val receiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(ctx: Context, intent: android.content.Intent) {
+            val completedId = intent.getLongExtra(
+                android.app.DownloadManager.EXTRA_DOWNLOAD_ID, -1L,
+            )
+            if (completedId != downloadId) return
+            try {
+                appContext.unregisterReceiver(this)
+            } catch (_: Exception) { }
+
+            // Only install if the download actually succeeded.
+            val successful = dm.query(
+                android.app.DownloadManager.Query().setFilterById(downloadId),
+            )?.use { cursor ->
+                val statusCol =
+                    cursor.getColumnIndex(android.app.DownloadManager.COLUMN_STATUS)
+                cursor.moveToFirst() && statusCol >= 0 &&
+                    cursor.getInt(statusCol) ==
+                    android.app.DownloadManager.STATUS_SUCCESSFUL
+            } ?: false
+            if (!successful) return
+
+            val contentUri = dm.getUriForDownloadedFile(downloadId) ?: return
+            try {
+                val installIntent = android.content.Intent(
+                    android.content.Intent.ACTION_VIEW,
+                ).apply {
+                    setDataAndType(
+                        contentUri,
+                        "application/vnd.android.package-archive",
+                    )
+                    addFlags(
+                        android.content.Intent.FLAG_ACTIVITY_NEW_TASK or
+                            android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION,
+                    )
+                }
+                appContext.startActivity(installIntent)
+            } catch (_: Exception) { }
+        }
+    }
+    val filter = android.content.IntentFilter(
+        android.app.DownloadManager.ACTION_DOWNLOAD_COMPLETE,
+    )
+    androidx.core.content.ContextCompat.registerReceiver(
+        appContext,
+        receiver,
+        filter,
+        androidx.core.content.ContextCompat.RECEIVER_EXPORTED,
+    )
 }
 
 @Composable
