@@ -114,7 +114,7 @@ fun HistoryList(
 
     val parentalControlEnabled by rememberPreference(parentalControlEnabledKey, false)
     val disableScrollingText by rememberPreference(disableScrollingTextKey, false)
-    val thumbnailRoundness by rememberPreference(thumbnailRoundnessKey, ThumbnailRoundness.Heavy)
+    val thumbnailRoundness by rememberPreference(thumbnailRoundnessKey, ThumbnailRoundness.Light)
 
     var isSelectionMode by remember { mutableStateOf(false) }
     val selectedIds = remember { mutableStateSetOf<String>() }

@@ -4,6 +4,8 @@ import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import it.fast4x.riplay.extensions.ads.PremiumFeature
+import it.fast4x.riplay.extensions.ads.PremiumGuard
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -283,10 +285,13 @@ fun FastShare(
                         listOf(Color(0xFF424242), Color(0xFF1B1B1B))
                     )
                 ) {
-                    val url = ytUrlToShare.ifEmpty { urlToShare }
-                    if (url.isNotEmpty()) {
-                        shareUrlToDownloader(context, YTDLNIS_APP, url) {
-                            pendingInstallApp = YTDLNIS_APP
+                    // Free users cannot download tracks via YTDLnis — gate behind Premium.
+                    if (PremiumGuard.checkFeature(context, PremiumFeature.Download)) {
+                        val url = ytUrlToShare.ifEmpty { urlToShare }
+                        if (url.isNotEmpty()) {
+                            shareUrlToDownloader(context, YTDLNIS_APP, url) {
+                                pendingInstallApp = YTDLNIS_APP
+                            }
                         }
                     }
                 }

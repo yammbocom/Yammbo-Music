@@ -1085,6 +1085,8 @@
     <string name="to_ensure_that_the_app_is_working_properly_in_the_background_e_g_for_notifications_or_music_playback_you_must_enable_autostart_do_you_want_to_open_the_settings_to_activate_it">To ensure that the app is working properly in the background (e.g. for notifications or music playback), you must enable autostart. Do you want to open the settings to activate it?</string>
     <string name="open_settings_now">Open Settings Now</string>
     <string name="later">Later</string>
+    <string name="autostart_search_hint">Find \"Auto-start\" or \"Allow startup\" in the list and turn it on for Yammbo Music.</string>
+    <string name="autostart_fallback_hint">Open the app settings and look for battery or auto-start options.</string>
     <string name="home_section_home">Home</string>
     <string name="home_section_for_you">For You</string>
     <string name="home_section_other">Other</string>
@@ -1362,4 +1364,20 @@
     <string name="app_update_download_started">Downloading in the background. You\'ll see progress in your notifications.</string>
     <string name="app_update_later">Later</string>
     <string name="app_update_open_github">View on GitHub</string>
+
+    <!-- Yambo self-promo ads (rotate with AdMob inventory for free users) -->
+    <string name="yambo_promo_banner_title">Enjoy without limits</string>
+    <string name="yambo_promo_banner_subtitle">Music without ads</string>
+    <string name="yambo_promo_banner_cta">Premium</string>
+    <string name="yambo_promo_fs_title">Your music deserves more</string>
+    <string name="yambo_promo_fs_subtitle">Go Premium and unleash everything Yammbo Music has to offer.</string>
+    <string name="yambo_promo_fs_feature_1">No ad interruptions</string>
+    <string name="yambo_promo_fs_feature_2">Unlimited skips and lossless quality</string>
+    <string name="yambo_promo_fs_feature_3">Offline downloads anywhere</string>
+    <string name="yambo_promo_fs_cta">Go Premium</string>
+    <string name="yambo_promo_fs_skip">Maybe later</string>
+    <string name="yambo_promo_popup_title">Go Premium</string>
+    <string name="yambo_promo_popup_body">No ads, unlimited skips and offline mode. Take your listening to the next level.</string>
+    <string name="yambo_promo_popup_cta">See plans</string>
+    <string name="yambo_promo_popup_close">Close</string>
 </resources>

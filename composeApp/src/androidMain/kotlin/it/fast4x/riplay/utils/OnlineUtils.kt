@@ -569,7 +569,7 @@ fun ShowVideoOrSongInfo(
         return
     }
 
-    val thumbnailRoundness by rememberPreference(thumbnailRoundnessKey, ThumbnailRoundness.Heavy)
+    val thumbnailRoundness by rememberPreference(thumbnailRoundnessKey, ThumbnailRoundness.Light)
     val windowInsets = WindowInsets.systemBars
 
     // Stato per gestire caricamento e dati
@@ -781,7 +781,7 @@ fun ShowVideoOrSongInfo(
         return
     }
 
-    val thumbnailRoundness by rememberPreference(thumbnailRoundnessKey, ThumbnailRoundness.Heavy)
+    val thumbnailRoundness by rememberPreference(thumbnailRoundnessKey, ThumbnailRoundness.Light)
 
     val windowInsets = WindowInsets.systemBars
 

@@ -91,8 +91,13 @@ import androidx.core.os.LocaleListCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.lifecycleScope
+import it.fast4x.riplay.extensions.ads.promo.YamboPromoManager
+import it.fast4x.riplay.extensions.ads.promo.YamboPromoPopup
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
@@ -233,7 +238,6 @@ import it.fast4x.riplay.utils.GlobalSharedData.riTuneDevices
 import it.fast4x.riplay.utils.WebViewInfo
 import it.fast4x.riplay.utils.getWebViewInfo
 import it.fast4x.riplay.utils.isAtLeastAndroid12
-import it.fast4x.riplay.utils.isManufacturerWithAutostart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
@@ -377,11 +381,37 @@ class MainActivity :
     private fun checkAndRequestAutostartPermission() {
         val manufacturer = Build.MANUFACTURER.lowercase()
 
-        if (isManufacturerWithAutostart()) {
-            Timber.d("MainActivity Found vendor with autostart restrictions: $manufacturer")
+        // Only prompt when this device actually has a dedicated autostart manager
+        // screen we can open. On Samsung/Asus/stock there is none — the intent would
+        // just land on the generic app-info page, which has no autostart toggle.
+        val autostartIntent = buildAutostartIntent()
+        if (autostartIntent != null && autostartIntent.resolveActivity(packageManager) != null) {
+            Timber.d("MainActivity Found vendor with real autostart screen: $manufacturer")
             showAutostartDialog()
         } else {
-            Timber.d("MainActivity Vendor known already granted.")
+            Timber.d("MainActivity No dedicated autostart screen for $manufacturer; skipping dialog.")
+        }
+    }
+
+    // Returns the OEM-specific autostart manager intent, or null for vendors without one.
+    private fun buildAutostartIntent(): Intent? {
+        return when (Build.MANUFACTURER.lowercase()) {
+            "xiaomi" -> Intent().apply {
+                component = ComponentName("com.miui.securitycenter", "com.miui.permcenter.autostart.AutoStartManagementActivity")
+            }
+            "huawei" -> Intent().apply {
+                component = ComponentName("com.huawei.systemmanager", "com.huawei.systemmanager.appcontrol.activity.StartupAppControlActivity")
+            }
+            "oppo" -> Intent().apply {
+                component = ComponentName("com.coloros.safecenter", "com.coloros.safecenter.permission.startup.StartupAppListActivity")
+            }
+            "vivo" -> Intent().apply {
+                component = ComponentName("com.iqoo.secure", "com.iqoo.secure.ui.phoneoptimize.AddWhiteListActivity")
+            }
+            "oneplus" -> Intent().apply {
+                component = ComponentName("com.oneplus.security", "com.oneplus.security.chainlaunch.view.ChainLaunchAppListActivity")
+            }
+            else -> null
         }
     }
 
@@ -398,46 +428,22 @@ class MainActivity :
     }
 
     private fun openAutostartSettings() {
+        val intent = buildAutostartIntent()
         try {
-            val intent = when (Build.MANUFACTURER.lowercase()) {
-                "xiaomi" -> Intent().apply {
-                    component = ComponentName("com.miui.securitycenter", "com.miui.permcenter.autostart.AutoStartManagementActivity")
-                }
-                "huawei" -> Intent().apply {
-                    component = ComponentName("com.huawei.systemmanager", "com.huawei.systemmanager.appcontrol.activity.StartupAppControlActivity")
-                }
-                "oppo" -> Intent().apply {
-                    component = ComponentName("com.coloros.safecenter", "com.coloros.safecenter.permission.startup.StartupAppListActivity")
-                }
-                "vivo" -> Intent().apply {
-                    component = ComponentName("com.iqoo.secure", "com.iqoo.secure.ui.phoneoptimize.AddWhiteListActivity")
-                }
-                "oneplus" -> Intent().apply {
-                    component = ComponentName("com.oneplus.security", "com.oneplus.security.chainlaunch.view.ChainLaunchAppListActivity")
-                }
-                "samsung" -> { // Samsung is more complicated, often going into battery settings
-                    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                        data = Uri.fromParts("package", packageName, null)
-                    }
-                }
-                else -> {
-                    // Generic fallback, open app settings
-                    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                        data = Uri.fromParts("package", packageName, null)
-                    }
-                }
+            if (intent != null && intent.resolveActivity(packageManager) != null) {
+                startActivity(intent)
+                SmartMessage(getString(R.string.autostart_search_hint), context = this)
+                return
             }
-            startActivity(intent)
-            SmartMessage( "Search for 'Autostart' or 'Allow Startup' and activate it for this app.", context = this)
         } catch (e: Exception) {
             Timber.e("MainActivity Unable to open autostart settings. $e")
-            // Ultimate fallback: O, open app settings
-            val fallbackIntent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                data = Uri.fromParts("package", packageName, null)
-            }
-            startActivity(fallbackIntent)
-            SmartMessage( "Open the app settings and look for battery or autostart options.", context= this)
         }
+        // Fallback: open the generic app settings page.
+        val fallbackIntent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+            data = Uri.fromParts("package", packageName, null)
+        }
+        startActivity(fallbackIntent)
+        SmartMessage(getString(R.string.autostart_fallback_hint), context = this)
     }
 
     override fun onStart() {
@@ -772,6 +778,33 @@ class MainActivity :
             }
 
 
+            // Yambo self-promo popup: fires on app resume, throttled by YamboPromoManager
+            // (every 3 days, max 3 dismissals before suppression). Pro users skipped.
+            val yamboPromoContext = this@MainActivity
+            var showYamboPromoPopup by remember { mutableStateOf(false) }
+            val yamboPromoLifecycleOwner = LocalLifecycleOwner.current
+            DisposableEffect(yamboPromoLifecycleOwner) {
+                val observer = LifecycleEventObserver { _, event ->
+                    if (event == Lifecycle.Event.ON_RESUME &&
+                        YamboPromoManager.shouldShowYamboPopup(yamboPromoContext)
+                    ) {
+                        YamboPromoManager.markPopupShown(yamboPromoContext)
+                        showYamboPromoPopup = true
+                    }
+                }
+                yamboPromoLifecycleOwner.lifecycle.addObserver(observer)
+                onDispose { yamboPromoLifecycleOwner.lifecycle.removeObserver(observer) }
+            }
+            if (showYamboPromoPopup) {
+                YamboPromoPopup(
+                    onDismiss = {
+                        YamboPromoManager.markPopupDismissed(yamboPromoContext)
+                        showYamboPromoPopup = false
+                    },
+                    onConverted = { showYamboPromoPopup = false }
+                )
+            }
+
             // Binder observer
             val binder = this@MainActivity.binder
             LaunchedEffect(binder) {
@@ -904,7 +937,7 @@ class MainActivity :
             ) {
                 with(preferences) {
                     val thumbnailRoundness =
-                        getEnum(thumbnailRoundnessKey, ThumbnailRoundness.Heavy)
+                        getEnum(thumbnailRoundnessKey, ThumbnailRoundness.Light)
                     val useSystemFont = getBoolean(useSystemFontKey, false)
                     val applyFontPadding = getBoolean(applyFontPaddingKey, false)
 

@@ -229,7 +229,7 @@ fun DefaultAppearanceSettings() {
         PlayerTimelineSize.Biggest
     )
     playerTimelineSize = PlayerTimelineSize.Biggest
-    var effectRotationEnabled by rememberPreference(effectRotationKey, true)
+    var effectRotationEnabled by rememberPreference(effectRotationKey, false)
     effectRotationEnabled = true
     var thumbnailTapEnabled by rememberPreference(thumbnailTapEnabledKey, true)
     thumbnailTapEnabled = true
@@ -424,7 +424,7 @@ fun AppearanceSettings(
     )
     //
 
-    var effectRotationEnabled by rememberPreference(effectRotationKey, true)
+    var effectRotationEnabled by rememberPreference(effectRotationKey, false)
 
     var thumbnailTapEnabled by rememberPreference(thumbnailTapEnabledKey, true)
 

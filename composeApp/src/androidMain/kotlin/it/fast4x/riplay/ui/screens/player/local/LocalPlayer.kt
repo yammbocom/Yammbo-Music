@@ -327,6 +327,7 @@ import it.fast4x.riplay.utils.mediaItemToggleLike
 import it.fast4x.riplay.commonutils.setDisLikeState
 import it.fast4x.riplay.extensions.ads.PremiumGuard as LocalPremiumGuard
 import it.fast4x.riplay.extensions.ads.PremiumFeature as LocalPremiumFeature
+import it.fast4x.riplay.extensions.ads.YammboAdManager as LocalAdManager
 import it.fast4x.riplay.utils.globalContext as localGlobalContext
 import it.fast4x.riplay.utils.removeFromOnlineLikedSong
 import kotlinx.coroutines.CoroutineScope
@@ -360,7 +361,7 @@ fun LocalPlayer(
 ) {
     val menuState = LocalGlobalSheetState.current
     val selectedQueue = LocalSelectedQueue.current
-    val effectRotationEnabled by rememberPreference(effectRotationKey, true)
+    val effectRotationEnabled by rememberPreference(effectRotationKey, false)
 
     val playerThumbnailSize by rememberPreference(
         playerThumbnailSizeKey,
@@ -2047,7 +2048,7 @@ fun LocalPlayer(
             }
         }
 
-        val thumbnailRoundness by rememberPreference(thumbnailRoundnessKey, ThumbnailRoundness.Heavy)
+        val thumbnailRoundness by rememberPreference(thumbnailRoundnessKey, ThumbnailRoundness.Light)
         val thumbnailType by rememberPreference(thumbnailTypeKey, ThumbnailType.Modern)
         val statsfornerds by rememberPreference(statsfornerdsKey, false)
         val topPadding by rememberPreference(topPaddingKey, true)
@@ -2077,11 +2078,20 @@ fun LocalPlayer(
                  if (!showQueue) {
                      LaunchedEffect(pagerStateFS) {
                          var previousPage = pagerStateFS.settledPage
-                         snapshotFlow { pagerStateFS.settledPage }.distinctUntilChanged().collect {
-                             if (previousPage != it) {
-                                 if (it != binder.player.currentMediaItemIndex) binder.player.playAtIndex(it)
+                         snapshotFlow { pagerStateFS.settledPage }.distinctUntilChanged().collect { page ->
+                             if (previousPage != page) {
+                                 if (page != binder.player.currentMediaItemIndex) {
+                                     val ctx = localGlobalContext()
+                                     if (it.fast4x.riplay.extensions.ads.YammboAdManager.canSkip(ctx)) {
+                                         it.fast4x.riplay.extensions.ads.YammboAdManager.recordSkip()
+                                         binder.player.playAtIndex(page)
+                                     } else {
+                                         LocalPremiumGuard.checkFeature(ctx, LocalPremiumFeature.SkipSong)
+                                         pagerStateFS.scrollToPage(binder.player.currentMediaItemIndex)
+                                     }
+                                 }
                              }
-                             previousPage = it
+                             previousPage = page
                          }
                      }
                  }
@@ -2353,11 +2363,20 @@ fun LocalPlayer(
                                      if (!showQueue) {
                                          LaunchedEffect(pagerState) {
                                              var previousPage = pagerState.settledPage
-                                             snapshotFlow { pagerState.settledPage }.distinctUntilChanged().collect {
-                                                     if (previousPage != it) {
-                                                         if (it != binder.player.currentMediaItemIndex) binder.player.playAtIndex(it)
+                                             snapshotFlow { pagerState.settledPage }.distinctUntilChanged().collect { page ->
+                                                     if (previousPage != page) {
+                                                         if (page != binder.player.currentMediaItemIndex) {
+                                                             val ctx = localGlobalContext()
+                                                             if (it.fast4x.riplay.extensions.ads.YammboAdManager.canSkip(ctx)) {
+                                                                 it.fast4x.riplay.extensions.ads.YammboAdManager.recordSkip()
+                                                                 binder.player.playAtIndex(page)
+                                                             } else {
+                                                                 LocalPremiumGuard.checkFeature(ctx, LocalPremiumFeature.SkipSong)
+                                                                 pagerState.scrollToPage(binder.player.currentMediaItemIndex)
+                                                             }
+                                                         }
                                                      }
-                                                     previousPage = it
+                                                     previousPage = page
                                                  }
                                          }
                                      }
@@ -2442,7 +2461,13 @@ fun LocalPlayer(
                                                          }
                                                      }
                                                      if (it != pagerState.settledPage) {
-                                                         binder.player.playAtIndex(it)
+                                                         val ctx = localGlobalContext()
+                                                         if (LocalAdManager.canSkip(ctx)) {
+                                                             LocalAdManager.recordSkip()
+                                                             binder.player.playAtIndex(it)
+                                                         } else {
+                                                             LocalPremiumGuard.checkFeature(ctx, LocalPremiumFeature.SkipSong)
+                                                         }
                                                      }
                                                  },
                                                  onLongClick = {
@@ -2617,12 +2642,21 @@ fun LocalPlayer(
                    if (!showQueue) {
                        LaunchedEffect(pagerStateFS) {
                            var previousPage = pagerStateFS.settledPage
-                           snapshotFlow { pagerStateFS.settledPage }.distinctUntilChanged().collect {
-                                   if (previousPage != it) {
+                           snapshotFlow { pagerStateFS.settledPage }.distinctUntilChanged().collect { page ->
+                                   if (previousPage != page) {
                                        delay(if (swipeAnimationNoThumbnail == SwipeAnimationNoThumbnail.Fade) 0 else 400)
-                                       if (it != binder.player.currentMediaItemIndex) binder.player.playAtIndex(it)
+                                       if (page != binder.player.currentMediaItemIndex) {
+                                           val ctx = localGlobalContext()
+                                           if (it.fast4x.riplay.extensions.ads.YammboAdManager.canSkip(ctx)) {
+                                               it.fast4x.riplay.extensions.ads.YammboAdManager.recordSkip()
+                                               binder.player.playAtIndex(page)
+                                           } else {
+                                               LocalPremiumGuard.checkFeature(ctx, LocalPremiumFeature.SkipSong)
+                                               pagerStateFS.scrollToPage(binder.player.currentMediaItemIndex)
+                                           }
+                                       }
                                    }
-                                   previousPage = it
+                                   previousPage = page
                                }
                        }
                    }
@@ -3030,11 +3064,20 @@ fun LocalPlayer(
                                  if (!showQueue) {
                                      LaunchedEffect(pagerState) {
                                          var previousPage = pagerState.settledPage
-                                         snapshotFlow { pagerState.settledPage }.distinctUntilChanged().collect {
-                                             if (previousPage != it) {
-                                                 if (it != binder.player.currentMediaItemIndex) binder.player.playAtIndex(it)
+                                         snapshotFlow { pagerState.settledPage }.distinctUntilChanged().collect { page ->
+                                             if (previousPage != page) {
+                                                 if (page != binder.player.currentMediaItemIndex) {
+                                                     val ctx = localGlobalContext()
+                                                     if (it.fast4x.riplay.extensions.ads.YammboAdManager.canSkip(ctx)) {
+                                                         it.fast4x.riplay.extensions.ads.YammboAdManager.recordSkip()
+                                                         binder.player.playAtIndex(page)
+                                                     } else {
+                                                         LocalPremiumGuard.checkFeature(ctx, LocalPremiumFeature.SkipSong)
+                                                         pagerState.scrollToPage(binder.player.currentMediaItemIndex)
+                                                     }
+                                                 }
                                              }
-                                             previousPage = it
+                                             previousPage = page
                                          }
                                      }
                                  }
@@ -3139,7 +3182,13 @@ fun LocalPlayer(
                                                      }
                                                  }
                                                  if (index != pagerState.settledPage) {
-                                                     binder.player.playAtIndex(index)
+                                                     val ctx = localGlobalContext()
+                                                     if (LocalAdManager.canSkip(ctx)) {
+                                                         LocalAdManager.recordSkip()
+                                                         binder.player.playAtIndex(index)
+                                                     } else {
+                                                         LocalPremiumGuard.checkFeature(ctx, LocalPremiumFeature.SkipSong)
+                                                     }
                                                  }
                                              },
                                              onLongClick = {

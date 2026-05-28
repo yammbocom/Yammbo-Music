@@ -9,6 +9,7 @@ import com.google.android.gms.ads.LoadAdError
 import com.google.android.gms.ads.MobileAds
 import com.google.android.gms.ads.interstitial.InterstitialAd
 import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
+import it.fast4x.riplay.extensions.ads.promo.YamboPromoManager
 import it.fast4x.riplay.extensions.yammboapi.YammboAuthManager
 import timber.log.Timber
 
@@ -91,6 +92,13 @@ object YammboAdManager {
     fun showInterstitialIfPending(activity: Activity) {
         if (!pendingInterstitial) return
         pendingInterstitial = false
+
+        if (YamboPromoManager.shouldShowYamboFullScreen(activity)) {
+            Timber.d("Interstitial: rotating to Yambo full-screen self-promo")
+            YamboPromoManager.launchFullScreenActivity(activity)
+            return
+        }
+
         showInterstitial(activity)
     }
 

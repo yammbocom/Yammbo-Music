@@ -20,6 +20,8 @@ import com.google.android.gms.ads.AdRequest
 import com.google.android.gms.ads.AdSize
 import com.google.android.gms.ads.AdView
 import com.google.android.gms.ads.LoadAdError
+import it.fast4x.riplay.extensions.ads.promo.YamboPromoBanner
+import it.fast4x.riplay.extensions.ads.promo.YamboPromoManager
 import timber.log.Timber
 
 @Composable
@@ -32,6 +34,12 @@ fun BannerAd(
 
     if (!YammboAdManager.shouldShowAds(context)) {
         Timber.d("BannerAd: shouldShowAds=false, skipping ad")
+        return
+    }
+
+    if (YamboPromoManager.shouldShowYamboBanner(context)) {
+        Timber.d("BannerAd: rotating to Yambo self-promo banner")
+        YamboPromoBanner(modifier = modifier)
         return
     }
 

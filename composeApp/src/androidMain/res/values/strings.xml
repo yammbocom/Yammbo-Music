@@ -1152,10 +1152,12 @@
     <string name="rw_remember_your_privacy_is_respected_all_data_used_is_only_in_your_device_and_managed_by_you">Remember, your privacy is respected!\nAll data used is only in your device and managed by you.</string>
     <string name="rw_swipe_to_get_started">Swipe to get started</string>
     <string name="rw_swipe_to_continue">Swipe to continue</string>
-    <string name="enable_autostart">Enable AutoStart</string>
-    <string name="to_ensure_that_the_app_is_working_properly_in_the_background_e_g_for_notifications_or_music_playback_you_must_enable_autostart_do_you_want_to_open_the_settings_to_activate_it">To ensure that the app is working properly in the background (e.g. for notifications or music playback), you must enable autostart. Do you want to open the settings to activate it?</string>
+    <string name="enable_autostart">Enable auto-start</string>
+    <string name="to_ensure_that_the_app_is_working_properly_in_the_background_e_g_for_notifications_or_music_playback_you_must_enable_autostart_do_you_want_to_open_the_settings_to_activate_it">For music to keep playing and notifications to work when the screen is off or the app is in the background, your phone must allow Yammbo Music to auto-start.\n\nAfter tapping \"Open settings\":\n1. Find \"Yammbo Music\" in the list.\n2. Turn on its auto-start switch.\n3. Return to the app.\n\nDo you want to open the settings now?</string>
     <string name="open_settings_now">Open Settings Now</string>
     <string name="later">Later</string>
+    <string name="autostart_search_hint">Find \"Auto-start\" or \"Allow startup\" in the list and turn it on for Yammbo Music.</string>
+    <string name="autostart_fallback_hint">Open the app settings and look for battery or auto-start options.</string>
     <string name="home_section_home">Home</string>
     <string name="home_section_for_you">For You</string>
     <string name="home_section_other">Other</string>
@@ -1364,4 +1366,20 @@
     <string name="crash_title_ops_riplay_is_in_error_state">Ops! Yammbo Music is in error state</string>
     <string name="crash_subtitle_the_application_crashed_unexpectedly_you_can_help_us_by_sending_this_log">The application crashed unexpectedly, you can help us by sending this log.</string>
     <string name="play_or_pause_when_receiving_a_call">Play or pause when receiving a call</string>
+
+    <!-- Yambo self-promo ads (rotate with AdMob inventory for free users) -->
+    <string name="yambo_promo_banner_title">Enjoy without limits</string>
+    <string name="yambo_promo_banner_subtitle">Music without ads</string>
+    <string name="yambo_promo_banner_cta">Premium</string>
+    <string name="yambo_promo_fs_title">Your music deserves more</string>
+    <string name="yambo_promo_fs_subtitle">Go Premium and unleash everything Yammbo Music has to offer.</string>
+    <string name="yambo_promo_fs_feature_1">No ad interruptions</string>
+    <string name="yambo_promo_fs_feature_2">Unlimited skips and lossless quality</string>
+    <string name="yambo_promo_fs_feature_3">Offline downloads anywhere</string>
+    <string name="yambo_promo_fs_cta">Go Premium</string>
+    <string name="yambo_promo_fs_skip">Maybe later</string>
+    <string name="yambo_promo_popup_title">Go Premium</string>
+    <string name="yambo_promo_popup_body">No ads, unlimited skips and offline mode. Take your listening to the next level.</string>
+    <string name="yambo_promo_popup_cta">See plans</string>
+    <string name="yambo_promo_popup_close">Close</string>
 </resources>

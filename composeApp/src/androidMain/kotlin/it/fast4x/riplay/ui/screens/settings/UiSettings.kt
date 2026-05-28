@@ -456,7 +456,7 @@ fun DefaultUiSettings() {
     showRemainingSongTime = true
     var disableScrollingText by rememberPreference(disableScrollingTextKey, false)
     disableScrollingText = false
-    var effectRotationEnabled by rememberPreference(effectRotationKey, true)
+    var effectRotationEnabled by rememberPreference(effectRotationKey, false)
     effectRotationEnabled = true
     var thumbnailTapEnabled by rememberPreference(thumbnailTapEnabledKey, true)
     thumbnailTapEnabled = true
@@ -665,7 +665,7 @@ fun UiSettings(
     var showNextSongsInPlayer by rememberPreference(showNextSongsInPlayerKey, false)
     var showRemainingSongTime by rememberPreference(showRemainingSongTimeKey, true)
     var disableScrollingText by rememberPreference(disableScrollingTextKey, false)
-    var effectRotationEnabled by rememberPreference(effectRotationKey, true)
+    var effectRotationEnabled by rememberPreference(effectRotationKey, false)
     var thumbnailTapEnabled by rememberPreference(thumbnailTapEnabledKey, true)
     var clickLyricsText by rememberPreference(clickOnLyricsTextKey, true)
     var backgroundProgress by rememberPreference(
