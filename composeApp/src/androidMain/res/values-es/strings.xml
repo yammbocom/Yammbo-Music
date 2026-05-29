@@ -1374,6 +1374,10 @@
     <string name="app_update_download_started">Descargando en segundo plano. Verás el progreso en tus notificaciones.</string>
     <string name="app_update_later">Más tarde</string>
     <string name="app_update_open_github">Ver en GitHub</string>
+    <string name="app_update_guide_title">Cómo instalar la actualización</string>
+    <string name="app_update_guide_body">La descarga ya comenzó (verás el avance en tus notificaciones). Cuando termine, se abrirá el instalador automáticamente.\n\nSi tu teléfono bloquea la instalación, pulsa \"Permitir instalación\" y activa el permiso para Yammbo Music. Luego abre la descarga y pulsa Instalar.</string>
+    <string name="app_update_guide_allow">Permitir instalación</string>
+    <string name="app_update_guide_done">Entendido</string>
 
     <!-- Yambo self-promo ads (rotate with AdMob inventory for free users) -->
     <string name="yambo_promo_banner_title">Disfruta sin límites</string>

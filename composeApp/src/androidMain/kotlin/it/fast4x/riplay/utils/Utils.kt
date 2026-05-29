@@ -776,6 +776,32 @@ private fun registerUpdateInstallReceiver(
     )
 }
 
+/**
+ * Open the "install unknown apps" settings page scoped to this app so the user
+ * can pre-grant the permission while the update downloads. Falls back to the
+ * generic app-details page if the dedicated screen isn't available.
+ */
+@SuppressLint("ObsoleteSdkInt")
+fun openUnknownSourcesSettings(context: Context) {
+    try {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val intent = android.content.Intent(
+                android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                "package:${context.packageName}".toUri(),
+            ).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
+            context.startActivity(intent)
+            return
+        }
+    } catch (_: Exception) { }
+    try {
+        val intent = android.content.Intent(
+            android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+            "package:${context.packageName}".toUri(),
+        ).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
+        context.startActivity(intent)
+    } catch (_: Exception) { }
+}
+
 @Composable
 fun getVersionName(): String {
     val context = LocalContext.current

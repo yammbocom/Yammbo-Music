@@ -1827,12 +1827,21 @@ fun NewVersionDialog (
         it.fast4x.riplay.extensions.preferences.lastDismissedUpdateVersionCodeKey,
         0
     )
+    // Only "Más tarde" snoozes this version persistently. Downloading, opening
+    // GitHub, or tapping outside just close for this session, so the prompt
+    // returns on the next cold start until the user actually installs (their
+    // installed versionCode catches up to the latest available one).
     val snoozeAndDismiss: () -> Unit = {
         setDismissedVersion(updatedVersionCode)
         onDismiss()
     }
+    var showInstallGuide by remember { mutableStateOf(false) }
+    if (showInstallGuide) {
+        UpdateInstallGuideDialog(context = context, onDismiss = onDismiss)
+        return
+    }
     DefaultDialog(
-        onDismiss = { snoozeAndDismiss() },
+        onDismiss = { onDismiss() },
         content = {
             // Title
             BasicText(
@@ -1870,7 +1879,9 @@ fun NewVersionDialog (
                             context = context,
                         )
                         it.fast4x.riplay.utils.downloadUpdateApk(context, updatedVersionName)
-                        snoozeAndDismiss()
+                        // Don't snooze: if the user never installs, the prompt
+                        // must return. Show the install guide instead.
+                        showInstallGuide = true
                     }
                     .padding(vertical = 14.dp, horizontal = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -1900,7 +1911,7 @@ fun NewVersionDialog (
                     .clip(androidx.compose.foundation.shape.RoundedCornerShape(14.dp))
                     .background(colors.background2)
                     .clickable {
-                        snoozeAndDismiss()
+                        onDismiss()
                         uriHandler.openUri(
                             "https://github.com/yammbocom/Yammbo-Music/releases/latest"
                         )
@@ -1942,6 +1953,63 @@ fun NewVersionDialog (
         }
 
     )
+}
+
+@Composable
+private fun UpdateInstallGuideDialog(
+    context: android.content.Context,
+    onDismiss: () -> Unit,
+) {
+    val colors = colorPalette()
+    val typo = typography()
+    DefaultDialog(onDismiss = onDismiss) {
+        BasicText(
+            text = stringResource(R.string.app_update_guide_title),
+            style = typo.s.bold.copy(color = colors.text),
+        )
+        Spacer(modifier = Modifier.height(10.dp))
+        BasicText(
+            text = stringResource(R.string.app_update_guide_body),
+            style = typo.xs.semiBold.copy(color = colors.text),
+        )
+        Spacer(modifier = Modifier.height(18.dp))
+        // Primary — open the "install unknown apps" settings so the user can
+        // grant the permission while the download finishes in the background.
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(androidx.compose.foundation.shape.RoundedCornerShape(14.dp))
+                .background(colors.accent)
+                .clickable {
+                    it.fast4x.riplay.utils.openUnknownSourcesSettings(context)
+                }
+                .padding(vertical = 14.dp, horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+        ) {
+            BasicText(
+                text = stringResource(R.string.app_update_guide_allow),
+                style = typo.xs.bold.copy(color = colors.onAccent),
+            )
+        }
+        Spacer(modifier = Modifier.height(6.dp))
+        // Tertiary — close the guide; the download keeps running and the
+        // installer opens automatically when it completes.
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(androidx.compose.foundation.shape.RoundedCornerShape(14.dp))
+                .clickable { onDismiss() }
+                .padding(vertical = 10.dp, horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+        ) {
+            BasicText(
+                text = stringResource(R.string.app_update_guide_done),
+                style = typo.xxs.semiBold.copy(color = colors.textDisabled),
+            )
+        }
+    }
 }
 
 @androidx.annotation.OptIn(UnstableApi::class)
