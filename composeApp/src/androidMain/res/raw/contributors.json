@@ -19,7 +19,7 @@
     "type": "User",
     "user_view_type": "public",
     "site_admin": false,
-    "contributions": 13553
+    "contributions": 13600
   },
   {
     "login": "vfsfitvnm",
@@ -152,6 +152,28 @@
     "user_view_type": "public",
     "site_admin": false,
     "contributions": 71
+  },
+  {
+    "login": "drago-bit",
+    "id": 170959159,
+    "node_id": "U_kgDOCjChNw",
+    "avatar_url": "https://avatars.githubusercontent.com/u/170959159?v=4",
+    "gravatar_id": "",
+    "url": "https://api.github.com/users/drago-bit",
+    "html_url": "https://github.com/drago-bit",
+    "followers_url": "https://api.github.com/users/drago-bit/followers",
+    "following_url": "https://api.github.com/users/drago-bit/following{/other_user}",
+    "gists_url": "https://api.github.com/users/drago-bit/gists{/gist_id}",
+    "starred_url": "https://api.github.com/users/drago-bit/starred{/owner}{/repo}",
+    "subscriptions_url": "https://api.github.com/users/drago-bit/subscriptions",
+    "organizations_url": "https://api.github.com/users/drago-bit/orgs",
+    "repos_url": "https://api.github.com/users/drago-bit/repos",
+    "events_url": "https://api.github.com/users/drago-bit/events{/privacy}",
+    "received_events_url": "https://api.github.com/users/drago-bit/received_events",
+    "type": "User",
+    "user_view_type": "public",
+    "site_admin": false,
+    "contributions": 68
   },
   {
     "login": "NEVARLeVrai",
@@ -308,28 +330,6 @@
     "contributions": 13
   },
   {
-    "login": "drago-bit",
-    "id": 170959159,
-    "node_id": "U_kgDOCjChNw",
-    "avatar_url": "https://avatars.githubusercontent.com/u/170959159?v=4",
-    "gravatar_id": "",
-    "url": "https://api.github.com/users/drago-bit",
-    "html_url": "https://github.com/drago-bit",
-    "followers_url": "https://api.github.com/users/drago-bit/followers",
-    "following_url": "https://api.github.com/users/drago-bit/following{/other_user}",
-    "gists_url": "https://api.github.com/users/drago-bit/gists{/gist_id}",
-    "starred_url": "https://api.github.com/users/drago-bit/starred{/owner}{/repo}",
-    "subscriptions_url": "https://api.github.com/users/drago-bit/subscriptions",
-    "organizations_url": "https://api.github.com/users/drago-bit/orgs",
-    "repos_url": "https://api.github.com/users/drago-bit/repos",
-    "events_url": "https://api.github.com/users/drago-bit/events{/privacy}",
-    "received_events_url": "https://api.github.com/users/drago-bit/received_events",
-    "type": "User",
-    "user_view_type": "public",
-    "site_admin": false,
-    "contributions": 12
-  },
-  {
     "login": "github-actions[bot]",
     "id": 41898282,
     "node_id": "MDM6Qm90NDE4OTgyODI=",
@@ -349,7 +349,7 @@
     "type": "Bot",
     "user_view_type": "public",
     "site_admin": false,
-    "contributions": 10
+    "contributions": 11
   },
   {
     "login": "KyNarec",
