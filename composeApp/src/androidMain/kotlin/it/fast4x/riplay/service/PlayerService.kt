@@ -365,6 +365,12 @@ class PlayerService : Service(),
     private var onlineListenedDurationMs = 0L
     private var lastOnlineMediaId: String? = null
 
+    // Manual play-time tracking for LOCAL songs. Replaces the PlaybackStatsListener
+    // (removed in initializePlayer) which crashed with IllegalArgumentException inside
+    // ExoPlayer's PlaybackStatsTracker.updatePlaybackState on out-of-order analytics events.
+    private var localListenedDurationMs = 0L
+    private var localTrackedMediaId: String? = null
+
     private var lastPlayNextTime = 0L
     private var debounceDelayMs = 2000L
     private var consecutiveErrorSkips = 0
@@ -594,6 +600,21 @@ class PlayerService : Service(),
 
         coroutineScope.launch(Dispatchers.IO) {
             while (isActive) {
+                // Local play-time tracking (replaces removed PlaybackStatsListener).
+                // Reconcile every tick: when the tracked local song stops being the
+                // active local song (changed, switched to online, or stopped), flush it
+                // exactly once; otherwise accumulate while playing.
+                val currentLocalId = localMediaItem?.takeIf { it.isLocal == true }?.mediaId
+                if (localTrackedMediaId != null && localTrackedMediaId != currentLocalId) {
+                    incrementLocalListenedPlaytimeMs()
+                    localListenedDurationMs = 0L
+                    localTrackedMediaId = null
+                }
+                if (currentLocalId != null) {
+                    localTrackedMediaId = currentLocalId
+                    if (isPlayingNow) localListenedDurationMs += 1000
+                }
+
                 if (localMediaItem?.isLocal == false) {
                     if (_internalOnlinePlayerState.value == PlayerConstants.PlayerState.PLAYING) {
                         onlineListenedDurationMs += 1000
@@ -1096,7 +1117,12 @@ class PlayerService : Service(),
                 addListener(this@PlayerService)
                 sleepTimerListener = SleepTimerListener(coroutineScope, this)
                 addListener(sleepTimerListener)
-                addAnalyticsListener(PlaybackStatsListener(false, this@PlayerService))
+                // NOTE: PlaybackStatsListener removed — it crashed with
+                // IllegalArgumentException in PlaybackStatsTracker.updatePlaybackState
+                // when ExoPlayer analytics events arrived out of order (e.g. tapping
+                // online songs quickly from Home). Local play-time/Event tracking is
+                // now done manually via incrementLocalListenedPlaytimeMs().
+                // addAnalyticsListener(PlaybackStatsListener(false, this@PlayerService))
             }
 
         player.repeatMode = preferences.getEnum(queueLoopTypeKey, QueueLoopType.RepeatAll).type
@@ -1500,6 +1526,13 @@ class PlayerService : Service(),
     @UnstableApi
     override fun onDestroy() {
         Timber.d("PlayerService onDestroy")
+
+        // Flush any pending local play-time before the service goes away.
+        if (localTrackedMediaId != null && localListenedDurationMs > 0) {
+            incrementLocalListenedPlaytimeMs()
+            localListenedDurationMs = 0L
+            localTrackedMediaId = null
+        }
 
         coroutineScope.launch {
             withContext(Dispatchers.Main) {
@@ -2913,6 +2946,43 @@ class PlayerService : Service(),
 
         }
 
+    }
+
+    // Mirrors incrementOnlineListenedPlaytimeMs() but for LOCAL songs, using the
+    // manually accumulated localListenedDurationMs (in ms) and the tracked media id.
+    // Replaces the crash-prone PlaybackStatsListener path (old onPlaybackStatsReady).
+    private fun incrementLocalListenedPlaytimeMs() {
+        if (preferences.getBoolean(pauseListenHistoryKey, false)) return
+
+        val mediaId = localTrackedMediaId ?: return
+        val duration = localListenedDurationMs
+
+        if (duration > 5000) {
+            Timber.d("PlayerService incrementLocalListenedPlaytimeMs INCREMENT totalPlayTimeMs $duration mediaItem $mediaId")
+            Database.asyncTransaction {
+                Database.incrementTotalPlayTimeMs(mediaId, duration)
+            }
+        }
+
+        val minTimeForEvent =
+            preferences.getEnum(exoPlayerMinTimeForEventKey, MinTimeForEvent.`20s`)
+
+        if (duration > minTimeForEvent.ms) {
+            Timber.d("PlayerService incrementLocalListenedPlaytimeMs INSERT EVENT totalPlayTimeMs $duration")
+            Database.asyncTransaction {
+                try {
+                    Database.insert(
+                        Event(
+                            songId = mediaId,
+                            timestamp = System.currentTimeMillis(),
+                            playTime = duration
+                        )
+                    )
+                } catch (e: SQLException) {
+                    Timber.e("PlayerService incrementLocalListenedPlaytimeMs SQLException ${e.stackTraceToString()}")
+                }
+            }
+        }
     }
 
     private fun initializePositionObserver() {
