@@ -262,7 +262,7 @@ fun ArtistOverview(
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .aspectRatio(3f / 4f)
+                                    .aspectRatio(1f) // square artist cover in-app
                                     .align(Alignment.Center)
                                     .fadingEdge(
                                         top = WindowInsets.systemBars

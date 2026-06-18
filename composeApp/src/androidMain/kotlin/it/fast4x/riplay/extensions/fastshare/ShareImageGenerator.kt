@@ -22,11 +22,7 @@ object ShareImageGenerator {
 
     private const val IMAGE_WIDTH = 1080
     private const val IMAGE_HEIGHT = 1920
-    private const val COVER_SIZE = 680          // min acceptable source resolution
-    // Cover is drawn at its natural aspect ratio (no crop), fitted inside this box.
-    private const val COVER_MAX_W = 820
-    private const val COVER_MAX_H = 960
-    private const val PLACEHOLDER_SIZE = 680
+    private const val COVER_SIZE = 680
     private const val COVER_RADIUS = 32f
     private const val PADDING = 80
 
@@ -50,11 +46,11 @@ object ShareImageGenerator {
             // 2. Draw background based on cover art colors
             drawBackground(canvas, palette)
 
-            // 3. Draw cover art (full image, no crop) — returns its bottom Y
-            val coverBottom = drawCoverArt(canvas, coverBitmap)
+            // 3. Draw cover art
+            val coverTop = drawCoverArt(canvas, coverBitmap)
 
             // 4. Draw song title
-            val titleBottom = drawTitle(canvas, title, (coverBottom + 70).toFloat())
+            val titleBottom = drawTitle(canvas, title, (coverTop + COVER_SIZE + 60).toFloat())
 
             // 5. Draw artist name
             drawArtist(canvas, artist, titleBottom + 16f)
@@ -167,56 +163,57 @@ object ShareImageGenerator {
     }
 
     private fun drawCoverArt(canvas: Canvas, coverBitmap: Bitmap?): Int {
+        val left = (IMAGE_WIDTH - COVER_SIZE) / 2f
+        // Center cover in the upper portion, leaving room for title + artist + branding below
+        val top = (IMAGE_HEIGHT - COVER_SIZE - 300) / 2.5f
+
         if (coverBitmap != null) {
-            // Fit the WHOLE image (preserve aspect ratio, no crop) inside the cover box.
-            val scaled = fitBitmap(coverBitmap, COVER_MAX_W, COVER_MAX_H)
-            val drawnW = scaled.width
-            val drawnH = scaled.height
-            val left = (IMAGE_WIDTH - drawnW) / 2f
-            // Vertically center the cover + title/artist block in the area above the branding.
-            val top = ((IMAGE_HEIGHT - 300) - drawnH - 180) / 2f
-            val rect = RectF(left, top, left + drawnW, top + drawnH)
+            val scaled = centerCropBitmap(coverBitmap, COVER_SIZE)
 
             // Draw shadow behind cover
             val shadowPaint = Paint().apply {
                 color = Color.parseColor("#40000000")
                 setShadowLayer(40f, 0f, 16f, Color.parseColor("#80000000"))
             }
-            canvas.drawRoundRect(rect, COVER_RADIUS, COVER_RADIUS, shadowPaint)
+            canvas.drawRoundRect(
+                RectF(left, top, left + COVER_SIZE, top + COVER_SIZE),
+                COVER_RADIUS, COVER_RADIUS, shadowPaint
+            )
 
-            // Clip to rounded rectangle and draw the full cover
+            // Clip to rounded rectangle and draw cover
             canvas.save()
             val path = android.graphics.Path().apply {
-                addRoundRect(rect, COVER_RADIUS, COVER_RADIUS, android.graphics.Path.Direction.CW)
+                addRoundRect(
+                    RectF(left, top, left + COVER_SIZE, top + COVER_SIZE),
+                    COVER_RADIUS, COVER_RADIUS,
+                    android.graphics.Path.Direction.CW
+                )
             }
             canvas.clipPath(path)
             canvas.drawBitmap(scaled, left, top, null)
             canvas.restore()
 
             scaled.recycle()
-            return (top + drawnH).toInt()
         } else {
-            // Placeholder: dark rounded square with music note
-            val size = PLACEHOLDER_SIZE
-            val left = (IMAGE_WIDTH - size) / 2f
-            val top = ((IMAGE_HEIGHT - 300) - size - 180) / 2f
-            val rect = RectF(left, top, left + size, top + size)
-
+            // Placeholder: dark rounded rectangle with music note
             val placeholderPaint = Paint().apply {
                 color = Color.parseColor("#2a2a3e")
                 isAntiAlias = true
             }
-            canvas.drawRoundRect(rect, COVER_RADIUS, COVER_RADIUS, placeholderPaint)
+            canvas.drawRoundRect(
+                RectF(left, top, left + COVER_SIZE, top + COVER_SIZE),
+                COVER_RADIUS, COVER_RADIUS, placeholderPaint
+            )
             val notePaint = Paint().apply {
                 color = Color.parseColor("#555566")
                 textSize = 200f
                 textAlign = Paint.Align.CENTER
                 typeface = Typeface.DEFAULT
             }
-            canvas.drawText("\u266B", IMAGE_WIDTH / 2f, top + size / 2f + 70f, notePaint)
-
-            return (top + size).toInt()
+            canvas.drawText("\u266B", IMAGE_WIDTH / 2f, top + COVER_SIZE / 2f + 70f, notePaint)
         }
+
+        return top.toInt()
     }
 
     private fun drawTitle(canvas: Canvas, title: String, y: Float): Float {
@@ -349,12 +346,14 @@ object ShareImageGenerator {
         return lines
     }
 
-    // Scale the whole bitmap to fit inside (maxW x maxH) preserving aspect ratio — no crop.
-    private fun fitBitmap(source: Bitmap, maxW: Int, maxH: Int): Bitmap {
-        val scale = minOf(maxW.toFloat() / source.width, maxH.toFloat() / source.height)
-        val w = (source.width * scale).toInt().coerceAtLeast(1)
-        val h = (source.height * scale).toInt().coerceAtLeast(1)
-        return Bitmap.createScaledBitmap(source, w, h, true)
+    private fun centerCropBitmap(source: Bitmap, targetSize: Int): Bitmap {
+        val size = minOf(source.width, source.height)
+        val x = (source.width - size) / 2
+        val y = (source.height - size) / 2
+        val cropped = Bitmap.createBitmap(source, x, y, size, size)
+        val scaled = Bitmap.createScaledBitmap(cropped, targetSize, targetSize, true)
+        if (cropped != source) cropped.recycle()
+        return scaled
     }
 
     private fun saveBitmapAndGetUri(context: Context, bitmap: Bitmap): Uri? {
