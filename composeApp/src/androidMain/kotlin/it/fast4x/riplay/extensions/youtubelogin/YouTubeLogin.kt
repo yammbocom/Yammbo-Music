@@ -37,7 +37,7 @@ import it.fast4x.riplay.extensions.preferences.ytCookieKey
 import it.fast4x.riplay.extensions.preferences.ytDataSyncIdKey
 import it.fast4x.riplay.extensions.preferences.ytVisitorDataKey
 import it.fast4x.riplay.utils.colorPalette
-import it.fast4x.riplay.utils.getRoundnessShape
+import it.fast4x.riplay.utils.thumbnailShape
 import it.fast4x.riplay.utils.restartApp
 import it.fast4x.riplay.utils.typography
 import kotlinx.coroutines.delay
@@ -169,7 +169,7 @@ fun YouTubeLogin(
 
         if (showConfirmButton && confirmAction != null) {
             Button(
-                shape = getRoundnessShape(),
+                shape = thumbnailShape(),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = colorPalette().accent,
                     contentColor = colorPalette().onAccent
