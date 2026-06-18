@@ -514,7 +514,13 @@ fun AlbumDetails(
             showFastShare = false
             showDirectFastShare = false
         },
-        content = album ?: return
+        // Fall back to the freshly-fetched page thumbnail when the DB album's
+        // thumbnailUrl isn't populated yet (avoids the placeholder on the first share).
+        content = (album ?: return).let { a ->
+            if (a.thumbnailUrl.isNullOrEmpty())
+                a.copy(thumbnailUrl = albumPage?.album?.thumbnail?.url)
+            else a
+        }
     )
 
 

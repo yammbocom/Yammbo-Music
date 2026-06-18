@@ -217,7 +217,14 @@ fun ArtistOverview(
     FastShare(
         showFastShare,
         onDismissRequest = { showFastShare = false},
-        content = artist ?: return
+        // Fall back to the freshly-fetched page thumbnail when the DB artist hasn't
+        // been re-emitted yet (avoids the placeholder on the first share before the
+        // upsert/Flow round-trip completes).
+        content = (artist ?: return).let { a ->
+            if (a.thumbnailUrl.isNullOrEmpty())
+                a.copy(thumbnailUrl = artistPage?.artist?.thumbnail?.url)
+            else a
+        }
     )
 
     Box(
