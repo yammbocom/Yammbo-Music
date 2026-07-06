@@ -53,7 +53,9 @@ import it.fast4x.riplay.data.models.SongAlbumMap
 import it.fast4x.riplay.utils.asMediaItem
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import timber.log.Timber
 
 
@@ -86,8 +88,8 @@ fun AlbumScreen(
     }
 
     var album by persist<Album?>("album/$browseId/album")
-    //var albumPage by persist<Innertube.PlaylistOrAlbumPage?>("album/$browseId/albumPage")
-    var albumPage by persist<AlbumPage?>("album/$browseId/albumPage")
+    //var albumPage by persist<AlbumPage?>("album/$browseId/albumPage")
+    var albumPage by remember { mutableStateOf<AlbumPage?>(null) }
 
     val disableScrollingText by rememberPreference(disableScrollingTextKey, false)
 
@@ -95,61 +97,72 @@ fun AlbumScreen(
 
 
     LaunchedEffect(Unit) {
-        Database
-            .album(browseId).collect { currentAlbum ->
-                println("AlbumScreen collect ${currentAlbum?.title}")
-                album = currentAlbum
-                CoroutineScope(Dispatchers.IO).launch {
-                    if (albumPage == null)
-                        EnvironmentExt.getAlbum(browseId)
-                            .onSuccess { currentAlbumPage ->
-                                albumPage = currentAlbumPage
+        // Usiamo collectLatest: se il DB emette valori velocemente, cancella la raccolta precedente
+        Database.album(browseId).collectLatest { currentAlbum ->
+            album = currentAlbum
 
-                                println("AlbumScreen otherVersion ${currentAlbumPage.otherVersions}")
-                                Database.upsert(
-                                    Album(
-                                        id = browseId,
-                                        title = album?.title ?: currentAlbumPage.album.title,
-                                        thumbnailUrl = if (album?.thumbnailUrl?.startsWith(
-                                                MODIFIED_PREFIX
-                                            ) == true
-                                        ) album?.thumbnailUrl else currentAlbumPage.album.thumbnail?.url,
-                                        year = currentAlbumPage.album.year,
-                                        authorsText = if (album?.authorsText?.startsWith(
-                                                MODIFIED_PREFIX
-                                            ) == true
-                                        ) album?.authorsText else currentAlbumPage.album.authors
-                                            ?.joinToString(", ") { it.name ?: "" },
-                                        shareUrl = currentAlbumPage.url,
-                                        timestamp = System.currentTimeMillis(),
-                                        bookmarkedAt = album?.bookmarkedAt,
-                                        isYoutubeAlbum = album?.isYoutubeAlbum == true
-                                    ),
-                                    currentAlbumPage
-                                        .songs.distinct()
-                                        .map(Environment.SongItem::asMediaItem)
-                                        .onEach(Database::insert)
-                                        .mapIndexed { position, mediaItem ->
-                                            SongAlbumMap(
-                                                songId = mediaItem.mediaId,
-                                                albumId = browseId,
-                                                position = position
-                                            )
-                                        }
+            // Controlliamo se dobbiamo fare la chiamata di rete
+            if (albumPage == null) {
+                // Spostiamoci sul thread IO per la rete e il DB usando withContext
+                withContext(Dispatchers.IO) {
+                    EnvironmentExt.getAlbum(browseId)
+                        .onSuccess { currentAlbumPage ->
+                            albumPage = currentAlbumPage
+
+                            try {
+                                // 1. Mappiamo i MediaItem e li inseriamo nel DB
+                                val mediaItems = currentAlbumPage.songs
+                                    .distinct()
+                                    .map { it.asMediaItem }
+
+                                Timber.d("AlbumScreen mediaItems ${mediaItems.map { it.mediaMetadata.title }}")
+
+                                mediaItems.forEach {
+                                    try {
+                                        Database.insert(it)
+                                    } catch (e: Exception) {
+                                        Timber.e("AlbumScreen insert song error ${e.message}")
+                                    }
+                                }
+
+                                // 2. Creiamo l'oggetto Album
+                                val albumToSave = Album(
+                                    id = browseId,
+                                    title = album?.title ?: currentAlbumPage.album.title,
+                                    thumbnailUrl = if (album?.thumbnailUrl?.startsWith(MODIFIED_PREFIX) == true)
+                                        album?.thumbnailUrl else currentAlbumPage.album.thumbnail?.url,
+                                    year = currentAlbumPage.album.year,
+                                    authorsText = if (album?.authorsText?.startsWith(MODIFIED_PREFIX) == true)
+                                        album?.authorsText else currentAlbumPage.album.authors?.joinToString(", ") { it.name ?: "" },
+                                    shareUrl = currentAlbumPage.url,
+                                    timestamp = System.currentTimeMillis(),
+                                    bookmarkedAt = album?.bookmarkedAt,
+                                    isYoutubeAlbum = album?.isYoutubeAlbum == true
                                 )
+
+                                // 3. Creiamo la lista di SongAlbumMap
+                                val songAlbumMaps = mediaItems.mapIndexed { position, mediaItem ->
+                                    SongAlbumMap(
+                                        songId = mediaItem.mediaId,
+                                        albumId = browseId,
+                                        position = position
+                                    )
+                                }
+
+                                // 4. Salviamo Album e Mappe in transazione
+                                Database.upsert(albumToSave, songAlbumMaps)
+
+                            } catch (e: Exception) {
+                                // Prima questo errore veniva ingoiato silenziosamente!
+                                Timber.e("AlbumScreen Errore salvataggio DB Album/Songs: ${e.stackTraceToString()}")
                             }
-                            .onFailure {
-                                Timber.e("AlbumScreen error ${it.stackTraceToString()}")
-//                            if (it.message?.contains("NOT_FOUND") == true) {
-//                                // This album no longer exists in YouTube Music
-//                                Database.asyncTransaction {
-//                                    album?.let(::delete)
-//                                }
-//                            }
-                            }
+                        }
+                        .onFailure {
+                            Timber.e("AlbumScreen network error ${it.stackTraceToString()}")
+                        }
                 }
             }
-
+        }
     }
 
 //    LaunchedEffect(Unit) {

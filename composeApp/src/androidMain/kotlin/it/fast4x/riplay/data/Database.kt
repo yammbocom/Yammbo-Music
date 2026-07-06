@@ -2995,13 +2995,19 @@ interface Database {
     fun upsert(lyrics: Lyrics)
 
     @Upsert
+    @Transaction
     fun upsert(album: Album, songAlbumMaps: List<SongAlbumMap>)
 
     @Upsert
     fun upsert(song: Song, format: Format)
 
     @Upsert
+    @Transaction
     fun upsert(album: Album, songAlbumMap: SongAlbumMap)
+
+    @Upsert
+    @Transaction
+    fun upsert(album: Album)
 
     @Upsert
     fun upsert(artist: Artist, songArtistMap: SongArtistMap)
