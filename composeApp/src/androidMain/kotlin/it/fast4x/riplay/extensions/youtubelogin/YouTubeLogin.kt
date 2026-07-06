@@ -2,7 +2,6 @@ package it.fast4x.riplay.extensions.youtubelogin
 
 import android.content.Context
 import android.webkit.CookieManager
-import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.compose.BackHandler
@@ -42,7 +41,27 @@ import it.fast4x.riplay.utils.restartApp
 import it.fast4x.riplay.utils.typography
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import org.json.JSONTokener
 import timber.log.Timber
+
+private const val VISITOR_DATA_SCRIPT =
+    "(function() { return window.yt && window.yt.config_ ? window.yt.config_.VISITOR_DATA : null; })()"
+private const val DATA_SYNC_ID_SCRIPT =
+    "(function() { return window.yt && window.yt.config_ ? window.yt.config_.DATASYNC_ID : null; })()"
+
+private fun String?.fromJavascriptString(): String? {
+    val value = this?.takeIf {
+        it.isNotBlank() && it != "null" && it != "undefined"
+    } ?: return null
+
+    val parsedValue = runCatching {
+        JSONTokener(value).nextValue() as? String
+    }.getOrNull() ?: value
+
+    return parsedValue.takeIf {
+        it.isNotBlank() && it != "null" && it != "undefined"
+    }
+}
 
 @Composable
 fun YouTubeLogin(
@@ -67,12 +86,48 @@ fun YouTubeLogin(
                 var visitorData = ""
 
                 WebView(context).apply {
+                    fun refreshYouTubeConfig(onComplete: ((String, String) -> Unit)? = null) {
+                        var refreshedVisitorData = visitorData
+                        var refreshedDataSyncId = dataSyncId
+                        var pendingCallbacks = 2
+
+                        fun completeRefresh() {
+                            pendingCallbacks -= 1
+                            if (pendingCallbacks == 0) {
+                                onComplete?.invoke(refreshedVisitorData, refreshedDataSyncId)
+                            }
+                        }
+
+                        evaluateJavascript(VISITOR_DATA_SCRIPT) { result ->
+                            result.fromJavascriptString()?.let {
+                                visitorData = it
+                                refreshedVisitorData = it
+                            }
+                            completeRefresh()
+                        }
+                        evaluateJavascript(DATA_SYNC_ID_SCRIPT) { result ->
+                            result.fromJavascriptString()?.substringBefore("||")?.takeIf { it.isNotBlank() }?.let {
+                                dataSyncId = it
+                                refreshedDataSyncId = it
+                            }
+                            completeRefresh()
+                        }
+                    }
+
                     webViewClient = object : WebViewClient() {
                         override fun onPageFinished(view: WebView, url: String?) {
-                            loadUrl("javascript:Android.onRetrieveVisitorData(window.yt.config_.VISITOR_DATA)")
-                            loadUrl("javascript:Android.onRetrieveDataSyncId(window.yt.config_.DATASYNC_ID)")
+                            refreshYouTubeConfig()
 
                             showConfirmButton = url?.startsWith("https://music.youtube.com") == true
+                        }
+
+                        override fun doUpdateVisitedHistory(
+                            view: WebView,
+                            url: String?,
+                            isReload: Boolean
+                        ) {
+                            super.doUpdateVisitedHistory(view, url, isReload)
+                            refreshYouTubeConfig()
                         }
                     }
 
@@ -88,21 +143,6 @@ fun YouTubeLogin(
                     val cookieManager = CookieManager.getInstance()
                     cookieManager.setAcceptCookie(true)
                     cookieManager.setAcceptThirdPartyCookies(this, true)
-
-                    addJavascriptInterface(object {
-                        @JavascriptInterface
-                        fun onRetrieveVisitorData(newVisitorData: String?) {
-                            if (newVisitorData != null) {
-                                visitorData = newVisitorData
-                            }
-                        }
-                        @JavascriptInterface
-                        fun onRetrieveDataSyncId(newDataSyncId: String?) {
-                            if (newDataSyncId != null) {
-                                dataSyncId = newDataSyncId.substringBefore("||")
-                            }
-                        }
-                    }, "Android")
 
                     webView = this
 
@@ -120,47 +160,49 @@ fun YouTubeLogin(
 
                         Timber.d("YouTubeLogin: User confirmed login.")
 
-                        scope.launch {
-                            delay(200)
-
-                            Timber.d("YouTubeLogin: save login preferences")
-                            context.preferences.edit { putString(ytVisitorDataKey, visitorData) }
-                            context.preferences.edit { putString(ytDataSyncIdKey, dataSyncId) }
-                            context.preferences.edit { putString(ytCookieKey, freshCookie) }
-                            delay(200)
-
-                            Timber.d("YouTubeLogin: Initialize Environment")
-                            Timber.d("YouTubeLogin: freshCookie $freshCookie")
-
-                            Environment.cookie = freshCookie
-                            Environment.dataSyncId = dataSyncId
-                            Environment.visitorData = visitorData
-
-                            Timber.d("YouTubeLogin: Initialized, get account info")
-
-                            Environment.accountInfo().onSuccess {
-                                context.preferences.edit { putString(ytAccountNameKey, it?.name.orEmpty()) }
-                                context.preferences.edit { putString(ytAccountEmailKey, it?.email.orEmpty()) }
-                                context.preferences.edit { putString(ytAccountChannelHandleKey, it?.channelHandle.orEmpty()) }
-                                context.preferences.edit { putString(ytAccountThumbnailKey, it?.thumbnailUrl.orEmpty()) }
+                        refreshYouTubeConfig { refreshedVisitorData, refreshedDataSyncId ->
+                            scope.launch {
                                 delay(200)
 
-                                Timber.d("YouTubeLogin: Logged in as ${it?.name}, restarting app...")
+                                Timber.d("YouTubeLogin: save login preferences")
+                                context.preferences.edit { putString(ytVisitorDataKey, refreshedVisitorData) }
+                                context.preferences.edit { putString(ytDataSyncIdKey, refreshedDataSyncId) }
+                                context.preferences.edit { putString(ytCookieKey, freshCookie) }
+                                delay(200)
 
-                            }.onFailure {
-                                Timber.e(it, "YouTubeLogin: Authentication error")
+                                Timber.d("YouTubeLogin: Initialize Environment")
+                                Timber.d("YouTubeLogin: freshCookie $freshCookie")
+
+                                Environment.cookie = freshCookie
+                                Environment.dataSyncId = refreshedDataSyncId
+                                Environment.visitorData = refreshedVisitorData
+
+                                Timber.d("YouTubeLogin: Initialized, get account info")
+
+                                Environment.accountInfo().onSuccess {
+                                    context.preferences.edit { putString(ytAccountNameKey, it?.name.orEmpty()) }
+                                    context.preferences.edit { putString(ytAccountEmailKey, it?.email.orEmpty()) }
+                                    context.preferences.edit { putString(ytAccountChannelHandleKey, it?.channelHandle.orEmpty()) }
+                                    context.preferences.edit { putString(ytAccountThumbnailKey, it?.thumbnailUrl.orEmpty()) }
+                                    delay(200)
+
+                                    Timber.d("YouTubeLogin: Logged in as ${it?.name}, restarting app...")
+
+                                }.onFailure {
+                                    Timber.e(it, "YouTubeLogin: Authentication error")
+                                }
+
+                                webView.apply {
+                                    stopLoading()
+                                    clearHistory()
+                                    clearCache(true)
+                                    clearFormData()
+                                }
+
+                                Timber.d("YouTubeLogin: Restart app")
+                                restartApp(context)
+
                             }
-
-                            webView.apply {
-                                stopLoading()
-                                clearHistory()
-                                clearCache(true)
-                                clearFormData()
-                            }
-
-                            Timber.d("YouTubeLogin: Restart app")
-                            restartApp(context)
-
                         }
                     }
                 }
