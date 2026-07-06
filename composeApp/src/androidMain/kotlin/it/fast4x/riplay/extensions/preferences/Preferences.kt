@@ -391,6 +391,8 @@ const val resumeOrPausePlaybackWhenDeviceBtKey = "resumeOrPausePlaybackWhenDevic
 
 const val resumeOrPausePlaybackWhenDeviceWiredKey = "resumeOrPausePlaybackWhenDeviceWired"
 
+const val importPlaylistTypeKey = "importPlaylistType"
+
 const val showShuffleSongsAAKey = "shuffleSongsAAEnabled"
 const val showMonthlyPlaylistsAAKey = "showMonthlyPlaylistsAA"
 const val showInLibraryAAKey = "showInLibraryAA"

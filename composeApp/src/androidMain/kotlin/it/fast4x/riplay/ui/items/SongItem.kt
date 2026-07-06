@@ -51,6 +51,7 @@ import it.fast4x.riplay.utils.colorPalette
 import it.fast4x.riplay.enums.ColorPaletteName
 import it.fast4x.riplay.data.models.Song
 import it.fast4x.riplay.utils.isLocal
+import it.fast4x.riplay.utils.isSpotifyTrack
 import it.fast4x.riplay.utils.thumbnailShape
 import it.fast4x.riplay.utils.typography
 import it.fast4x.riplay.ui.components.LocalGlobalSheetState
@@ -509,7 +510,15 @@ fun SongItem(
 
                 //Timber.d("localMediaId: ${localSong?.mediaId}")
 
-                if (mediaItem.isLocal || localSong?.mediaId != null)
+                if (mediaItem.mediaId.isSpotifyTrack)
+                    IconButton(
+                        onClick = {},
+                        icon = R.drawable.alert,
+                        color = colorPalette().accent,
+                        modifier = Modifier
+                            .size(20.dp)
+                    )
+                else if (mediaItem.isLocal || localSong?.mediaId != null)
                     IconButton(
                         onClick = {
                             localSong?.let { binder?.player?.forcePlay(it.asMediaItem, true) }

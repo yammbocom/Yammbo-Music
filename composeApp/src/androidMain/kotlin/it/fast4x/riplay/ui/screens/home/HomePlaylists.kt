@@ -116,6 +116,9 @@ import it.fast4x.riplay.ui.components.themed.IDialog
 import it.fast4x.riplay.ui.components.themed.Search
 import it.fast4x.riplay.ui.components.navigation.header.TabToolBar
 import it.fast4x.riplay.ui.components.tab.ImportSongsFromCSV
+import it.fast4x.riplay.ui.components.tab.ImportSongsFromSpotifyCSV
+import it.fast4x.riplay.enums.ImportPlaylistType
+import it.fast4x.riplay.extensions.preferences.importPlaylistTypeKey
 import it.fast4x.riplay.ui.components.tab.ItemSize
 import it.fast4x.riplay.ui.components.tab.TabHeader
 import it.fast4x.riplay.ui.components.tab.toolbar.Descriptive
@@ -299,6 +302,81 @@ fun HomePlaylists(
             }
         }
     )
+
+    val importPlaylistSpotifyDialog = ImportSongsFromSpotifyCSV.init(
+        beforeTransaction = { _, row, pname ->
+            time = formattedDate
+            val playlistName = row["PlaylistName"] ?: "${pname?.substringBeforeLast('.')} $time"
+            plistId = playlistName.let {
+                Database.playlistExistByName(it)
+            }
+
+            if (plistId == 0L)
+                plistId = playlistName.let {
+                    Database.insert(Playlist(plistId, it, row["PlaylistBrowseId"]))
+                }
+        },
+        afterTransaction = { index, song, album, artists ->
+            if (song.id.isBlank()) return@init
+
+            Database.insert(song)
+            Database.insert(
+                SongPlaylistMap(
+                    songId = song.id,
+                    playlistId = plistId,
+                    position = index
+                ).default()
+            )
+
+            if (album.id != "") {
+                Database.insert(
+                    album,
+                    SongAlbumMap(
+                        songId = song.id,
+                        albumId = album.id,
+                        position = null
+                    )
+                )
+            }
+            if (artists.isNotEmpty()) {
+                Database.insert(
+                    artists,
+                    artists.map { artist ->
+                        SongArtistMap(
+                            songId = song.id,
+                            artistId = artist.id
+                        )
+                    }
+                )
+            }
+        }
+    )
+
+    var importType by rememberPreference(importPlaylistTypeKey, ImportPlaylistType.Riplay)
+    val importMenu: @Composable () -> Unit = {
+        EnumsMenu(
+            title = stringResource(R.string.import_playlist),
+            onDismiss = menuState::hide,
+            selectedValue = importType.menuItem,
+            onValueSelected = {
+                importType = ImportPlaylistType.entries[it.ordinal]
+                when(importType) {
+                    ImportPlaylistType.Riplay -> importPlaylistDialog.onShortClick()
+                    else -> importPlaylistSpotifyDialog.onShortClick()
+                }
+            },
+            values = ImportPlaylistType.entries.map { it.menuItem },
+            valueText = { stringResource(it.titleId) },
+            hideSelectedIndicator = true
+        )
+    }
+
+    val importButton = ToolbarMenuButton.build(
+        R.drawable.resource_import,
+        R.string.import_playlist,
+        onClick = { menuState.display { importMenu() } }
+    )
+
     val sync = autoSyncToolbutton(R.string.autosync)
 
     val doAutoSync by rememberPreference(autosyncKey, false)
@@ -525,7 +603,7 @@ fun HomePlaylists(
 
                 // 3. Toolbar
                 val buttons = mutableListOf(
-                    sync, search, shuffle, newPlaylistDialog, importPlaylistDialog, itemSize, viewType
+                    sync, search, shuffle, newPlaylistDialog, importButton, itemSize, viewType
                 ).apply {
                     if (playlistType == PlaylistType.OnDevicePlaylist)
                         add(toggleOndeviceFolderName)
@@ -1293,6 +1371,81 @@ fun HomePlaylists(
             }
         }
     )
+
+    val importPlaylistSpotifyDialog = ImportSongsFromSpotifyCSV.init(
+        beforeTransaction = { _, row, pname ->
+            time = formattedDate
+            val playlistName = row["PlaylistName"] ?: "${pname?.substringBeforeLast('.')} $time"
+            plistId = playlistName.let {
+                Database.playlistExistByName( it )
+            }
+
+            if (plistId == 0L)
+                plistId = playlistName.let {
+                    Database.insert( Playlist( plistId, it, row["PlaylistBrowseId"] ) )
+                }
+        },
+        afterTransaction = { index, song, album, artists ->
+            if (song.id.isBlank()) return@init
+
+            Database.insert(song)
+            Database.insert(
+                SongPlaylistMap(
+                    songId = song.id,
+                    playlistId = plistId,
+                    position = index
+                ).default()
+            )
+
+            if(album.id !=""){
+                Database.insert(
+                    album,
+                    SongAlbumMap(
+                        songId = song.id,
+                        albumId = album.id,
+                        position = null
+                    )
+                )
+            }
+            if(artists.isNotEmpty()){
+                Database.insert(
+                    artists,
+                    artists.map{ artist->
+                        SongArtistMap(
+                            songId = song.id,
+                            artistId = artist.id
+                        )
+                    }
+                )
+            }
+        }
+    )
+
+    var importType by rememberPreference(importPlaylistTypeKey, ImportPlaylistType.Riplay)
+    val importMenu: @Composable () -> Unit = {
+        EnumsMenu(
+            title = stringResource(R.string.import_playlist),
+            onDismiss = menuState::hide,
+            selectedValue = importType.menuItem,
+            onValueSelected = {
+                importType = ImportPlaylistType.entries[it.ordinal]
+                when(importType) {
+                    ImportPlaylistType.Riplay -> importPlaylistDialog.onShortClick()
+                    else -> importPlaylistSpotifyDialog.onShortClick()
+                }
+            },
+            values = ImportPlaylistType.entries.map { it.menuItem },
+            valueText = { stringResource(it.titleId) },
+            hideSelectedIndicator = true
+        )
+    }
+
+    val importButton = ToolbarMenuButton.build(
+        R.drawable.resource_import,
+        R.string.import_playlist,
+        onClick = { menuState.display { importMenu() } }
+    )
+
     val sync = autoSyncToolbutton(R.string.autosync)
 
     val doAutoSync by rememberPreference(autosyncKey, false)
@@ -1509,7 +1662,7 @@ fun HomePlaylists(
 
                 // Sticky tab's tool bar
                 val buttons = mutableListOf(
-                    sync, search, shuffle, newPlaylistDialog, importPlaylistDialog, itemSize, viewType)
+                    sync, search, shuffle, newPlaylistDialog, importButton, itemSize, viewType)
                     .apply {
                         if (playlistType == PlaylistType.OnDevicePlaylist)
                             add(toggleOndeviceFolderName)

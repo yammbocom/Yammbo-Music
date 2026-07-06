@@ -132,6 +132,7 @@ import it.fast4x.riplay.ui.styling.px
 import it.fast4x.riplay.extensions.preferences.UiTypeKey
 import it.fast4x.riplay.utils.addNext
 import it.fast4x.riplay.utils.asMediaItem
+import it.fast4x.riplay.utils.isSpotifyTrack
 import it.fast4x.riplay.ui.styling.center
 import it.fast4x.riplay.ui.styling.color
 import it.fast4x.riplay.commonutils.durationTextToMillis
@@ -269,7 +270,7 @@ fun LocalPlaylistSongs(
 
             PlaylistSongsTypeFilter.Unmatched -> {
                 playlistSongs =
-                    playlistAllSongs.filter { it.song.thumbnailUrl == "" && !it.asMediaItem.isLocal }
+                    playlistAllSongs.filter { (it.song.thumbnailUrl == "" && !it.asMediaItem.isLocal) || it.song.isSpotifyTrack }
             }
 
             PlaylistSongsTypeFilter.Favorites -> {
@@ -794,7 +795,7 @@ fun LocalPlaylistSongs(
     val playlistNotPipedType =
         playlistPreview?.playlist?.name?.startsWith(PIPED_PREFIX, 0, true) == false
     val hapticFeedback = LocalHapticFeedback.current
-    val unmatchedSongsCount = playlistSongs.filter { it.song.thumbnailUrl == "" }.size
+    val unmatchedSongsCount = playlistSongs.filter { (it.song.thumbnailUrl == "" && !it.asMediaItem.isLocal) || it.song.isSpotifyTrack }.size
 
     val editThumbnailLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.GetContent()
@@ -1339,9 +1340,9 @@ fun LocalPlaylistSongs(
 //                        )
 
 
-                            if ((playlistPreview?.playlist?.isYoutubePlaylist) == false) {
+                            if ((playlistPreview?.playlist?.isYoutubePlaylist) == false && unmatchedSongsCount > 0) {
                                 HeaderIconButton(
-                                    icon = R.drawable.random,
+                                    icon = R.drawable.alert,
                                     enabled = playlistSongs.any {
                                         (it.song.thumbnailUrl?.startsWith("https://lh3.googleusercontent.com") == false) && !(it.song.id.startsWith(
                                             LOCAL_KEY_PREFIX

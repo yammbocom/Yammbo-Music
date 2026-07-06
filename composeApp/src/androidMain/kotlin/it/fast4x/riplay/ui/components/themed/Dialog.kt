@@ -64,6 +64,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
@@ -2626,6 +2627,8 @@ fun SongMatchingDialog(
     playlist : Playlist?,
     onDismiss: (() -> Unit)
 ) {
+    val coroutineScope = rememberCoroutineScope()
+
     Dialog(
         onDismissRequest = { onDismiss() },
         properties = DialogProperties(usePlatformDefaultWidth = false)
@@ -2660,7 +2663,7 @@ fun SongMatchingDialog(
             val disableScrollingText by rememberPreference(disableScrollingTextKey, false)
 
             LaunchedEffect(Unit,startSearch) {
-                runBlocking(Dispatchers.IO) {
+                withContext(Dispatchers.IO) {
                     val searchQuery = Environment.searchPage(
                         body = SearchBody(
                             query = searchText,
@@ -2734,7 +2737,7 @@ fun SongMatchingDialog(
                                         .clickable(onClick = {
                                             Database.asyncTransaction {
                                                 if (isYtSyncEnabled() && playlist?.isYoutubePlaylist == true && playlist.isEditable) {
-                                                    CoroutineScope(Dispatchers.IO).launch {
+                                                    coroutineScope.launch {
                                                         if (removeYTSongFromPlaylist(
                                                                 songToRematch.id,
                                                                 playlist.browseId ?: "",
@@ -2776,7 +2779,7 @@ fun SongMatchingDialog(
                                                         position = null
                                                     )
                                                 )
-                                                CoroutineScope(Dispatchers.IO).launch {
+                                                coroutineScope.launch {
                                                     val album = Database.album(
                                                         song.album?.endpoint?.browseId ?: ""
                                                     ).firstOrNull()
