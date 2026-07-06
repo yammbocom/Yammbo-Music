@@ -1,24 +1,32 @@
 package it.fast4x.riplay.ui.screens.search
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExperimentalAnimationApi
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -28,49 +36,54 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.util.UnstableApi
 import androidx.navigation.NavController
 import it.fast4x.riplay.extensions.persist.PersistMapCleanup
 import com.yambo.music.R
-import it.fast4x.riplay.enums.UiType
+import it.fast4x.riplay.data.Database
+import it.fast4x.riplay.data.models.SearchQuery
+import it.fast4x.riplay.enums.ContentType
 import it.fast4x.riplay.extensions.preferences.enableVoiceInputKey
+import it.fast4x.riplay.extensions.preferences.pauseSearchHistoryKey
 import it.fast4x.riplay.extensions.preferences.rememberPreference
+import it.fast4x.riplay.extensions.preferences.preferences
 import it.fast4x.riplay.ui.components.themed.IconButton
-import it.fast4x.riplay.ui.styling.favoritesIcon
 import it.fast4x.riplay.ui.styling.secondary
 import it.fast4x.riplay.ui.components.ScreenContainer
+import it.fast4x.riplay.ui.styling.align
+import it.fast4x.riplay.ui.styling.medium
 import it.fast4x.riplay.utils.colorPalette
 import it.fast4x.riplay.utils.StartVoiceInput
 import it.fast4x.riplay.utils.typography
+import kotlinx.serialization.ExperimentalSerializationApi
 
-@ExperimentalMaterialApi
-@ExperimentalTextApi
-@ExperimentalFoundationApi
-@ExperimentalAnimationApi
-@ExperimentalComposeUiApi
 @UnstableApi
+@OptIn(ExperimentalSerializationApi::class, ExperimentalMaterialApi::class, ExperimentalTextApi::class,
+    ExperimentalFoundationApi::class, ExperimentalAnimationApi::class, ExperimentalComposeUiApi::class)
 @Composable
 fun SearchScreen(
     navController: NavController,
     miniPlayer: @Composable () -> Unit = {},
-    initialTextInput: String,
-    onSearch: (String) -> Unit,
-    onViewPlaylist: (String) -> Unit,
-    onDismiss: (() -> Unit)? = null,
+    initialTextInput: String = "",
 ) {
+    val context = LocalContext.current
     val saveableStateHolder = rememberSaveableStateHolder()
 
-    val (tabIndex, onTabChanged) = rememberSaveable {
-        mutableStateOf(0)
-    }
-
     val (textFieldValue, onTextFieldValueChanged) = rememberSaveable(
-        initialTextInput,
         stateSaver = TextFieldValue.Saver
     ) {
         mutableStateOf(
@@ -83,148 +96,265 @@ fun SearchScreen(
 
     PersistMapCleanup(tagPrefix = "search/")
 
-    val isEnabledVoiceInput by rememberPreference(enableVoiceInputKey, true)
+    // A non-empty initial input (e.g. music identifier, go-to-link, audio tagger)
+    // lands directly on the results view.
+    var submittedQuery by rememberSaveable { mutableStateOf(initialTextInput) }
 
+    val focusRequester = remember { FocusRequester() }
+    val keyboardController = LocalSoftwareKeyboardController.current
+
+
+    val isEnabledVoiceInput by rememberPreference(enableVoiceInputKey, true)
     var startVoiceInput by remember { mutableStateOf(false) }
 
     if (startVoiceInput) {
         StartVoiceInput(
             onTextRecognized = {
-                onTextFieldValueChanged(TextFieldValue(it))
+                onTextFieldValueChanged(TextFieldValue(it, selection = TextRange(it.length)))
+                submittedQuery = it
                 startVoiceInput = false
             },
-            onRecognitionError = {
-                startVoiceInput = false
-            },
+            onRecognitionError = { startVoiceInput = false },
             onListening = {}
         )
     }
 
-    val decorationBox: @Composable (@Composable () -> Unit) -> Unit = { innerTextField ->
-        Box(
-            contentAlignment = Alignment.CenterStart,
-            modifier = Modifier
-               // .weight(1f)
-                .padding(horizontal = 10.dp)
-        ) {
-            if ( UiType.ViMusic.isCurrent() )
-                Column (
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    IconButton(
-                        onClick = {},
-                        icon = R.drawable.search,
-                        color = colorPalette().favoritesIcon,
-                        modifier = Modifier
-                            .size(20.dp)
-                    )
+    var filterContentType by remember { mutableStateOf(ContentType.All) }
+
+    val isSearchActive = submittedQuery.isNotEmpty()
+
+    val (baseTabIndex, onBaseTabChanged) = rememberSaveable { mutableStateOf(0) }
+    val (resultTabIndex, onResultTabChanged) = rememberSaveable { mutableStateOf(0) }
+
+    LaunchedEffect(textFieldValue.text) {
+        if (textFieldValue.text.length > 3) {
+            if (!context.preferences.getBoolean(pauseSearchHistoryKey, false)) {
+                Database.asyncTransaction {
+                    insert(SearchQuery(query = textFieldValue.text))
                 }
-        }
-        Box(
-            contentAlignment = Alignment.CenterStart,
-            modifier = Modifier
-               // .weight(1f)
-                .padding(horizontal = 40.dp)
-        ) {
-            AnimatedVisibility(
-                visible = textFieldValue.text.isEmpty(),
-                enter = fadeIn(tween(300)),
-                exit = fadeOut(tween(300)),
-                modifier = Modifier
-                    .align(Alignment.Center)
-            ) {
-                BasicText(
-                    text = stringResource(R.string.search), //stringResource(R.string.enter_a_name),
-                    maxLines = 1,
-                    style = typography().l.secondary,
-
-                )
-            }
-            innerTextField()
-        }
-        Box(
-            contentAlignment = Alignment.CenterEnd,
-            modifier = Modifier
-                .padding(horizontal = 10.dp)
-
-        ) {
-            Row (
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-
-                if (isEnabledVoiceInput) {
-                    IconButton(
-                        onClick = { startVoiceInput = true },
-                        icon = R.drawable.mic,
-                        color = colorPalette().favoritesIcon,
-                        modifier = Modifier
-                            .size(24.dp)
-                    )
-
-                    Spacer(modifier = Modifier.width(10.dp))
-                }
-
-                IconButton(
-                    onClick = { onTextFieldValueChanged(TextFieldValue("")) },
-                    icon = R.drawable.close,
-                    color = colorPalette().favoritesIcon,
-                    modifier = Modifier
-                        .size(24.dp)
-                )
             }
         }
     }
 
-    ScreenContainer(
-        navController,
-        tabIndex,
-        onTabChanged,
-        miniPlayer,
-        navBarContent = { item ->
-            item(0, stringResource(R.string.online), R.drawable.internet)
-            item(1, stringResource(R.string.library), R.drawable.playlist)
-            item(2, stringResource(R.string.go_to_link), R.drawable.link)
-        }
-    ) { currentTabIndex ->
-        saveableStateHolder.SaveableStateProvider(currentTabIndex) {
-            when (currentTabIndex) {
-                0 -> OnlineSearch(
-                    navController = navController,
-                    textFieldValue = textFieldValue,
-                    onTextFieldValueChanged = onTextFieldValueChanged,
-                    onSearch = onSearch,
-                    decorationBox = decorationBox
-                )
+    val decorationBox: @Composable (@Composable () -> Unit) -> Unit = { innerTextField ->
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .padding(all = 10.dp)
+                .fillMaxWidth()
+        ) {
 
-                1 -> LocalSongSearch(
-                    navController = navController,
-                    textFieldValue = textFieldValue,
-                    onTextFieldValueChanged = onTextFieldValueChanged,
-                    decorationBox = decorationBox,
-                    onAction1 = { onTabChanged(0) },
-                    onAction2 = { onTabChanged(1) },
-                    onAction3 = { onTabChanged(2) },
-                    onAction4 = {
-                        //onGoToHome()
-                        //pop()
-                    },
-                )
 
-                2 -> GoToLink(
-                    navController = navController,
-                    textFieldValue = textFieldValue,
-                    onTextFieldValueChanged = onTextFieldValueChanged,
-                    decorationBox = decorationBox,
-                    onAction1 = { onTabChanged(0) },
-                    onAction2 = { onTabChanged(1) },
-                    onAction3 = { onTabChanged(2) },
-                    onAction4 = {
-                        //onGoToHome()
-                        //pop()
-                    },
-                )
+            IconButton(
+                onClick = {},
+                icon = R.drawable.search,
+                color = colorPalette().text,
+                modifier = Modifier.size(20.dp)
+            )
+
+
+            Box(
+                contentAlignment = Alignment.CenterStart,
+                modifier = Modifier.padding(horizontal = 10.dp).weight(1f)
+            ) {
+                if (textFieldValue.text.isEmpty())
+                    BasicText(
+                        text = stringResource(R.string.search),
+                        maxLines = 1,
+                        style = typography().l.secondary
+                    )
+
+                innerTextField()
             }
+            Box(
+                contentAlignment = Alignment.CenterEnd,
+                modifier = Modifier.padding(horizontal = 10.dp)
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(top = 5.dp)
+                ) {
+                    if (isEnabledVoiceInput) {
+                        IconButton(
+                            onClick = { startVoiceInput = true },
+                            icon = R.drawable.mic,
+                            color = colorPalette().text,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                    }
+                    if (textFieldValue.text.isNotEmpty()) {
+                        IconButton(
+                            onClick = {
+                                onTextFieldValueChanged(TextFieldValue(""))
+                                submittedQuery = ""
+                                focusRequester.requestFocus()
+                            },
+                            icon = R.drawable.close,
+                            color = colorPalette().text,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+        ScreenContainer(
+            navController = navController,
+            tabIndex = if (isSearchActive) resultTabIndex else baseTabIndex,
+            onTabChanged = { newIndex ->
+                if (isSearchActive) onResultTabChanged(newIndex) else onBaseTabChanged(newIndex)
+            },
+            miniPlayer = miniPlayer,
+            navBarContent = { item ->
+                if (isSearchActive) {
+                    item(0, stringResource(R.string.songs), R.drawable.musical_notes)
+                    item(1, stringResource(R.string.albums), R.drawable.music_album)
+                    item(2, stringResource(R.string.artists), R.drawable.music_artist)
+                    item(3, stringResource(R.string.videos), R.drawable.video)
+                    item(4, stringResource(R.string.playlists), R.drawable.playlist)
+                    item(5, stringResource(R.string.featured), R.drawable.featured_playlist)
+                    item(6, stringResource(R.string.podcasts), R.drawable.podcast)
+                } else {
+                    item(0, stringResource(R.string.online), R.drawable.internet)
+                    item(1, stringResource(R.string.library), R.drawable.playlist)
+                    item(2, stringResource(R.string.go_to_link), R.drawable.link)
+                }
+            }
+        ) { currentTabIndex ->
+
+            Column(modifier = Modifier.fillMaxSize()) {
+                if (currentTabIndex < 2) {
+                    // === Search bar (Yammbo redesigned style) ===
+                    // Pill-shape container with a thin border that lights up to the
+                    // theme's accent color when the field is focused (220 ms easing).
+                    val searchInteractionSource = remember { MutableInteractionSource() }
+                    val isSearchFocused by searchInteractionSource.collectIsFocusedAsState()
+                    val animatedBorderAlpha by animateFloatAsState(
+                        targetValue = if (isSearchFocused) 0.55f else 0.10f,
+                        animationSpec = tween(220, easing = FastOutSlowInEasing),
+                        label = "search-border-alpha",
+                    )
+                    val animatedBgAlpha by animateFloatAsState(
+                        targetValue = if (isSearchFocused) 1f else 0.94f,
+                        animationSpec = tween(220, easing = FastOutSlowInEasing),
+                        label = "search-bg-alpha",
+                    )
+                    val searchBarShape = RoundedCornerShape(14.dp)
+
+                    BasicTextField(
+                        value = textFieldValue,
+                        onValueChange = { newTextFieldValue ->
+                            onTextFieldValueChanged(newTextFieldValue)
+
+                            if (newTextFieldValue.text.isEmpty()) {
+                                submittedQuery = ""
+                            }
+                        },
+                        interactionSource = searchInteractionSource,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                            .clip(searchBarShape)
+                            .background(
+                                color = colorPalette().background2.copy(alpha = animatedBgAlpha),
+                                shape = searchBarShape,
+                            )
+                            .border(
+                                width = 1.dp,
+                                color = colorPalette().accent.copy(alpha = animatedBorderAlpha),
+                                shape = searchBarShape,
+                            )
+                            .padding(horizontal = 12.dp, vertical = 10.dp)
+                            .focusRequester(focusRequester)
+                            .onFocusChanged {
+                                if (!it.hasFocus) {
+                                    keyboardController?.hide()
+                                }
+                            },
+                        singleLine = true,
+                        textStyle = typography().l.medium.align(TextAlign.Start),
+                        cursorBrush = SolidColor(colorPalette().text),
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                        keyboardActions = KeyboardActions(
+                            onSearch = {
+                                if (textFieldValue.text.isNotEmpty()) {
+                                    submittedQuery = textFieldValue.text
+                                    keyboardController?.hide()
+
+                                    if (!context.preferences.getBoolean(pauseSearchHistoryKey, false)) {
+                                        Database.asyncTransaction {
+                                            insert(SearchQuery(query = textFieldValue.text))
+                                        }
+                                    }
+                                }
+                            }
+                        ),
+                        decorationBox = decorationBox
+                    )
+                }
+
+                Box(modifier = Modifier.weight(1f)) {
+                    saveableStateHolder.SaveableStateProvider(currentTabIndex) {
+                        if (isSearchActive) {
+                            SearchResultsContent(
+                                query = submittedQuery,
+                                tabIndex = currentTabIndex,
+                                filterContentType = filterContentType,
+                                onFilterChanged = { filterContentType = it },
+                                navController = navController,
+                                onSaveHistory = {
+                                    if (!context.preferences.getBoolean(
+                                            pauseSearchHistoryKey,
+                                            false
+                                        )
+                                    ) {
+                                        Database.asyncTransaction { insert(SearchQuery(query = textFieldValue.text)) }
+                                    }
+                                },
+                                focusRequester = focusRequester,
+                                keyboardController = keyboardController
+                            )
+                        } else {
+                            when (currentTabIndex) {
+                                0 -> OnlineSearch(
+                                    navController = navController,
+                                    textFieldValue = textFieldValue,
+                                    onTextFieldValueChanged = onTextFieldValueChanged,
+                                    onSearch = { query ->
+                                        submittedQuery = query
+                                        keyboardController?.hide()
+                                    },
+                                    decorationBox = decorationBox
+                                )
+
+                                1 -> LocalSongSearch(
+                                    navController = navController,
+                                    textFieldValue = textFieldValue,
+                                    onTextFieldValueChanged = onTextFieldValueChanged,
+                                    decorationBox = decorationBox,
+                                    onAction1 = { onBaseTabChanged(0) },
+                                    onAction2 = { onBaseTabChanged(1) },
+                                    onAction3 = { onBaseTabChanged(2) },
+                                    onAction4 = {}
+                                )
+
+                                2 -> GoToLink(
+                                    navController = navController,
+                                    textFieldValue = textFieldValue,
+                                    onTextFieldValueChanged = onTextFieldValueChanged,
+                                    decorationBox = decorationBox,
+                                    onAction1 = { onBaseTabChanged(0) },
+                                    onAction2 = { onBaseTabChanged(1) },
+                                    onAction3 = { onBaseTabChanged(2) },
+                                    onAction4 = {}
+                                )
+                            }
+                        }
+                    }
+                }
         }
     }
 }

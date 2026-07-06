@@ -1559,7 +1559,7 @@ class MainActivity :
 
                         "search" -> uri.getQueryParameter("q")?.let { query ->
                             val encodedQuery = URLEncoder.encode(query, "UTF-8")
-                            navController.navigate(route = "${NavRoutes.searchResults.name}/$encodedQuery")
+                            navController.navigate(route = "${NavRoutes.search.name}?text=$encodedQuery")
                         }
 
                         else -> when {
@@ -1568,7 +1568,7 @@ class MainActivity :
                             path != "watch" && uri.host == null -> {
                                 path?.let { query ->
                                     val encodedQuery = URLEncoder.encode(query, "UTF-8")
-                                    navController.navigate(route = "${NavRoutes.searchResults.name}/$encodedQuery")
+                                    navController.navigate(route = "${NavRoutes.search.name}?text=$encodedQuery")
                                 }
                                 null
                             }
@@ -1576,7 +1576,7 @@ class MainActivity :
                                 shazamSongInfoExtractor(uri.toString(), { artist, title, error ->
                                     Timber.d("MainActivity shazamSongInfoExtractor result $artist $title $error")
                                     if (title.isNotEmpty())
-                                        navController.navigate(route = "${NavRoutes.searchResults.name}/${title} ${artist}")
+                                        navController.navigate(route = "${NavRoutes.search.name}?text=${title} ${artist}")
 
                                 })
                                 null

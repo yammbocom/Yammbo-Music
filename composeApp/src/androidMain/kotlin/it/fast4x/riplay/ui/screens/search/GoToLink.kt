@@ -177,7 +177,7 @@ fun GoToLink(
 
                                     "search" -> uri.getQueryParameter("q")?.let { query ->
                                         val encodedQuery = URLEncoder.encode(query, "UTF-8")
-                                        navController.navigate(route = "${NavRoutes.searchResults.name}/$encodedQuery")
+                                        navController.navigate(route = "${NavRoutes.search.name}?text=$encodedQuery")
                                     }
 
                                     else -> when {

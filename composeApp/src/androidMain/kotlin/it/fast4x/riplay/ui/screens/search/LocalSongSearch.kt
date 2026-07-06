@@ -139,11 +139,13 @@ fun LocalSongSearch(
         ) {
             LazyColumn(
                 state = lazyListState,
-                contentPadding = LocalPlayerAwareWindowInsets.current
-                    .only(WindowInsetsSides.Vertical + WindowInsetsSides.End).asPaddingValues(),
+//                contentPadding = LocalPlayerAwareWindowInsets.current
+//                    .only(WindowInsetsSides.Vertical + WindowInsetsSides.End).asPaddingValues(),
                 modifier = Modifier
                     .fillMaxSize()
             ) {
+                // Search bar moved up into SearchScreen (upstream search rewrite).
+                /*
                 item(
                     key = "header",
                     contentType = 0
@@ -194,6 +196,7 @@ fun LocalSongSearch(
                         actionsContent = {},
                     )
                 }
+                */
 
                 items(
                     items = items,

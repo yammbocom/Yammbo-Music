@@ -40,7 +40,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.github.doyaaaaaken.kotlincsv.client.KotlinCsvExperimental
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
-import it.fast4x.riplay.commonutils.cleanString
 import it.fast4x.riplay.data.Database
 import it.fast4x.riplay.data.models.Chip
 import it.fast4x.riplay.enums.NavRoutes
@@ -48,7 +47,6 @@ import it.fast4x.riplay.enums.StatisticsType
 import it.fast4x.riplay.enums.ThumbnailRoundness
 import it.fast4x.riplay.enums.TransitionEffect
 import it.fast4x.riplay.data.models.Mood
-import it.fast4x.riplay.data.models.SearchQuery
 import it.fast4x.riplay.extensions.ritune.improved.RiTuneControllerScreen
 import it.fast4x.riplay.ui.screens.blacklist.BlacklistScreen
 import it.fast4x.riplay.extensions.listenerlevel.ListenerLevelCharts
@@ -68,14 +66,12 @@ import it.fast4x.riplay.ui.screens.player.common.Queue
 import it.fast4x.riplay.ui.screens.playlist.PlaylistScreen
 import it.fast4x.riplay.ui.screens.podcast.PodcastScreen
 import it.fast4x.riplay.ui.screens.search.SearchScreen
-import it.fast4x.riplay.ui.screens.searchresult.SearchResultScreen
 import it.fast4x.riplay.ui.screens.settings.SettingsScreen
 import it.fast4x.riplay.ui.screens.statistics.StatisticsScreen
 import it.fast4x.riplay.ui.screens.welcome.WelcomeScreen
 import it.fast4x.riplay.utils.ShowVideoOrSongInfo
 import it.fast4x.riplay.extensions.preferences.clearPreference
 import it.fast4x.riplay.extensions.preferences.homeScreenTabIndexKey
-import it.fast4x.riplay.extensions.preferences.pauseSearchHistoryKey
 import it.fast4x.riplay.extensions.preferences.preferences
 import it.fast4x.riplay.extensions.preferences.rememberPreference
 import it.fast4x.riplay.extensions.preferences.thumbnailRoundnessKey
@@ -100,7 +96,6 @@ import it.fast4x.riplay.ui.screens.settings.YammboWebViewScreen
 import it.fast4x.riplay.utils.MusicIdentifier
 import android.util.Base64
 import java.net.URLDecoder
-import java.net.URLEncoder
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalAnimationApi::class,
     ExperimentalMaterialApi::class, ExperimentalTextApi::class, ExperimentalComposeUiApi::class,
@@ -476,48 +471,10 @@ fun AppNavigation(
         ) { navBackStackEntry ->
             val context = LocalContext.current
             val text = navBackStackEntry.arguments?.getString("text") ?: ""
-
             SearchScreen(
                 navController = navController,
                 miniPlayer = miniPlayer,
                 initialTextInput = text,
-                onViewPlaylist = {},
-                onSearch = { query ->
-
-                    navController.navigate(
-                        route = "${NavRoutes.searchResults.name}/${
-                            cleanString(
-                                query
-                            )
-                        }"
-                    )
-
-                    if (!context.preferences.getBoolean(pauseSearchHistoryKey, false)) {
-                        Database.asyncTransaction {
-                            insert(SearchQuery(query = query))
-                        }
-                    }
-                },
-
-                )
-        }
-
-        composable(
-            route = "${NavRoutes.searchResults.name}/{query}",
-            arguments = listOf(
-                navArgument(
-                    name = "query",
-                    builder = { type = NavType.StringType }
-                )
-            )
-        ) { navBackStackEntry ->
-            val query = navBackStackEntry.arguments?.getString("query") ?: ""
-
-            SearchResultScreen(
-                navController = navController,
-                miniPlayer = miniPlayer,
-                query = query,
-                onSearchAgain = {}
             )
         }
 
@@ -599,29 +556,6 @@ fun AppNavigation(
             NewreleasesScreen(
                 navController = navController,
                 miniPlayer = miniPlayer,
-            )
-        }
-
-        composable(
-            "searchScreenRoute/{query}"
-        ) { backStackEntry ->
-            val context = LocalContext.current
-            val query = backStackEntry.arguments?.getString("query")?: ""
-            SearchScreen(
-                navController = navController,
-                miniPlayer = miniPlayer,
-                initialTextInput = query ,
-                onViewPlaylist = {},
-                onSearch = { newQuery ->
-                    val encodedQuery = URLEncoder.encode(newQuery, "UTF-8")
-                    navController.navigate(route = "${NavRoutes.searchResults.name}/${encodedQuery}")
-
-                    if (!context.preferences.getBoolean(pauseSearchHistoryKey, false)) {
-                        Database.asyncTransaction {
-                            insert(SearchQuery(query = encodedQuery))
-                        }
-                    }
-                },
             )
         }
 

@@ -192,11 +192,14 @@ fun OnlineSearch(
         ) {
             LazyColumn(
                 state = lazyListState,
-                contentPadding = LocalPlayerAwareWindowInsets.current
-                    .only(WindowInsetsSides.Vertical + WindowInsetsSides.End).asPaddingValues(),
+//                contentPadding = LocalPlayerAwareWindowInsets.current
+//                    .only(WindowInsetsSides.Vertical + WindowInsetsSides.End).asPaddingValues(),
                 modifier = Modifier
                     .fillMaxSize()
             ) {
+                // Search bar moved up into SearchScreen (upstream search rewrite);
+                // the redesigned Yammbo bar style lives there now.
+                /*
                 item(
                     key = "header",
                     contentType = 0
@@ -262,6 +265,7 @@ fun OnlineSearch(
                         actionsContent = {},
                     )
                 }
+                */
 
                 // Empty-query browse: a curated row of categories that pre-fill the
                 // search box. Gives the screen something useful before the user types,
