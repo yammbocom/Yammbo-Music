@@ -229,6 +229,7 @@ import it.fast4x.riplay.extensions.databasebackup.DatabaseBackupManager
 import it.fast4x.riplay.extensions.htmlreader.shazamSongInfoExtractor
 import it.fast4x.riplay.extensions.ondevice.OnDeviceViewModel
 import it.fast4x.riplay.extensions.preferences.resumeOrPausePlaybackWhenDeviceKey
+import it.fast4x.riplay.extensions.storagewarning.StorageWarningChecker
 import it.fast4x.riplay.extensions.preferences.resumeOrPausePlaybackWhenDeviceBtKey
 import it.fast4x.riplay.extensions.preferences.showSnowfallEffectKey
 import it.fast4x.riplay.extensions.ritune.toRiTuneDevice
@@ -768,6 +769,8 @@ class MainActivity :
         }
 
         setContent {
+
+            StorageWarningChecker()
 
             //Check if webview component exists
             var webViewInfo by remember { mutableStateOf<WebViewInfo>(WebViewInfo()) }

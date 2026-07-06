@@ -22,15 +22,44 @@ import it.fast4x.riplay.extensions.preferences.preferences
 import it.fast4x.riplay.extensions.preferences.usePlaceholderInImageLoaderKey
 import it.fast4x.riplay.commonutils.initializeEnvironment
 import it.fast4x.riplay.extensions.crashreporter.CrashReporter
+import it.fast4x.riplay.extensions.appviewmodel.AppViewModel
+import it.fast4x.riplay.extensions.appviewmodel.models.NetworkConnectivity
+import it.fast4x.riplay.extensions.appviewmodel.observeNetworkType
 import it.fast4x.riplay.service.PlayerService
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 import timber.log.Timber
 import java.io.File
 
 class MainApplication : MultiDexApplication(), ImageLoaderFactory {
 
+    // Stato condiviso accessibile ovunque, anche dai Service
+    val networkConnectivity: StateFlow<NetworkConnectivity>
+        get() = _networkConnectivity
+
+    private val _networkConnectivity = MutableStateFlow<NetworkConnectivity>(
+        NetworkConnectivity.Disconnected
+    )
+
+    private val appScopeMain = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+
+    val appViewModelFactory by lazy {
+        AppViewModel.factory(this)
+    }
+
     @OptIn(UnstableApi::class)
     override fun onCreate() {
         super.onCreate()
+
+        appScopeMain.launch {
+            observeNetworkType(this@MainApplication).collect {
+                _networkConnectivity.value = it
+            }
+        }
 
         val receiver = ComponentName(this, PlayerService::class.java)
         val pm = packageManager

@@ -21,17 +21,21 @@ import androidx.navigation.NavController
 import it.fast4x.riplay.LocalPlayerServiceBinder
 import com.yambo.music.R
 import it.fast4x.riplay.enums.NavRoutes
-import it.fast4x.riplay.enums.NetworkType
+import it.fast4x.riplay.MainApplication
+import it.fast4x.riplay.extensions.appviewmodel.models.NetworkConnectivity
+import it.fast4x.riplay.extensions.appviewmodel.toIcon
 import it.fast4x.riplay.extensions.preferences.eqEnabledKey
 import it.fast4x.riplay.extensions.preferences.logDebugEnabledKey
+import it.fast4x.riplay.extensions.preferences.offlineModeEnabledKey
 import it.fast4x.riplay.extensions.preferences.rememberObservedPreference
+import it.fast4x.riplay.extensions.preferences.rememberPreference
+import androidx.compose.runtime.collectAsState
 import it.fast4x.riplay.ui.styling.favoritesIcon
 import it.fast4x.riplay.ui.components.themed.Button
 import it.fast4x.riplay.utils.colorPalette
 import it.fast4x.riplay.utils.isParentalControlEnabled
 import it.fast4x.riplay.utils.typography
 import it.fast4x.riplay.utils.isAtLeastAndroid7
-import it.fast4x.riplay.utils.getNetworkType
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -71,11 +75,13 @@ fun AppTitle(
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
             if (isAtLeastAndroid7) {
-                val dataTypeIcon = when (getNetworkType(context)) {
-                    NetworkType.WIFI -> R.drawable.datawifi
-                    NetworkType.CELLULAR -> R.drawable.datamobile
-                    NetworkType.ETHERNET -> R.drawable.dataethernet
-                    else -> R.drawable.alert_circle_not_filled
+                val app = context.applicationContext as MainApplication
+                val networkConnectivity by app.networkConnectivity.collectAsState()
+                val offlineModeEnabled by rememberPreference(offlineModeEnabledKey, false)
+                val dataTypeIcon = when {
+                    offlineModeEnabled -> R.drawable.airplane
+                    else -> (networkConnectivity as? NetworkConnectivity.Connected)?.type?.toIcon()
+                        ?: R.drawable.alert_circle_not_filled
                 }
                 Image(
                     painter = painterResource(dataTypeIcon),

@@ -71,6 +71,7 @@ import it.fast4x.riplay.commonutils.MODIFIED_PREFIX
 import com.yambo.music.R
 import it.fast4x.riplay.enums.AlbumSortBy
 import it.fast4x.riplay.enums.AlbumsType
+import it.fast4x.riplay.extensions.appviewmodel.rememberIsNetworkConnected
 import it.fast4x.riplay.enums.NavigationBarPosition
 import it.fast4x.riplay.enums.UiType
 import it.fast4x.riplay.data.models.Album
@@ -182,8 +183,17 @@ fun HomeAlbums(
         animationSpec = tween(durationMillis = 400, easing = LinearEasing), label = ""
     )
 
-    LaunchedEffect(sortBy, sortOrder, albumType) {
-        when (albumType) {
+    val isNetworkConnected = rememberIsNetworkConnected()
+
+    LaunchedEffect(isNetworkConnected, sortBy, sortOrder, albumType) {
+        // Determina il tipo effettivo per questo ciclo di raccolta dati
+        val targetAlbumType = if (!isNetworkConnected && albumType !in listOf(AlbumsType.OnDevice)) {
+            AlbumsType.OnDevice
+        } else {
+            albumType
+        }
+
+        when (targetAlbumType) {
             AlbumsType.Favorites -> Database.albums(sortBy, sortOrder).collect { items = it }
             AlbumsType.Library -> Database.albumsInLibrary(sortBy, sortOrder).collect { items = it.filter { it.isYoutubeAlbum } }
             AlbumsType.OnDevice -> Database.albumsOnDevice(sortBy, sortOrder).collect { items = it }

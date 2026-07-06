@@ -1286,6 +1286,16 @@
     <string name="settings_wired_info_resume_playback_when_plugged_pause_when_unplugged">Resume playback when plugged in, pause when unplugged</string>
     <string name="import_playlist_riplay">Import playlist from Yammbo Music</string>
     <string name="import_playlist_exportify_net">Import Spotify playlist (Exportify.net CSV)</string>
+    <string name="offline">Offline</string>
+    <string name="storage_gb_free">%1$s GB free</string>
+    <string name="storage_mb_free">%1$d MB free</string>
+    <string name="storage_almost_full">Storage Almost Full</string>
+    <string name="storage_low_storage">Low Storage</string>
+    <string name="storage_gb_total">%1$s GB total</string>
+    <string name="storage_warning_ignore">Ignore</string>
+    <string name="storage_manage_storage">Manage Storage</string>
+    <string name="storage_your_device_is_running_out_of_storage_the_app_may_not_work_properly">Your device is running out of storage. The app may not work properly.</string>
+    <string name="storage_your_device_is_low_on_storage_consider_freeing_up_some_space_soon">Your device is low on storage. Consider freeing up some space soon.</string>
     <string name="warning_skipped_video">Skipped video</string>
     <string name="warning_skipped_blacklisted_song">Skipped blacklisted song</string>
     <string name="cast">Cast</string>

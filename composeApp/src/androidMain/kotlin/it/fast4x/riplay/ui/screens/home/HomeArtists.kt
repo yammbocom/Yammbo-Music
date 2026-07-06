@@ -70,6 +70,7 @@ import it.fast4x.riplay.data.Database
 import com.yambo.music.R
 import it.fast4x.riplay.enums.ArtistSortBy
 import it.fast4x.riplay.enums.ArtistsType
+import it.fast4x.riplay.extensions.appviewmodel.rememberIsNetworkConnected
 import it.fast4x.riplay.enums.NavigationBarPosition
 import it.fast4x.riplay.enums.UiType
 import it.fast4x.riplay.data.models.Artist
@@ -177,9 +178,19 @@ fun HomeArtists(
         animationSpec = tween(durationMillis = 400, easing = LinearEasing), label = ""
     )
 
+    val isNetworkConnected = rememberIsNetworkConnected()
+
     // Caricamento Dati
-    LaunchedEffect(Unit, sortBy, sortOrder, artistType) {
-        when (artistType) {
+    LaunchedEffect(isNetworkConnected, sortBy, sortOrder, artistType) {
+        // 1. Calcolo del tipo effettivo in base alla rete
+        val targetArtistType = if (!isNetworkConnected && artistType !in listOf(ArtistsType.OnDevice)) {
+            ArtistsType.OnDevice
+        } else {
+            artistType
+        }
+
+        // 2. Caricamento dati usando il tipo effettivo calcolato
+        when (targetArtistType) {
             ArtistsType.Favorites -> Database.artists(sortBy, sortOrder).collect { items = it }
             ArtistsType.Library -> Database.artistsInLibrary(sortBy, sortOrder).collect { items = it.filter { it.isYoutubeArtist } }
             ArtistsType.OnDevice -> Database.artistsOnDevice(sortBy, sortOrder).collect { items = it }

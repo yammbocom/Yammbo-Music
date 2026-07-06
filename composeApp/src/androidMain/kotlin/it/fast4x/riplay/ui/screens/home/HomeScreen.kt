@@ -40,6 +40,7 @@ import it.fast4x.riplay.extensions.preferences.enableMusicIdentifierKey
 import it.fast4x.riplay.extensions.preferences.getEnum
 import it.fast4x.riplay.extensions.preferences.homePageTypeKey
 import it.fast4x.riplay.extensions.preferences.homeScreenTabIndexKey
+import it.fast4x.riplay.extensions.preferences.offlineModeEnabledKey
 import it.fast4x.riplay.extensions.preferences.indexNavigationTabKey
 import it.fast4x.riplay.extensions.preferences.preferences
 import it.fast4x.riplay.extensions.preferences.rememberObservedPreference
@@ -123,6 +124,12 @@ fun HomeScreen(
         }
 
     var (tabIndex, onTabChanged) = rememberPreference(homeScreenTabIndexKey, initialtabIndex)
+
+    val offlineModeEnabled by rememberPreference(offlineModeEnabledKey, false)
+    LaunchedEffect(Unit, offlineModeEnabled) {
+        // In offline mode land on Mi Música (local library hub)
+        if (offlineModeEnabled) onTabChanged(2)
+    }
 
     // Tracks which hub (Mi Música = 2, En mi dispositivo = 14) navigated into the
     // shared sub-tabs 10..13 so the back button returns to the correct hub.

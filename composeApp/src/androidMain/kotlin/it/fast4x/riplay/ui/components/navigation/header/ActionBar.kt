@@ -27,6 +27,7 @@ import it.fast4x.riplay.extensions.preferences.castToRiTuneDeviceEnabledKey
 import it.fast4x.riplay.extensions.preferences.enableMusicIdentifierKey
 import it.fast4x.riplay.extensions.preferences.enablePictureInPictureKey
 import it.fast4x.riplay.extensions.preferences.equalizerTypeKey
+import it.fast4x.riplay.extensions.preferences.offlineModeEnabledKey
 import it.fast4x.riplay.extensions.preferences.rememberObservedPreference
 import it.fast4x.riplay.extensions.preferences.rememberPreference
 import it.fast4x.riplay.extensions.ritune.improved.RiTuneSelector
@@ -67,6 +68,7 @@ private fun HamburgerMenu(
     val equalizerType by rememberObservedPreference(equalizerTypeKey, EqualizerType.Internal)
     val internalEqualizer = LocalPlayerServiceBinder.current?.equalizer
     val launchSystemEqualizer by rememberSystemEqualizerLauncher(audioSessionId = {0})
+    var offlineModeEnabled by rememberPreference(offlineModeEnabledKey, false)
 
     DropdownMenu(
         expanded = expanded,
@@ -178,7 +180,17 @@ private fun HamburgerMenu(
                     index = 8,
                     iconRes = R.drawable.settings,
                     textRes = R.string.settings,
-                    onClick = { onItemClick(NavRoutes.settings) },
+                    onClick = { onItemClick(NavRoutes.settings) }
+                )
+
+                ModernMenuCheckboxItem(
+                    index = 9,
+                    iconRes = R.drawable.airplane,
+                    textRes = R.string.offline,
+                    checked = offlineModeEnabled,
+                    onCheckedChange = {
+                        offlineModeEnabled = it
+                    },
                     isLast = true
                 )
             }
@@ -261,6 +273,86 @@ private fun ModernMenuItem(
                 color = colorPalette().text
             )
         }
+    }
+}
+
+@Composable
+private fun ModernMenuCheckboxItem(
+    index: Int,
+    @androidx.annotation.DrawableRes iconRes: Int,
+    @androidx.annotation.StringRes textRes: Int,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    isLast: Boolean = false
+) {
+    var isVisible by remember { mutableStateOf(false) }
+
+    val alpha by animateFloatAsState(
+        targetValue = if (isVisible) 1f else 0f,
+        animationSpec = tween(
+            durationMillis = 300,
+            delayMillis = index * 30,
+            easing = FastOutSlowInEasing
+        ), label = "alpha"
+    )
+
+    val offsetX by animateIntAsState(
+        targetValue = if (isVisible) 0 else -20,
+        animationSpec = tween(
+            durationMillis = 300,
+            delayMillis = index * 30
+        ), label = "offsetX"
+    )
+
+    LaunchedEffect(Unit) { isVisible = true }
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Start,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onCheckedChange(!checked) }
+            .padding(
+                horizontal = 12.dp,
+                vertical = 8.dp
+            )
+            .padding(bottom = if (isLast) 0.dp else 4.dp)
+            .offset { IntOffset(offsetX, 0) }
+            .alpha(alpha)
+    ) {
+        Surface(
+            shape = CircleShape,
+            color = colorPalette().accent.copy(alpha = 0.5f),
+            modifier = Modifier.size(36.dp)
+        ) {
+            Icon(
+                painter = painterResource(id = iconRes),
+                contentDescription = null,
+                tint = colorPalette().text,
+                modifier = Modifier
+                    .padding(8.dp)
+                    .size(20.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        Text(
+            text = stringResource(id = textRes),
+            style = typography().s,
+            color = colorPalette().text,
+            modifier = Modifier.weight(1f)
+        )
+
+        Checkbox(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            colors = CheckboxDefaults.colors(
+                checkedColor = colorPalette().accent,
+                uncheckedColor = colorPalette().text.copy(alpha = 0.5f),
+                checkmarkColor = colorPalette().text
+            )
+        )
     }
 }
 
