@@ -3553,6 +3553,9 @@ class PlayerService : Service(),
         }
         lastPlayNextTime = now
         Timber.d("PlayerService handlePlayNext executed (userSkip=$isUserSkip dueToError=$dueToError errorSkips=$consecutiveErrorSkips)")
+
+        playFromSecond = 0f
+
         coroutineScope.launch {
             withContext(Dispatchers.Main) {
                 player.playNext()
