@@ -160,6 +160,9 @@ import it.fast4x.riplay.extensions.preferences.parentalControlEnabledKey
 import it.fast4x.riplay.extensions.preferences.pauseSearchHistoryKey
 import it.fast4x.riplay.extensions.preferences.resumeOrPausePlaybackWhenCallKey
 import it.fast4x.riplay.extensions.preferences.resumeOrPausePlaybackWhenDeviceKey
+import it.fast4x.riplay.extensions.preferences.resumeOrPausePlaybackWhenDeviceBtKey
+import it.fast4x.riplay.extensions.preferences.resumeOrPausePlaybackWhenDeviceWiredKey
+import it.fast4x.riplay.extensions.preferences.preferences
 import it.fast4x.riplay.extensions.preferences.showFavoritesPlaylistsAAKey
 import it.fast4x.riplay.extensions.preferences.showGridAAKey
 import it.fast4x.riplay.extensions.preferences.showInLibraryAAKey
@@ -213,9 +216,16 @@ fun GeneralSettings(
     )
 
     var closeWithBackButton by rememberPreference(closeWithBackButtonKey, true)
-    var resumeOrPausePlaybackWhenDevice by rememberPreference(
-        resumeOrPausePlaybackWhenDeviceKey,
-        true
+    // Legacy single toggle: still read as the default for the new BT switch (migration)
+    val resumeOrPausePlaybackWhenDeviceLegacy = LocalContext.current.preferences
+        .getBoolean(resumeOrPausePlaybackWhenDeviceKey, true)
+    var resumeOrPausePlaybackWhenDeviceBt by rememberPreference(
+        resumeOrPausePlaybackWhenDeviceBtKey,
+        resumeOrPausePlaybackWhenDeviceLegacy
+    )
+    var resumeOrPausePlaybackWhenDeviceWired by rememberPreference(
+        resumeOrPausePlaybackWhenDeviceWiredKey,
+        false
     )
 
     var resumeOrPausePlaybackWhenCall by rememberPreference(
@@ -1721,11 +1731,20 @@ fun GeneralSettings(
                     ) {
                         if (isAtLeastAndroid6) {
                             SwitchSettingEntry(
-                                title = stringResource(R.string.play_or_pause_when_device_is_connected_or_disconnected),
-                                text = "", //stringResource(R.string.resume_or_pause_playback),
-                                isChecked = resumeOrPausePlaybackWhenDevice,
+                                title = stringResource(R.string.settings_bt_title_bluetooth_audio_devices),
+                                text = stringResource(R.string.settings_bt_info_resume_playback_when_connected_pause_when_disconnected),
+                                isChecked = resumeOrPausePlaybackWhenDeviceBt,
                                 onCheckedChange = {
-                                    resumeOrPausePlaybackWhenDevice = it
+                                    resumeOrPausePlaybackWhenDeviceBt = it
+                                    restartService = true
+                                }
+                            )
+                            SwitchSettingEntry(
+                                title = stringResource(R.string.settings_wired_title_wired_audio_devices),
+                                text = stringResource(R.string.settings_wired_info_resume_playback_when_plugged_pause_when_unplugged),
+                                isChecked = resumeOrPausePlaybackWhenDeviceWired,
+                                onCheckedChange = {
+                                    resumeOrPausePlaybackWhenDeviceWired = it
                                     restartService = true
                                 }
                             )

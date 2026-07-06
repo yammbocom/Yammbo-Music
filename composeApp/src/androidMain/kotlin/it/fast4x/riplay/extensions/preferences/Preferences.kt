@@ -387,6 +387,10 @@ const val notifyAndroidAutoTipsKey = "notifyAandroidAutoTips"
 
 const val resumeOrPausePlaybackWhenDeviceKey = "resumeOrPausePlaybackWhenDevice"
 
+const val resumeOrPausePlaybackWhenDeviceBtKey = "resumeOrPausePlaybackWhenDeviceBt"
+
+const val resumeOrPausePlaybackWhenDeviceWiredKey = "resumeOrPausePlaybackWhenDeviceWired"
+
 const val showShuffleSongsAAKey = "shuffleSongsAAEnabled"
 const val showMonthlyPlaylistsAAKey = "showMonthlyPlaylistsAA"
 const val showInLibraryAAKey = "showInLibraryAA"

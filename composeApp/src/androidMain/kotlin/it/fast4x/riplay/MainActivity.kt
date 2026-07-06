@@ -229,6 +229,7 @@ import it.fast4x.riplay.extensions.databasebackup.DatabaseBackupManager
 import it.fast4x.riplay.extensions.htmlreader.shazamSongInfoExtractor
 import it.fast4x.riplay.extensions.ondevice.OnDeviceViewModel
 import it.fast4x.riplay.extensions.preferences.resumeOrPausePlaybackWhenDeviceKey
+import it.fast4x.riplay.extensions.preferences.resumeOrPausePlaybackWhenDeviceBtKey
 import it.fast4x.riplay.extensions.preferences.showSnowfallEffectKey
 import it.fast4x.riplay.extensions.ritune.toRiTuneDevice
 import it.fast4x.riplay.service.experimental.AppSharedScope
@@ -361,7 +362,11 @@ class MainActivity :
             permissionsToRequest.add(Manifest.permission.READ_EXTERNAL_STORAGE)
         }
 
-        if (isAtLeastAndroid12 && preferences.getBoolean(resumeOrPausePlaybackWhenDeviceKey, true))
+        if (isAtLeastAndroid12 && preferences.getBoolean(
+                resumeOrPausePlaybackWhenDeviceBtKey,
+                preferences.getBoolean(resumeOrPausePlaybackWhenDeviceKey, true)
+            )
+        )
             permissionsToRequest.add(Manifest.permission.BLUETOOTH_CONNECT)
 
 

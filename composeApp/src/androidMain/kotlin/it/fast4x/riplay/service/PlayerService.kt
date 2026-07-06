@@ -1,5 +1,6 @@
 package it.fast4x.riplay.service
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Notification
 import android.app.NotificationChannel
@@ -15,6 +16,7 @@ import android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK
 import android.content.Intent.FLAG_ACTIVITY_NEW_TASK
 import android.content.IntentFilter
 import android.content.SharedPreferences
+import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.database.SQLException
 import android.graphics.Bitmap
@@ -23,12 +25,16 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.media.AudioDeviceCallback
+import android.media.AudioDeviceInfo
 import android.media.AudioManager
 import android.media.audiofx.AudioEffect
 import android.media.audiofx.BassBoost
 import android.media.audiofx.LoudnessEnhancer
 import android.media.audiofx.PresetReverb
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.support.v4.media.MediaDescriptionCompat
 import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaSessionCompat
@@ -155,6 +161,8 @@ import it.fast4x.riplay.extensions.preferences.preferences
 import it.fast4x.riplay.extensions.preferences.putEnum
 import it.fast4x.riplay.extensions.preferences.queueLoopTypeKey
 import it.fast4x.riplay.extensions.preferences.resumeOrPausePlaybackWhenDeviceKey
+import it.fast4x.riplay.extensions.preferences.resumeOrPausePlaybackWhenDeviceBtKey
+import it.fast4x.riplay.extensions.preferences.resumeOrPausePlaybackWhenDeviceWiredKey
 import it.fast4x.riplay.extensions.preferences.resumePlaybackOnStartKey
 import it.fast4x.riplay.extensions.preferences.shakeEventEnabledKey
 import it.fast4x.riplay.extensions.preferences.skipSilenceKey
@@ -412,6 +420,26 @@ class PlayerService : Service(),
 
     private var bluetoothReceiver: BluetoothConnectReceiver? = null
 
+    private var audioDeviceCallback: AudioDeviceCallback? = null
+    private val audioDeviceHandler = Handler(Looper.getMainLooper())
+    private val bluetoothDeviceTypes = buildSet {
+        add(AudioDeviceInfo.TYPE_BLUETOOTH_A2DP)
+        add(AudioDeviceInfo.TYPE_BLUETOOTH_SCO)
+        if (isAtLeastAndroid12) {
+            add(AudioDeviceInfo.TYPE_BLE_HEADSET)
+        }
+    }
+
+    private val wiredDeviceTypes = buildSet {
+        add(AudioDeviceInfo.TYPE_WIRED_HEADSET)
+        add(AudioDeviceInfo.TYPE_WIRED_HEADPHONES)
+        if (isAtLeastAndroid8) {
+            add(AudioDeviceInfo.TYPE_USB_HEADSET)
+        }
+        add(AudioDeviceInfo.TYPE_LINE_ANALOG)
+        add(AudioDeviceInfo.TYPE_LINE_DIGITAL)
+    }
+
     //private lateinit var audioFocusHelper: AudioFocusHelper
     private var hasAudioFocus = false
 
@@ -488,7 +516,8 @@ class PlayerService : Service(),
         initializeAudioEqualizer()
         initializeLegacyNotificationActionReceiver()
         initializePositionObserver()
-        initializeBluetoothConnect()
+        //initializeBluetoothConnect()
+        initializeAudioDeviceCallback()
         initializeNormalizeVolume()
         initializeBassBoost()
         initializeReverb()
@@ -1589,7 +1618,8 @@ class PlayerService : Service(),
             cache.release()
             loudnessEnhancer?.release()
             audioVolumeObserver.unregister()
-            bluetoothReceiver?.unregister()
+            //bluetoothReceiver?.unregister()
+            unregisterAudioDeviceCallback()
             discordPresenceManager?.onStop()
 
             positionObserverJob?.cancel()
@@ -2230,6 +2260,7 @@ class PlayerService : Service(),
 
      */
 
+    /*
     private fun initializeBluetoothConnect() {
         if (!preferences.getBoolean(resumeOrPausePlaybackWhenDeviceKey, true)) return
 
@@ -2253,6 +2284,109 @@ class PlayerService : Service(),
         )
         bluetoothReceiver?.register()
 
+    }
+    */
+
+    @kotlin.OptIn(ExperimentalCoroutinesApi::class)
+    private fun initializeAudioDeviceCallback() {
+        if (!isAtLeastAndroid6) return
+
+        // Migration: seed the new BT key from the legacy single toggle (our old default was true)
+        if (!preferences.contains(resumeOrPausePlaybackWhenDeviceBtKey)) {
+            preferences.edit {
+                putBoolean(
+                    resumeOrPausePlaybackWhenDeviceBtKey,
+                    preferences.getBoolean(resumeOrPausePlaybackWhenDeviceKey, true)
+                )
+            }
+        }
+
+        val resumeOnBt = preferences.getBoolean(resumeOrPausePlaybackWhenDeviceBtKey, false)
+        val resumeOnWired = preferences.getBoolean(resumeOrPausePlaybackWhenDeviceWiredKey, false)
+
+        // Se l'utente ha disabilitato entrambe, rimuovo il callback e risparmiiamo risorse
+        if (!resumeOnBt && !resumeOnWired) {
+            unregisterAudioDeviceCallback()
+            return
+        }
+
+        // Evitiamo di ricreare il callback se è già registrato
+        if (audioDeviceCallback != null) return
+
+        audioDeviceCallback = object : AudioDeviceCallback() {
+
+            private fun isBluetoothSink(device: AudioDeviceInfo): Boolean {
+                return device.isSink && device.type in bluetoothDeviceTypes
+            }
+
+            private fun isWiredSink(device: AudioDeviceInfo): Boolean {
+                return device.isSink && device.type in wiredDeviceTypes
+            }
+
+            override fun onAudioDevicesAdded(addedDevices: Array<AudioDeviceInfo>) {
+
+                val hasNewBt = addedDevices.any(::isBluetoothSink)
+                val hasNewWired = addedDevices.any(::isWiredSink)
+
+                // Logica di Play: rispettiamo le preferenze dell'utente
+                val shouldPlay = (hasNewBt && resumeOnBt) || (hasNewWired && resumeOnWired)
+
+                if (shouldPlay) {
+                    val local = currentSong.value?.isLocal == true
+                    Timber.d("PlayerService AudioDeviceAdded song local = $local _internalOnlinePlayer = ${_internalOnlinePlayer.value}")
+                    if (local) {
+                        player.play()
+                    } else {
+                        coroutineScope.launch {
+                            val onlinePlayer = ensureOnlinePlayerInitialized()
+                            onlinePlayer.play()
+                        }
+                    }
+                    SmartMessage(getString(R.string.music_resumed_headphones_connected), context = this@PlayerService)
+                }
+            }
+
+            override fun onAudioDevicesRemoved(removedDevices: Array<AudioDeviceInfo>) {
+
+                val removedBt = removedDevices.any(::isBluetoothSink)
+                val removedWired = removedDevices.any(::isWiredSink)
+
+                if (removedBt || removedWired) {
+                    // Prima di mettere in pausa, controllo se ci sono ALTRI dispositivi collegati
+                    val currentDevices = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
+                    val hasRemainingBt = currentDevices?.any(::isBluetoothSink) == true
+                    val hasRemainingWired = currentDevices?.any(::isWiredSink) == true
+
+                    // Mettiamo in pausa SOLO se non ci sono più dispositivi di output validi:
+                    // evita che la musica si fermi se scollego il jack
+                    // ma ho ancora le cuffie BT collegate.
+                    if (!hasRemainingBt && !hasRemainingWired) {
+                        player.pause()
+                        _internalOnlinePlayer.value?.pause()
+
+                        SmartMessage(getString(R.string.music_paused_headphones_disconnected), context = this@PlayerService)
+                    }
+                }
+            }
+        }
+
+        audioManager.registerAudioDeviceCallback(audioDeviceCallback, audioDeviceHandler)
+    }
+
+    fun unregisterAudioDeviceCallback() {
+        audioManager.unregisterAudioDeviceCallback(audioDeviceCallback)
+        audioDeviceCallback = null
+    }
+
+    @kotlin.OptIn(ExperimentalCoroutinesApi::class)
+    private suspend fun ensureOnlinePlayerInitialized(): YouTubePlayer {
+        // Se il player esiste già, lo prendo
+        _internalOnlinePlayer.value?.let { return it }
+
+        // Altrimenti si inizializza.
+        initializeOnlinePlayer()
+        // Attendo che sia stato inizializzato prima di andare avanti
+        return _internalOnlinePlayer.first { it != null }!!
     }
 
     @UnstableApi
@@ -2624,7 +2758,7 @@ class PlayerService : Service(),
 //            checkVolumeLevelKey -> {
 //                checkVolumeLevel = sharedPreferences.getBoolean(key, false)
 //            }
-            resumeOrPausePlaybackWhenDeviceKey -> initializeBluetoothConnect()
+            resumeOrPausePlaybackWhenDeviceBtKey, resumeOrPausePlaybackWhenDeviceWiredKey -> initializeAudioDeviceCallback()
             bassboostLevelKey, bassboostEnabledKey -> initializeBassBoost()
             audioReverbPresetKey -> initializeReverb()
             volumeNormalizationKey, loudnessBaseGainKey, volumeBoostLevelKey -> initializeNormalizeVolume()
