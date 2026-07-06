@@ -85,8 +85,10 @@ fun String?.thumbnail(size: Int): String? {
             !s.contains("/pl_c/") &&
             !s.contains("/vi/") ->
             "$s=w$size-h$size"
-        s.startsWith("https://yt3.ggpht.com") ->
+        s.startsWith("https://yt3.ggpht.com") && s.endsWith("-rj") ->
             "$s-w$size-h$size-s$size"
+        s.startsWith("https://yt3.ggpht.com") ->
+            "${s.substringBeforeLast("-rj")}-rj-w$size-h$size-s$size"
         else -> s
     }
 }

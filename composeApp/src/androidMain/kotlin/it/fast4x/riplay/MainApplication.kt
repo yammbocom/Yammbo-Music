@@ -113,7 +113,7 @@ class MainApplication : MultiDexApplication(), ImageLoaderFactory {
             .memoryCachePolicy(CachePolicy.ENABLED)
             .memoryCache(
                 MemoryCache.Builder(this)
-                    .maxSizePercent(0.1)
+                    .maxSizePercent(0.25)
                     .build()
             )
             .diskCachePolicy(CachePolicy.ENABLED)

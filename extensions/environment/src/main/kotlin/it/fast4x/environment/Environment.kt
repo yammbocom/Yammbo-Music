@@ -126,7 +126,10 @@ object Environment {
         engine {
             addInterceptor(
                 HttpLoggingInterceptor().apply {
-                    level = HttpLoggingInterceptor.Level.BODY
+                    //DEBUG
+                    //level = HttpLoggingInterceptor.Level.BODY
+                    //PROD
+                    level = HttpLoggingInterceptor.Level.NONE
                 }
             )
 

@@ -1784,6 +1784,17 @@ class MainActivity :
         Timber.d("MainActivity.onDestroy")
         preferences.edit(commit = true) { putBoolean(appIsRunningKey, false) }
 
+        // Clean temp files at close (upstream 3bba8302e), adapted: only cacheDir,
+        // preserving the song cache and coil images. filesDir is NOT touched
+        // (holds logs, Firebase state and the private song cache).
+        runCatching {
+            val keep = setOf("coil", "yammbo_cache", "yammbo_no_cache", "http_cache")
+            cacheDir.listFiles()
+                ?.filter { it.name !in keep }
+                ?.forEach { it.deleteRecursively() }
+        }.onFailure {
+            Timber.e("MainActivity.onDestroy cache clean failed: ${it.message}")
+        }
 
     }
 

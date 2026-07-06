@@ -130,7 +130,7 @@ internal class WebViewYouTubePlayer constructor(
     settings.apply {
       javaScriptEnabled = true
       mediaPlaybackRequiresUserGesture = false
-      cacheMode = WebSettings.LOAD_DEFAULT
+      cacheMode = WebSettings.LOAD_NO_CACHE
     }
 
     addJavascriptInterface(youTubePlayerBridge, "YouTubePlayerBridge")
