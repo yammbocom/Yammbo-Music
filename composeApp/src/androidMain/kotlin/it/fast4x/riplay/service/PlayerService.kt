@@ -230,6 +230,7 @@ import it.fast4x.riplay.utils.playNext
 import it.fast4x.riplay.utils.playPrevious
 import it.fast4x.riplay.utils.setQueueLoopState
 import it.fast4x.riplay.utils.toggleRepeatMode
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -659,7 +660,7 @@ class PlayerService : Service(),
                         if (currentSecond.value >= currentDuration.value - 0.5f) {
                             if (_internalOnlinePlayerState.value == PlayerConstants.PlayerState.PLAYING) {
                                 Timber.d("PlayerService Watchdog: End of online track detected by time, forcing playNext()")
-                                val loopType = preferences.getEnum(queueLoopTypeKey, QueueLoopType.RepeatAll)
+                                val loopType = preferences.getEnum(queueLoopTypeKey, QueueLoopType.Default)
                                 if (loopType == QueueLoopType.RepeatOne) {
                                     _internalOnlinePlayer.value?.seekTo(0f)
                                 } else {
@@ -1086,7 +1087,7 @@ class PlayerService : Service(),
 
         unifiedMediaSession = MediaSessionCompat(this, "PlayerService")
 
-        val repeatMode = preferences.getEnum(queueLoopTypeKey, QueueLoopType.RepeatAll).type
+        val repeatMode = preferences.getEnum(queueLoopTypeKey, QueueLoopType.Default).type
 
         unifiedMediaSession.setFlags(
             MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS or
@@ -1154,7 +1155,7 @@ class PlayerService : Service(),
                 // addAnalyticsListener(PlaybackStatsListener(false, this@PlayerService))
             }
 
-        player.repeatMode = preferences.getEnum(queueLoopTypeKey, QueueLoopType.RepeatAll).type
+        player.repeatMode = preferences.getEnum(queueLoopTypeKey, QueueLoopType.Default).type
 
         player.skipSilenceEnabled = preferences.getBoolean(skipSilenceKey, false)
         player.pauseAtEndOfMediaItems = true
@@ -1986,7 +1987,7 @@ class PlayerService : Service(),
         if (!preferences.getBoolean(autoLoadSongsInQueueKey, true)
             || preferences.getEnum(
                 queueLoopTypeKey,
-                defaultValue = QueueLoopType.RepeatAll
+                defaultValue = QueueLoopType.Default
             ) == QueueLoopType.RepeatAll
         ) return
 
@@ -2525,7 +2526,7 @@ class PlayerService : Service(),
         override fun onReceive(context: Context, intent: Intent) {
             Timber.d("MainActivity onReceive intent.action: ${intent.action}")
             val currentMediaItem = binder.player.currentMediaItem
-            val queueLoopType = preferences.getEnum(queueLoopTypeKey, defaultValue = QueueLoopType.RepeatAll)
+            val queueLoopType = preferences.getEnum(queueLoopTypeKey, defaultValue = QueueLoopType.Default)
             binder.let {
                 when (intent.action) {
                     Action.pause.value -> {
@@ -2732,7 +2733,7 @@ class PlayerService : Service(),
             }
             queueLoopTypeKey -> {
                 player.repeatMode =
-                    sharedPreferences.getEnum(queueLoopTypeKey, QueueLoopType.RepeatAll).type
+                    sharedPreferences.getEnum(queueLoopTypeKey, QueueLoopType.Default).type
             }
 //            closebackgroundPlayerKey -> {
 //                    isclosebackgroundPlayerEnabled = sharedPreferences.getBoolean(key, false)
@@ -3156,7 +3157,7 @@ class PlayerService : Service(),
 
                         val queueLoopType = preferences.getEnum(
                             queueLoopTypeKey,
-                            defaultValue = QueueLoopType.RepeatAll
+                            defaultValue = QueueLoopType.Default
                         )
 
                         when (queueLoopType) {
@@ -3169,7 +3170,16 @@ class PlayerService : Service(),
                                     val hasNext = binder.player.hasNextMediaItem()
                                     Timber.d("PlayerService initializePositionObserver Repeat: RepeatAll fired")
                                     if (!hasNext) {
-                                        binder.player.playAtIndex(0)
+                                        if (queueLoopType == QueueLoopType.RepeatAll) {
+                                            binder.player.playAtIndex(0)
+                                        } else {
+                                            // Loop off: let handlePlayNext extend the
+                                            // queue with similar songs (radio) instead
+                                            // of restarting it from the top.
+                                            lastProcessedIndex = player.currentMediaItemIndex
+                                            firedNext = true
+                                            handlePlayNext()
+                                        }
                                         Timber.d("PlayerService initializePositionObserver Repeat: RepeatAll fired first")
                                     } else {
                                         lastProcessedIndex = player.currentMediaItemIndex
@@ -3366,8 +3376,8 @@ class PlayerService : Service(),
         }
 
         @UnstableApi
-        fun setupRadio(endpoint: NavigationEndpoint.Endpoint.Watch?) =
-            startRadio(endpoint = endpoint, justAdd = true)
+        fun setupRadio(endpoint: NavigationEndpoint.Endpoint.Watch?, onDone: () -> Unit = {}) =
+            startRadio(endpoint = endpoint, justAdd = true, onDone = onDone)
 
         @UnstableApi
         fun playRadio(endpoint: NavigationEndpoint.Endpoint.Watch?) =
@@ -3375,7 +3385,7 @@ class PlayerService : Service(),
 
 
         @UnstableApi
-        private fun startRadio(endpoint: NavigationEndpoint.Endpoint.Watch?, justAdd: Boolean, filterArtist: String = "") {
+        private fun startRadio(endpoint: NavigationEndpoint.Endpoint.Watch?, justAdd: Boolean, filterArtist: String = "", onDone: () -> Unit = {}) {
             radioJob?.cancel()
             radio = null
             val isDiscoverEnabled = applicationContext.preferences.getBoolean(discoverKey, false)
@@ -3395,28 +3405,40 @@ class PlayerService : Service(),
                 isLoadingRadio = true
                 radioJob = coroutineScope.launch(Dispatchers.Main) {
 
-                    val songs =
-                        (if (filterArtist.isEmpty()) it.process()
-                        else it.process().filter { song -> song.mediaMetadata.artist == filterArtist })
-                            .filter { song ->
-                                when (filterContentType) {
-                                    ContentType.All -> true
-                                    ContentType.Official -> song.isOfficialContent
-                                    ContentType.UserGenerated -> song.isUserGeneratedContent
+                    try {
+                        val songs =
+                            (if (filterArtist.isEmpty()) it.process()
+                            else it.process().filter { song -> song.mediaMetadata.artist == filterArtist })
+                                .filter { song ->
+                                    when (filterContentType) {
+                                        ContentType.All -> true
+                                        ContentType.Official -> song.isOfficialContent
+                                        ContentType.UserGenerated -> song.isUserGeneratedContent
+                                    }
                                 }
-                            }
 
-                    songs.forEach {
-                        Database.asyncTransaction { insert(it) }
-                    }
+                        songs.forEach {
+                            Database.asyncTransaction { insert(it) }
+                        }
 
-                    if (justAdd) {
-                        player.addMediaItems( songs.drop(1))
-                    } else {
-                        player.forcePlayFromBeginning(songs)
+                        if (justAdd) {
+                            player.addMediaItems( songs.drop(1))
+                        } else {
+                            player.forcePlayFromBeginning(songs)
+                        }
+                        radio = it
+                        isLoadingRadio = false
+                        onDone()
+                    } catch (e: CancellationException) {
+                        isLoadingRadio = false
+                        throw e
+                    } catch (e: Throwable) {
+                        // A failed radio (network, parsing) must not leave
+                        // isLoadingRadio stuck true, which would block every
+                        // future radio attempt.
+                        Timber.e("PlayerService startRadio failed ${e.stackTraceToString()}")
+                        isLoadingRadio = false
                     }
-                    radio = it
-                    isLoadingRadio = false
                 }
             }
         }
@@ -3518,7 +3540,7 @@ class PlayerService : Service(),
     fun initializeUnifiedSessionCallback() {
         Timber.d("PlayerService InitializeUnifiedSessionCallback")
         val currentMediaItem = binder.player.currentMediaItem
-        val queueLoopType = preferences.getEnum(queueLoopTypeKey, defaultValue = QueueLoopType.RepeatAll)
+        val queueLoopType = preferences.getEnum(queueLoopTypeKey, defaultValue = QueueLoopType.Default)
         binder.let {
             unifiedMediaSession.setCallback(
                 PlayerMediaSessionCallback(
@@ -3708,7 +3730,28 @@ class PlayerService : Service(),
 
         coroutineScope.launch {
             withContext(Dispatchers.Main) {
-                player.playNext()
+                if (!player.hasNextMediaItem()
+                    && player.repeatMode == Player.REPEAT_MODE_OFF
+                    && player.currentMediaItem?.isLocal == false
+                    && preferences.getBoolean(autoLoadSongsInQueueKey, true)
+                    && !binder.isLoadingRadio
+                ) {
+                    // End of queue (album/playlist finished, or user skipped
+                    // past the last item) with repeat off: continue with
+                    // similar songs instead of stopping.
+                    binder.setupRadio(
+                        NavigationEndpoint.Endpoint.Watch(
+                            videoId = player.currentMediaItem?.mediaId
+                        ),
+                        onDone = {
+                            coroutineScope.launch(Dispatchers.Main) {
+                                if (player.hasNextMediaItem()) player.playNext()
+                            }
+                        }
+                    )
+                } else {
+                    player.playNext()
+                }
             }
         }
     }

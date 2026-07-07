@@ -748,7 +748,12 @@ fun HomePage(
                                             //disableScrollingText = disableScrollingText,
                                             //isNowPlaying = false,
                                             modifier = Modifier.clickable(onClick = {
+                                                binder?.stopRadio()
                                                 binder?.player?.forcePlay(item.asMediaItem)
+                                                binder?.setupRadio(
+                                                    item.info?.endpoint
+                                                        ?: NavigationEndpoint.Endpoint.Watch(videoId = item.key)
+                                                )
                                                 //fastPlay(item.asMediaItem, binder)
                                             })
                                         )
@@ -809,6 +814,10 @@ fun HomePage(
 //                                                    binder?.player?.playOnline(item.asMediaItem)
 //                                                else
                                                 binder?.player?.forcePlay(item.asMediaItem)
+                                                binder?.setupRadio(
+                                                    item.info?.endpoint
+                                                        ?: NavigationEndpoint.Endpoint.Watch(videoId = item.key)
+                                                )
                                                 //fastPlay(item.asMediaItem, binder)
                                             })
                                         )
