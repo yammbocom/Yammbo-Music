@@ -3047,20 +3047,28 @@ class PlayerService : Service(),
     }.setExtensionRendererMode(EXTENSION_RENDERER_MODE_PREFER) // prefer extension renderers to opus format
 
     fun updateWidgets() {
-//        val songTitle = player.mediaMetadata.title.toString()
-//        val songArtist = player.mediaMetadata.artist.toString()
-        val isPlaying = (isPlayingNow || player.isPlaying)
-        coroutineScope.launch {
+        // ExoPlayer only allows access from the main thread (the service
+        // scope is IO). Capture the state here and hand plain values to the
+        // widgets, so their DataStore lambdas (IO) never touch the player.
+        coroutineScope.launch(Dispatchers.Main) {
+            val isPlaying = (isPlayingNow || player.isPlaying)
+            val songTitle = cleanPrefix(player.mediaMetadata.title.toString())
+            val songArtist = player.mediaMetadata.artist.toString()
+            val bitmap = bitmapProvider?.bitmap
             playerVerticalWidget.updateInfo(
                 context = this@PlayerService,
                 isPlaying = isPlaying,
-                bitmap = bitmapProvider?.bitmap,
+                songTitle = songTitle,
+                songArtist = songArtist,
+                bitmap = bitmap,
                 binder = binder
             )
             playerHorizontalWidget.updateInfo(
                 context = this@PlayerService,
                 isPlaying = isPlaying,
-                bitmap = bitmapProvider?.bitmap,
+                songTitle = songTitle,
+                songArtist = songArtist,
+                bitmap = bitmap,
                 binder = binder
             )
         }

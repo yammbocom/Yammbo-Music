@@ -18,7 +18,6 @@ import androidx.glance.state.GlanceStateDefinition
 import androidx.glance.state.PreferencesGlanceStateDefinition
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
-import it.fast4x.riplay.commonutils.cleanPrefix
 import androidx.core.graphics.createBitmap
 import androidx.datastore.preferences.core.Preferences
 import androidx.glance.GlanceModifier
@@ -132,12 +131,12 @@ class PlayerVerticalWidget: GlanceAppWidget() {
                     }
 
 
-                    // Real cover when loaded; app logo instead of the 1x1
+                    // Real cover when loaded; Yammbo launcher icon instead of the 1x1
                     // placeholder bitmap (was rendered as a blank square).
                     val cover = widgetBitmap?.takeIf { it.width > 1 }
                     Image(
                         provider = if (cover != null) ImageProvider(cover)
-                            else ImageProvider(R.drawable.app_logo),
+                            else ImageProvider(R.mipmap.ic_launcher),
                         contentDescription = "cover",
                         modifier = GlanceModifier.padding(horizontal = 5.dp)
                             .clickable (
@@ -156,12 +155,16 @@ class PlayerVerticalWidget: GlanceAppWidget() {
     suspend fun updateInfo(
         context: Context,
         isPlaying: Boolean,
+        songTitle: String,
+        songArtist: String,
         bitmap: Bitmap?,
         binder: PlayerService.Binder
     ) {
 
         // Every placed instance (the old code only refreshed the first one),
         // and write the state BEFORE update() so the render sees fresh data.
+        // Title/artist arrive as plain strings: this lambda runs on the
+        // DataStore IO thread, where the player must not be touched.
         val glanceIds =
             GlanceAppWidgetManager(context).getGlanceIds(PlayerVerticalWidget::class.java)
         if (glanceIds.isEmpty()) return
@@ -176,8 +179,8 @@ class PlayerVerticalWidget: GlanceAppWidget() {
                 glanceId
             ) { preferences ->
                 preferences.toMutablePreferences().apply {
-                    this[songTitleKey] = cleanPrefix(binder.player.mediaMetadata.title.toString())
-                    this[songArtistKey] = binder.player.mediaMetadata.artist.toString()
+                    this[songTitleKey] = songTitle
+                    this[songArtistKey] = songArtist
                     this[isPlayingKey] = isPlaying
                 }
             }
