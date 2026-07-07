@@ -688,6 +688,8 @@
     <string name="lang_malayalam">Malayo</string>
     <string name="searches_suggestions">Sugerencias</string>
     <string name="searches_saved_searches">Búsquedas guardadas</string>
+    <string name="searches_show_more">Mostrar %1$d más</string>
+    <string name="searches_show_less">Mostrar menos</string>
     <string name="event_volumekeys">Cambiar canción con las teclas de volumen</string>
     <string name="event_volumekeysinfo">Subir volumen es siguiente canción, y bajar volumen es anterior canción</string>
     <string name="paste">Pegar</string>

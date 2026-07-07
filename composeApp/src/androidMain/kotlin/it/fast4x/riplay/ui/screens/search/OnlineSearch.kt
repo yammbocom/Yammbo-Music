@@ -124,6 +124,12 @@ fun OnlineSearch(
         mutableStateOf(false)
     }
 
+    // Saved searches render collapsed (first N) with a show-more toggle so
+    // the browse categories below stay reachable without a long scroll.
+    var showAllHistory by remember {
+        mutableStateOf(false)
+    }
+
     LaunchedEffect(textFieldValue.text, reloadHistory) {
         if (!context.preferences.getBoolean(pauseSearchHistoryKey, false)) {
             Database.queries("%${textFieldValue.text}%")
@@ -192,8 +198,10 @@ fun OnlineSearch(
         ) {
             LazyColumn(
                 state = lazyListState,
-//                contentPadding = LocalPlayerAwareWindowInsets.current
-//                    .only(WindowInsetsSides.Vertical + WindowInsetsSides.End).asPaddingValues(),
+                // Bottom inset so the mini player doesn't cover the last rows
+                // (top is left to SearchScreen, which owns the search bar).
+                contentPadding = LocalPlayerAwareWindowInsets.current
+                    .only(WindowInsetsSides.Bottom + WindowInsetsSides.End).asPaddingValues(),
                 modifier = Modifier
                     .fillMaxSize()
             ) {
@@ -417,7 +425,13 @@ fun OnlineSearch(
                     }
                 }
 
-                if (history.isNotEmpty())
+                val visibleHistory = history.filter { it.query.isNotBlank() }
+                val collapsedHistoryCount = 5
+                val displayedHistory =
+                    if (showAllHistory) visibleHistory
+                    else visibleHistory.take(collapsedHistoryCount)
+
+                if (visibleHistory.isNotEmpty())
                     item {
                         TitleMiniSection(
                             title = stringResource(R.string.searches_saved_searches),
@@ -426,7 +440,7 @@ fun OnlineSearch(
                     }
 
                 items(
-                    items = history,
+                    items = displayedHistory,
                     key = SearchQuery::id
                 ) { searchQuery ->
                     Row(
@@ -506,6 +520,41 @@ fun OnlineSearch(
                                 .padding(horizontal = 8.dp)
                                 .size(22.dp)
                         )
+                    }
+                }
+
+                if (visibleHistory.size > collapsedHistoryCount) {
+                    item(key = "history-toggle") {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .clickable { showAllHistory = !showAllHistory }
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 12.dp)
+                        ) {
+                            Image(
+                                painter = painterResource(
+                                    if (showAllHistory) R.drawable.chevron_up
+                                    else R.drawable.chevron_down
+                                ),
+                                contentDescription = null,
+                                colorFilter = ColorFilter.tint(colorPalette().textSecondary),
+                                modifier = Modifier
+                                    .padding(horizontal = 8.dp)
+                                    .size(18.dp)
+                            )
+                            BasicText(
+                                text = if (showAllHistory)
+                                    stringResource(R.string.searches_show_less)
+                                else
+                                    stringResource(
+                                        R.string.searches_show_more,
+                                        visibleHistory.size - collapsedHistoryCount
+                                    ),
+                                style = typography().s.secondary,
+                                modifier = Modifier.padding(horizontal = 8.dp)
+                            )
+                        }
                     }
                 }
 

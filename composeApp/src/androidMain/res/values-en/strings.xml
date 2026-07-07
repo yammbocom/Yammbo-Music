@@ -688,6 +688,8 @@
     <string name="lang_malayalam">Malayam (മലയാളം)</string>
     <string name="searches_suggestions">Suggestions</string>
     <string name="searches_saved_searches">Search history</string>
+    <string name="searches_show_more">Show %1$d more</string>
+    <string name="searches_show_less">Show less</string>
     <string name="event_volumekeys">Volume keys to change song</string>
     <string name="event_volumekeysinfo">Volume UP next and volume DOWN previous song</string>
     <string name="paste">Paste</string>
