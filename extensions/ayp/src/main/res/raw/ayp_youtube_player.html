@@ -89,6 +89,12 @@
 
         case YT.PlayerState.BUFFERING:
           sendStateChange(BUFFERING);
+
+          // Keep reporting time/duration while buffering: some WebView
+          // sessions get stuck in BUFFERING while audio keeps playing,
+          // and with the interval cleared above the seekbar froze.
+          startSendCurrentTimeInterval();
+          sendVideoData(player);
           return;
 
         case YT.PlayerState.CUED:

@@ -1408,7 +1408,7 @@ fun OnlinePlayer(
             onPause = {
                 binder.onlinePlayer?.pause()
             },
-            onSeekTo = { binder.onlinePlayer?.seekTo(it) },
+            onSeekTo = { binder.onlinePlayerSeekTo(it) },
             onNext = { binder.player.playNext() },
             onPrevious = {
                 if (jumpPrevious == "") jumpPrevious = "0"
@@ -2830,7 +2830,7 @@ fun OnlinePlayer(
                                         binder.onlinePlayer?.pause()
                                         //println("LinkClient OnLinePlayer Controls pause 2")
                                     },
-                                    onSeekTo = { binder.onlinePlayer?.seekTo(it) },
+                                    onSeekTo = { binder.onlinePlayerSeekTo(it) },
                                     onNext = { binder.player.playNext() },
                                     onPrevious = {
                                         if (jumpPrevious == "") jumpPrevious = "0"
@@ -3138,7 +3138,7 @@ fun OnlinePlayer(
                                                 binder.onlinePlayer?.pause()
                                                 //println("LinkClient OnLinePlayer Controls pause 4")
                                             },
-                                            onSeekTo = { binder.onlinePlayer?.seekTo(it) },
+                                            onSeekTo = { binder.onlinePlayerSeekTo(it) },
                                             onNext = { binder.player.playNext() },
                                             onPrevious = {
                                                 if (jumpPrevious == "") jumpPrevious = "0"
@@ -3881,7 +3881,7 @@ fun OnlinePlayer(
 
                                         //println("LinkClient OnLinePlayer Controls pause 5")
                                     },
-                                    onSeekTo = { binder.onlinePlayer?.seekTo(it) },
+                                    onSeekTo = { binder.onlinePlayerSeekTo(it) },
                                     onNext = { binder.player.playNext() },
                                     onPrevious = {
                                         if (jumpPrevious == "") jumpPrevious = "0"

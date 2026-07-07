@@ -1742,6 +1742,10 @@ class PlayerService : Service(),
         it.fast4x.riplay.extensions.ads.YammboAdManager.onSongChanged(this@PlayerService)
 
         currentSecond.value = 0F
+        // Reset duration too: keeping the previous song's duration while the
+        // new one buffers made the wavy seekbar render a stale/full bar
+        // (0:00 / -<old duration>) until the iframe reached PLAYING again.
+        currentDuration.value = 0F
         _internalOnlinePlayerState.value = PlayerConstants.PlayerState.UNSTARTED
 
 //        if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED) {
@@ -3273,6 +3277,14 @@ class PlayerService : Service(),
         val onlinePlayerCurrentSecond: Float
             get() = this@PlayerService.currentSecond.value
 
+        // Seek that also updates the position state optimistically, so the
+        // seekbar reflects the gesture immediately even if the iframe is
+        // buffering and its currentTime interval is not ticking.
+        fun onlinePlayerSeekTo(seconds: Float) {
+            this@PlayerService.internalOnlinePlayer.value?.seekTo(seconds)
+            this@PlayerService.currentSecond.value = seconds
+        }
+
         val onlinePlayerView: StateFlow<YouTubePlayerView?>
             get() = this@PlayerService.internalOnlinePlayerView
 
@@ -3588,7 +3600,11 @@ class PlayerService : Service(),
                                 )
                             }
 
-                        currentSecond.value = second.toFloat()
+                        // `second` is in milliseconds (MediaSession position);
+                        // storing it raw into the seconds-based field made the
+                        // seekbar fraction ~1000x too big → bar rendered full and
+                        // stayed stuck until the iframe sent a fresh tick.
+                        currentSecond.value = newPosition
 
                     },
                     onPlayNext = {

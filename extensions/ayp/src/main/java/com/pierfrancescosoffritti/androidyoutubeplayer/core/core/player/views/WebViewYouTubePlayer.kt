@@ -77,7 +77,10 @@ private class YouTubePlayerImpl(
         it.toString()
       }
     }
-    mainThread.post { loadUrl("javascript:$function(${stringArgs.joinToString(",")})") }
+    // evaluateJavascript instead of loadUrl("javascript:"): loadUrl fails
+    // silently while the WebView is navigating/reloading, which dropped
+    // seekTo/play/pause commands (upstream fix 87af6d429, v0.7.81).
+    mainThread.post { evaluateJavascript("$function(${stringArgs.joinToString(",")})", null) }
   }
 }
 
