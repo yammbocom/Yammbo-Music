@@ -738,7 +738,14 @@ class MainActivity :
 
         Timber.d("MainActivity.onCreate launchedFromNotification: $launchedFromNotification intent $intent.action")
 
-        intentUriData = intent.data ?: intent.getStringExtra(Intent.EXTRA_TEXT)?.toUri()
+        // Glance widgets launch this activity with a synthetic disambiguation
+        // uri (glance-action:/CALLBACK?...) and a null action; without this
+        // filter it fell into the hostless-uri fallback and searched
+        // "CALLBACK". Real deep links (youtube, tv-link, shazam) arrive as
+        // ACTION_VIEW; shared text arrives via EXTRA_TEXT.
+        intentUriData = intent.data
+            ?.takeIf { intent.action == Intent.ACTION_VIEW && it.scheme != "glance-action" }
+            ?: intent.getStringExtra(Intent.EXTRA_TEXT)?.toUri()
 
         // Handle Yammbo TV pairing deep link (QR scanned from TV while app is installed)
         intent.data?.let { handleTvLinkDeepLink(it) }
@@ -1716,7 +1723,11 @@ class MainActivity :
     @UnstableApi
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        intentUriData = intent.data ?: intent.getStringExtra(Intent.EXTRA_TEXT)?.toUri()
+        // Same guard as onCreate: ignore the synthetic Glance widget uri
+        // (glance-action:/CALLBACK?...), which is not a user deep link.
+        intentUriData = intent.data
+            ?.takeIf { intent.action == Intent.ACTION_VIEW && it.scheme != "glance-action" }
+            ?: intent.getStringExtra(Intent.EXTRA_TEXT)?.toUri()
         intent.data?.let { handleTvLinkDeepLink(it) }
     }
 

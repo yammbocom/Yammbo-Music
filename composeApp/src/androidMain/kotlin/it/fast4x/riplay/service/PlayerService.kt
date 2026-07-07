@@ -1848,6 +1848,10 @@ class PlayerService : Service(),
                 }
                 // Push the freshly loaded cover to the home-screen widgets.
                 updateWidgets()
+                // And refresh the notification: it was built right after the
+                // load started (race), so slow loads left it with the
+                // placeholder large icon until the next song change.
+                updateUnifiedNotification()
             }
         }
 
