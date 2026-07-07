@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -584,15 +585,23 @@ fun OnlineSearch(
                     }
                 }
 
+                // Fixed tail spacer: the player-aware insets alone don't clear
+                // the mini player + tab bar overlay on this screen.
+                item(key = "bottom-spacer") {
+                    Spacer(modifier = Modifier.height(Dimensions.bottomSpacer))
+                }
+
             }
         }
 
         FloatingActionsContainerWithScrollToTop(lazyListState = lazyListState)
     }
 
+    // Always open the screen at the top of the list: the lazy state is
+    // saveable, so a previous visit (or the IME opening) could leave it
+    // parked mid-list with the section title scrolled away.
     LaunchedEffect(Unit) {
-        delay(300)
-        focusRequester.requestFocus()
+        lazyListState.scrollToItem(0)
     }
 
 }
