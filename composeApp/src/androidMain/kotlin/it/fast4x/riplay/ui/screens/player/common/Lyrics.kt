@@ -1356,7 +1356,7 @@ fun Lyrics(
                                                         } else {
                                                             val positionSeconds = positionMs / 1000f
                                                             Timber.d("Seeking online player to ${positionSeconds}s")
-                                                            binder?.onlinePlayer?.seekTo(positionSeconds)
+                                                            binder?.onlinePlayerSeekTo(positionSeconds)
                                                         }
                                                     } else onDismiss()
                                                 }
@@ -1415,7 +1415,7 @@ fun Lyrics(
                                                         } else {
                                                             val positionSeconds = positionMs / 1000f
                                                             Timber.d("Seeking online player to ${positionSeconds}s")
-                                                            binder?.onlinePlayer?.seekTo(positionSeconds)
+                                                            binder?.onlinePlayerSeekTo(positionSeconds)
                                                         }
                                                     } else onDismiss()
                                                 }
@@ -1482,7 +1482,7 @@ fun Lyrics(
                                                         } else {
                                                             val positionSeconds = positionMs / 1000f
                                                             Timber.d("Seeking online player to ${positionSeconds}s")
-                                                            binder?.onlinePlayer?.seekTo(positionSeconds)
+                                                            binder?.onlinePlayerSeekTo(positionSeconds)
                                                         }
                                                     } else onDismiss()
                                                 }
@@ -1527,7 +1527,7 @@ fun Lyrics(
                                                  } else {
                                                      val positionSeconds = positionMs / 1000f
                                                      Timber.d("Seeking online player to ${positionSeconds}s")
-                                                     binder?.onlinePlayer?.seekTo(positionSeconds)
+                                                     binder?.onlinePlayerSeekTo(positionSeconds)
                                                  }
                                              }
                                          }

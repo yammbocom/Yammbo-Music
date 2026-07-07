@@ -374,7 +374,10 @@ fun GetSeekBar(
             if (pauseBetweenSongs != PauseBetweenSongs.`0`)
                 LaunchedEffect(timeRemaining) {
                     if (
-                        timeRemaining.toLong() < 500
+                        // duration > 0: while a new song buffers, duration is
+                        // reset to 0 and position is 0, which made timeRemaining
+                        // 0 and wrongly triggered the pause at song start.
+                        duration > 0 && timeRemaining.toLong() < 500
                     ) {
                         paused = true
                         onPause()
