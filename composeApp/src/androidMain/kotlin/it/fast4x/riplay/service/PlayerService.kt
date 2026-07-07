@@ -1329,6 +1329,8 @@ class PlayerService : Service(),
                     isPlayingNow = state == PlayerConstants.PlayerState.PLAYING
                     updateUnifiedNotification()
                     updateDiscordPresence()
+                    // Sync the widgets' play/pause icon for online playback.
+                    updateWidgets()
 
                 }
 
@@ -1844,6 +1846,8 @@ class PlayerService : Service(),
                 coroutineScope.launch {
                     setWallpaper(this@PlayerService, bitmap)
                 }
+                // Push the freshly loaded cover to the home-screen widgets.
+                updateWidgets()
             }
         }
 
@@ -1859,6 +1863,10 @@ class PlayerService : Service(),
         updateUnifiedNotification()
 
         updateDiscordPresence()
+
+        // Keep home-screen widgets in sync on song change (they were only
+        // populated once at service start, freezing title/artist forever).
+        updateWidgets()
 
         player.saveMasterQueue(currentSecond.value.toInt())
 
@@ -2714,6 +2722,9 @@ class PlayerService : Service(),
             updateUnifiedNotification()
 
         updateDiscordPresence()
+
+        // Sync the widgets' play/pause icon for local playback.
+        updateWidgets()
 
         super.onIsPlayingChanged(isPlaying)
     }

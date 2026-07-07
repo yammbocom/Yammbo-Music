@@ -63,7 +63,7 @@ class PlayerHorizontalWidget: GlanceAppWidget() {
         val songArtistKey = stringPreferencesKey("songArtistKey")
         val isPlayingKey = booleanPreferencesKey("isPlayingKey")
         var widgetBitmap: Bitmap? = createBitmap(1, 1)
-        lateinit var widgetBinder: PlayerService.Binder
+        var widgetBinder: PlayerService.Binder? = null
     }
 
     override val stateDefinition: GlanceStateDefinition<*> = PreferencesGlanceStateDefinition
@@ -82,8 +82,12 @@ class PlayerHorizontalWidget: GlanceAppWidget() {
                     horizontalAlignment = Alignment.Start
                 ) {
 
+                    // Real cover when loaded; app logo instead of the 1x1
+                    // placeholder bitmap (was rendered as a blank square).
+                    val cover = widgetBitmap?.takeIf { it.width > 1 }
                     Image(
-                        provider = ImageProvider(widgetBitmap!!),
+                        provider = if (cover != null) ImageProvider(cover)
+                            else ImageProvider(R.drawable.app_logo),
                         contentDescription = "cover",
                         modifier = GlanceModifier.padding(start = 5.dp, end = 20.dp)
                             .width(120.dp).height(120.dp)
@@ -118,7 +122,7 @@ class PlayerHorizontalWidget: GlanceAppWidget() {
                                 contentDescription = "back",
                                 modifier = GlanceModifier
                                     .clickable {
-                                        widgetBinder.player.playPrevious()
+                                        widgetBinder?.player?.playPrevious()
                                     }
                             )
 
@@ -133,16 +137,18 @@ class PlayerHorizontalWidget: GlanceAppWidget() {
                                 contentDescription = "play/pause",
                                 modifier = GlanceModifier.padding(horizontal = 20.dp)
                                     .clickable {
-                                        if (preferences[isPlayingKey] == true) {
-                                            widgetBinder.player.pause()
-                                            widgetBinder.onlinePlayer?.pause()
-                                            Timber.d("PlayerHorizontalWidget onClick pause")
-                                        } else {
-                                            if (widgetBinder.currentMediaItemAsSong?.isLocal == true)
-                                                widgetBinder.player.play()
-                                            else
-                                                widgetBinder.onlinePlayer?.play()
-                                            Timber.d("PlayerHorizontalWidget onClick play")
+                                        widgetBinder?.let { widgetBinder ->
+                                            if (preferences[isPlayingKey] == true) {
+                                                widgetBinder.player.pause()
+                                                widgetBinder.onlinePlayer?.pause()
+                                                Timber.d("PlayerHorizontalWidget onClick pause")
+                                            } else {
+                                                if (widgetBinder.currentMediaItemAsSong?.isLocal == true)
+                                                    widgetBinder.player.play()
+                                                else
+                                                    widgetBinder.onlinePlayer?.play()
+                                                Timber.d("PlayerHorizontalWidget onClick play")
+                                            }
                                         }
                                     }
                             )
@@ -152,7 +158,7 @@ class PlayerHorizontalWidget: GlanceAppWidget() {
                                 contentDescription = "next",
                                 modifier = GlanceModifier
                                     .clickable {
-                                        widgetBinder.player.playNext()
+                                        widgetBinder?.player?.playNext()
                                     }
                             )
 
@@ -175,10 +181,16 @@ class PlayerHorizontalWidget: GlanceAppWidget() {
         binder: PlayerService.Binder
     ) {
 
-        val glanceId =
-            GlanceAppWidgetManager(context).getGlanceIds(PlayerHorizontalWidget::class.java).firstOrNull()
-                ?: return
-        CoroutineScope(Dispatchers.Main).launch {
+        // Every placed instance (the old code only refreshed the first one),
+        // and write the state BEFORE update() so the render sees fresh data.
+        val glanceIds =
+            GlanceAppWidgetManager(context).getGlanceIds(PlayerHorizontalWidget::class.java)
+        if (glanceIds.isEmpty()) return
+
+        if (bitmap != null) widgetBitmap = bitmap
+        widgetBinder = binder
+
+        glanceIds.forEach { glanceId ->
             updateAppWidgetState(
                 context,
                 PreferencesGlanceStateDefinition,
@@ -190,11 +202,8 @@ class PlayerHorizontalWidget: GlanceAppWidget() {
                     this[isPlayingKey] = isPlaying
                 }
             }
+            PlayerHorizontalWidget().update(context, glanceId)
         }
-
-        widgetBitmap = bitmap
-        widgetBinder = binder
-        PlayerHorizontalWidget().update(context, glanceId)
     }
 
 }
