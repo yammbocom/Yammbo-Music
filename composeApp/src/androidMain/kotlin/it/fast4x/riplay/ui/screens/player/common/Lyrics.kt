@@ -933,8 +933,9 @@ fun Lyrics(
             if (text?.isNotEmpty() == true) {
                 if (isShowingSynchronizedLyrics) {
                     val density = LocalDensity.current
-                    val player = LocalPlayerServiceBinder.current?.player
+                    val playerBinder = LocalPlayerServiceBinder.current
                         ?: return@AnimatedVisibility
+                    val player = playerBinder.player
 
 
 
@@ -946,7 +947,17 @@ fun Lyrics(
                             SynchronizedLyrics(sentences) {
                                 if (player.currentMediaItem?.isLocal ?: false)
                                     player.currentPosition + 50L //- (lyrics?.startTime ?: 0L)
-                                else positionProvider()
+                                else
+                                    // Read the iframe position directly (float
+                                    // seconds, ~100ms resolution): the shared
+                                    // positionAndDuration flow truncates it to
+                                    // whole seconds and polls every 500ms,
+                                    // which lagged the highlighted line by up
+                                    // to ~1.5s. The small lead compensates the
+                                    // JS reporting cadence, mirroring the +50ms
+                                    // the local player already gets.
+                                    playerBinder.onlinePlayerCurrentSecond
+                                        .times(1000f).toLong() + 250L
                             }
                         }
                     }

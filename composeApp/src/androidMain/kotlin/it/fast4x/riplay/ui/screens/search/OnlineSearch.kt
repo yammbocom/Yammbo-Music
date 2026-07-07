@@ -599,9 +599,11 @@ fun OnlineSearch(
 
     // Always open the screen at the top of the list: the lazy state is
     // saveable, so a previous visit (or the IME opening) could leave it
-    // parked mid-list with the section title scrolled away.
-    LaunchedEffect(Unit) {
-        lazyListState.scrollToItem(0)
+    // parked mid-list with the section title scrolled away. Re-run when the
+    // saved searches finish loading from the DB — they are inserted above
+    // the anchored first item and would otherwise land out of view.
+    LaunchedEffect(history.isEmpty(), textFieldValue.text.isEmpty()) {
+        if (textFieldValue.text.isEmpty()) lazyListState.scrollToItem(0)
     }
 
 }
