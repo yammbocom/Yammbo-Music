@@ -25,6 +25,8 @@ internal object YammboWidgetPalette {
     val background = Color.Black
     val text = Color.White
     val textSecondary = Color(0xFFB0B0B0)
+    // Cover placeholder frame: must stay visible over the black card.
+    val coverPlaceholder = Color(0xFF2A2A2A)
 }
 
 // Shared prev / play-pause / next row: white icons on the black card, with

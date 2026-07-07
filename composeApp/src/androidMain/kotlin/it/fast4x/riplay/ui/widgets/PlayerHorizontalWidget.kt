@@ -9,6 +9,7 @@ import androidx.core.graphics.createBitmap
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.glance.ColorFilter
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.LocalSize
@@ -100,14 +101,25 @@ class PlayerHorizontalWidget: GlanceAppWidget() {
                     modifier = GlanceModifier
                         .size(coverSize)
                         .cornerRadius(12.dp)
+                        .background(YammboWidgetPalette.coverPlaceholder),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Image(
-                        provider = if (cover != null) ImageProvider(cover)
-                            else ImageProvider(R.mipmap.ic_launcher),
-                        contentDescription = "cover",
-                        contentScale = ContentScale.Crop,
-                        modifier = GlanceModifier.fillMaxSize()
-                    )
+                    if (cover != null)
+                        Image(
+                            provider = ImageProvider(cover),
+                            contentDescription = "cover",
+                            contentScale = ContentScale.Crop,
+                            modifier = GlanceModifier.fillMaxSize()
+                        )
+                    else
+                        // Visible placeholder: the launcher icon is black and
+                        // disappeared against the black card.
+                        Image(
+                            provider = ImageProvider(R.drawable.musical_notes),
+                            contentDescription = "cover",
+                            colorFilter = ColorFilter.tint(ColorProvider(YammboWidgetPalette.text)),
+                            modifier = GlanceModifier.size(40.dp)
+                        )
                 }
 
                 Column(

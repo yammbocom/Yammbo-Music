@@ -9,6 +9,7 @@ import androidx.core.graphics.createBitmap
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.glance.ColorFilter
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.LocalSize
@@ -39,6 +40,7 @@ import androidx.glance.state.GlanceStateDefinition
 import androidx.glance.state.PreferencesGlanceStateDefinition
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
+import androidx.glance.text.TextAlign
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
 import androidx.media3.common.util.UnstableApi
@@ -103,14 +105,25 @@ class PlayerVerticalWidget: GlanceAppWidget() {
                     modifier = GlanceModifier
                         .size(coverSize)
                         .cornerRadius(14.dp)
+                        .background(YammboWidgetPalette.coverPlaceholder),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Image(
-                        provider = if (cover != null) ImageProvider(cover)
-                            else ImageProvider(R.mipmap.ic_launcher),
-                        contentDescription = "cover",
-                        contentScale = ContentScale.Crop,
-                        modifier = GlanceModifier.fillMaxSize()
-                    )
+                    if (cover != null)
+                        Image(
+                            provider = ImageProvider(cover),
+                            contentDescription = "cover",
+                            contentScale = ContentScale.Crop,
+                            modifier = GlanceModifier.fillMaxSize()
+                        )
+                    else
+                        // Visible placeholder: the launcher icon is black and
+                        // disappeared against the black card.
+                        Image(
+                            provider = ImageProvider(R.drawable.musical_notes),
+                            contentDescription = "cover",
+                            colorFilter = ColorFilter.tint(ColorProvider(YammboWidgetPalette.text)),
+                            modifier = GlanceModifier.size(40.dp)
+                        )
                 }
 
                 Spacer(modifier = GlanceModifier.height(8.dp))
@@ -120,7 +133,8 @@ class PlayerVerticalWidget: GlanceAppWidget() {
                     style = TextStyle(
                         color = ColorProvider(YammboWidgetPalette.text),
                         fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
                     ),
                     maxLines = 1,
                     modifier = GlanceModifier.fillMaxWidth()
@@ -130,7 +144,8 @@ class PlayerVerticalWidget: GlanceAppWidget() {
                         text = artist,
                         style = TextStyle(
                             color = ColorProvider(YammboWidgetPalette.textSecondary),
-                            fontSize = 12.sp
+                            fontSize = 12.sp,
+                            textAlign = TextAlign.Center
                         ),
                         maxLines = 1,
                         modifier = GlanceModifier.fillMaxWidth()
