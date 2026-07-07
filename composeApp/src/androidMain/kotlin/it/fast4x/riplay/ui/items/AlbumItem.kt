@@ -120,14 +120,28 @@ fun AlbumItem(
         modifier = modifier
     ) {
         Box {
-            AsyncImage(
-                model = thumbnailUrl?.thumbnail(thumbnailSizePx)?.let { it1 -> cleanPrefix(it1) },
-                contentDescription = null,
-                //contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .clip(thumbnailShape())
-                    .requiredSize(thumbnailSizeDp)
-            )
+            if (thumbnailUrl == null)
+                // Placeholder instead of Coil's broken-image fallback when
+                // the feed carries no artwork for this album.
+                Image(
+                    painter = painterResource(R.drawable.album),
+                    contentDescription = null,
+                    colorFilter = ColorFilter.tint(colorPalette().textDisabled),
+                    modifier = Modifier
+                        .clip(thumbnailShape())
+                        .background(colorPalette().background1)
+                        .requiredSize(thumbnailSizeDp)
+                        .padding(24.dp)
+                )
+            else
+                AsyncImage(
+                    model = thumbnailUrl.thumbnail(thumbnailSizePx)?.let { it1 -> cleanPrefix(it1) },
+                    contentDescription = null,
+                    //contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .clip(thumbnailShape())
+                        .requiredSize(thumbnailSizeDp)
+                )
             if (isYoutubeAlbum) {
                 Image(
                     painter = painterResource(R.drawable.internet),

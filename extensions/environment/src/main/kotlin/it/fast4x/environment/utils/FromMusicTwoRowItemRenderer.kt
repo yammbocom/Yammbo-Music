@@ -11,9 +11,10 @@ fun Environment.VideoItem.Companion.from(renderer: MusicTwoRowItemRenderer): Env
             ?.firstOrNull()
             ?.let(Environment::Info),
         authors = null,
-        thumbnail = renderer
+        thumbnail = (renderer
             .thumbnailRenderer
             ?.musicThumbnailRenderer
+            ?: renderer.thumbnailRenderer?.croppedSquareThumbnailRenderer)
             ?.thumbnail
             ?.thumbnails
             ?.firstOrNull(),
@@ -36,9 +37,10 @@ fun Environment.AlbumItem.Companion.from(renderer: MusicTwoRowItemRenderer): Env
             ?.runs
             ?.lastOrNull()
             ?.text,
-        thumbnail = renderer
+        thumbnail = (renderer
             .thumbnailRenderer
             ?.musicThumbnailRenderer
+            ?: renderer.thumbnailRenderer?.croppedSquareThumbnailRenderer)
             ?.thumbnail
             ?.thumbnails
             ?.firstOrNull()
@@ -57,9 +59,10 @@ fun Environment.ArtistItem.Companion.from(renderer: MusicTwoRowItemRenderer): En
             ?.runs
             ?.firstOrNull()
             ?.text,
-        thumbnail = renderer
+        thumbnail = (renderer
             .thumbnailRenderer
             ?.musicThumbnailRenderer
+            ?: renderer.thumbnailRenderer?.croppedSquareThumbnailRenderer)
             ?.thumbnail
             ?.thumbnails
             ?.firstOrNull()
@@ -86,9 +89,10 @@ fun Environment.PlaylistItem.Companion.from(renderer: MusicTwoRowItemRenderer): 
             ?.split(' ')
             ?.firstOrNull()
             ?.toIntOrNull(),
-        thumbnail = renderer
+        thumbnail = (renderer
             .thumbnailRenderer
             ?.musicThumbnailRenderer
+            ?: renderer.thumbnailRenderer?.croppedSquareThumbnailRenderer)
             ?.thumbnail
             ?.thumbnails
             ?.firstOrNull(),

@@ -263,12 +263,26 @@ fun PlaylistItem(
 ) {
     PlaylistItem(
         thumbnailContent = {
-            AsyncImage(
-                model = thumbnailUrl?.thumbnail(thumbnailSizePx),
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
-            )
+            if (thumbnailUrl == null)
+                // YT Music often omits artwork for the user's own playlists
+                // and mixes in home/browse feeds; show a proper placeholder
+                // instead of Coil's broken-image fallback.
+                Image(
+                    painter = painterResource(R.drawable.playlist),
+                    contentDescription = null,
+                    colorFilter = ColorFilter.tint(colorPalette().textDisabled),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(colorPalette().background1)
+                        .padding(24.dp)
+                )
+            else
+                AsyncImage(
+                    model = thumbnailUrl.thumbnail(thumbnailSizePx),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
         },
         songCount = songCount,
         showSongsCount = showSongsCount,

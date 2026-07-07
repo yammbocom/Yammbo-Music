@@ -145,7 +145,24 @@ class BitmapProvider(
 
         lastBitmap = null
 
-        val url = uri.toString().thumbnail(bitmapSize)
+        val url = uri.toString().thumbnail(bitmapSize) ?: uri.toString()
+        enqueue(uri, url, onDone)
+    }
+
+    // i.ytimg.com video thumbnails come in fixed variants and the "best" one
+    // (maxresdefault) simply does not exist for many videos — a deterministic
+    // 404 that left those songs without cover art in the notification and
+    // widgets. Same fallback chain ShareImageGenerator already uses.
+    private val ytimgVariants = listOf("maxresdefault", "sddefault", "hqdefault", "mqdefault")
+
+    private fun nextYtimgVariant(url: String): String? {
+        if (!url.contains("i.ytimg.com")) return null
+        val current = ytimgVariants.firstOrNull { url.contains("/$it.") } ?: return null
+        val next = ytimgVariants.getOrNull(ytimgVariants.indexOf(current) + 1) ?: return null
+        return url.replace("/$current.", "/$next.")
+    }
+
+    private fun enqueue(uri: Uri, url: String, onDone: (Bitmap) -> Unit) {
         runCatching {
             lastEnqueued = appContext().imageLoader.enqueue(
                 ImageRequest.Builder(appContext())
@@ -153,13 +170,23 @@ class BitmapProvider(
                     .size(bitmapSize, bitmapSize)
                     .transformations(LandscapeToSquareTransformation(bitmapSize))
                     .allowHardware(false)
-                    .diskCacheKey(url.toString())
-                    .memoryCacheKey(url.toString())
+                    .diskCacheKey(url)
+                    .memoryCacheKey(url)
                     .listener(
                         onError = { _, result ->
-                            Timber.e("Failed to load bitmap ${result.throwable.stackTraceToString()}")
-                            lastBitmap = null
-                            onDone(bitmap)
+                            Timber.e("Failed to load bitmap $url ${result.throwable.stackTraceToString()}")
+                            val fallbackUrl = nextYtimgVariant(url)
+                            if (fallbackUrl != null) {
+                                enqueue(uri, fallbackUrl, onDone)
+                            } else {
+                                lastBitmap = null
+                                // Don't remember the failed uri as loaded:
+                                // replaying the same song should retry the
+                                // network instead of serving the placeholder
+                                // forever.
+                                if (lastUri == uri) lastUri = null
+                                onDone(bitmap)
+                            }
                             //listener?.invoke(bitmap)
                         },
                         onSuccess = { _, result ->
@@ -177,6 +204,7 @@ class BitmapProvider(
             )
         }.onFailure {
             Timber.e("Failed enqueue in BitmapProvider ${it.stackTraceToString()}")
+            if (lastUri == uri) lastUri = null
             onDone(bitmap)
         }
     }

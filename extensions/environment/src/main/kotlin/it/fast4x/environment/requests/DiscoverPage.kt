@@ -85,5 +85,5 @@ fun MusicTwoRowItemRenderer.toNewReleaseAlbumPage() = Environment.AlbumItem(
         )
     },
     year = subtitle?.runs?.lastOrNull()?.text,
-    thumbnail = thumbnailRenderer?.musicThumbnailRenderer?.thumbnail?.thumbnails?.firstOrNull()
+    thumbnail = (thumbnailRenderer?.musicThumbnailRenderer ?: thumbnailRenderer?.croppedSquareThumbnailRenderer)?.thumbnail?.thumbnails?.firstOrNull()
 )
