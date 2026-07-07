@@ -384,6 +384,14 @@ class PlayerService : Service(),
     private var debounceDelayMs = 2000L
     private var consecutiveErrorSkips = 0
     private val maxConsecutiveErrorSkips = 5
+    // End-of-queue auto-radio bookkeeping: generation guards the
+    // isLoadingRadio flag against cancelled jobs clearing it for a newer
+    // load; attempts cap network retries when the radio fetch keeps
+    // failing (or returns nothing) for the same last song.
+    private var radioGeneration = 0
+    private var autoRadioAttemptId: String? = null
+    private var autoRadioAttempts = 0
+    private val maxAutoRadioAttempts = 3
 
     /**
      * end online configuration
@@ -3403,6 +3411,7 @@ class PlayerService : Service(),
                 coroutineScope
             ).let {
                 isLoadingRadio = true
+                val generation = ++this@PlayerService.radioGeneration
                 radioJob = coroutineScope.launch(Dispatchers.Main) {
 
                     try {
@@ -3430,14 +3439,17 @@ class PlayerService : Service(),
                         isLoadingRadio = false
                         onDone()
                     } catch (e: CancellationException) {
-                        isLoadingRadio = false
+                        // Only clear the flag if no newer radio load started
+                        // since (a cancelled stale job must not mark the
+                        // in-flight one as done).
+                        if (generation == this@PlayerService.radioGeneration) isLoadingRadio = false
                         throw e
                     } catch (e: Throwable) {
                         // A failed radio (network, parsing) must not leave
                         // isLoadingRadio stuck true, which would block every
                         // future radio attempt.
                         Timber.e("PlayerService startRadio failed ${e.stackTraceToString()}")
-                        isLoadingRadio = false
+                        if (generation == this@PlayerService.radioGeneration) isLoadingRadio = false
                     }
                 }
             }
@@ -3730,6 +3742,7 @@ class PlayerService : Service(),
 
         coroutineScope.launch {
             withContext(Dispatchers.Main) {
+                val endedMediaId = player.currentMediaItem?.mediaId
                 if (!player.hasNextMediaItem()
                     && player.repeatMode == Player.REPEAT_MODE_OFF
                     && player.currentMediaItem?.isLocal == false
@@ -3739,16 +3752,29 @@ class PlayerService : Service(),
                     // End of queue (album/playlist finished, or user skipped
                     // past the last item) with repeat off: continue with
                     // similar songs instead of stopping.
-                    binder.setupRadio(
-                        NavigationEndpoint.Endpoint.Watch(
-                            videoId = player.currentMediaItem?.mediaId
-                        ),
-                        onDone = {
-                            coroutineScope.launch(Dispatchers.Main) {
-                                if (player.hasNextMediaItem()) player.playNext()
+                    if (autoRadioAttemptId != endedMediaId) {
+                        autoRadioAttemptId = endedMediaId
+                        autoRadioAttempts = 0
+                    }
+                    if (autoRadioAttempts < maxAutoRadioAttempts) {
+                        autoRadioAttempts++
+                        binder.setupRadio(
+                            NavigationEndpoint.Endpoint.Watch(videoId = endedMediaId),
+                            onDone = {
+                                coroutineScope.launch(Dispatchers.Main) {
+                                    // Advance only if playback is still parked on
+                                    // the song the queue ended at — the user may
+                                    // have started something else while the radio
+                                    // was loading.
+                                    if (player.currentMediaItem?.mediaId == endedMediaId
+                                        && player.hasNextMediaItem()
+                                    ) player.playNext()
+                                }
                             }
-                        }
-                    )
+                        )
+                    }
+                    // Past the cap: stay stopped quietly — retrying forever
+                    // would hammer the network from the end-of-track watchdog.
                 } else {
                     player.playNext()
                 }
