@@ -48,6 +48,7 @@ import androidx.compose.material.TextField
 import androidx.compose.material.TextFieldDefaults
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -222,7 +223,12 @@ fun ConfirmationDialog(
                             onCheckedChange = {
                                 checkedState = it
                                 onCheckBox(it)
-                            }
+                            },
+                            colors = CheckboxDefaults.colors(
+                                checkedColor = colorPalette().text,
+                                checkmarkColor = colorPalette().background0,
+                                uncheckedColor = colorPalette().textSecondary
+                            )
                         )
                         Spacer(Modifier.width(8.dp))
                         Text(
@@ -236,13 +242,21 @@ fun ConfirmationDialog(
         },
 
         confirmButton = {
+            // Brand-styled buttons: Material defaults render the dynamic
+            // (purple-ish) primary color, off-brand and low-contrast in dark
+            // mode. Filled = palette text on background, so it stays B/W and
+            // readable in both themes.
             if (confirmBackgroundPrimary) {
 
                 Button(
                     onClick = {
                         onConfirm()
                         onDismiss()
-                    }
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = colorPalette().text,
+                        contentColor = colorPalette().background0
+                    )
                 ) {
                     Text(confirmText)
                 }
@@ -252,7 +266,10 @@ fun ConfirmationDialog(
                     onClick = {
                         onConfirm()
                         onDismiss()
-                    }
+                    },
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = colorPalette().text
+                    )
                 ) {
                     Text(confirmText)
                 }
@@ -262,11 +279,22 @@ fun ConfirmationDialog(
 
         dismissButton = {
             if (cancelBackgroundPrimary) {
-                Button(onClick = onCancel) {
+                Button(
+                    onClick = onCancel,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = colorPalette().text,
+                        contentColor = colorPalette().background0
+                    )
+                ) {
                     Text(cancelText)
                 }
             } else {
-                TextButton(onClick = onCancel) {
+                TextButton(
+                    onClick = onCancel,
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = colorPalette().textSecondary
+                    )
+                ) {
                     Text(cancelText)
                 }
             }

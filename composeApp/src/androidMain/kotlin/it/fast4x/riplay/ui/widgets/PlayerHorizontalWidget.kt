@@ -11,6 +11,8 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
+import androidx.glance.LocalSize
+import androidx.glance.appwidget.SizeMode
 import androidx.glance.Image
 import androidx.glance.ImageProvider
 import androidx.glance.action.actionStartActivity
@@ -64,11 +66,18 @@ class PlayerHorizontalWidget: GlanceAppWidget() {
 
     override val stateDefinition: GlanceStateDefinition<*> = PreferencesGlanceStateDefinition
 
+    // Re-compose per exact size so the layout scales when the user resizes
+    // the widget instead of keeping the default-cell proportions.
+    override val sizeMode: SizeMode = SizeMode.Exact
+
     @OptIn(UnstableApi::class)
     override suspend fun provideGlance(context: Context, id: GlanceId) {
 
         provideContent {
             val preferences = currentState<Preferences>()
+            val widgetSize = LocalSize.current
+            // Cover grows with the widget height, keeping room for padding.
+            val coverSize = (widgetSize.height - 32.dp).coerceIn(72.dp, 150.dp)
             val isPlaying = preferences[isPlayingKey] == true
             val title = preferences[songTitleKey]
                 ?.takeIf { it.isNotBlank() && it != "null" } ?: "Yammbo Music"
@@ -89,7 +98,7 @@ class PlayerHorizontalWidget: GlanceAppWidget() {
             ) {
                 Box(
                     modifier = GlanceModifier
-                        .size(96.dp)
+                        .size(coverSize)
                         .cornerRadius(12.dp)
                 ) {
                     Image(

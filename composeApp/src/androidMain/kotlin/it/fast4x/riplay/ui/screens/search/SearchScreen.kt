@@ -126,15 +126,9 @@ fun SearchScreen(
     val (baseTabIndex, onBaseTabChanged) = rememberSaveable { mutableStateOf(0) }
     val (resultTabIndex, onResultTabChanged) = rememberSaveable { mutableStateOf(0) }
 
-    LaunchedEffect(textFieldValue.text) {
-        if (textFieldValue.text.length > 3) {
-            if (!context.preferences.getBoolean(pauseSearchHistoryKey, false)) {
-                Database.asyncTransaction {
-                    insert(SearchQuery(query = textFieldValue.text))
-                }
-            }
-        }
-    }
+    // History is saved on explicit submit (keyboard action / results view),
+    // NOT while typing: a per-keystroke insert here was persisting every
+    // prefix ("madison", "madison b", "madison be"...) as its own entry.
 
     val decorationBox: @Composable (@Composable () -> Unit) -> Unit = { innerTextField ->
         Row(
