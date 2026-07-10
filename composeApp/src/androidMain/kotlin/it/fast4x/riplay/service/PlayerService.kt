@@ -606,9 +606,10 @@ class PlayerService : Service(),
             }
             Timber.d("PlayerService onCreate update currentSong $song mediaItemState ${currentMediaItemState.value}")
 
-            //Update online
-            currentMediaId = if (!song.isLocal) song.id else song.mediaId.toString()
+            //Update online (local songs have no online format/metadata — skip the network fetch)
+            currentMediaId = song.id
 
+            if (!song.isLocal) {
             val format = Database.format(currentMediaId.toString()).first()
             Timber.d("PlayerService onCreate update currentSong $currentMediaId format $format")
             if (format == null) {
@@ -630,6 +631,7 @@ class PlayerService : Service(),
                         }
 
                     }
+            }
             }
         }
 
@@ -1741,6 +1743,18 @@ class PlayerService : Service(),
             }
 
         }
+    }
+
+    // Surface local/online playback failures instead of swallowing them silently.
+    // Without this, a ResolvingDataSource error on a local content:// URI produced no
+    // log, no UI feedback, no mini-player — the exact "nothing happens" symptom.
+    override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+        val mi = runCatching { player.currentMediaItem }.getOrNull()
+        Timber.e(
+            error,
+            "PlayerService onPlayerError code=${error.errorCode} name=${error.errorCodeName} " +
+                "mediaId=${mi?.mediaId} uri=${mi?.localConfiguration?.uri} msg=${error.message}"
+        )
     }
 
     @kotlin.OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)

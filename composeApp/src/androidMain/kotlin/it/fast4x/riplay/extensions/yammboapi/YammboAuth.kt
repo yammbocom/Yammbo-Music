@@ -136,3 +136,20 @@ data class TvLinkUser(
 
 @Serializable
 data class TvLinkPollRequest(val code: String)
+
+// Bug report (Report a bug form) -> POST /api/v1/bug-report
+@Serializable
+data class BugReportRequest(
+    val name: String,
+    val email: String,
+    val message: String,
+    @SerialName("app_version") val appVersion: String,
+    val device: String,
+    val platform: String = "android"
+)
+
+@Serializable
+data class BugReportResponse(
+    val success: Boolean = false,
+    val message: String? = null
+)

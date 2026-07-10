@@ -17,6 +17,7 @@ import timber.log.Timber
 object YammboApiService {
 
     private const val BASE_URL = "https://music.yammbo.com/api/v1/auth"
+    private const val SUPPORT_BASE = "https://music.yammbo.com/api/v1"
 
     private val client = HttpClient(OkHttp) {
         install(ContentNegotiation) {
@@ -85,6 +86,22 @@ object YammboApiService {
     }.onFailure {
         Timber.e("YammboApi logout error: ${it.message}")
     }
+
+    suspend fun reportBug(
+        name: String,
+        email: String,
+        message: String,
+        appVersion: String,
+        device: String,
+        token: String?
+    ): Result<BugReportResponse> = runCatching {
+        client.post("$SUPPORT_BASE/bug-report") {
+            contentType(ContentType.Application.Json)
+            header("Accept", "application/json")
+            if (!token.isNullOrBlank()) header("Authorization", "Bearer $token")
+            setBody(BugReportRequest(name, email, message, appVersion, device))
+        }.body<BugReportResponse>()
+    }.onFailure { Timber.e("YammboApi reportBug error: ${it.message}") }
 
     // TV Link (QR device pairing)
     private const val TV_LINK_BASE = "https://music.yammbo.com/api/v1/tv-link"

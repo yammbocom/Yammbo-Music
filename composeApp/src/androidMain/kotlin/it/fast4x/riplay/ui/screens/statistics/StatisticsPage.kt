@@ -374,7 +374,7 @@ fun StatisticsPage(
                     key = { it.id }
                 ) { artist ->
 
-                    if (artist.thumbnailUrl?.toString() == "null") {
+                    if (artist.thumbnailUrl.isNullOrBlank() || artist.thumbnailUrl == "null") {
                         LaunchedEffect(artist.id) { updateOnlineArtist(artist.id) }
                     }
 
@@ -403,7 +403,7 @@ fun StatisticsPage(
                     items = albums,
                     key = { it.id }
                 ) { album ->
-                    if (album.thumbnailUrl?.toString() == "null") {
+                    if (album.thumbnailUrl.isNullOrBlank() || album.thumbnailUrl == "null") {
                         LaunchedEffect(album.id) { updateOnlineAlbum(album.id) }
                     }
 

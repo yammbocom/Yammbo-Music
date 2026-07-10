@@ -20,30 +20,54 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yambo.music.BuildConfig
 import com.yambo.music.R
 import it.fast4x.riplay.enums.NavigationBarPosition
+import it.fast4x.riplay.enums.PopupType
+import it.fast4x.riplay.extensions.customtabs.YammboWebViewActivity
+import it.fast4x.riplay.extensions.yammboapi.YammboApiService
+import it.fast4x.riplay.extensions.yammboapi.YammboAuthManager
+import it.fast4x.riplay.ui.components.CustomModalBottomSheet
 import it.fast4x.riplay.ui.components.StaggeredEntry
 import it.fast4x.riplay.ui.components.pressable
+import it.fast4x.riplay.ui.components.themed.SmartMessage
 import it.fast4x.riplay.ui.styling.Dimensions
 import it.fast4x.riplay.ui.styling.secondary
 import it.fast4x.riplay.utils.colorPalette
 import it.fast4x.riplay.utils.typography
+import kotlinx.coroutines.launch
 
 
 // Brand colors — official palette for each social platform.
@@ -60,8 +84,12 @@ private val WhatsAppColor = Color(0xFF25D366)
 @Composable
 fun About() {
     val uriHandler = LocalUriHandler.current
+    val context = LocalContext.current
     val colors = colorPalette()
     val typo = typography()
+
+    var showBugReportSheet by remember { mutableStateOf(false) }
+    val authManager = remember { YammboAuthManager(context) }
 
     Column(
         modifier = Modifier
@@ -151,21 +179,21 @@ fun About() {
                     subtitle = "Base de conocimiento y tutoriales",
                     iconId = R.drawable.information,
                     tint = Color(0xFF5C6BC0),
-                ) { uriHandler.openUri("https://yammbo.zohodesk.com/portal/en/kb/yammbo-llc") }
+                ) { YammboWebViewActivity.open(context, "https://help.yammbo.com/", "Centro de ayuda") }
                 AboutRowDivider()
                 AboutLinkRow(
                     title = "Chat en vivo",
                     subtitle = "Habla con nuestro equipo",
                     iconId = R.drawable.help_circle,
                     tint = Color(0xFF66BB6A),
-                ) { uriHandler.openUri("https://tawk.to/yammbo") }
+                ) { YammboWebViewActivity.open(context, "https://tawk.to/yammbo", "Chat en vivo") }
                 AboutRowDivider()
                 AboutLinkRow(
                     title = stringResource(R.string.report_an_issue),
                     subtitle = "Reportar un problema o sugerencia",
                     iconId = R.drawable.alert_circle,
                     tint = Color(0xFFEF5350),
-                ) { uriHandler.openUri("https://music.yammbo.com/support") }
+                ) { showBugReportSheet = true }
             }
         }
 
@@ -221,6 +249,171 @@ fun About() {
         }
 
         Spacer(modifier = Modifier.height(Dimensions.bottomSpacer))
+    }
+
+    if (showBugReportSheet) {
+        BugReportSheet(
+            authManager = authManager,
+            onDismiss = { showBugReportSheet = false },
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun BugReportSheet(
+    authManager: YammboAuthManager,
+    onDismiss: () -> Unit,
+) {
+    val context = LocalContext.current
+    val colors = colorPalette()
+    val typo = typography()
+    val scope = rememberCoroutineScope()
+
+    var name by remember { mutableStateOf(authManager.getUserName().orEmpty()) }
+    var email by remember { mutableStateOf(authManager.getUserEmail().orEmpty()) }
+    var messageText by remember { mutableStateOf("") }
+    var isLoading by remember { mutableStateOf(false) }
+
+    val textFieldColors = OutlinedTextFieldDefaults.colors(
+        focusedBorderColor = colors.accent,
+        unfocusedBorderColor = colors.textDisabled,
+        cursorColor = colors.accent,
+        focusedLabelColor = colors.accent,
+        unfocusedLabelColor = colors.textSecondary,
+        focusedTextColor = colors.text,
+        unfocusedTextColor = colors.text,
+    )
+
+    CustomModalBottomSheet(
+        showSheet = true,
+        onDismissRequest = onDismiss,
+        modifier = Modifier.fillMaxWidth(),
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = colors.background0,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 24.dp),
+        ) {
+            BasicText(
+                text = "Reportar un error",
+                style = typo.l.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = colors.text,
+                ),
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            BasicText(
+                text = "Cuéntanos qué salió mal y te ayudaremos.",
+                style = typo.xxs.secondary,
+            )
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                label = { Text("Nombre") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                colors = textFieldColors,
+                modifier = Modifier.fillMaxWidth(),
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            OutlinedTextField(
+                value = email,
+                onValueChange = { email = it },
+                label = { Text("Correo electrónico") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Email,
+                    imeAction = ImeAction.Next,
+                ),
+                colors = textFieldColors,
+                modifier = Modifier.fillMaxWidth(),
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            OutlinedTextField(
+                value = messageText,
+                onValueChange = { messageText = it },
+                label = { Text("Mensaje") },
+                minLines = 4,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+                colors = textFieldColors,
+                modifier = Modifier.fillMaxWidth(),
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Button(
+                onClick = {
+                    if (name.isBlank() || email.isBlank() || messageText.isBlank() ||
+                        !android.util.Patterns.EMAIL_ADDRESS.matcher(email.trim()).matches()
+                    ) {
+                        SmartMessage(
+                            "Completa tu nombre, un correo válido y el mensaje.",
+                            type = PopupType.Error,
+                            context = context,
+                        )
+                        return@Button
+                    }
+                    isLoading = true
+                    scope.launch {
+                        val device =
+                            "${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL} (Android ${android.os.Build.VERSION.RELEASE})"
+                        val result = YammboApiService.reportBug(
+                            name = name.trim(),
+                            email = email.trim(),
+                            message = messageText.trim(),
+                            appVersion = BuildConfig.VERSION_NAME,
+                            device = device,
+                            token = authManager.getAccessToken(),
+                        )
+                        if (result.isSuccess && result.getOrNull()?.success == true) {
+                            SmartMessage(
+                                "¡Gracias! Tu reporte fue enviado.",
+                                type = PopupType.Success,
+                                context = context,
+                            )
+                            onDismiss()
+                        } else {
+                            SmartMessage(
+                                "No se pudo enviar. Inténtalo de nuevo.",
+                                type = PopupType.Error,
+                                context = context,
+                            )
+                        }
+                        isLoading = false
+                    }
+                },
+                enabled = !isLoading,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = colors.accent,
+                    contentColor = colors.onAccent,
+                ),
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
+            ) {
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        color = colors.onAccent,
+                        modifier = Modifier.size(24.dp),
+                        strokeWidth = 2.dp,
+                    )
+                } else {
+                    Text("Enviar")
+                }
+            }
+        }
     }
 }
 
