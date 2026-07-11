@@ -491,20 +491,29 @@ fun GeneralSettings(
                     settingsItem {
                         var checkUpdateNow by remember { mutableStateOf(false) }
                         if (checkUpdateNow) {
+                            // Refresh the cached version BEFORE reading it. Previously the
+                            // fetch and CheckAvailableNewVersion composed in the same pass,
+                            // so the check read a stale UpdatedVersionCode.ver and always
+                            // reported "no update" on the first tap. Gate the read behind the
+                            // completed fetch (mirrors the cold-start flow in HomeScreen).
+                            var checkReady by remember { mutableStateOf(false) }
                             LaunchedEffect(Unit) {
                                 checkAndDownloadNewVersionCode()
+                                checkReady = true
                             }
-                            CheckAvailableNewVersion(
-                                onDismiss = { checkUpdateNow = false },
-                                updateAvailable = {
-                                    if (!it)
-                                        SmartMessage(
-                                            context.resources.getString(R.string.info_no_update_available),
-                                            type = PopupType.Info,
-                                            context = context
-                                        )
-                                }
-                            )
+                            if (checkReady) {
+                                CheckAvailableNewVersion(
+                                    onDismiss = { checkUpdateNow = false; checkReady = false },
+                                    updateAvailable = {
+                                        if (!it)
+                                            SmartMessage(
+                                                context.resources.getString(R.string.info_no_update_available),
+                                                type = PopupType.Info,
+                                                context = context
+                                            )
+                                    }
+                                )
+                            }
                         }
 
                         EnumValueSelectorSettingsEntry(

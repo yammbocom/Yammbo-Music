@@ -10,13 +10,11 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.yambo.music.R
-import it.fast4x.riplay.utils.getAvailableUpdateInfo
+import it.fast4x.riplay.utils.fetchLatestVersion
 import it.fast4x.riplay.utils.getVersionCode
 import timber.log.Timber
 import java.io.File
 import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.Response
 
 class CheckUpdateWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
 
@@ -31,44 +29,14 @@ class CheckUpdateWorker(context: Context, params: WorkerParameters) : CoroutineW
         return try {
             Timber.d("CheckUpdateWorker: Start (GitHub Releases)...")
 
-            val client = OkHttpClient()
-            // GitHub Releases API — the /latest endpoint always points to the
-            // most recent non-prerelease, non-draft release. No auth needed for
-            // public repos; GitHub's 60 req/h unauth limit per IP is plenty for
-            // a daily/weekly check.
-            val releasesUrl =
-                "https://api.github.com/repos/yammbocom/Yammbo-Music/releases/latest"
-
-            val request = Request.Builder()
-                .url(releasesUrl)
-                .header("Accept", "application/vnd.github+json")
-                .header("X-GitHub-Api-Version", "2022-11-28")
-                .header("User-Agent", "Yammbo-Music-UpdateChecker")
-                .build()
-            val response: Response = client.newCall(request).execute()
-
-            if (!response.isSuccessful) {
-                Timber.e("CheckUpdateWorker: GitHub API returned ${response.code}")
-                return if (response.code in 500..599) Result.retry() else Result.success()
-            }
-
-            val body = response.body?.string()
+            // Resolve the latest version via the shared helper: our VPS probe first
+            // (music.yammbo.com/download/version.json), GitHub Releases API as fallback.
+            // Avoids the unauthenticated GitHub API rate limit on shared carrier IPs.
+            val (remoteVersionCode, remoteVersionName) = fetchLatestVersion(OkHttpClient())
                 ?: run {
-                    Timber.e("CheckUpdateWorker: empty response body")
+                    Timber.d("CheckUpdateWorker: could not resolve latest version")
                     return Result.retry()
                 }
-
-            val json = org.json.JSONObject(body)
-            val tagName = json.optString("tag_name").ifBlank {
-                Timber.e("CheckUpdateWorker: tag_name missing in release JSON")
-                return Result.success()
-            }
-            // Tag format: "v0.7.73" → versionName "0.7.73"
-            val remoteVersionName = tagName.removePrefix("v").trim()
-            // versionCode derived from the last dotted segment (project invariant:
-            // versionName "0.7.N" pairs with versionCode N).
-            val remoteVersionCode = remoteVersionName.substringAfterLast('.')
-                .toIntOrNull() ?: 0
 
             val productName = "Yammbo Music"
             val fileLine = "$remoteVersionCode-$remoteVersionName-$productName\n"
