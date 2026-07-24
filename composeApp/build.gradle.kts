@@ -13,7 +13,14 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.jetbrainsCompose)
     alias(libs.plugins.room)
-    alias(libs.plugins.google.services)
+}
+
+// Firebase (Google Services) is applied ONLY for `full` flavor builds. The `foss`
+// flavor ships with no proprietary Google dependencies (for F-Droid / IzzyOnDroid).
+if (gradle.startParameter.taskRequests.toString().contains("Full", ignoreCase = true)
+    && file("google-services.json").exists()
+) {
+    apply(plugin = "com.google.gms.google-services")
 }
 
 
@@ -234,10 +241,6 @@ kotlin {
             implementation(libs.kotlin.concurrent.futures)
             implementation(libs.androidx.webkit)
             implementation(libs.androidx.browser)
-            implementation(libs.play.services.ads)
-            implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
-            implementation("com.google.firebase:firebase-messaging")
-            implementation("com.google.firebase:firebase-config")
             //implementation(libs.room.backup)
             implementation(libs.workmanager)
             implementation(libs.accompanist)
@@ -333,8 +336,8 @@ android {
         applicationId = "com.yambo.music"
         minSdk = 24
         targetSdk = 36
-        versionCode = 100
-        versionName = "0.7.100"
+        versionCode = 105
+        versionName = "0.7.105"
 
         multiDexEnabled = true
 
@@ -847,6 +850,12 @@ dependencies {
     add("ksp", libs.room.compiler)
 
     coreLibraryDesugaring(libs.desugaring)
+
+    // Firebase (messaging + remote config) only for the `full` flavor; the `foss`
+    // flavor stays free of proprietary Google dependencies for F-Droid / IzzyOnDroid.
+    add("fullImplementation", platform("com.google.firebase:firebase-bom:33.7.0"))
+    add("fullImplementation", "com.google.firebase:firebase-messaging")
+    add("fullImplementation", "com.google.firebase:firebase-config")
 }
 
 

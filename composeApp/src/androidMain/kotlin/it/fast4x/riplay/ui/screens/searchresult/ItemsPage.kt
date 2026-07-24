@@ -17,7 +17,9 @@ import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
@@ -57,6 +59,20 @@ inline fun <T : Environment.Item> ItemsPage(
     val lazyListState = rememberLazyListState()
 
     var itemsPage by persist<Environment.ItemsPage<T>?>(tag)
+
+    // Keep each fresh result set pinned to the top. Tabs whose header renders nothing leave a
+    // 0-height "header" item, so the list can anchor to the bottom "loading" row and the first
+    // page shows up scrolled to the end (user had to scroll up). Scroll to the top once, when the
+    // first page of a given query/tab (tag) loads. The saveable flag makes this fire only once per
+    // tag, so pagination appends and returning to a tab keep the user's real scroll position.
+    var didPinTop by rememberSaveable(tag) { mutableStateOf(false) }
+    val hasItems = !itemsPage?.items.isNullOrEmpty()
+    LaunchedEffect(hasItems) {
+        if (hasItems && !didPinTop) {
+            lazyListState.scrollToItem(0)
+            didPinTop = true
+        }
+    }
 
     LaunchedEffect(lazyListState, updatedItemsPageProvider) {
         val currentItemsPageProvider = updatedItemsPageProvider ?: return@LaunchedEffect

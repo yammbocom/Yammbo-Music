@@ -14,10 +14,6 @@
 -keep class com.google.firebase.messaging.FirebaseMessagingService { *; }
 -keep class it.fast4x.riplay.extensions.yammboapi.YammboFirebaseService { *; }
 
-# Play Services Ads resolves some classes by name at runtime
--keep class com.google.android.gms.ads.** { *; }
--dontwarn com.google.android.gms.ads.**
-
 -keep,allowobfuscation,allowshrinking class kotlin.coroutines.Continuation
 
 -keep class it.fast4x.riplay.service.** { *; }

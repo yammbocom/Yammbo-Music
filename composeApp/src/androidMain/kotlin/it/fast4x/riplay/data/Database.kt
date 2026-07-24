@@ -2826,6 +2826,11 @@ interface Database {
     @RewriteQueriesToDropUnusedColumns
     fun lastPlayed( limit: Int = 10 ): Flow<List<Song>>
 
+    @Transaction
+    @Query("SELECT Song.* FROM Event JOIN Song ON Song.id = Event.songId WHERE Song.isPodcast = 1 GROUP BY Song.id ORDER BY MAX(Event.timestamp) DESC LIMIT :limit")
+    @RewriteQueriesToDropUnusedColumns
+    fun lastPlayedPodcasts(limit: Int = 1): Flow<List<Song>>
+
     @Query("SELECT COUNT (*) FROM Event")
     fun eventsCount(): Flow<Int>
 

@@ -208,21 +208,25 @@ class HorizontalNavigationBar(
                     if (UiType.ViMusic.isCurrent() && NavRoutes.home.isNotHere(navController))
                         BackButton().Draw()
 
+                    // Collect tabs once per composition to adapt layout for many vs few tabs.
+                    val transition = updateTransition(targetState = tabIndex, label = null)
+                    val items = mutableListOf<Triple<Int, String, Int>>()
+                    buttonsProvider?.invoke { index, text, iconId ->
+                        items.add(Triple(index, text, iconId))
+                    }
+                    // With more than 5 tabs (e.g. the 7-tab search bar) they no longer fit
+                    // evenly, so switch to a horizontally scrollable row of fixed-width tabs.
+                    // The 5-tab main bar keeps the original even, non-scrolling layout.
+                    val isCompact = items.size > 5
+
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        horizontalArrangement = if (isCompact) Arrangement.Start else Arrangement.SpaceEvenly,
                         modifier = Modifier
-                            .fillMaxWidth()
                             .fillMaxSize()
+                            .applyIf(isCompact) { horizontalScroll(scrollState) }
                             .padding(horizontal = 8.dp),
                     ) {
-                        val transition = updateTransition(targetState = tabIndex, label = null)
-                        // Collect tabs once per composition to adapt sizing for many vs few tabs
-                        val items = mutableListOf<Triple<Int, String, Int>>()
-                        buttonsProvider?.invoke { index, text, iconId ->
-                            items.add(Triple(index, text, iconId))
-                        }
-                        val isCompact = items.size > 5
                         items.forEach { (index, text, iconId) ->
                             val isSelected = tabIndex == index
                             val iconColor by transition.animateColor(label = "") {
@@ -238,11 +242,12 @@ class HorizontalNavigationBar(
                                 animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
                                 label = "indicatorWidth"
                             )
+                            val tabSizeModifier =
+                                if (isCompact) Modifier.width(74.dp) else Modifier.weight(1f)
                             Column(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.Top,
-                                modifier = Modifier
-                                    .weight(1f)
+                                modifier = tabSizeModifier
                                     .clip(RoundedCornerShape(12.dp))
                                     .clickable(onClick = { onTabChanged(index) })
                                     .padding(vertical = 6.dp, horizontal = 2.dp)

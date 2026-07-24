@@ -19,7 +19,7 @@ object YamboPromoManager {
 
     private const val BANNER_FREQUENCY = 4
     private const val INTERSTITIAL_FREQUENCY = 3
-    private val POPUP_INTERVAL_MS = TimeUnit.DAYS.toMillis(3)
+    private val POPUP_INTERVAL_MS = TimeUnit.DAYS.toMillis(1)
     private const val POPUP_MAX_DISMISSALS = 3
 
     private fun prefs(context: Context) =

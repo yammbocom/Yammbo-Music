@@ -171,7 +171,11 @@ private fun YamboPromoFullScreenContent(
                 text = stringResource(R.string.yambo_promo_fs_feature_3)
             )
 
-            Spacer(Modifier.height(40.dp))
+            Spacer(Modifier.height(28.dp))
+
+            OfferPill()
+
+            Spacer(Modifier.height(24.dp))
 
             Button(
                 onClick = onConverted,
@@ -205,6 +209,37 @@ private fun YamboPromoFullScreenContent(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun OfferPill() {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center,
+        modifier = Modifier
+            .background(YamboWhite.copy(alpha = 0.10f), RoundedCornerShape(50))
+            .padding(horizontal = 14.dp, vertical = 8.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .background(YamboWhite, RoundedCornerShape(6.dp))
+                .padding(horizontal = 8.dp, vertical = 2.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.yambo_promo_offer_badge),
+                color = YamboBlack,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+        Spacer(Modifier.size(10.dp))
+        Text(
+            text = stringResource(R.string.yambo_promo_offer_line),
+            color = YamboWhite,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold
+        )
     }
 }
 

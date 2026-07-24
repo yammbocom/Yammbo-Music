@@ -54,6 +54,7 @@ import it.fast4x.riplay.data.models.PlaylistPreview
 import it.fast4x.riplay.data.models.Song
 import it.fast4x.riplay.enums.Countries
 import it.fast4x.riplay.enums.NavRoutes
+import it.fast4x.riplay.ui.screens.home.HomePodcastsSection
 import it.fast4x.riplay.enums.PlayEventsType
 import it.fast4x.riplay.extensions.listenerlevel.HomepageListenerLevelBadges
 import it.fast4x.riplay.extensions.rewind.HomepageRewind
@@ -442,6 +443,14 @@ fun HomePageExtendedSections(
                     }
                 }
             }
+
+            HomePodcastsSection(
+                navController = navController,
+                thumbnailSizeDp = playlistThumbnailSizeDp,
+                thumbnailSizePx = playlistThumbnailSizePx,
+                disableScrollingText = disableScrollingText,
+                contentPadding = endPaddingValues
+            )
         }
 
         if (showRelatedAlbums)

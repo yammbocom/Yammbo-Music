@@ -211,6 +211,9 @@
     <string name="discovery">Descubrir</string>
     <string name="mood">Estado de ánimo</string>
     <string name="new_albums">Nuevos álbumes</string>
+    <string name="home_podcasts_popular">Podcasts populares</string>
+    <string name="home_podcasts_for_you">Podcasts para ti</string>
+    <string name="podcasts_search_seed">podcast</string>
     <string name="moods_and_genres">Estados de ánimo y géneros</string>
     <string name="search_queries">" entradas de búsqueda "</string>
     <string name="not_find_battery_optimization_settings">No se pudieron encontrar los ajustes de optimización de la batería. Por favor, otorga los permisos manualmente</string>
@@ -1073,7 +1076,7 @@
     <string name="at_info">Info</string>
     <string name="self_closing">Self closing</string>
     <string name="when_player_is_paused">When player is paused</string>
-    <string name="filter_content_type">Filter content type</string>
+    <string name="filter_content_type">Filtrar por tipo</string>
     <string name="rw_thank_you">Thank You</string>
     <string name="rw_the_music_you_love_is_a_piece_of_you_sharing_it_is_the_best_way_to_connect_with_others">The music you love is a piece of you. Sharing it is the best way to connect with others.</string>
     <string name="rw_keep_listening_keep_sharing_keep_loving_never_hate_anyone">Keep listening, keep sharing, keep loving, never hate anyone.</string>
@@ -1398,18 +1401,20 @@
     <string name="app_update_guide_done">Entendido</string>
 
     <!-- Yambo self-promo ads (rotate with AdMob inventory for free users) -->
-    <string name="yambo_promo_banner_title">Disfruta sin límites</string>
-    <string name="yambo_promo_banner_subtitle">Música sin anuncios</string>
-    <string name="yambo_promo_banner_cta">Premium</string>
+    <string name="yambo_promo_banner_title">Hazte Premium</string>
+    <string name="yambo_promo_banner_subtitle">Sin anuncios · Descargas · Sin límites</string>
+    <string name="yambo_promo_banner_cta">Probar</string>
     <string name="yambo_promo_fs_title">Tu música merece más</string>
-    <string name="yambo_promo_fs_subtitle">Hazte Premium y desbloquea todo lo que Yammbo Music tiene para ti.</string>
-    <string name="yambo_promo_fs_feature_1">Sin interrupciones publicitarias</string>
-    <string name="yambo_promo_fs_feature_2">Skips ilimitados y calidad superior</string>
-    <string name="yambo_promo_fs_feature_3">Modo offline en cualquier lugar</string>
+    <string name="yambo_promo_fs_subtitle">Escucha sin anuncios, descarga tu música y podcasts, y disfruta la mejor calidad de audio.</string>
+    <string name="yambo_promo_fs_feature_1">Cero anuncios ni interrupciones</string>
+    <string name="yambo_promo_fs_feature_2">Descargas offline y saltos ilimitados</string>
+    <string name="yambo_promo_fs_feature_3">Mejor calidad de audio y letras sincronizadas</string>
     <string name="yambo_promo_fs_cta">Hazte Premium</string>
     <string name="yambo_promo_fs_skip">Quizás después</string>
+    <string name="yambo_promo_offer_badge">OFERTA</string>
+    <string name="yambo_promo_offer_line">Plan anual · Ahorra 2 meses</string>
     <string name="yambo_promo_popup_title">Hazte Premium</string>
-    <string name="yambo_promo_popup_body">Sin anuncios, skips ilimitados y modo offline. Lleva tu experiencia musical al siguiente nivel.</string>
+    <string name="yambo_promo_popup_body">Sin anuncios, descargas offline, saltos ilimitados, letras sincronizadas y mejor calidad de audio. Con el plan anual ahorras 2 meses.</string>
     <string name="yambo_promo_popup_cta">Ver planes</string>
     <string name="yambo_promo_popup_close">Cerrar</string>
 </resources>

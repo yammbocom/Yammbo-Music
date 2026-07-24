@@ -1,1 +1,1 @@
-Multiplatform Music Player
+Open-source music and podcast player

@@ -67,6 +67,7 @@ import it.fast4x.riplay.enums.UiType
 import it.fast4x.riplay.data.models.Artist
 import it.fast4x.riplay.enums.BlacklistType
 import it.fast4x.riplay.enums.NavRoutes
+import it.fast4x.riplay.ui.screens.home.HomePodcastsSection
 import it.fast4x.riplay.extensions.listenerlevel.HomepageListenerLevelBadges
 import it.fast4x.riplay.ui.components.LocalGlobalSheetState
 import it.fast4x.riplay.ui.components.PullToRefreshBox
@@ -716,6 +717,14 @@ fun HomePage(
                             }
                         }
                     }
+
+                    HomePodcastsSection(
+                        navController = navController,
+                        thumbnailSizeDp = playlistThumbnailSizeDp,
+                        thumbnailSizePx = playlistThumbnailSizePx,
+                        disableScrollingText = disableScrollingText,
+                        contentPadding = endPaddingValues
+                    )
                 }
 
                 homePage?.let { page ->

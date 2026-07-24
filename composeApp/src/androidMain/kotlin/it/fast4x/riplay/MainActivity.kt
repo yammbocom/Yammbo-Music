@@ -481,9 +481,6 @@ class MainActivity :
 
         authManager = it.fast4x.riplay.extensions.yammboapi.YammboAuthManager(this)
 
-        // Initialize AdMob
-        it.fast4x.riplay.extensions.ads.YammboAdManager.initialize(this)
-
         // One-shot migration: force keepPlayerMinimized=true for upgraders.
         // Previous versions had inconsistent defaults that left the pref at false.
         runCatching {

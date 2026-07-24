@@ -118,31 +118,36 @@ fun SearchResultsContent(
 
     val headerContent: @Composable (textButton: (@Composable () -> Unit)?) -> Unit = {
 
-        Column(modifier = Modifier.background(colorPalette().accent.copy(alpha = 0.15f))) {
-            Title2Actions(
-                title = "Filter content type",
-                onClick1 = {
-                    menuState.display {
-                        Menu {
-                            ContentType.entries.forEach {
-                                MenuEntry(
-                                    icon = it.icon,
-                                    text = it.textName,
-                                    onClick = {
-                                        onFilterChanged(it)
-                                        menuState.hide()
-                                    }
-                                )
+        // The content-type filter (All / Official / User-generated) is only applied on the
+        // Songs (0) and Videos (3) tabs — on Albums/Artists/Playlists/Featured/Podcasts it was
+        // a no-op header. Only render it where it does something, with a localized title.
+        if (tabIndex == 0 || tabIndex == 3) {
+            Column(modifier = Modifier.background(colorPalette().accent.copy(alpha = 0.15f))) {
+                Title2Actions(
+                    title = stringResource(R.string.filter_content_type),
+                    onClick1 = {
+                        menuState.display {
+                            Menu {
+                                ContentType.entries.forEach {
+                                    MenuEntry(
+                                        icon = it.icon,
+                                        text = it.textName,
+                                        onClick = {
+                                            onFilterChanged(it)
+                                            menuState.hide()
+                                        }
+                                    )
+                                }
                             }
                         }
                     }
-                }
-            )
-            BasicText(
-                text = filterContentType.textName,
-                style = typography().xxs.secondary,
-                modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 8.dp)
-            )
+                )
+                BasicText(
+                    text = filterContentType.textName,
+                    style = typography().xxs.secondary,
+                    modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 8.dp)
+                )
+            }
         }
     }
 

@@ -1,0 +1,6 @@
+- New "Podcasts" section on Home (popular / recommended)
+- Podcast player controls: variable speed (1x–2x) and skip +30s / -15s
+- Podcasts tab moved next to Songs in search; filter tabs now scroll
+- Search results now start at the top
+- Self-promo only (no external ad network); more attractive Premium copy
+- FOSS build variant with no Firebase / Google services

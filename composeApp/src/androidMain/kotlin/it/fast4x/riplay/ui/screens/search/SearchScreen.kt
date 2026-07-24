@@ -204,13 +204,17 @@ fun SearchScreen(
             miniPlayer = miniPlayer,
             navBarContent = { item ->
                 if (isSearchActive) {
+                    // Podcasts is rendered 2nd (right after Songs) per user request.
+                    // The nav bar renders items in call order but keys selection/content
+                    // off the passed index, so each item keeps its ORIGINAL index — the
+                    // when(tabIndex) mapping in SearchResultsContent stays untouched.
                     item(0, stringResource(R.string.songs), R.drawable.musical_notes)
+                    item(6, stringResource(R.string.podcasts), R.drawable.podcast)
                     item(1, stringResource(R.string.albums), R.drawable.music_album)
                     item(2, stringResource(R.string.artists), R.drawable.music_artist)
                     item(3, stringResource(R.string.videos), R.drawable.video)
                     item(4, stringResource(R.string.playlists), R.drawable.playlist)
                     item(5, stringResource(R.string.featured), R.drawable.featured_playlist)
-                    item(6, stringResource(R.string.podcasts), R.drawable.podcast)
                 } else {
                     item(0, stringResource(R.string.online), R.drawable.internet)
                     item(1, stringResource(R.string.library), R.drawable.playlist)

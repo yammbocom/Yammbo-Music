@@ -269,6 +269,9 @@
     <string name="discovery">Discovery</string>
     <string name="mood">Mood</string>
     <string name="new_albums">New albums</string>
+    <string name="home_podcasts_popular">Popular podcasts</string>
+    <string name="home_podcasts_for_you">Podcasts for you</string>
+    <string name="podcasts_search_seed">podcast</string>
     <string name="moods_and_genres">Moods and genres</string>
     <string name="search_queries">" search queries"</string>
     <string name="not_find_battery_optimization_settings">Couldn\'t find battery optimization settings, please whitelist manually</string>
@@ -1390,18 +1393,20 @@
     <string name="play_or_pause_when_receiving_a_call">Play or pause when receiving a call</string>
 
     <!-- Yambo self-promo ads (rotate with AdMob inventory for free users) -->
-    <string name="yambo_promo_banner_title">Enjoy without limits</string>
-    <string name="yambo_promo_banner_subtitle">Music without ads</string>
-    <string name="yambo_promo_banner_cta">Premium</string>
+    <string name="yambo_promo_banner_title">Go Premium</string>
+    <string name="yambo_promo_banner_subtitle">No ads · Downloads · No limits</string>
+    <string name="yambo_promo_banner_cta">Try it</string>
     <string name="yambo_promo_fs_title">Your music deserves more</string>
-    <string name="yambo_promo_fs_subtitle">Go Premium and unleash everything Yammbo Music has to offer.</string>
-    <string name="yambo_promo_fs_feature_1">No ad interruptions</string>
-    <string name="yambo_promo_fs_feature_2">Unlimited skips and lossless quality</string>
-    <string name="yambo_promo_fs_feature_3">Offline downloads anywhere</string>
+    <string name="yambo_promo_fs_subtitle">Listen ad-free, download your music and podcasts, and enjoy the best audio quality.</string>
+    <string name="yambo_promo_fs_feature_1">Zero ads or interruptions</string>
+    <string name="yambo_promo_fs_feature_2">Offline downloads and unlimited skips</string>
+    <string name="yambo_promo_fs_feature_3">Better audio quality and synced lyrics</string>
     <string name="yambo_promo_fs_cta">Go Premium</string>
     <string name="yambo_promo_fs_skip">Maybe later</string>
+    <string name="yambo_promo_offer_badge">OFFER</string>
+    <string name="yambo_promo_offer_line">Yearly plan · Save 2 months</string>
     <string name="yambo_promo_popup_title">Go Premium</string>
-    <string name="yambo_promo_popup_body">No ads, unlimited skips and offline mode. Take your listening to the next level.</string>
+    <string name="yambo_promo_popup_body">No ads, offline downloads, unlimited skips, synced lyrics and better audio quality. Save 2 months with the yearly plan.</string>
     <string name="yambo_promo_popup_cta">See plans</string>
     <string name="yambo_promo_popup_close">Close</string>
 
