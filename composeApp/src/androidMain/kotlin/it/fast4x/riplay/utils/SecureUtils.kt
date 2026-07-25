@@ -15,7 +15,13 @@ object SecureConfig {
 
         if (apiKey.isEmpty()) return ""
 
-        return decrypt(apiKey, masterKeyBytes)
+        // Never throw on a missing/malformed key: a bad or absent ciphertext
+        // must degrade to an empty key instead of crashing LastFmClient init.
+        return try {
+            decrypt(apiKey, masterKeyBytes)
+        } catch (e: Exception) {
+            ""
+        }
     }
 
     private fun decrypt(str: String, key: ByteArray): String {

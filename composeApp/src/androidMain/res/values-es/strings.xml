@@ -1417,4 +1417,7 @@
     <string name="yambo_promo_popup_body">Sin anuncios, descargas offline, saltos ilimitados, letras sincronizadas y mejor calidad de audio. Con el plan anual ahorras 2 meses.</string>
     <string name="yambo_promo_popup_cta">Ver planes</string>
     <string name="yambo_promo_popup_close">Cerrar</string>
+    <string name="yt_login_needed_title">No se pudo reproducir</string>
+    <string name="yt_login_needed_message">Este contenido puede requerir tu cuenta de YouTube. Conéctala para reproducirlo.</string>
+    <string name="yt_login_needed_connect">Conectar</string>
 </resources>

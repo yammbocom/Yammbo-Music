@@ -193,6 +193,7 @@ import it.fast4x.riplay.ui.components.BottomSheetState
 import it.fast4x.riplay.ui.components.CustomModalBottomSheet
 import it.fast4x.riplay.ui.components.LocalGlobalSheetState
 import it.fast4x.riplay.ui.components.rememberBottomSheetState
+import it.fast4x.riplay.ui.components.themed.ConfirmationDialog
 import it.fast4x.riplay.ui.components.themed.CrossfadeContainer
 import it.fast4x.riplay.ui.components.themed.SmartMessage
 import it.fast4x.riplay.ui.screens.player.local.LocalMiniPlayer
@@ -1291,6 +1292,30 @@ class MainActivity :
                                     openTabFromShortcut = openTabFromShortcut,
                                     authManager = authManager
                                 )
+
+                                // Popup shown when online playback fails for
+                                // content that likely requires the user's
+                                // YouTube account and the user is not logged in.
+                                // Offers to connect the account (Settings ->
+                                // Accounts) instead of only showing a toast.
+                                binder?.let { serviceBinder ->
+                                    val needsYtLogin by serviceBinder.playbackNeedsYtLogin.collectAsState()
+                                    if (needsYtLogin) {
+                                        ConfirmationDialog(
+                                            text = stringResource(R.string.yt_login_needed_title) +
+                                                    "\n\n" +
+                                                    stringResource(R.string.yt_login_needed_message),
+                                            confirmText = stringResource(R.string.yt_login_needed_connect),
+                                            cancelText = stringResource(R.string.cancel),
+                                            onDismiss = {
+                                                serviceBinder.playbackNeedsYtLogin.value = false
+                                            },
+                                            onConfirm = {
+                                                navController.navigate(NavRoutes.settings.name)
+                                            }
+                                        )
+                                    }
+                                }
 
                                 val isSnowEffectEnabled by rememberObservedPreference(showSnowfallEffectKey, false)
                                 if (isSnowEffectEnabled)

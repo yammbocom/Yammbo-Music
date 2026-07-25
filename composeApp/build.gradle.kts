@@ -336,8 +336,8 @@ android {
         applicationId = "com.yambo.music"
         minSdk = 24
         targetSdk = 36
-        versionCode = 105
-        versionName = "0.7.105"
+        versionCode = 111
+        versionName = "0.7.111"
 
         multiDexEnabled = true
 
@@ -565,10 +565,13 @@ android {
         // INIT ENVIRONMENT
 
         // INIT APIKEYS
-        resValue("string", "AudioTagInfo_API_KEY", propertyOrEmpty("AudioTagInfo_API_KEY"))
-        resValue("string", "RiPlay_LASTFM_API_KEY", propertyOrEmpty("RiPlay_LASTFM_API_KEY"))
-        resValue("string", "RiPlay_LASTFM_SECRET", propertyOrEmpty("RiPlay_LASTFM_SECRET"))
-        resValue("string", "RiPlay_DISCORD_APPLICATION_ID", propertyOrEmpty("RiPlay_DISCORD_APPLICATION_ID"))
+        // NOTE: propertyOrEmpty() uses findProperty(), which does NOT read local.properties.
+        // Secrets (Last.fm key/secret) live in local.properties, so read that first and fall
+        // back to gradle/project properties (used by CI env vars).
+        resValue("string", "AudioTagInfo_API_KEY", localProperties.getProperty("AudioTagInfo_API_KEY") ?: propertyOrEmpty("AudioTagInfo_API_KEY"))
+        resValue("string", "RiPlay_LASTFM_API_KEY", localProperties.getProperty("RiPlay_LASTFM_API_KEY") ?: propertyOrEmpty("RiPlay_LASTFM_API_KEY"))
+        resValue("string", "RiPlay_LASTFM_SECRET", localProperties.getProperty("RiPlay_LASTFM_SECRET") ?: propertyOrEmpty("RiPlay_LASTFM_SECRET"))
+        resValue("string", "RiPlay_DISCORD_APPLICATION_ID", localProperties.getProperty("RiPlay_DISCORD_APPLICATION_ID") ?: propertyOrEmpty("RiPlay_DISCORD_APPLICATION_ID"))
 
     }
 

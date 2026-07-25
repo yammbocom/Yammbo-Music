@@ -18,10 +18,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import it.fast4x.riplay.extensions.persist.persist
@@ -62,16 +65,31 @@ inline fun <T : Environment.Item> ItemsPage(
 
     // Keep each fresh result set pinned to the top. Tabs whose header renders nothing leave a
     // 0-height "header" item, so the list can anchor to the bottom "loading" row and the first
-    // page shows up scrolled to the end (user had to scroll up). Scroll to the top once, when the
-    // first page of a given query/tab (tag) loads. The saveable flag makes this fire only once per
-    // tag, so pagination appends and returning to a tab keep the user's real scroll position.
-    var didPinTop by rememberSaveable(tag) { mutableStateOf(false) }
-    val hasItems = !itemsPage?.items.isNullOrEmpty()
-    LaunchedEffect(hasItems) {
-        if (hasItems && !didPinTop) {
-            lazyListState.scrollToItem(0)
-            didPinTop = true
+    // page shows up scrolled to the end (user had to scroll up). Scroll to the top once per
+    // composition, when the first page of a given query/tab (tag) loads.
+    //
+    // NOTE: this uses `remember`, NOT `rememberSaveable`. rememberSaveable restored the flag as
+    // `true` when the tab's composable was re-created after navigating away and back (e.g. opening
+    // a podcast/album and pressing back), so the re-pin was skipped and the list re-anchored to the
+    // bottom again. Plain remember resets on every fresh composition, so we re-pin on return too,
+    // while staying stable across recompositions (pagination appends don't re-fire it).
+    var didPinTop by remember(tag) { mutableStateOf(false) }
+    LaunchedEffect(tag) {
+        if (didPinTop) return@LaunchedEffect
+        // Wait for the first page, then re-assert the top over a few frames. Tabs with an empty
+        // (0-height) header let the LazyColumn anchor to the bottom "loading" row, so the first
+        // page shows up scrolled to the end; a single scrollToItem loses the race against that
+        // anchor-preservation, which can re-assert over several frames as layout settles.
+        snapshotFlow { itemsPage?.items?.size ?: 0 }.filter { it > 0 }.first()
+        repeat(5) {
+            withFrameNanos { }
+            if (lazyListState.firstVisibleItemIndex != 0 ||
+                lazyListState.firstVisibleItemScrollOffset != 0
+            ) {
+                lazyListState.scrollToItem(0)
+            }
         }
+        didPinTop = true
     }
 
     LaunchedEffect(lazyListState, updatedItemsPageProvider) {

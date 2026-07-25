@@ -21,6 +21,11 @@ data class Playlist(
     val isYoutubePlaylist: Boolean = false,
     @ColumnInfo(defaultValue = "0") val isPodcast: Boolean = false,
 ) {
+    // Transient cover URL carried into FastShare so podcasts can be shared with
+    // their artwork. Not a Room column (@Ignore) — avoids a schema migration.
+    @androidx.room.Ignore
+    var thumbnailUrl: String? = null
+
     val shareYTUrl: String?
         get() = browseId?.let { "$YT_PLAYLIST_SHARE_BASEURL${it.removePrefix("VL")}" }
     val shareYTMUrl: String?

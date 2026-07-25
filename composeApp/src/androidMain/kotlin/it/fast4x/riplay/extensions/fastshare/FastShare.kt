@@ -93,7 +93,7 @@ fun FastShare(
             is Playlist -> {
                 shareTitle = content.name
                 shareArtist = ""
-                thumbnailUrl = null
+                thumbnailUrl = content.thumbnailUrl
                 urlToShare = content.shareYamboUrl ?: ""
                 ytUrlToShare = content.shareYTUrl ?: content.shareYTMUrl ?: ""
             }

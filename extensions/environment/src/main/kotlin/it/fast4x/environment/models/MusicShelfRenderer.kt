@@ -88,7 +88,7 @@ data class MusicShelfRenderer(
                 ?.musicThumbnailRenderer
                 ?.thumbnail
                 ?.thumbnails
-                ?.firstOrNull()
+                ?.maxByOrNull { (it.width ?: 0) * (it.height ?: 0) }
     }
 }
 

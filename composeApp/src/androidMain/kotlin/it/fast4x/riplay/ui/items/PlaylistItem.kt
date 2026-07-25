@@ -281,6 +281,9 @@ fun PlaylistItem(
                     model = thumbnailUrl.thumbnail(thumbnailSizePx),
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
+                    // Some podcast/playlist artwork URLs 404; show the placeholder icon
+                    // instead of Coil's broken-image glyph.
+                    error = painterResource(R.drawable.playlist),
                     modifier = Modifier.fillMaxSize()
                 )
         },

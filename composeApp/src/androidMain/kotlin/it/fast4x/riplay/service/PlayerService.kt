@@ -170,6 +170,7 @@ import it.fast4x.riplay.extensions.preferences.useVolumeKeysToChangeSongKey
 import it.fast4x.riplay.extensions.preferences.volumeBoostLevelKey
 import it.fast4x.riplay.extensions.preferences.volumeNormalizationKey
 import it.fast4x.riplay.ui.screens.player.online.components.customui.CustomDefaultPlayerUiController
+import it.fast4x.riplay.ui.screens.settings.isYtLoggedIn
 import it.fast4x.riplay.ui.widgets.PlayerHorizontalWidget
 import it.fast4x.riplay.ui.widgets.PlayerVerticalWidget
 import it.fast4x.riplay.utils.BitmapProvider
@@ -1378,6 +1379,13 @@ class PlayerService : Service(),
                                 //durationLong = true,
                                 context = this@PlayerService
                             )
+
+                        // Content that is not playable in the embedded player
+                        // usually requires the user's YouTube account. If the
+                        // user is not logged in, ask the UI to offer connecting
+                        // the account (a popup) instead of only a toast.
+                        if (error == PlayerConstants.PlayerError.VIDEO_NOT_PLAYABLE_IN_EMBEDDED_PLAYER && !isYtLoggedIn())
+                            binder.playbackNeedsYtLogin.value = true
 
                         localMediaItem?.let {
                             if (!GlobalSharedData.riTuneCastActive) {
@@ -3313,6 +3321,10 @@ class PlayerService : Service(),
             get() = this@PlayerService.player
 
         val isQueueReady = MutableStateFlow(false)
+
+        // Signals the UI that online playback failed for content that likely
+        // requires the user's YouTube account, and the user is not logged in.
+        val playbackNeedsYtLogin = MutableStateFlow(false)
 
         val onlinePlayer: YouTubePlayer?
             get() = this@PlayerService.internalOnlinePlayer.value

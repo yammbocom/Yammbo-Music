@@ -248,7 +248,7 @@ fun Podcast(
         mutableIntStateOf(0)
     }
 
-    val thumbnailContent = adaptiveThumbnailContent(podcastPage == null, podcastPage?.thumbnail?.firstOrNull()?.url)
+    val thumbnailContent = adaptiveThumbnailContent(podcastPage == null, podcastPage?.thumbnail?.maxByOrNull { (it.width ?: 0) * (it.height ?: 0) }?.url)
 
     val lazyListState = rememberLazyListState()
 
@@ -299,7 +299,7 @@ fun Podcast(
                             if (podcastPage != null) {
                                 if (!isLandscape)
                                     AsyncImage(
-                                        model = podcastPage?.thumbnail?.firstOrNull()?.url?.resize(
+                                        model = podcastPage?.thumbnail?.maxByOrNull { (it.width ?: 0) * (it.height ?: 0) }?.url?.resize(
                                             1200,
                                             900
                                         ),

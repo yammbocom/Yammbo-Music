@@ -160,7 +160,9 @@ fun Environment.Podcast.toPlaylist(browseId: String): Playlist
         browseId = browseId,
         name = title,
         isPodcast = true
-    )
+    ).apply {
+        thumbnailUrl = this@toPlaylist.thumbnail.maxByOrNull { (it.width ?: 0) * (it.height ?: 0) }?.url
+    }
 
 val Environment.PlaylistItem.asPlaylist: Playlist
     get() = Playlist (
@@ -180,7 +182,7 @@ val Environment.Podcast.EpisodeItem.asMediaItem: MediaItem
                 .setTitle(title)
                 .setArtist(author.toString())
                 .setAlbumTitle(title)
-                .setArtworkUri(thumbnail.firstOrNull()?.url?.toUri())
+                .setArtworkUri(thumbnail.maxByOrNull { (it.width ?: 0) * (it.height ?: 0) }?.url?.toUri())
                 .setExtras(
                     bundleOf(
                         //"albumId" to album?.endpoint?.browseId,
