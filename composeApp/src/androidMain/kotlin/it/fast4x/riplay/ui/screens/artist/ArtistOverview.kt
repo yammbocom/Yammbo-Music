@@ -486,7 +486,10 @@ fun ArtistOverview(
                             }
 
                             }
-                            .padding(horizontal = 20.dp, vertical = 11.dp)
+                            // Fixed height so the pill matches the circular buttons beside
+                            // it; padding alone left it a few dp shorter.
+                            .height(40.dp)
+                            .padding(horizontal = 20.dp)
                     ) {
                         BasicText(
                             text = if (artist?.bookmarkedAt == null) stringResource(R.string.follow)

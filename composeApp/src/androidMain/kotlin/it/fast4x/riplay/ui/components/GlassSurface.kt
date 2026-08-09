@@ -48,17 +48,30 @@ fun Modifier.glassSurface(
     // The sheen is *light* in both themes — it stands for a highlight catching the bevel.
     // Using colors.text here was wrong: in the light theme text is black, so the "highlight"
     // darkened the top edge and every panel looked dirty.
-    val sheen = if (isDark) Color.White.copy(alpha = 0.08f) else Color.White.copy(alpha = 0.60f)
+    //
+    // It also has to stay subtle on light surfaces: at 0.60 it read as a white block inside
+    // the panel rather than a highlight, which is what made the nav bar look two-tone.
+    val sheen = if (isDark) Color.White.copy(alpha = 0.08f) else Color.White.copy(alpha = 0.18f)
 
     // The border, on the other hand, has to invert: a white hairline is invisible on a light
     // surface, so there it becomes a soft dark edge instead.
     val edge = if (isDark) Color.White else Color.Black
     val edgeAlpha = if (isDark) borderAlpha else borderAlpha * 0.45f
 
+    // Elevation shadows are near-invisible on dark backgrounds but ring a light one with a
+    // pale halo, which is what haloed every circular button in the light theme.
+    val effectiveElevation = if (isDark) elevation else elevation * 0.3f
+
+    // Translucency is the point of the effect, but it also means the panel reproduces
+    // whatever sits behind it — and in the light theme the jump between "content behind"
+    // and "empty background behind" reads as a bright band across the bar. Dark themes hide
+    // it because everything behind is near-black, so only the light one needs the opacity.
+    val effectiveAlpha = if (isDark) alpha else (alpha + 0.14f).coerceAtMost(0.96f)
+
     return this
-        .shadow(elevation = elevation, shape = shape, clip = false)
+        .shadow(elevation = effectiveElevation, shape = shape, clip = false)
         .clip(shape)
-        .background(colors.background1.copy(alpha = alpha))
+        .background(colors.background1.copy(alpha = effectiveAlpha))
         .background(
             Brush.verticalGradient(
                 colors = listOf(sheen, Color.Transparent)

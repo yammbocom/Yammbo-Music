@@ -843,7 +843,8 @@ fun AlbumDetails(
                                                     context = context
                                                 )
                                             }
-                                        ),
+                                        )
+                                        .padding(9.dp),
                                     onClick = {}
                                 )
 
