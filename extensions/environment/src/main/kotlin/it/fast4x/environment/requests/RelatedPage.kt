@@ -23,39 +23,90 @@ suspend fun Environment.relatedPage(body: NextBody) = runCatchingNonCancellable 
         mask("contents.singleColumnMusicWatchNextResultsRenderer.tabbedRenderer.watchNextTabbedResultsRenderer.tabs.tabRenderer(endpoint,title)")
     }.body<NextResponse>()
 
-    val browseId = nextResponse
+    val tabs = nextResponse
         .contents
         ?.singleColumnMusicWatchNextResultsRenderer
         ?.tabbedRenderer
         ?.watchNextTabbedResultsRenderer
         ?.tabs
-        ?.getOrNull(2)
-        ?.tabRenderer
-        ?.endpoint
-        ?.browseEndpoint
-        ?.browseId
+
+    // Diagnostic: how many watch-next tabs came back and what they are called.
+    println("Innertube RelatedPage tabs: " + tabs?.map { it.tabRenderer?.title })
+
+    // The watch-next tabs are Up next / Lyrics / Related, and the related one used to
+    // sit at index 2. That position is not guaranteed, but the id prefix is: related
+    // pages are "MPTRt...", lyrics are "MPLYt...". Picking by prefix identifies the
+    // right tab whatever the order or language. Falling back to "first tab with a
+    // browseId" is what fetched the lyrics page instead — it returns a valid response
+    // with no songs in it, which looks exactly like a working request that found nothing.
+    val allBrowseIds = tabs?.mapNotNull { it.tabRenderer?.endpoint?.browseEndpoint?.browseId }
+    val browseId = allBrowseIds?.firstOrNull { it.startsWith("MPTRt") }
+        ?: tabs?.getOrNull(2)?.tabRenderer?.endpoint?.browseEndpoint?.browseId
         ?: return@runCatchingNonCancellable null
+
+    println("Innertube RelatedPage browseIds=$allBrowseIds picked=$browseId")
 
     val response = client.post(_3djbhqyLpE) {
         setBody(BrowseBody(browseId = browseId))
-        mask("contents.sectionListRenderer.contents.musicCarouselShelfRenderer(header.musicCarouselShelfBasicHeaderRenderer(title,strapline),contents($musicResponsiveListItemRendererMask,$musicTwoRowItemRendererMask))")
+        // No field mask here (the default is "*"). A narrow mask is what silently drops
+        // whichever shelf shape YouTube happened to use, and the loss happens server-side,
+        // so no downstream parsing can recover it. This costs a little bandwidth once per
+        // home load and removes a whole class of "the section is mysteriously empty" bugs.
+        mask()
     }.body<BrowseResponse>()
 
     val sectionListRenderer = response
         .contents
         ?.sectionListRenderer
 
-    println("mediaItem Innertube RelatedPage sectionListRenderer ${sectionListRenderer
-        ?.findSectionByTitle("You might also like")
-        ?.musicCarouselShelfRenderer
-        ?.contents}")
+    // Diagnostic: the section titles actually returned. When the songs shelf comes
+    // back empty this is the only way to tell "request failed" from "title didn't match".
+    println("Innertube RelatedPage sections: " + sectionListRenderer?.contents?.map { content ->
+        content.musicCarouselShelfRenderer?.header?.musicCarouselShelfBasicHeaderRenderer
+            ?.title?.runs?.firstOrNull()?.text
+    })
+
+    // Matching the literal English title breaks whenever YouTube returns the shelf
+    // under a different heading (localised response, or a renamed section) — the whole
+    // "quick picks" row then silently collapses to the seed song. Fall back to matching
+    // by shape: the songs shelf is the only carousel whose items are
+    // musicResponsiveListItemRenderer; playlists, albums and artists all use
+    // musicTwoRowItemRenderer.
+    val songsFromCarousel = (
+            sectionListRenderer
+                ?.findSectionByTitle("You might also like")
+                ?.musicCarouselShelfRenderer
+                ?: sectionListRenderer
+                    ?.contents
+                    ?.firstOrNull { content ->
+                        content.musicCarouselShelfRenderer
+                            ?.contents
+                            ?.any { it.musicResponsiveListItemRenderer != null } == true
+                    }
+                    ?.musicCarouselShelfRenderer
+            )
+        ?.contents
+        ?.mapNotNull(MusicCarouselShelfRenderer.Content::musicResponsiveListItemRenderer)
+
+    // Same shelf, other shape: a flat list rather than a carousel.
+    val songsFromShelf = sectionListRenderer
+        ?.contents
+        ?.firstOrNull { content ->
+            content.musicShelfRenderer
+                ?.contents
+                ?.any { it.musicResponsiveListItemRenderer != null } == true
+        }
+        ?.musicShelfRenderer
+        ?.contents
+        ?.mapNotNull { it.musicResponsiveListItemRenderer }
+
+    println(
+        "Innertube RelatedPage songs: carousel=${songsFromCarousel?.size} " +
+                "shelf=${songsFromShelf?.size} sections=${sectionListRenderer?.contents?.size}"
+    )
 
     Environment.RelatedPage(
-        songs = sectionListRenderer
-            ?.findSectionByTitle("You might also like")
-            ?.musicCarouselShelfRenderer
-            ?.contents
-            ?.mapNotNull(MusicCarouselShelfRenderer.Content::musicResponsiveListItemRenderer)
+        songs = (songsFromCarousel?.takeIf { it.isNotEmpty() } ?: songsFromShelf)
             ?.mapNotNull(Environment.SongItem::from),
         playlists = sectionListRenderer
             ?.findSectionByTitle("Recommended playlists")

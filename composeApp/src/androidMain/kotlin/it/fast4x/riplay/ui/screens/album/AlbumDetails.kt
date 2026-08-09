@@ -43,7 +43,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.compositeOver
@@ -90,6 +92,7 @@ import it.fast4x.riplay.ui.components.SwipeablePlaylistItem
 import it.fast4x.riplay.ui.components.themed.AlbumsItemMenu
 import it.fast4x.riplay.ui.components.themed.AutoResizeText
 import it.fast4x.riplay.ui.components.themed.FontSizeRange
+import it.fast4x.riplay.ui.components.glassSurface
 import it.fast4x.riplay.ui.components.themed.HeaderIconButton
 import it.fast4x.riplay.ui.components.themed.InputTextDialog
 import it.fast4x.riplay.ui.components.themed.ItemsList
@@ -124,6 +127,7 @@ import it.fast4x.riplay.ui.styling.medium
 import it.fast4x.riplay.extensions.preferences.parentalControlEnabledKey
 import it.fast4x.riplay.extensions.preferences.rememberPreference
 import it.fast4x.riplay.utils.resize
+import it.fast4x.riplay.utils.resizeNoCrop
 import it.fast4x.riplay.ui.styling.secondary
 import it.fast4x.riplay.ui.styling.semiBold
 import it.fast4x.riplay.extensions.preferences.showFloatingIconKey
@@ -566,18 +570,31 @@ fun AlbumDetails(
                                     if (!isLandscape)
                                         Box {
                                             AsyncImage(
-                                                model = album?.thumbnailUrl?.resize(1200, 1200),
+                                                model = album?.thumbnailUrl?.resizeNoCrop(1200, 1200),
                                                 contentDescription = "loading...",
-                                                contentScale = ContentScale.Crop,
+                                                // Same as the artist header: full width, height
+                                                // from the artwork's own ratio. Square covers
+                                                // stay square; anything else is still whole.
+                                                contentScale = ContentScale.FillWidth,
                                                 modifier = Modifier
                                                     .fillMaxWidth()
-                                                    .aspectRatio(3f / 4f)
                                                     .align(Alignment.Center)
-                                                    .fadingEdge(
-                                                        top = WindowInsets.systemBars
-                                                            .asPaddingValues()
-                                                            .calculateTopPadding() + Dimensions.fadeSpacingTop,
-                                                        bottom = Dimensions.fadeSpacingBottom
+                                            )
+
+                                            // Bottom scrim so the album title stays legible.
+                                            Box(
+                                                modifier = Modifier
+                                                    .matchParentSize()
+                                                    .background(
+                                                        Brush.verticalGradient(
+                                                            colorStops = arrayOf(
+                                                                // Short and low: carries the
+                                                                // title without veiling the art.
+                                                                0.68f to Color.Transparent,
+                                                                0.88f to colorPalette().background0.copy(alpha = 0.6f),
+                                                                1f to colorPalette().background0
+                                                            )
+                                                        )
                                                     )
                                             )
                                             if (album?.isYoutubeAlbum == true) {
@@ -618,13 +635,38 @@ fun AlbumDetails(
                                         //.padding(bottom = 20.dp)
                                     )
 
+                                    // No app bar on this screen: back floats over the cover.
+                                    val statusBarTop = WindowInsets.systemBars
+                                        .asPaddingValues().calculateTopPadding()
+
+                                    Box(
+                                        modifier = Modifier
+                                            .align(Alignment.TopStart)
+                                            .padding(start = 12.dp, top = statusBarTop + 2.dp)
+                                            .size(40.dp)
+                                            .glassSurface(shape = CircleShape, elevation = 6.dp)
+                                            .clickable { navController.popBackStack() },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Image(
+                                            painter = painterResource(R.drawable.chevron_back),
+                                            contentDescription = null,
+                                            colorFilter = ColorFilter.tint(colorPalette().text),
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+
+                                    // Share as a glass pill, matching Back on the other side.
                                     HeaderIconButton(
                                         icon = R.drawable.share_social,
                                         color = colorPalette().text,
-                                        iconSize = 24.dp,
+                                        iconSize = 20.dp,
                                         modifier = Modifier
                                             .align(Alignment.TopEnd)
-                                            .padding(top = 5.dp, end = 5.dp),
+                                            .padding(end = 12.dp, top = statusBarTop + 2.dp)
+                                            .size(40.dp)
+                                            .glassSurface(shape = CircleShape, elevation = 6.dp)
+                                            .padding(10.dp),
                                         onClick = {
                                             showFastShare = true
 //                                        album?.shareYTUrl?.let { url ->
@@ -644,24 +686,6 @@ fun AlbumDetails(
                                         }
                                     )
 
-                                    FastPlayActionsBar(
-                                        modifier = Modifier.fillMaxWidth(.5f).align(Alignment.BottomCenter).padding(bottom = 50.dp),
-                                        onPlayNowClick = {
-                                            binder?.stopRadio()
-                                            binder?.player?.forcePlayFromBeginning(
-                                                songs.filter { it.likedAt != -1L }
-                                                    .map(Song::asMediaItem)
-                                            )
-                                        },
-                                        onShufflePlayClick = {
-                                            binder?.stopRadio()
-                                            binder?.player?.forcePlayFromBeginning(
-                                                songs.filter { it.likedAt != -1L }
-                                                    .shuffled()
-                                                    .map(Song::asMediaItem)
-                                            )
-                                        }
-                                    )
 
                                 } else {
                                     Column(
@@ -712,6 +736,33 @@ fun AlbumDetails(
                                 }
                             }
 
+                        // Play / shuffle as their own item: dropping them into the existing
+                        // "actions" item would stack them on top of the icon row, since a
+                        // LazyColumn item has no layout of its own.
+                        item(key = "playActions") {
+                          // Lazy items are left-aligned by default, so a half-width bar sits
+                          // against the edge; this Box centres it.
+                          Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                            FastPlayActionsBar(
+                                modifier = Modifier.fillMaxWidth(.55f),
+                                        onPlayNowClick = {
+                                            binder?.stopRadio()
+                                            binder?.player?.forcePlayFromBeginning(
+                                                songs.filter { it.likedAt != -1L }
+                                                    .map(Song::asMediaItem)
+                                            )
+                                        },
+                                        onShufflePlayClick = {
+                                            binder?.stopRadio()
+                                            binder?.player?.forcePlayFromBeginning(
+                                                songs.filter { it.likedAt != -1L }
+                                                    .shuffled()
+                                                    .map(Song::asMediaItem)
+                                            )
+                                        }
+                                    )
+                          }
+                        }
                         item(
                             key = "actions",
                             contentType = 0
@@ -732,7 +783,8 @@ fun AlbumDetails(
                                     },
                                     color = colorPalette().accent,
                                     modifier = Modifier
-                                        .padding(horizontal = 25.dp)
+                                        .padding(horizontal = 8.dp)
+                                        .glassSurface(shape = CircleShape, elevation = 6.dp)
                                         .combinedClickable(
                                             onClick = {
                                                 if (isYtSyncEnabled() && !isNetworkConnected(
@@ -803,6 +855,7 @@ fun AlbumDetails(
                                     onClick = {},
                                     modifier = Modifier
                                         .padding(horizontal = 5.dp)
+                                        .glassSurface(shape = CircleShape, elevation = 6.dp)
                                         .combinedClickable(
                                             onClick = {
                                                 if (songs.any { it.likedAt != -1L }) {
@@ -827,6 +880,7 @@ fun AlbumDetails(
                                                 )
                                             }
                                         )
+                                        .padding(9.dp)
                                 )
 
                                 HeaderIconButton(
@@ -836,6 +890,7 @@ fun AlbumDetails(
                                     onClick = {},
                                     modifier = Modifier
                                         .padding(horizontal = 5.dp)
+                                        .glassSurface(shape = CircleShape, elevation = 6.dp)
                                         .combinedClickable(
                                             onClick = {
                                                 if (songs.any { it.likedAt != -1L }) {
@@ -862,11 +917,13 @@ fun AlbumDetails(
                                                 )
                                             }
                                         )
+                                        .padding(9.dp)
                                 )
 
                                 HeaderIconButton(
                                     modifier = Modifier
                                         .padding(horizontal = 5.dp)
+                                        .glassSurface(shape = CircleShape, elevation = 6.dp)
                                         .combinedClickable(
                                             onClick = {
                                                 nowPlayingItem = -1
@@ -886,7 +943,8 @@ fun AlbumDetails(
                                                     context = context
                                                 )
                                             }
-                                        ),
+                                        )
+                                        .padding(9.dp),
                                     icon = R.drawable.locate,
                                     enabled = songs.isNotEmpty(),
                                     color = if (songs.isNotEmpty()) colorPalette().text else colorPalette().textDisabled,
@@ -896,6 +954,7 @@ fun AlbumDetails(
                                 HeaderIconButton(
                                     modifier = Modifier
                                         .padding(horizontal = 5.dp)
+                                        .glassSurface(shape = CircleShape, elevation = 6.dp)
                                         .combinedClickable(
                                             onClick = {
                                                 showFastShare = true
@@ -907,7 +966,8 @@ fun AlbumDetails(
                                                     context = context
                                                 )
                                             }
-                                        ),
+                                        )
+                                        .padding(9.dp),
                                     icon = R.drawable.get_app,
                                     enabled = songs.isNotEmpty(),
                                     color = if (songs.isNotEmpty()) colorPalette().text else colorPalette().textDisabled,
@@ -916,7 +976,9 @@ fun AlbumDetails(
 
                                 HeaderIconButton(
                                     modifier = Modifier
-                                        .padding(horizontal = 5.dp),
+                                        .padding(horizontal = 5.dp)
+                                        .glassSurface(shape = CircleShape, elevation = 6.dp)
+                                        .padding(9.dp),
                                     icon = R.drawable.ellipsis_horizontal,
                                     enabled = songs.isNotEmpty(),
                                     color = if (songs.isNotEmpty()) colorPalette().text else colorPalette().textDisabled,

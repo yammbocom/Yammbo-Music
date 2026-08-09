@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -67,7 +68,9 @@ import it.fast4x.riplay.ui.components.themed.HeaderWithIcon
 import it.fast4x.riplay.ui.components.themed.MultiFloatingActionsContainer
 import it.fast4x.riplay.ui.styling.Dimensions
 import it.fast4x.riplay.ui.styling.px
-import it.fast4x.riplay.ui.screens.welcome.WelcomeMessage
+import it.fast4x.riplay.ui.screens.home.HomeCircleButton
+import it.fast4x.riplay.ui.screens.home.HomeGreetingHeader
+import it.fast4x.riplay.ui.screens.home.JumpBackInSection
 import it.fast4x.riplay.extensions.preferences.disableScrollingTextKey
 import it.fast4x.riplay.extensions.preferences.homeTypeKey
 import it.fast4x.riplay.utils.isLandscape
@@ -271,15 +274,21 @@ fun HomePageExtended(
 
     var refreshing by remember { mutableStateOf(false) }
 
+    // A null related page doesn't mean "still loading": the request can finish
+    // empty and then the quick-picks spinner would never stop.
+    var quickPicksLoading by remember { mutableStateOf(true) }
+
     fun refresh() {
         if (refreshing) return
         loadedData = false
         relatedPageResult = null
         relatedInit = null
         trending = null
+        quickPicksLoading = true
         refreshScope.launch(Dispatchers.IO) {
             refreshing = true
             loadData()
+            quickPicksLoading = false
             delay(500)
             refreshing = false
         }
@@ -289,6 +298,7 @@ fun HomePageExtended(
         loadedData = false
         loadData()
         loadedData = true
+        quickPicksLoading = false
     }
 
 
@@ -450,28 +460,28 @@ fun HomePageExtended(
                         navController = navController
                     )
 
-                Row (
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(end = 12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    WelcomeMessage()
-
-                    IconButton(
-                        modifier = Modifier.size(24.dp),
-                        icon = when (homeType) {
-                            HomeType.Tabbed -> R.drawable.singlepage
-                            else -> R.drawable.multipage
-                        },
-                        onClick = { homeType = when (homeType) {
-                                HomeType.Tabbed -> HomeType.Classic
-                                else ->  HomeType.Tabbed
+                HomeGreetingHeader(
+                    navController = navController,
+                    onSettingsClick = onSettingsClick,
+                    extraActions = {
+                        HomeCircleButton(
+                            iconId = when (homeType) {
+                                HomeType.Tabbed -> R.drawable.singlepage
+                                else -> R.drawable.multipage
+                            },
+                            contentDescription = stringResource(R.string.home),
+                            onClick = {
+                                homeType = when (homeType) {
+                                    HomeType.Tabbed -> HomeType.Classic
+                                    else -> HomeType.Tabbed
+                                }
                             }
-                        },
-                        color = colorPalette().accent,
-                    )
-                }
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                    }
+                )
+
+                JumpBackInSection()
 
                 if (homeType == HomeType.Tabbed) {
                     ButtonsRow(
@@ -507,6 +517,7 @@ fun HomePageExtended(
             binder = binder,
             trending = trending,
             relatedInit = relatedInit,
+            quickPicksLoading = quickPicksLoading,
             discoverPageInit = discoverPageInit,
             playEventType = playEventType,
             quickPicksLazyGridState = quickPicksLazyGridState,

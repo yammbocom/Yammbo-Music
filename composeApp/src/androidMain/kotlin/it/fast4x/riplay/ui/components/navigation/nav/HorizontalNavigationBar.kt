@@ -45,6 +45,7 @@ import it.fast4x.riplay.enums.NavigationBarPosition
 import it.fast4x.riplay.enums.NavigationBarType
 import it.fast4x.riplay.enums.UiType
 import it.fast4x.riplay.ui.styling.Dimensions
+import it.fast4x.riplay.ui.components.glassSurface
 import it.fast4x.riplay.ui.components.themed.Button
 import it.fast4x.riplay.ui.components.themed.TextIconButton
 import it.fast4x.riplay.utils.applyIf
@@ -166,9 +167,12 @@ class HorizontalNavigationBar(
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = if (NavigationBarPosition.Bottom.isCurrent()) Arrangement.Bottom else Arrangement.Top,
+            // The Scaffold paints its containerColor across the whole bottomBar slot, which
+            // showed up as a lighter rectangle around the floating pill. Painting this strip
+            // with the app background makes the slot indistinguishable from the page.
             modifier = modifier
                 .fillMaxWidth()
-                .background(colorPalette().background1)
+                .background(colorPalette().background0)
         ) {
 
             // Definizione delle transizioni
@@ -196,12 +200,23 @@ class HorizontalNavigationBar(
                     verticalArrangement = Arrangement.SpaceAround,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(if (isNavbarBottom) Dimensions.navigationBarHeight + bottomInset else 40.dp + topInset)
+                        // Inset from the screen edges so the bar reads as a floating pill
+                        // rather than a docked band. The system inset is applied as outer
+                        // margin, keeping the glass clear of the gesture handle.
                         .applyIf(isNavbarBottom) {
-                            padding(contentPadding)
+                            padding(
+                                start = 12.dp,
+                                end = 12.dp,
+                                bottom = bottomInset + 10.dp
+                            )
                         }
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(colorPalette().background1)
+                        .applyIf(!isNavbarBottom) {
+                            padding(start = 12.dp, end = 12.dp, top = topInset + 6.dp)
+                        }
+                        // Height of the pill itself; the insets above are outer margin, so
+                        // adding them here too would double-count them.
+                        .height(if (isNavbarBottom) Dimensions.navigationBarHeight else 40.dp)
+                        .glassSurface(shape = RoundedCornerShape(26.dp))
                 ) {
                     val scrollState = rememberScrollState()
 

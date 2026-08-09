@@ -41,6 +41,10 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.compositeOver
@@ -84,6 +88,7 @@ import it.fast4x.riplay.data.models.defaultQueue
 import it.fast4x.riplay.utils.thumbnailShape
 import it.fast4x.riplay.utils.typography
 import it.fast4x.riplay.ui.components.CustomModalBottomSheet
+import it.fast4x.riplay.ui.components.glassSurface
 import it.fast4x.riplay.ui.components.LocalGlobalSheetState
 import it.fast4x.riplay.ui.components.SwipeablePlaylistItem
 import it.fast4x.riplay.ui.components.themed.AutoResizeText
@@ -115,6 +120,7 @@ import it.fast4x.riplay.utils.isNetworkConnected
 import it.fast4x.riplay.extensions.preferences.parentalControlEnabledKey
 import it.fast4x.riplay.extensions.preferences.rememberPreference
 import it.fast4x.riplay.utils.resize
+import it.fast4x.riplay.utils.resizeNoCrop
 import it.fast4x.riplay.ui.styling.secondary
 import it.fast4x.riplay.ui.styling.semiBold
 import it.fast4x.riplay.extensions.preferences.showFloatingIconKey
@@ -254,21 +260,36 @@ fun ArtistOverview(
                     if (!isLandscape)
                         Box {
                             AsyncImage(
-                                model = artistPage?.artist?.thumbnail?.url?.resize(
+                                model = artistPage?.artist?.thumbnail?.url?.resizeNoCrop(
                                     1200,
                                     1200
                                 ),
                                 contentDescription = "loading...",
-                                contentScale = ContentScale.Crop,
+                                // No fixed aspect ratio: artist photos are landscape, album art
+                                // is square, and forcing either into the other's box means
+                                // cropping or letterboxing. FillWidth takes the full width and
+                                // lets the image's own proportions decide the height, so it is
+                                // always whole and never padded with empty bars.
+                                contentScale = ContentScale.FillWidth,
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .aspectRatio(1f) // square artist cover in-app
                                     .align(Alignment.Center)
-                                    .fadingEdge(
-                                        top = WindowInsets.systemBars
-                                            .asPaddingValues()
-                                            .calculateTopPadding() + Dimensions.fadeSpacingTop,
-                                        bottom = Dimensions.fadeSpacingBottom
+                            )
+
+                            // Bottom scrim so the artist name stays readable over any photo.
+                            Box(
+                                modifier = Modifier
+                                    .matchParentSize()
+                                    .background(
+                                        Brush.verticalGradient(
+                                            colorStops = arrayOf(
+                                                // Short and low: it only has to carry the
+                                                // name, not veil the photo.
+                                                0.68f to Color.Transparent,
+                                                0.88f to colorPalette().background0.copy(alpha = 0.6f),
+                                                1f to colorPalette().background0
+                                            )
+                                        )
                                     )
                             )
                             if (artist?.isYoutubeArtist == true) {
@@ -309,20 +330,63 @@ fun ArtistOverview(
                     )
 
 
-                    HeaderIconButton(
-                        icon = R.drawable.share_social,
-                        color = colorPalette().text,
-                        iconSize = 24.dp,
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(top = 5.dp, end = 5.dp),
-                        onClick = {
-                            showFastShare = true
-                        }
-                    )
+                    // The app bar is gone on this screen, so back and share float over the
+                    // photo as glass pills, clear of the status bar.
+                    val statusBarTop = WindowInsets.systemBars.asPaddingValues().calculateTopPadding()
 
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(start = 12.dp, top = statusBarTop + 2.dp)
+                            .size(40.dp)
+                            .glassSurface(shape = CircleShape, elevation = 6.dp)
+                            .clickable { navController.popBackStack() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Image(
+                            painter = painterResource(R.drawable.chevron_back),
+                            contentDescription = null,
+                            colorFilter = ColorFilter.tint(colorPalette().text),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
+                    // Share moved down into the glass action bar; only Back stays over the
+                    // photo, and it has to, because this screen draws no app bar.
+
+
+                }
+
+                artistPage?.subscribers?.let {
+                    Row(
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                    ) {
+                        BasicText(
+                            text = String.format(
+                                stringResource(R.string.artist_subscribers),
+                                it
+                            ),
+                            style = typography().xs.semiBold,
+                            maxLines = 1
+                        )
+                    }
+                }
+
+
+                // Controls sit below the photo, but the glass belongs to each individual
+                // button — a single panel wrapping the whole row reads as a grey slab.
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier
+                        .padding(horizontal = 16.dp)
+                        .padding(top = 14.dp)
+                        .fillMaxWidth()
+                ) {
                     FastPlayActionsBar(
-                        modifier = Modifier.fillMaxWidth(.5f).align(Alignment.BottomCenter).padding(bottom = 50.dp),
+                        modifier = Modifier.fillMaxWidth(.55f),
                         onPlayNowClick = {
                             CoroutineScope(Dispatchers.IO).launch {
                                 artistPage?.sections?.firstOrNull{sec -> sec.items.firstOrNull() is Environment.SongItem}.let {
@@ -372,28 +436,6 @@ fun ArtistOverview(
                             }
                         }
                     )
-
-                }
-
-                artistPage?.subscribers?.let {
-                    Row(
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                    ) {
-                        BasicText(
-                            text = String.format(
-                                stringResource(R.string.artist_subscribers),
-                                it
-                            ),
-                            style = typography().xs.semiBold,
-                            maxLines = 1
-                        )
-                    }
-                }
-
-
                 Row(
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically,
@@ -401,11 +443,15 @@ fun ArtistOverview(
                         .padding(top = 10.dp)
                         .fillMaxWidth()
                 ) {
-                    SecondaryTextButton(
-                        text = if (artist?.bookmarkedAt == null) stringResource(R.string.follow) else stringResource(
-                            R.string.following
-                        ),
-                        onClick = {
+                    // Built inline rather than with SecondaryTextButton: that component always
+                    // paints its own fill, which shows up as a second background inside the
+                    // glass pill. Here the glass is the only surface.
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .padding(end = 24.dp)
+                            .glassSurface(shape = RoundedCornerShape(20.dp), elevation = 6.dp)
+                            .clickable {
                             if (isYtSyncEnabled() && !isNetworkConnected(context)){
                                 SmartMessage(context.resources.getString(R.string.no_connection), context = context, type = PopupType.Error)
                             } else {
@@ -439,10 +485,16 @@ fun ArtistOverview(
                                     }
                             }
 
-                        },
-                        alternative = artist?.bookmarkedAt == null,
-                        modifier = Modifier.padding(end = 30.dp)
-                    )
+                            }
+                            .padding(horizontal = 20.dp, vertical = 11.dp)
+                    ) {
+                        BasicText(
+                            text = if (artist?.bookmarkedAt == null) stringResource(R.string.follow)
+                            else stringResource(R.string.following),
+                            style = typography().xxs.semiBold.color(colorPalette().text),
+                            maxLines = 1
+                        )
+                    }
 
                     artistPage?.shuffleEndpoint?.let { endpoint ->
                         HeaderIconButton(
@@ -451,7 +503,8 @@ fun ArtistOverview(
                             color = colorPalette().text,
                             onClick = {},
                             modifier = Modifier
-                                .padding(horizontal = 5.dp)
+                                .padding(horizontal = 6.dp)
+                                .glassSurface(shape = CircleShape, elevation = 6.dp)
                                 .combinedClickable(
                                     onClick = {
                                         binder?.stopRadio()
@@ -464,6 +517,7 @@ fun ArtistOverview(
                                         )
                                     }
                                 )
+                                .padding(10.dp)
                         )
                     }
 
@@ -474,7 +528,8 @@ fun ArtistOverview(
                             color = colorPalette().text,
                             onClick = {},
                             modifier = Modifier
-                                .padding(horizontal = 5.dp)
+                                .padding(horizontal = 6.dp)
+                                .glassSurface(shape = CircleShape, elevation = 6.dp)
                                 .combinedClickable(
                                     onClick = {
                                         binder?.stopRadio()
@@ -487,9 +542,23 @@ fun ArtistOverview(
                                         )
                                     }
                                 )
+                                .padding(10.dp)
                         )
                     }
 
+                    artistPage?.let {
+                        HeaderIconButton(
+                            icon = R.drawable.share_social,
+                            enabled = true,
+                            color = colorPalette().text,
+                            onClick = { showFastShare = true },
+                            modifier = Modifier
+                                .padding(horizontal = 6.dp)
+                                .glassSurface(shape = CircleShape, elevation = 6.dp)
+                                .padding(10.dp)
+                        )
+                    }
+                }
                 }
             }
 

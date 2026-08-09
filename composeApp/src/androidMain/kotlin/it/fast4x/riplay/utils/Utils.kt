@@ -442,6 +442,32 @@ val MediaItem.isOfficialContent: Boolean
 val MediaItem.isUserGeneratedContent: Boolean
     get() = mediaMetadata.extras?.getBoolean("isUserGeneratedContent") == true
 
+/**
+ * Same CDN sizing as [resize] but WITHOUT the "-p" flag.
+ *
+ * "-p" asks Google's image CDN for a server-side smart crop: it returns a square cut of the
+ * original, so the trimming happens before the bytes ever reach the app and no ContentScale
+ * can undo it. Use this when the whole image must be visible (artist headers, album covers);
+ * the CDN then scales to fit inside the box and preserves the original aspect ratio.
+ */
+fun String.resizeNoCrop(
+    width: Int? = null,
+    height: Int? = null,
+): String {
+    if (width == null && height == null) return this
+    val w = width ?: height
+    val h = height ?: width
+    Regex("(https://(?:lh3|yt3)\\.googleusercontent\\.com/[^=]+)=.*").matchEntire(this)?.let {
+        return "${it.groupValues[1]}=w$w-h$h-l90-rj"
+    }
+    if (startsWith("https://lh3.googleusercontent.com") ||
+        startsWith("https://yt3.googleusercontent.com")
+    ) {
+        return "$this=w$w-h$h-l90-rj"
+    }
+    return this
+}
+
 fun String.resize(
     width: Int? = null,
     height: Int? = null,

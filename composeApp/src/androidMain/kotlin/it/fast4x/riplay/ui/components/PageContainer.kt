@@ -54,6 +54,8 @@ fun PageContainer(
     modifier: Modifier = Modifier,
     navController: NavController,
     miniPlayer: @Composable () -> Unit = {},
+    /** Set false on artwork-led screens (artist, album) so the cover can run to the top edge. */
+    showTopBar: Boolean = true,
     content: @Composable AnimatedVisibilityScope.(Int) -> Unit
 ) {
     val transitionEffect by rememberPreference(transitionEffectKey, TransitionEffect.Scale)
@@ -83,7 +85,7 @@ fun PageContainer(
         modifier = modifier,
         containerColor = colorPalette().background0,
         topBar = {
-            if( UiType.RiPlay.isCurrent() )
+            if( showTopBar && UiType.RiPlay.isCurrent() )
                 AppHeader( navController ).Draw()
         },
         bottomBar = {
