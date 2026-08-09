@@ -46,9 +46,9 @@ fun ChipItemColored(
         ThumbnailRoundness.Heavy
     )
 
-    val stripeColor = Color(255, Random.nextInt(256), Random.nextInt(256), Random.nextInt(256))
-
-    val chipColor by remember { derivedStateOf { stripeColor } }
+    // The stripe used to be a random colour per chip. The brand is strictly black
+    // and white, so it is now the theme accent: same "coloured edge" cue, no hue.
+    val chipColor = colorPalette().accent
 
     Column (
         verticalArrangement = Arrangement.SpaceAround,
@@ -103,9 +103,7 @@ fun ChipGridItemColored(
         ThumbnailRoundness.Heavy
     )
 
-    val stripeColor = Color(255, Random.nextInt(256), Random.nextInt(256), Random.nextInt(256))
-
-    val chipColor by remember { derivedStateOf { stripeColor } }
+    val chipColor = colorPalette().accent
 
     Column (
         verticalArrangement = Arrangement.SpaceAround,

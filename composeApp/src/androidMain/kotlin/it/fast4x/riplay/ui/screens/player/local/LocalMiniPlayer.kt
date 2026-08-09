@@ -45,6 +45,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -76,6 +77,7 @@ import it.fast4x.riplay.enums.PopupType
 import it.fast4x.riplay.data.models.Song
 import it.fast4x.riplay.utils.thumbnailShape
 import it.fast4x.riplay.utils.typography
+import it.fast4x.riplay.ui.components.glassSurface
 import it.fast4x.riplay.ui.components.themed.IconButton
 import it.fast4x.riplay.ui.components.themed.NowPlayingSongIndicator
 import it.fast4x.riplay.ui.components.themed.SmartMessage
@@ -263,8 +265,8 @@ fun LocalMiniPlayer(
 
     SwipeToDismissBox(
         modifier = Modifier
-            .padding(horizontal = 16.dp)
-            .clip(RoundedCornerShape(12.dp)),
+            .padding(horizontal = 12.dp)
+            .clip(RoundedCornerShape(22.dp)),
         state = dismissState,
         backgroundContent = {
             /*
@@ -278,10 +280,14 @@ fun LocalMiniPlayer(
             )
              */
 
+            // At rest this layer must be invisible: the panel on top is now translucent,
+            // so anything painted here shows through as a ghost icon and a coloured half.
+            val isSwiping = dismissState.targetValue != SwipeToDismissBoxValue.Settled
+
             Row(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(colorPalette().background1)
+                    .background(if (isSwiping) colorPalette().background1 else Color.Transparent)
                     .padding(horizontal = 16.dp),
                 horizontalArrangement = when (dismissState.targetValue) {
                     SwipeToDismissBoxValue.StartToEnd -> Arrangement.Start
@@ -290,22 +296,24 @@ fun LocalMiniPlayer(
                 },
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = when (dismissState.targetValue) {
-                        SwipeToDismissBoxValue.StartToEnd -> {
-                            if (miniPlayerType == MiniPlayerType.Modern) ImageVector.vectorResource(R.drawable.play_skip_back) else
-                                if (likedAt == null)
-                                    ImageVector.vectorResource(R.drawable.heart_outline)
-                                else if(likedAt == -1L)
-                                    ImageVector.vectorResource(R.drawable.heart_dislike)
-                                else ImageVector.vectorResource(R.drawable.heart)
-                        }
-                        SwipeToDismissBoxValue.EndToStart ->  ImageVector.vectorResource(R.drawable.play_skip_forward)
-                        SwipeToDismissBoxValue.Settled ->  ImageVector.vectorResource(R.drawable.play)
-                    },
-                    contentDescription = null,
-                    tint = colorPalette().iconButtonPlayer,
-                )
+                if (isSwiping) {
+                    Icon(
+                        imageVector = when (dismissState.targetValue) {
+                            SwipeToDismissBoxValue.StartToEnd -> {
+                                if (miniPlayerType == MiniPlayerType.Modern) ImageVector.vectorResource(R.drawable.play_skip_back) else
+                                    if (likedAt == null)
+                                        ImageVector.vectorResource(R.drawable.heart_outline)
+                                    else if(likedAt == -1L)
+                                        ImageVector.vectorResource(R.drawable.heart_dislike)
+                                    else ImageVector.vectorResource(R.drawable.heart)
+                            }
+                            SwipeToDismissBoxValue.EndToStart ->  ImageVector.vectorResource(R.drawable.play_skip_forward)
+                            SwipeToDismissBoxValue.Settled ->  ImageVector.vectorResource(R.drawable.play)
+                        },
+                        contentDescription = null,
+                        tint = colorPalette().iconButtonPlayer,
+                    )
+                }
             }
         }
     ) {
@@ -350,7 +358,12 @@ fun LocalMiniPlayer(
                         }
                     )
                 }
-                .background(colorPalette().background2)
+                // Glass panel instead of a flat surface. The progress overlay below still
+                // draws on top of it, so the played portion stays visible. The explicit clip
+                // keeps that overlay inside the rounded shape — on a translucent panel a
+                // square-cornered block is glaringly obvious, especially in the light theme.
+                .glassSurface(shape = RoundedCornerShape(22.dp), elevation = 12.dp)
+                .clip(RoundedCornerShape(22.dp))
                 .fillMaxWidth()
                 .drawBehind {
                     if (backgroundProgress == BackgroundProgress.Both || backgroundProgress == BackgroundProgress.MiniPlayer) {

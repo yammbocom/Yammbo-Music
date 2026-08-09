@@ -79,6 +79,10 @@ class YammboAuthManager(context: Context) {
 
     fun getSubscriptionPlan(): String = prefs.getString(KEY_SUBSCRIPTION_PLAN, "").orEmpty()
 
+    /** Raw renewal date as the backend sent it; empty when unknown. */
+    fun getSubscriptionRenewsAt(): String =
+        prefs.getString(KEY_SUBSCRIPTION_RENEWS_AT, "").orEmpty()
+
     fun saveSubscriptionStatus(response: SubscriptionStatusResponse) {
         prefs.edit {
             putBoolean(KEY_SUBSCRIPTION_ACTIVE, response.subscribed)

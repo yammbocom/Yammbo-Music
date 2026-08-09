@@ -761,6 +761,21 @@ interface Database {
     @Query("SELECT COUNT(1) FROM Song WHERE id LIKE '$LOCAL_KEY_PREFIX%'")
     fun onDeviceSongsCount(): Flow<Int>
 
+    /* Profile summary counters. Cheap single-row aggregates: the profile header
+       shows them on every resume, so materialising the full lists would be wasteful. */
+
+    @Query("SELECT IFNULL(SUM(playTime), 0) FROM Event")
+    fun totalListeningTimeMs(): Flow<Long>
+
+    @Query(
+        "SELECT COUNT(DISTINCT SongArtistMap.artistId) FROM SongArtistMap " +
+                "JOIN Event ON Event.songId = SongArtistMap.songId"
+    )
+    fun listenedArtistsCount(): Flow<Int>
+
+    @Query("SELECT COUNT(1) FROM Playlist")
+    fun playlistsCount(): Flow<Int>
+
     @Transaction
     @Query("SELECT * FROM Song WHERE artistsText = :name ORDER BY title COLLATE NOCASE ASC")
     fun artistSongsByname(name: String): Flow<List<Song>>

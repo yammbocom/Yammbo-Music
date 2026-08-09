@@ -75,7 +75,8 @@ import it.fast4x.riplay.ui.components.themed.HeaderWithIcon
 import it.fast4x.riplay.ui.components.themed.MultiFloatingActionsContainer
 import it.fast4x.riplay.ui.styling.Dimensions
 import it.fast4x.riplay.ui.styling.px
-import it.fast4x.riplay.ui.screens.welcome.WelcomeMessage
+import it.fast4x.riplay.ui.screens.home.HomeGreetingHeader
+import it.fast4x.riplay.ui.screens.home.JumpBackInSection
 import it.fast4x.riplay.extensions.preferences.disableScrollingTextKey
 import it.fast4x.riplay.utils.isLandscape
 import it.fast4x.riplay.extensions.preferences.playEventsTypeKey
@@ -153,6 +154,11 @@ fun HomePage(
     var relatedPage by remember { mutableStateOf(HomeDataCache.relatedPage) }
     var discoverPage by remember { mutableStateOf(HomeDataCache.discoverPage) }
     var homePage by remember { mutableStateOf(HomeDataCache.homePage) }
+
+    // A null `relatedPage` on its own doesn't mean "still loading": the request can
+    // finish empty (no network, blacklisted results, Environment returning null) and
+    // then the spinner would never stop. Track the attempt separately.
+    var quickPicksLoading by remember { mutableStateOf(HomeDataCache.relatedPage == null) }
 
     var preferitesArtists by remember { mutableStateOf<List<Artist>>(emptyList()) }
 
@@ -311,9 +317,12 @@ fun HomePage(
         relatedPage = null
         trending = null
 
+        quickPicksLoading = true
+
         refreshScope.launch(Dispatchers.IO) {
             refreshing = true
             loadData()
+            quickPicksLoading = false
             delay(500)
             refreshing = false
         }
@@ -348,6 +357,8 @@ fun HomePage(
         if (HomeDataCache.discoverPage != null) discoverPage = HomeDataCache.discoverPage
         if (HomeDataCache.relatedPage != null) relatedPage = HomeDataCache.relatedPage
         if (HomeDataCache.trending != null) trending = HomeDataCache.trending
+
+        quickPicksLoading = false
     }
 
 
@@ -428,7 +439,12 @@ fun HomePage(
                         navController = navController
                     )
 
-                WelcomeMessage()
+                HomeGreetingHeader(
+                    navController = navController,
+                    onSettingsClick = onSettingsClick
+                )
+
+                JumpBackInSection()
 
                 // Listener levels (Monthly/Annual badges) hidden — Yammbo Music customization
                 // if (showListenerLevels)
@@ -645,7 +661,7 @@ fun HomePage(
 
                     }
 
-                    if (relatedPage == null) Loader()
+                    if (relatedPage == null && quickPicksLoading) Loader()
 
                 }
 

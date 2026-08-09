@@ -320,6 +320,8 @@ fun AlbumScreen(
         modifier = Modifier,
         navController = navController,
         miniPlayer = miniPlayer,
+        // Cover-led screen: no app bar, the artwork runs to the top edge.
+        showTopBar = false,
     ) {
         AlbumDetails(
             navController = navController,

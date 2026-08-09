@@ -108,6 +108,9 @@ fun HomePageExtendedSections(
     binder: PlayerService.Binder?,
     trending: Song?,
     relatedInit: Environment.RelatedPage?,
+    /** True only while the quick-picks request is in flight; a finished-but-empty
+     *  result must not keep the spinner alive forever. */
+    quickPicksLoading: Boolean,
     discoverPageInit: Environment.DiscoverPage?,
     playEventType: PlayEventsType,
     quickPicksLazyGridState: LazyGridState,
@@ -370,7 +373,7 @@ fun HomePageExtendedSections(
                 }
             }
 
-            if (relatedInit == null) Loader()
+            if (relatedInit == null && quickPicksLoading) Loader()
 
         }
 

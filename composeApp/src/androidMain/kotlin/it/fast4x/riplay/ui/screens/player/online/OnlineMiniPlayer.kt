@@ -49,6 +49,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -83,6 +84,7 @@ import it.fast4x.riplay.data.models.Info
 import it.fast4x.riplay.data.models.Song
 import it.fast4x.riplay.utils.thumbnailShape
 import it.fast4x.riplay.utils.typography
+import it.fast4x.riplay.ui.components.glassSurface
 import it.fast4x.riplay.ui.components.themed.IconButton
 import it.fast4x.riplay.ui.components.themed.NowPlayingSongIndicator
 import it.fast4x.riplay.ui.components.themed.SmartMessage
@@ -296,8 +298,8 @@ fun OnlineMiniPlayer(
 
     SwipeToDismissBox(
         modifier = Modifier
-            .padding(horizontal = 16.dp)
-            .clip(RoundedCornerShape(12.dp)),
+            .padding(horizontal = 12.dp)
+            .clip(RoundedCornerShape(22.dp)),
         state = dismissState,
         backgroundContent = {
             /*
@@ -311,10 +313,14 @@ fun OnlineMiniPlayer(
             )
              */
 
+            // Invisible at rest — see the note in LocalMiniPlayer: the panel above is
+            // translucent now, so this layer would show through as a ghost icon.
+            val isSwiping = dismissState.targetValue != SwipeToDismissBoxValue.Settled
+
             Row(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(colorPalette().background1)
+                    .background(if (isSwiping) colorPalette().background1 else Color.Transparent)
                     .padding(horizontal = 16.dp),
                 horizontalArrangement = when (dismissState.targetValue) {
                     SwipeToDismissBoxValue.StartToEnd -> Arrangement.Start
@@ -323,6 +329,7 @@ fun OnlineMiniPlayer(
                 },
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                if (isSwiping) {
                 Icon(
                     imageVector = when (dismissState.targetValue) {
                         SwipeToDismissBoxValue.StartToEnd -> {
@@ -339,6 +346,7 @@ fun OnlineMiniPlayer(
                     contentDescription = null,
                     tint = colorPalette().iconButtonPlayer,
                 )
+                }
             }
         }
     ) {
@@ -388,7 +396,10 @@ fun OnlineMiniPlayer(
                         }
                     )
                 }
-                .background(colorPalette().background2)
+                // Glass panel, matching the local mini player. The clip keeps the progress
+                // overlay inside the rounded shape.
+                .glassSurface(shape = RoundedCornerShape(22.dp), elevation = 12.dp)
+                .clip(RoundedCornerShape(22.dp))
                 .fillMaxWidth()
                 .drawBehind {
                     if (backgroundProgress == BackgroundProgress.Both || backgroundProgress == BackgroundProgress.MiniPlayer) {

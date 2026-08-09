@@ -1324,6 +1324,25 @@
     <string name="account_manage_sub">Manage my subscription</string>
     <string name="account_get_premium_title">Go Premium</string>
     <string name="account_get_premium_subtitle">Unlimited music, no ads, with downloads</string>
+    <string name="account_hint_statistics">What you play the most</string>
+    <string name="profile_your_plan">Your plan</string>
+    <string name="profile_manage">Manage</string>
+    <string name="profile_renews_on">Renews on %1$s</string>
+    <string name="profile_stat_minutes">Minutes</string>
+    <string name="profile_stat_artists">Artists</string>
+    <string name="profile_stat_playlists">Playlists</string>
+    <string name="home_jump_back_in">Jump back in</string>
+    <!-- Library tab -->
+    <string name="library_title">Your Library</string>
+    <string name="library_sort_recent">Recently added</string>
+    <string name="library_sort_az">A–Z</string>
+    <string name="library_see_all">See all</string>
+    <string name="library_empty">Nothing here yet</string>
+    <string name="library_kind_playlist">Playlist</string>
+    <string name="library_kind_artist">Artist</string>
+    <string name="library_kind_album">Album</string>
+    <string name="library_kind_podcast">Podcast</string>
+    <string name="library_song_count">%1$d songs</string>
     <!-- Search tab — Explore / Browse -->
     <string name="search_browse_title">Explore</string>
     <string name="browse_cat_top_hits">Top Hits</string>
@@ -1344,6 +1363,16 @@
     <string name="browse_q_chill">chill</string>
     <string name="browse_cat_workout">Workout</string>
     <string name="browse_q_workout">workout</string>
+    <string name="browse_cat_party">Party</string>
+    <string name="browse_q_party">party</string>
+    <string name="browse_cat_focus">Focus</string>
+    <string name="browse_q_focus">focus music</string>
+    <string name="browse_cat_sleep">Sleep</string>
+    <string name="browse_q_sleep">sleep music</string>
+    <string name="browse_cat_romantic">Romantic</string>
+    <string name="browse_q_romantic">romantic</string>
+    <string name="browse_section_genres">By genre</string>
+    <string name="browse_section_moods">Moods</string>
     <string name="browse_cat_classical">Classical</string>
     <string name="browse_q_classical">classical</string>
     <!-- Local song info -->

@@ -64,6 +64,7 @@ import it.fast4x.riplay.extensions.preferences.preferences
 import it.fast4x.riplay.ui.components.themed.IconButton
 import it.fast4x.riplay.ui.styling.secondary
 import it.fast4x.riplay.ui.components.ScreenContainer
+import it.fast4x.riplay.ui.components.glassSurface
 import it.fast4x.riplay.ui.styling.align
 import it.fast4x.riplay.ui.styling.medium
 import it.fast4x.riplay.utils.colorPalette
@@ -240,7 +241,8 @@ fun SearchScreen(
                         animationSpec = tween(220, easing = FastOutSlowInEasing),
                         label = "search-bg-alpha",
                     )
-                    val searchBarShape = RoundedCornerShape(14.dp)
+                    // Full pill, as in the reference: half the field height.
+                    val searchBarShape = RoundedCornerShape(28.dp)
 
                     BasicTextField(
                         value = textFieldValue,
@@ -255,17 +257,15 @@ fun SearchScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp, vertical = 12.dp)
-                            .clip(searchBarShape)
-                            .background(
-                                color = colorPalette().background2.copy(alpha = animatedBgAlpha),
-                                shape = searchBarShape,
-                            )
+                            // Full pill on glass. The accent ring still marks focus, drawn
+                            // over the glass border so the field reads as active.
+                            .glassSurface(shape = searchBarShape, elevation = 8.dp)
                             .border(
                                 width = 1.dp,
                                 color = colorPalette().accent.copy(alpha = animatedBorderAlpha),
                                 shape = searchBarShape,
                             )
-                            .padding(horizontal = 12.dp, vertical = 10.dp)
+                            .padding(horizontal = 14.dp, vertical = 12.dp)
                             .focusRequester(focusRequester)
                             .onFocusChanged {
                                 if (!it.hasFocus) {

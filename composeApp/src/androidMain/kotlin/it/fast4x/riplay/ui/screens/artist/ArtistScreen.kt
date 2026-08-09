@@ -34,6 +34,9 @@ fun ArtistScreen(
         modifier = Modifier,
         navController = navController,
         miniPlayer = miniPlayer,
+        // The artist photo is the header on this screen, so the app bar is dropped
+        // and the image runs edge to edge under the status bar.
+        showTopBar = false,
     ) {
         ArtistOverview(
             navController = navController,
