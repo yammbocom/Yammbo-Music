@@ -22,6 +22,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -276,16 +277,23 @@ fun PlaylistItem(
                         .background(colorPalette().background1)
                         .padding(24.dp)
                 )
-            else
+            else {
+                // thumbnail() appends size suffixes that some hosts reject, so the resized
+                // URL 404s even though the artwork exists — which is why opening the
+                // playlist showed a cover the list could not. Fall back to the untouched
+                // URL once before giving up and drawing the placeholder.
+                var useOriginalUrl by remember(thumbnailUrl) { mutableStateOf(false) }
+
                 AsyncImage(
-                    model = thumbnailUrl.thumbnail(thumbnailSizePx),
+                    model = if (useOriginalUrl) thumbnailUrl
+                    else thumbnailUrl.thumbnail(thumbnailSizePx),
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
-                    // Some podcast/playlist artwork URLs 404; show the placeholder icon
-                    // instead of Coil's broken-image glyph.
+                    onError = { if (!useOriginalUrl) useOriginalUrl = true },
                     error = painterResource(R.drawable.playlist),
                     modifier = Modifier.fillMaxSize()
                 )
+            }
         },
         songCount = songCount,
         showSongsCount = showSongsCount,
