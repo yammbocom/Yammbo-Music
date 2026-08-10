@@ -1344,6 +1344,9 @@
     <string name="library_kind_podcast">Podcast</string>
     <string name="library_song_count">%1$d songs</string>
     <!-- Search tab — Explore / Browse -->
+    <string name="search_popular_artists">Popular artists</string>
+    <string name="search_popular_playlists">Popular playlists</string>
+    <string name="search_top_rank">TOP #%1$d</string>
     <string name="search_browse_title">Explore</string>
     <string name="browse_cat_top_hits">Top Hits</string>
     <string name="browse_q_top_hits">top hits</string>

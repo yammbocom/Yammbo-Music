@@ -6,6 +6,7 @@ import io.ktor.client.request.setBody
 import it.fast4x.environment.Environment
 import it.fast4x.environment.Environment.getBestQuality
 import it.fast4x.environment.models.BrowseResponse
+import it.fast4x.environment.models.Context
 import it.fast4x.environment.models.MusicCarouselShelfRenderer
 import it.fast4x.environment.models.NavigationEndpoint
 import it.fast4x.environment.models.SectionListRenderer
@@ -13,9 +14,20 @@ import it.fast4x.environment.models.bodies.BrowseBodyWithLocale
 import it.fast4x.environment.models.bodies.FormData
 
 suspend fun Environment.chartsPageComplete(countryCode: String = "") = runCatching {
+    // The country has to travel twice. formData is the page's own country selector, but the
+    // context's `gl` is what YouTube geolocates the request by, and DefaultWebWithLocale
+    // only fills in `hl` (its `gl` line is commented out). Sending the selector alone left
+    // every request resolving to the global chart, which is dominated by the highest
+    // play-count markets and comes back as Bollywood no matter where the user is.
+    val localisedContext = Context.DefaultWebWithLocale.let { ctx ->
+        if (countryCode.isBlank()) ctx
+        else ctx.copy(client = ctx.client.copy(gl = countryCode))
+    }
+
     val response = client.post(_3djbhqyLpE) {
         setBody(
             BrowseBodyWithLocale(
+                context = localisedContext,
                 browseId = "FEmusic_charts",
                 formData = FormData(listOf(countryCode))
             )

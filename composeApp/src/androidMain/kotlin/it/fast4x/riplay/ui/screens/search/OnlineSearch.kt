@@ -562,6 +562,15 @@ fun OnlineSearch(
                 // Empty-query browse: a curated row of categories that pre-fill the
                 // search box. Placed after saved searches so recent queries stay on top.
                 if (textFieldValue.text.isEmpty()) {
+                    // Both sections render nothing until there is listening history, so a
+                    // fresh install still opens on the browse grid rather than empty boxes.
+                    item(key = "popular-artists") {
+                        PopularArtistsRow(navController = navController)
+                    }
+                    item(key = "popular-playlists") {
+                        PopularPlaylistsGrid(navController = navController)
+                    }
+
                     item(key = "browse-title") {
                         TitleMiniSection(
                             title = stringResource(R.string.search_browse_title),

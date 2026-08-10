@@ -231,7 +231,7 @@ fun About() {
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 BasicText(
-                    text = "Hecho con ♥ por Yammbo LLC",
+                    text = "Hecho con ♥ por Frank Rivera",
                     style = typo.xs.copy(
                         color = colors.textSecondary,
                         textAlign = TextAlign.Center,
