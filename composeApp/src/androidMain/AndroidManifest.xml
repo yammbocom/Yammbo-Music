@@ -53,7 +53,9 @@
     <uses-feature    android:name="android.software.leanback" android:required="false" />
     <uses-feature    android:name="android.hardware.touchscreen" android:required="false" />
     <uses-feature    android:name="android.hardware.microphone" android:required="false" />
-    <uses-feature    android:name="android.hardware.type.automotive" android:required="false" />
+    <!-- Do NOT declare android.hardware.type.automotive here: Play rejects an app that declares
+         the Automotive OS feature together with the projected Android Auto metadata
+         (com.google.android.gms.car.application). This app targets projected Auto only. -->
 
 
 
