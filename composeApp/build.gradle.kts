@@ -336,8 +336,8 @@ android {
         applicationId = "com.yambo.music"
         minSdk = 24
         targetSdk = 36
-        versionCode = 111
-        versionName = "0.7.111"
+        versionCode = 112
+        versionName = "0.7.112"
 
         multiDexEnabled = true
 

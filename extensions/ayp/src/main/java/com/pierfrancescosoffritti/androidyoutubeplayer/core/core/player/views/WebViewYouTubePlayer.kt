@@ -130,9 +130,24 @@ internal class WebViewYouTubePlayer constructor(
 
   @SuppressLint("SetJavaScriptEnabled")
   private fun initWebView(playerOptions: IFramePlayerOptions, videoId: String?) {
+    // Nothing here is a user interface, so the WebView's own click and touch feedback
+    // is only ever noise on top of the music.
+    isSoundEffectsEnabled = false
+    isHapticFeedbackEnabled = false
+
     settings.apply {
       javaScriptEnabled = true
       mediaPlaybackRequiresUserGesture = false
+      // domStorageEnabled stays OFF. The YouTube embed keeps its own volume in
+      // localStorage under yt-player-volume and restores it whenever the player
+      // re-initialises. With no DOM storage it cannot, so playback always starts at the
+      // volume this app asks for — which is the behaviour we want, since the volume is
+      // driven from PlayerService and not by whatever the embed last remembered.
+      // Deliberately LOAD_NO_CACHE, decided in 0cea5dd0a: the WebView cache grows without
+      // bound and nothing here can evict it. LOAD_DEFAULT does save the re-download of the
+      // IFrame API script on every song, and upstream runs it today — but they had already
+      // backed it out once (3bba8302e) for this same reason. Do not flip it without a plan
+      // for capping the cache.
       cacheMode = WebSettings.LOAD_NO_CACHE
     }
 

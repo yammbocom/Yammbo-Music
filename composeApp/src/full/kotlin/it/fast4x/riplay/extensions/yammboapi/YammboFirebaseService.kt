@@ -67,7 +67,7 @@ class YammboFirebaseService : FirebaseMessagingService() {
         )
 
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(R.drawable.app_icon)
+            .setSmallIcon(R.drawable.ic_stat_yammbo)
             .setContentTitle(title)
             .setContentText(body)
             .setAutoCancel(true)

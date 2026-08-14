@@ -91,7 +91,7 @@ class CheckUpdateWorker(context: Context, params: WorkerParameters) : CoroutineW
         )
 
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.app_icon)
+            .setSmallIcon(R.drawable.ic_stat_yammbo)
             .setContentTitle("Check update")
             .setContentText(message)
             .setPriority(NotificationCompat.PRIORITY_HIGH)

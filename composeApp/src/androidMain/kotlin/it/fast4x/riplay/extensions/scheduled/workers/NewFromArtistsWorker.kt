@@ -126,7 +126,7 @@ class NewFromArtistsWorker(context: Context, params: WorkerParameters) : Corouti
             .setSummaryText("Click to see details")
 
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.app_icon)
+            .setSmallIcon(R.drawable.ic_stat_yammbo)
             .setContentTitle("New releases")
             .setContentText("Completed...")
             .setStyle(bigTextStyle)

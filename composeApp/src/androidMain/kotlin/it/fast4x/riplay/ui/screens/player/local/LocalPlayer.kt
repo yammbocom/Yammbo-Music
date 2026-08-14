@@ -244,6 +244,7 @@ import it.fast4x.riplay.extensions.preferences.queueLoopTypeKey
 import it.fast4x.riplay.extensions.preferences.queueTypeKey
 import it.fast4x.riplay.extensions.preferences.rememberPreference
 import it.fast4x.riplay.extensions.preferences.rememberObservedPreference
+import it.fast4x.riplay.utils.rememberSavableAnimatable
 import it.fast4x.riplay.utils.seamlessPlay
 import it.fast4x.riplay.ui.styling.semiBold
 import it.fast4x.riplay.utils.setQueueLoopState
@@ -2109,9 +2110,7 @@ fun LocalPlayer(
                          mutableFloatStateOf(0f)
                      }
 
-                     val rotation = remember {
-                         Animatable(currentRotation)
-                     }
+                     val rotation = rememberSavableAnimatable(currentRotation)
 
                      LaunchedEffect(player.isPlaying, pagerStateFS.settledPage) {
                          if (player.isPlaying && it == pagerStateFS.settledPage) {

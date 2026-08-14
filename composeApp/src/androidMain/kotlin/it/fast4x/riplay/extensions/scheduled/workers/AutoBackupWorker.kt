@@ -383,7 +383,7 @@ class AutoBackupWorker(context: Context, params: WorkerParameters) : CoroutineWo
         )
 
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.app_icon)
+            .setSmallIcon(R.drawable.ic_stat_yammbo)
             .setContentTitle("Auto backup")
             .setContentText(message)
             .setPriority(NotificationCompat.PRIORITY_HIGH)

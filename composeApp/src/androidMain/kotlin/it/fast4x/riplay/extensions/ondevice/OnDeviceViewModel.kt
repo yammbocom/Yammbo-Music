@@ -1,22 +1,30 @@
 package it.fast4x.riplay.extensions.ondevice
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Application
 import android.content.ContentResolver
 import android.content.ContentUris
 import android.content.Context
+import android.content.pm.PackageManager
 import android.database.ContentObserver
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
 import androidx.compose.runtime.mutableStateOf
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewModelScope
+import com.yambo.music.R
 import it.fast4x.riplay.enums.OnDeviceSongSortBy
+import it.fast4x.riplay.enums.PopupType
 import it.fast4x.riplay.enums.SortOrder
+import it.fast4x.riplay.ui.components.themed.SmartMessage
 import it.fast4x.riplay.utils.OnDeviceBlacklist
+import it.fast4x.riplay.utils.appContext
 import it.fast4x.riplay.utils.globalContext
 import it.fast4x.riplay.utils.isAtLeastAndroid10
 import it.fast4x.riplay.utils.isAtLeastAndroid11
+import it.fast4x.riplay.utils.isAtLeastAndroid13
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -99,6 +107,25 @@ class OnDeviceViewModel(application: Application) : AndroidViewModel(application
 
         @SuppressLint("Range")
         fun loadAudioFiles() {
+            // Querying MediaStore without the audio permission throws, and it threw during
+            // startup, so the app died before it could ask for anything. Check first and
+            // tell the user what is missing instead (upstream fix 97adb5ac5, issue #185).
+            val hasPermission = ContextCompat.checkSelfPermission(
+                appContext(),
+                if (isAtLeastAndroid13) Manifest.permission.READ_MEDIA_AUDIO
+                else Manifest.permission.READ_EXTERNAL_STORAGE
+            ) == PackageManager.PERMISSION_GRANTED
+
+            if (!hasPermission) {
+                SmartMessage(
+                    appContext().resources.getString(R.string.media_permission_required_please_grant),
+                    PopupType.Error,
+                    durationLong = true,
+                    context = appContext()
+                )
+                return
+            }
+
             viewModelScope.launch {
                 withContext(Dispatchers.IO) {
                     val collection = if (isAtLeastAndroid10) {

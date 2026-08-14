@@ -239,6 +239,7 @@ import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -726,7 +727,7 @@ class PlayerService : Service(),
                     .setAutoCancel(true)
                     .setOnlyAlertOnce(true)
                     .setShowWhen(true)
-                    .setSmallIcon(R.drawable.app_icon)
+                    .setSmallIcon(R.drawable.ic_stat_yammbo)
                     .build()
             } else {
                 notification()
@@ -785,10 +786,10 @@ class PlayerService : Service(),
             preferences.getBoolean(isShowingThumbnailInLockscreenKey, false)
         medleyDuration = preferences.getFloat(playbackDurationKey, 0f)
 
-        _internalOnlinePlayerView.value = LayoutInflater.from(appContext())
-            .inflate(R.layout.youtube_player, null, false) as YouTubePlayerView
-
-        //_internalOnlinePlayerView.value = view
+        // The view is NOT inflated here any more. Doing it on every call threw away the
+        // one built by the field initializer without releasing it — a leaked WebView per
+        // call — and it made this function do two unrelated jobs. Whoever needs a fresh
+        // view calls replaceOnlinePlayerView(), which disposes of the old one first.
 
         // todo add here all val that requires first initialize and add references in shared preferences, so is not nededed restart service when change it
 
@@ -1115,17 +1116,23 @@ class PlayerService : Service(),
 
     }
 
+    private fun replaceOnlinePlayerView() {
+        // Order matters: stop the old player before dropping the reference, otherwise the
+        // WebView we are about to discard carries on producing sound.
+        _internalOnlinePlayer.value?.pause()
+        _internalOnlinePlayer.value = null
+        _internalOnlinePlayerView.value.release()
+        _internalOnlinePlayerView.value = LayoutInflater.from(appContext())
+            .inflate(R.layout.youtube_player, null, false) as YouTubePlayerView
+    }
+
     fun recreateOnlinePlayerView() {
-//        _internalOnlinePlayerView.value.release()
-//
-//        val newView = LayoutInflater.from(appContext())
-//            .inflate(R.layout.youtube_player, null, false) as YouTubePlayerView
-//
-//        _internalOnlinePlayerView.value = newView
+        replaceOnlinePlayerView()
 
-        initializeVariables()
-
-        initializeOnlinePlayer()
+        // skipAutoload: this is a recovery, not a cold start. The caller restores the
+        // position itself with cueVideo, and letting onReady also loadVideo() is what
+        // restarted the song from the beginning.
+        initializeOnlinePlayer(skipAutoload = true)
     }
 
     private fun initializeLocalPlayer() {
@@ -1172,9 +1179,13 @@ class PlayerService : Service(),
         player.pauseAtEndOfMediaItems = true
     }
 
-    private fun initializeOnlinePlayer() {
+    private fun initializeOnlinePlayer(skipAutoload: Boolean = false) {
 
-        _internalOnlinePlayerView.value.apply {
+        // Captured now so the listener below can tell whether it still belongs to the
+        // current view. A replaced WebView keeps delivering callbacks for a while.
+        val onlinePlayerView = _internalOnlinePlayerView.value
+
+        onlinePlayerView.apply {
             enableAutomaticInitialization = false
 
             enableBackgroundPlayback(true)
@@ -1192,12 +1203,22 @@ class PlayerService : Service(),
                 override fun onReady(youTubePlayer: YouTubePlayer) {
                     super.onReady(youTubePlayer)
 
+                    // A WebView that has already been replaced still reaches onReady. If we
+                    // let it through it overwrites _internalOnlinePlayer with the dead
+                    // player and, below, loads the track again from the start — the
+                    // "song restarts when I hit play/pause" symptom. Silence it and leave.
+                    if (onlinePlayerView !== _internalOnlinePlayerView.value) {
+                        Timber.d("PlayerService onlinePlayer onReady from a stale view, pausing it")
+                        youTubePlayer.pause()
+                        return
+                    }
+
                     _internalOnlinePlayer.value = youTubePlayer
 
                     val customUiController =
                         CustomDefaultPlayerUiController(
                             context,
-                            _internalOnlinePlayerView.value,
+                            onlinePlayerView,
                             youTubePlayer,
                             onTap = {}
                         )
@@ -1211,7 +1232,7 @@ class PlayerService : Service(),
                     customUiController.showBufferingProgress(false)
                     customUiController.showYouTubeButton(false)
                     customUiController.showFullscreenButton(false)
-                    _internalOnlinePlayerView.value.setCustomPlayerUi(customUiController.rootView)
+                    onlinePlayerView.setCustomPlayerUi(customUiController.rootView)
 
                     Timber.d("PlayerService onlinePlayer onReady localmediaItem ${localMediaItem?.mediaId} queue index ${binder.player.currentMediaItemIndex}")
                     Timber.d("PlayerService onlinePlayer onReady isPersistentQueueEnabled $isPersistentQueueEnabled isResumePlaybackOnStart $isResumePlaybackOnStart")
@@ -1219,7 +1240,7 @@ class PlayerService : Service(),
                     youTubePlayer.setVolume(getSystemMediaVolume())
 
                     localMediaItem?.let{
-                        if (isPersistentQueueEnabled && isResumePlaybackOnStart && firstTimeStarted) {
+                        if (isPersistentQueueEnabled && isResumePlaybackOnStart && firstTimeStarted && !skipAutoload) {
                             youTubePlayer.loadVideo(it.mediaId, playFromSecond)
                             Timber.d("PlayerService onlinePlayer onReady loadVideo ${it.mediaId}")
                         }
@@ -1269,8 +1290,17 @@ class PlayerService : Service(),
                                         Timber.e("PlayerService onlinePlayerView: Persistent UNSTARTED state. Probably webView killed. Force to re-initialize.")
 
                                         recreateOnlinePlayerView()
-                                        delay(500)
-                                        val currentPlayer = this@PlayerService._internalOnlinePlayer.value
+
+                                        // Waiting a flat 500 ms was a race: on a slow device
+                                        // the new WebView was not ready yet and this read the
+                                        // old player, or null, and gave up. replaceOnlinePlayerView
+                                        // nulls the reference, so awaiting the next non-null
+                                        // value is exactly "the new player is ready". Bounded,
+                                        // because a WebView that never comes back would leave
+                                        // this coroutine suspended for good.
+                                        val currentPlayer = withTimeoutOrNull(10_000) {
+                                            this@PlayerService._internalOnlinePlayer.first { it != null }
+                                        }
 
                                         localMediaItem?.let { item ->
                                             if (currentPlayer != null) {
@@ -2942,7 +2972,7 @@ class PlayerService : Service(),
             .setContentText(currentMediaItem?.mediaMetadata?.artist)
             //.setSubText(currentMediaItem?.mediaMetadata?.artist)
             .setContentInfo(currentMediaItem?.mediaMetadata?.albumTitle)
-            .setSmallIcon(R.drawable.app_icon)
+            .setSmallIcon(R.drawable.ic_stat_yammbo)
             .setLargeIcon(bitmapProvider?.bitmap)
             .setShowWhen(false)
             .setSilent(true)
@@ -2982,12 +3012,34 @@ class PlayerService : Service(),
         notificationManager = getSystemService(NotificationManager::class.java)
 
         notificationManager?.run {
+            // IMPORTANCE_HIGH lets an ongoing playback notification pop up as a heads-up
+            // banner over whatever the user is doing. The channels below are created LOW
+            // and DEFAULT now, but a channel already registered on a device keeps the
+            // importance it was created with, so the old one has to be dropped first.
+            // Deleting a channel can throw on some ROMs, and this runs during service
+            // start-up, so a failure here must not take playback down with it.
+            runCatching {
+                getNotificationChannel(NOTIFICATION_CHANNEL_ID)?.let { channel ->
+                    if (channel.importance == NotificationManager.IMPORTANCE_HIGH) {
+                        deleteNotificationChannel(NOTIFICATION_CHANNEL_ID)
+                    }
+                }
+
+                getNotificationChannel(SLEEPTIMER_NOTIFICATION_CHANNEL_ID)?.let { channel ->
+                    if (channel.importance == NotificationManager.IMPORTANCE_HIGH) {
+                        deleteNotificationChannel(SLEEPTIMER_NOTIFICATION_CHANNEL_ID)
+                    }
+                }
+            }.onFailure {
+                Timber.d("PlayerService createNotificationChannel could not migrate channels: ${it.message}")
+            }
+
             if (getNotificationChannel(NOTIFICATION_CHANNEL_ID) == null) {
                 createNotificationChannel(
                     NotificationChannel(
                         NOTIFICATION_CHANNEL_ID,
                         NOTIFICATION_CHANNEL_ID,
-                        NotificationManager.IMPORTANCE_HIGH
+                        NotificationManager.IMPORTANCE_LOW
                     ).apply {
                         setSound(null, null)
                         enableLights(false)
@@ -3001,7 +3053,7 @@ class PlayerService : Service(),
                     NotificationChannel(
                         SLEEPTIMER_NOTIFICATION_CHANNEL_ID,
                         SLEEPTIMER_NOTIFICATION_CHANNEL_ID,
-                        NotificationManager.IMPORTANCE_HIGH
+                        NotificationManager.IMPORTANCE_DEFAULT
                     ).apply {
                         setSound(null, null)
                         enableLights(false)
@@ -3416,7 +3468,7 @@ class PlayerService : Service(),
                 .setAutoCancel(true)
                 .setOnlyAlertOnce(true)
                 .setShowWhen(true)
-                .setSmallIcon(R.drawable.app_icon)
+                .setSmallIcon(R.drawable.ic_stat_yammbo)
                 .build()
 
             notificationManager?.notify(SLEEPTIMER_NOTIFICATION_ID, notification)

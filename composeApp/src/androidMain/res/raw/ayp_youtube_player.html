@@ -14,6 +14,23 @@
 
   <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+    <!-- NOTE: this file, not the identically named one in extensions/ayp, is what ships.
+         An app module resource wins the merge over a library one, so edits made only in
+         the ayp module never reach the APK. Change both, or change this one. -->
+
+    <!-- Open the DNS lookup and TCP handshake before any JS runs, so the first song of a
+         session does not pay for them. Only hosts that actually resolve are listed: the
+         media servers live on per session googlevideo subdomains, and a preconnect to a
+         wildcard or to the bare domain opens a connection nothing will ever reuse. -->
+    <link rel="preconnect" href="https://www.youtube.com">
+    <link rel="dns-prefetch" href="https://i.ytimg.com">
+
+    <!-- The AudioContext compressor patch that used to sit here has been taken out while
+         we work out where a mid-session volume drop comes from. It neutralised YouTube's
+         DynamicsCompressor, and removing a compressor lowers perceived loudness, so it is
+         the first suspect. Do not put it back without an A/B against this build. -->
+
     <!-- defer forces the library to execute after the html page is fully parsed. -->
     <!-- This is needed to avoid race conditions, where the library executes and calls `onYouTubeIframeAPIReady` before the page is fully parsed. -->
     <!-- See #873 on GitHub -->
@@ -33,6 +50,7 @@
     var CUED = "CUED";
 
     var YouTubePlayerBridge = window.YouTubePlayerBridge;
+    var YouTubePlayerCallbacks = window.YouTubePlayerCallbacks;
     var player;
 
     var timerId;
@@ -205,6 +223,13 @@ function hideTabletPopup() {
 
         case YT.PlayerState.BUFFERING:
           sendStateChange(BUFFERING);
+
+          // Some WebView sessions sit in BUFFERING while the audio keeps playing. The
+          // clearTimeout at the top of this function had already stopped the ticker, so
+          // the seekbar froze even though the song was advancing. Keep reporting position
+          // and duration here, exactly as PLAYING does.
+          startSendCurrentTimeInterval();
+          sendVideoData(player);
           return;
 
         case YT.PlayerState.CUED:
@@ -303,6 +328,16 @@ function hideTabletPopup() {
 
     function setShuffle(shuffle) {
       player.setShuffle(shuffle);
+    }
+
+    // Backs YouTubePlayer.isMutedAsync / isMuted. Without it the Kotlin side registers
+    // the callbacks interface, calls a function that does not exist, and the
+    // suspendCoroutine behind isMuted() never resumes — a coroutine suspended forever
+    // rather than a visible failure. Nothing calls it today; this keeps it from becoming
+    // a trap the first time something does.
+    function getMuteValue(requestId) {
+      var isMuted = player.isMuted();
+      YouTubePlayerCallbacks.sendBooleanValue(requestId, isMuted);
     }
 
   </script>

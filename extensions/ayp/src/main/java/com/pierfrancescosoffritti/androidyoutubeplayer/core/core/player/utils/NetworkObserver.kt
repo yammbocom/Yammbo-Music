@@ -40,7 +40,7 @@ internal class NetworkObserver(private val context: Context) {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
       val callback = networkCallback ?: return
       val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-      connectivityManager.unregisterNetworkCallback(callback)
+      runCatching { connectivityManager.unregisterNetworkCallback(callback) }
     }
     else {
       val receiver = networkBroadcastReceiver ?: return
@@ -73,7 +73,11 @@ internal class NetworkObserver(private val context: Context) {
     networkCallback = callback
 
     val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-    connectivityManager.registerDefaultNetworkCallback(callback)
+    // Some devices throw here — SecurityException without the permission the OEM expects,
+    // or TooManyRequestsException once the process has registered enough callbacks. Losing
+    // connectivity notifications degrades the player; letting it propagate killed the app.
+    runCatching { connectivityManager.registerDefaultNetworkCallback(callback) }
+      .onFailure { networkCallback = null }
   }
 
   private fun doObserveNetworkLegacy(context: Context) {
@@ -81,7 +85,10 @@ internal class NetworkObserver(private val context: Context) {
       onNetworkAvailable = { listeners.forEach { it.onNetworkAvailable() } },
       onNetworkUnavailable = { listeners.forEach { it.onNetworkUnavailable() } },
     )
-    context.registerReceiver(networkBroadcastReceiver, IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION))
+    // Same reasoning as the modern path: a failed registration must not take the app down.
+    runCatching {
+      context.registerReceiver(networkBroadcastReceiver, IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION))
+    }.onFailure { networkBroadcastReceiver = null }
   }
 }
 

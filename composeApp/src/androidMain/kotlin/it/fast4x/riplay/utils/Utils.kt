@@ -12,11 +12,15 @@ import android.provider.MediaStore
 import android.text.format.DateUtils
 import androidx.annotation.OptIn
 import androidx.annotation.RequiresApi
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.AnimationVector1D
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -1460,4 +1464,24 @@ fun String.cleanOnDeviceName(): String {
     val shortOnDeviceFolderName by rememberObservedPreference(shortOnDeviceFolderNameKey, false)
     return if (shortOnDeviceFolderName)
          this.substringAfterLast("/") else this
+}
+
+/**
+ * An [Animatable] that survives recreation, saving only its current value.
+ *
+ * A plain `remember { Animatable(x) }` inside a pager page is rebuilt from scratch every
+ * time the page leaves and re-enters composition, so a rotation that had reached 200° went
+ * back to 0 while the seed value next to it, held in a rememberSaveable, did not. Animatable
+ * is not itself storable in a Bundle, hence the Saver that keeps the float alone.
+ */
+@Composable
+fun rememberSavableAnimatable(initialValue: Float): Animatable<Float, AnimationVector1D> {
+    val animatableSaver = Saver<Animatable<Float, AnimationVector1D>, Float>(
+        save = { it.value },
+        restore = { savedValue -> Animatable(savedValue) }
+    )
+
+    return rememberSaveable(saver = animatableSaver) {
+        Animatable(initialValue)
+    }
 }
