@@ -139,7 +139,12 @@ fun Thumbnail(
 
     val formatUnsupported = stringResource(R.string.error_file_unsupported_format)
 
-    var artImageAvailable by remember {
+    // Keyed on the song: with a bare remember this stayed false for every later
+    // track once a single cover had failed, so one bad artwork left the
+    // placeholder stuck in the player while the mini player kept showing covers
+    // fine. nullableWindow is read here rather than `window` because that one is
+    // only resolved further down.
+    var artImageAvailable by remember(nullableWindow?.mediaItem?.mediaId) {
         mutableStateOf(true)
     }
 
@@ -168,12 +173,26 @@ fun Thumbnail(
 
     val window = nullableWindow ?: return
 
+    val artworkUrl = window.mediaItem.mediaMetadata.artworkUri.toString()
+
+    // Not every cover is served at 1200px. Rather than dropping straight to the
+    // placeholder, retry once with the URL exactly as the metadata gave it: that
+    // one already carries a size the CDN is known to serve, since it is what the
+    // feed handed us.
+    var useOriginalArtwork by remember(window.mediaItem.mediaId) { mutableStateOf(false) }
+
     val coverPainter = rememberAsyncImagePainter(
         model = ImageRequest.Builder(LocalContext.current)
-            .data(window.mediaItem.mediaMetadata.artworkUri.toString().thumbnail(1200))
+            .data(if (useOriginalArtwork) artworkUrl else artworkUrl.thumbnail(1200))
             .size(Size.ORIGINAL)
             .build(),
-        onError = { artImageAvailable = false },
+        onError = {
+            if (useOriginalArtwork) {
+                artImageAvailable = false
+            } else {
+                useOriginalArtwork = true
+            }
+        },
         onSuccess = { artImageAvailable = true }
     )
 
