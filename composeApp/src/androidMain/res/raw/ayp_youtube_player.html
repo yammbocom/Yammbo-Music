@@ -535,5 +535,58 @@
       YouTubePlayerCallbacks.sendBooleanValue(requestId, isMuted);
     }
 
+
+    // Coming back to the foreground leaves the embed silent, or quieter than it was.
+    // Android hands the WebView its audio focus back, but the IFrame player keeps the
+    // level it was ducked to, and nothing on the Kotlin side can see that: the service
+    // only ever observes the *system* volume, which is why tracing there never caught it.
+    //
+    // Re-assert our own level on the way back in, from lastVolume rather than a hardcoded
+    // 100. The two are the same today — getSystemMediaVolume() returns a flat 100 and the
+    // ducking helper that used to drop the embed to 20 is commented out — but reading back
+    // whatever the service last set keeps this correct if that helper is ever restored.
+    // Loudness normalisation rides on LoudnessEnhancer, not on this, so it is untouched.
+    var volumeRestoreIntervalId = null;
+
+    function restoreVolumeAfterFocus() {
+      // A second trip to the foreground before the first pass ends would otherwise leave
+      // two timers writing the same value.
+      if (volumeRestoreIntervalId !== null) {
+        clearInterval(volumeRestoreIntervalId);
+        volumeRestoreIntervalId = null;
+      }
+
+      // One shot is not enough: the mixer reconnects a beat after the window regains
+      // focus, and a level written before that lands on nothing.
+      var attempts = 0;
+      volumeRestoreIntervalId = setInterval(function () {
+        attempts++;
+        try {
+          var current = activePlayer();
+          // 1 PLAYING, 3 BUFFERING. Anything else is left alone — un-muting a player the
+          // user paused on purpose would be a worse bug than the one being fixed here.
+          var state = current.getPlayerState();
+          if (state === 1 || state === 3) {
+            current.unMute();
+            current.setVolume(lastVolume);
+          }
+        } catch (e) {
+          // The player object does not survive a WebView renderer restart, and throwing
+          // out of the callback would strand the interval running forever.
+        }
+        if (attempts >= 5) {
+          clearInterval(volumeRestoreIntervalId);
+          volumeRestoreIntervalId = null;
+        }
+      }, 150);
+    }
+
+    // Both events, because neither fires reliably on its own across OEM WebViews:
+    // visibilitychange is skipped when the app is only partly covered, and focus does not
+    // always arrive after an unlock.
+    document.addEventListener('visibilitychange', function () {
+      if (!document.hidden) restoreVolumeAfterFocus();
+    });
+    window.addEventListener('focus', restoreVolumeAfterFocus);
   </script>
 </html>
