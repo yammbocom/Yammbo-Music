@@ -143,3 +143,9 @@
 -dontwarn jdk.dynalink.linker.support.CompositeTypeBasedGuardingDynamicLinker
 -dontwarn jdk.dynalink.linker.support.Guards
 -dontwarn jdk.dynalink.support.ChainedCallSite
+# Methods exposed to a WebView with @JavascriptInterface are only ever called from JavaScript,
+# so R8 sees them as unused and renames them away. A renamed bridge method does not fail
+# loudly: the page calls something that no longer exists and simply goes quiet.
+-keepclassmembers class * {
+    @android.webkit.JavascriptInterface <methods>;
+}

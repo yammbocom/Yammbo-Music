@@ -66,6 +66,17 @@ fun MiscSettings() {
     val noLogAvailable = stringResource(R.string.no_log_available)
     var exportCrashlog by remember { mutableStateOf(false) }
 
+    // The document picker creates the destination file as soon as it returns, so giving up
+    // after that point leaves a 0-byte file behind — an export that looks like it worked and
+    // says the log was empty. Everything is checked before the picker ever opens.
+    fun readableLogFile(crashLog: Boolean): File? {
+        val file = File(
+            context.filesDir.resolve("logs"),
+            if (crashLog) "YammboMusic_crash_log.txt" else "YammboMusic_log.txt"
+        )
+        return if (file.exists() && file.length() > 0L) file else null
+    }
+
     val exportLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) { uri ->
             if (uri == null) return@rememberLauncherForActivityResult
@@ -82,12 +93,19 @@ fun MiscSettings() {
                 return@rememberLauncherForActivityResult
             }
 
-            context.applicationContext.contentResolver.openOutputStream(uri)
-                ?.use { outputStream ->
-                    FileInputStream(file).use { inputStream ->
-                        inputStream.copyTo(outputStream)
-                    }
+            // The picker has already created the destination by the time we get here, so a
+            // stream that cannot be opened leaves a file of zero bytes behind and says
+            // nothing. That reads as "the log was empty" instead of "the export failed".
+            val outputStream = context.applicationContext.contentResolver.openOutputStream(uri)
+            if (outputStream == null) {
+                SmartMessage(noLogAvailable, type = PopupType.Info, context = context)
+                return@rememberLauncherForActivityResult
+            }
+            outputStream.use { stream ->
+                FileInputStream(file).use { inputStream ->
+                    inputStream.copyTo(stream)
                 }
+            }
         }
 
     var isExporting by rememberSaveable { mutableStateOf(false) }
@@ -145,11 +163,10 @@ fun MiscSettings() {
                         val file = File(context.filesDir.resolve("logs"), "YammboMusic_log.txt")
                         if (file.exists()) file.delete()
 
-                        val filec = File(
-                            context.filesDir.resolve("logs"),
-                            "YammboMusic_crash_log.txt"
-                        )
-                        if (filec.exists()) filec.delete()
+                        // The crash log used to be deleted here too, which contradicted the
+                        // button right below it announcing that it is always on: turning the
+                        // debug log off threw away the record of a crash that had already
+                        // happened, exactly when someone goes looking for it.
                     } else {
                         SmartMessage(
                             context.resources.getString(R.string.restarting_riplay_is_required),
@@ -174,8 +191,12 @@ fun MiscSettings() {
                 text = "",
                 icon = R.drawable.export,
                 onClick = {
-                    exportCrashlog = false
-                    isExporting = true
+                    if (readableLogFile(crashLog = false) == null) {
+                        SmartMessage(noLogAvailable, type = PopupType.Info, context = context)
+                    } else {
+                        exportCrashlog = false
+                        isExporting = true
+                    }
                 }
             )
             ButtonBarSettingEntry(
@@ -185,8 +206,12 @@ fun MiscSettings() {
                 text = stringResource(R.string.is_always_enabled),
                 icon = R.drawable.export,
                 onClick = {
-                    exportCrashlog = true
-                    isExporting = true
+                    if (readableLogFile(crashLog = true) == null) {
+                        SmartMessage(noLogAvailable, type = PopupType.Info, context = context)
+                    } else {
+                        exportCrashlog = true
+                        isExporting = true
+                    }
                 }
             )
         }

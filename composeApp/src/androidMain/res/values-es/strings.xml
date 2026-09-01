@@ -776,6 +776,8 @@
     <string name="import_favorites">Importar favoritos</string>
     <string name="skip_media_on_error">Saltar automáticamente en caso de error</string>
     <string name="skip_media_on_error_description">Si ocurre un error, el contenido es cambiado</string>
+    <string name="preload_next_song">Precargar la siguiente canción</string>
+    <string name="preload_next_song_description">Descarga el principio de la siguiente canción mientras suena la actual, para que el cambio sea instantáneo. Consume más datos y memoria.</string>
     <string name="skip_media_on_error_message">Ocurrió un error al reproducir %1$s</string>
     <string name="login_required_to_play_this_media">Es necesario iniciar sesión para reproducir este contenido</string>
     <string name="skip_media_on_notavailable_message">Contenido previo no disponible, saltado al siguiente</string>

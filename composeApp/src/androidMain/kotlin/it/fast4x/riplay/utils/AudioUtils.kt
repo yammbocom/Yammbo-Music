@@ -92,7 +92,16 @@ fun getDeviceVolume(context: Context): Float {
 
 fun setDeviceVolume(context: Context, volume: Float) {
     val audioManager = context.getSystemService(AUDIO_SERVICE) as AudioManager
-    audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, (volume * audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)).toInt(), 0)
+    val max = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+    // This is the only place in the app that can set the media volume to an arbitrary value;
+    // everything else moves it a step at a time. The log shows jumps too big for a key press,
+    // and without this line there is no way to tell whether they came through here or from
+    // the phone's own buttons — the volume observer reports the result either way.
+    Timber.d(
+        "PERF-VOL setDeviceVolume requested=$volume -> ${(volume * max).toInt()} " +
+                "(from ${audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)}, max $max)"
+    )
+    audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, (volume * max).toInt(), 0)
 }
 
 @Composable

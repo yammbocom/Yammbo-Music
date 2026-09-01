@@ -32,15 +32,22 @@ import android.media.audiofx.AudioEffect
 import android.media.audiofx.BassBoost
 import android.media.audiofx.LoudnessEnhancer
 import android.media.audiofx.PresetReverb
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.support.v4.media.MediaDescriptionCompat
 import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
 import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
 import android.view.WindowManager
+import android.webkit.WebView
 import androidx.annotation.RequiresApi
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
@@ -61,6 +68,10 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.media.VolumeProviderCompat
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.AuxEffectInfo
+import coil.imageLoader
+import coil.request.ImageRequest
+import coil.size.Size
+import it.fast4x.riplay.utils.LandscapeToSquareTransformation
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackParameters
@@ -158,6 +169,7 @@ import it.fast4x.riplay.extensions.preferences.playbackFadeAudioDurationKey
 import it.fast4x.riplay.extensions.preferences.playbackPitchKey
 import it.fast4x.riplay.extensions.preferences.playbackSpeedKey
 import it.fast4x.riplay.extensions.preferences.preferences
+import it.fast4x.riplay.extensions.preferences.preloadNextSongKey
 import it.fast4x.riplay.extensions.preferences.putEnum
 import it.fast4x.riplay.extensions.preferences.queueLoopTypeKey
 import it.fast4x.riplay.extensions.preferences.resumeOrPausePlaybackWhenDeviceKey
@@ -376,6 +388,46 @@ class PlayerService : Service(),
     private var onlineListenedDurationMs = 0L
     private var lastOnlineMediaId: String? = null
 
+    // Song-switch instrumentation for the online (WebView) player.
+    //
+    // A switch is not one wait but two, and they have different cures: the embedded
+    // player has to start up (until BUFFERING), and then the network has to hand over
+    // enough audio (until PLAYING). Pre-cueing the next song can only shorten the first
+    // one, so the split decides whether that work is worth doing at all. The trigger
+    // label separates a plain queue advance from the recovery paths — a recovery firing
+    // on every switch would look like slowness and needs a different fix entirely.
+    private var onlineLoadStartedAtMs = 0L
+    private var onlineLoadBufferingAtMs = 0L
+    private var onlineLoadMediaId: String? = null
+    private var onlineLoadTrigger: String? = null
+    private var onlineEndedAtMs = 0L
+
+    // Losing the connection is the one failure the online player never reports. The
+    // IFrame API raises errors 2/5/100/101/150 and nothing else, so a dropped network
+    // simply stops the audio: no error, and — as the 2026-08-26 01:06 log shows — not
+    // even a state change. That switch logged PERF-SWITCH start and then nothing at
+    // all, and playback never came back on its own. The library does not cover it
+    // either: its PlaybackResumer only acts when the last error was HTML_5_PLAYER.
+    private var playerNetworkCallback: ConnectivityManager.NetworkCallback? = null
+    private var resumeOnlineWhenNetworkReturns = false
+    private var secondBeforeNetworkLoss = 0f
+
+    // "Playback is what the user is asking for", which is not the same as isPlayingNow.
+    // isPlayingNow tracks the embed's own state, so a stall flips it to false and the
+    // difference between a song that stopped and a song someone stopped is lost. This
+    // survives BUFFERING and only a real pause, an ENDED, or unplugging the headphones
+    // clears it.
+    private var onlinePlaybackIntended = false
+
+    // Artwork for the song after this one, warmed into Coil's cache while the current
+    // one plays, so the cover swap at the transition does not wait on the network.
+    private var preloadedArtworkForMediaId: String? = null
+
+    // Same idea for the audio, handled inside the player page: see the comment at the top
+    // of ayp_youtube_player.html. This side only decides when it is worth asking.
+    private var preloadedOnlineMediaId: String? = null
+    private var onlinePreloadJob: Job? = null
+
     // Manual play-time tracking for LOCAL songs. Replaces the PlaybackStatsListener
     // (removed in initializePlayer) which crashed with IllegalArgumentException inside
     // ExoPlayer's PlaybackStatsTracker.updatePlaybackState on out-of-order analytics events.
@@ -529,6 +581,7 @@ class PlayerService : Service(),
         initializePositionObserver()
         //initializeBluetoothConnect()
         initializeAudioDeviceCallback()
+        initializeNetworkResume()
         initializeNormalizeVolume()
         initializeBassBoost()
         initializeReverb()
@@ -769,6 +822,7 @@ class PlayerService : Service(),
 
                 Timber.d("PlayerService restoreStateIfNeeded LOCAL index $index position $position")
             } else {
+                markOnlineLoadStart(mediaId, "restoreState")
                 _internalOnlinePlayer.value?.pause()
                 _internalOnlinePlayer.value?.cueVideo(mediaId, position.div(1000).toFloat())
                 Timber.d("PlayerService restoreStateIfNeeded ONLINE $mediaId position $position")
@@ -1194,7 +1248,12 @@ class PlayerService : Service(),
 
             val iFramePlayerOptions = IFramePlayerOptions.Builder(appContext())
                 .controls(0) // show/hide controls
-                .listType("playlist")
+                // listType("playlist") used to be set here, with no list to go with it. The
+                // IFrame API requires the two together, and answers a listType on its own
+                // with error 2 — which is exactly the INVALID_PARAMETER_IN_REQUEST that the
+                // log shows arriving milliseconds after every onReady. Nothing here plays an
+                // IFrame playlist anyway: the queue lives in the service and songs are handed
+                // over one loadVideo at a time.
                 .origin(resources.getString(R.string.env_fqqhBZd0cf))
                 .build()
 
@@ -1241,6 +1300,7 @@ class PlayerService : Service(),
 
                     localMediaItem?.let{
                         if (isPersistentQueueEnabled && isResumePlaybackOnStart && firstTimeStarted && !skipAutoload) {
+                            markOnlineLoadStart(it.mediaId, "onReady")
                             youTubePlayer.loadVideo(it.mediaId, playFromSecond)
                             Timber.d("PlayerService onlinePlayer onReady loadVideo ${it.mediaId}")
                         }
@@ -1275,13 +1335,20 @@ class PlayerService : Service(),
 
                     _internalOnlinePlayerState.value = state
 
+                    trackOnlineLoadState(state)
+
                     Timber.d("PlayerService onlinePlayerView: onStateChange $state")
 
                     unstartedWatchdogJob?.cancel()
 
                     when(state) {
                         PlayerConstants.PlayerState.UNSTARTED -> {
-                            if (!firstTimeStarted) {
+                            // With nothing loaded, UNSTARTED is simply what an idle embed
+                            // reports — not a dead WebView. The watchdog took it for one and
+                            // tore the player down and rebuilt it: three times in the
+                            // 25-27 Aug log, every one of them logging "localmediaItem null"
+                            // moments earlier, and each costing a full page load at startup.
+                            if (!firstTimeStarted && localMediaItem != null) {
                                 unstartedWatchdogJob = CoroutineScope(Dispatchers.Main).launch {
                                     Timber.d("PlayerService onlinePlayerView: onStateChange UNSTARTED watchdog")
                                     delay(500)
@@ -1305,6 +1372,7 @@ class PlayerService : Service(),
                                         localMediaItem?.let { item ->
                                             if (currentPlayer != null) {
                                                 Timber.d("PlayerService onlinePlayerView: Try reload song/video")
+                                                markOnlineLoadStart(item.mediaId, "recoveryUnstarted")
                                                 currentPlayer.pause()
                                                 currentPlayer.cueVideo(item.mediaId, playFromSecond)
                                             } else {
@@ -1341,8 +1409,30 @@ class PlayerService : Service(),
                         }
                         PlayerConstants.PlayerState.ENDED -> {
                             Timber.d("PlayerService onlinePlayerView: onStateChange ENDED regular playNext()")
+                            onlinePlaybackIntended = false
+                            resumeOnlineWhenNetworkReturns = false
                             handlePlayNext()
                         }
+
+                        PlayerConstants.PlayerState.PLAYING -> {
+                            onlinePlaybackIntended = true
+                            resumeOnlineWhenNetworkReturns = false
+                            preloadNextArtwork()
+                            scheduleOnlinePreload()
+                        }
+
+                        PlayerConstants.PlayerState.PAUSED -> {
+                            // Any pause cancels a pending network resume, with no check on
+                            // whether there is a connection. A stalled embed reports
+                            // BUFFERING, never PAUSED — PAUSED comes from an explicit
+                            // pauseVideo(), which is JavaScript inside the page and works
+                            // perfectly well with the radio off. Gating this on connectivity
+                            // meant that pausing during the outage left the resume armed,
+                            // and the song started again by itself when the signal came back.
+                            onlinePlaybackIntended = false
+                            resumeOnlineWhenNetworkReturns = false
+                        }
+
                         else -> {}
                     }
 
@@ -1391,7 +1481,15 @@ class PlayerService : Service(),
                             )
                         }
 
-                    clearWebViewData()
+                    // clearWebViewData deletes every cookie, the YouTube session among them.
+                    // It ran on every error, and one of those errors arrives right after each
+                    // player initialisation — so a normal session started by signing the user
+                    // out of YouTube, which is the account this player needs for content that
+                    // will not play embedded. A malformed parameter in our own request says
+                    // nothing about the session being stale, so it no longer costs the login.
+                    if (error != PlayerConstants.PlayerError.INVALID_PARAMETER_IN_REQUEST) {
+                        clearWebViewData()
+                    }
 
                     Timber.e("PlayerService: onError $error")
                     val errorString = when (error) {
@@ -1419,6 +1517,7 @@ class PlayerService : Service(),
 
                         localMediaItem?.let {
                             if (!GlobalSharedData.riTuneCastActive) {
+                                markOnlineLoadStart(it.mediaId, "recoveryError")
                                 youTubePlayer.pause()
                                 youTubePlayer.cueVideo(it.mediaId, playFromSecond)
                             } else coroutineScope.launch {
@@ -1547,6 +1646,15 @@ class PlayerService : Service(),
             VolumeProviderCompat(VOLUME_CONTROL_RELATIVE, maxVolume, currentVolume) {
 
                 override fun onAdjustVolume(direction: Int) {
+                        // The session is registered as remote playback, so the volume keys
+                        // arrive here instead of moving the music stream. This log exists to
+                        // find out whether one press produces one step or two: a second step
+                        // would mean the key is also being handled the normal way, and that
+                        // is what "I press it once and it drops too much" would look like.
+                        Timber.d(
+                            "PERF-VOL onAdjustVolume direction=$direction " +
+                                    "streamBefore=${audioManager.getStreamVolume(STREAM_TYPE)}"
+                        )
                         val useVolumeKeysToChangeSong = preferences.getBoolean(useVolumeKeysToChangeSongKey, false)
                         // Up = 1, Down = -1, Release = 0
                         if (direction == VOLUME_UP) {
@@ -1606,6 +1714,14 @@ class PlayerService : Service(),
     @UnstableApi
     override fun onDestroy() {
         Timber.d("PlayerService onDestroy")
+
+        // First, and outside the shared runCatching further down, because ConnectivityManager
+        // holds the callback — and through it this destroyed service — until it is handed
+        // back. Buried behind five other releases, one of them throwing was enough to leak
+        // it, and enough leaked registrations make registerDefaultNetworkCallback throw
+        // TooManyRequestsException, which is swallowed: resuming after an outage would then
+        // just quietly stop working.
+        unregisterNetworkResume()
 
         // Flush any pending local play-time before the service goes away.
         if (localTrackedMediaId != null && localListenedDurationMs > 0) {
@@ -1681,6 +1797,8 @@ class PlayerService : Service(),
             timerJob = null
             unstartedWatchdogJob?.cancel()
             unstartedWatchdogJob = null
+            onlinePreloadJob?.cancel()
+            onlinePreloadJob = null
             volumeNormalizationJob?.cancel()
             volumeNormalizationJob = null
 
@@ -1712,6 +1830,10 @@ class PlayerService : Service(),
                 pausedByZeroVolume = false
             }
         }
+
+        // Logged unconditionally: the previous version only reported while an online song
+        // was loaded, which hid exactly the presses we need to count.
+        Timber.d("PERF-VOL changed currentVolume=$currentVolume maxVolume=$maxVolume")
 
         if (localMediaItem?.isLocal == false
             //&& checkVolumeLevel
@@ -1788,6 +1910,21 @@ class PlayerService : Service(),
     // log, no UI feedback, no mini-player — the exact "nothing happens" symptom.
     override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
         val mi = runCatching { player.currentMediaItem }.getOrNull()
+
+        // An online song never plays through this player — the WebView does — and the only
+        // data source wired into it resolves local files, so it refuses every one of them by
+        // design. That refusal was being reported as an error with a full stack trace once
+        // per song: 21 of them in a listening session, all identical, all expected. A log
+        // that cries wolf that often is where a real failure goes to hide, so the expected
+        // case gets one quiet line and anything else still comes through as an error.
+        if (mi != null && !mi.isLocal) {
+            Timber.d(
+                "PlayerService onPlayerError: local player refused online song " +
+                        "${mi.mediaId} (${error.errorCodeName}), as expected"
+            )
+            return
+        }
+
         Timber.e(
             error,
             "PlayerService onPlayerError code=${error.errorCode} name=${error.errorCodeName} " +
@@ -1800,6 +1937,20 @@ class PlayerService : Service(),
     override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
 
         if (mediaItem == null) return
+
+        // The position a pending network resume was armed with belongs to the song that
+        // just ended, so it goes; the arming itself stays. This is the case the 26 Aug
+        // 01:06 log caught: the connection was already gone when the queue advanced, so
+        // the loss had been recorded against the previous song and there was no second
+        // outage left to re-arm on. Clearing the flag here threw away the only chance to
+        // recover. Resuming picks up localMediaItem when it runs, so it targets whatever
+        // is current by then, from the start.
+        secondBeforeNetworkLoss = 0f
+
+        // Same for a preload in flight: it was aimed at whatever followed the song that
+        // just ended. The page discards a stale one by itself on the next load.
+        onlinePreloadJob?.cancel()
+        preloadedOnlineMediaId = null
 
         // Track song change for interstitial ads
         it.fast4x.riplay.extensions.ads.YammboAdManager.onSongChanged(this@PlayerService)
@@ -1876,6 +2027,12 @@ class PlayerService : Service(),
                 //Timber.d("PlayerService onMediaItemTransition system volume ${getSystemMediaVolume()}")
 
                 if (!GlobalSharedData.riTuneCastActive) {
+                    // The pause() below was measured against dropping it, alternating song by
+                    // song across two listening sessions: 1227 ms vs 1727 ms one day, the
+                    // reverse the other, with a 3.9 s outlier in between. That is network
+                    // noise, not an effect — the half second the player spends before it
+                    // restarts the load comes from inside the embed, not from this call.
+                    markOnlineLoadStart(it.mediaId, "transition")
                     _internalOnlinePlayer.value?.pause()
                     _internalOnlinePlayer.value?.loadVideo(it.mediaId, playFromSecond)
                 } else {
@@ -2032,6 +2189,7 @@ class PlayerService : Service(),
                     Timber.w("PlayerService maybeRecoverPlaybackError: try to recover player error")
                     localMediaItem?.let {
                         if (!GlobalSharedData.riTuneCastActive) {
+                            markOnlineLoadStart(it.mediaId, "recoverPlaybackError")
                             _internalOnlinePlayer.value?.pause()
                             _internalOnlinePlayer.value?.loadVideo(it.mediaId, playFromSecond)
 
@@ -2092,7 +2250,7 @@ class PlayerService : Service(),
 
     @UnstableApi
     private fun initializeNormalizeVolume() {
-        if (!preferences.getBoolean(volumeNormalizationKey, false)) {
+        if (!preferences.getBoolean(volumeNormalizationKey, true)) {
             loudnessEnhancer?.enabled = false
             loudnessEnhancer?.release()
             loudnessEnhancer = null
@@ -2107,9 +2265,22 @@ class PlayerService : Service(),
             Timber.e("PlayerService initializeNormalizeVolume Errore durante il release di LoudnessEnhancer: ${e.message}")
         }
         loudnessEnhancer = null
-        loudnessEnhancer = LoudnessEnhancer(0)
+        // Session 0 is the global output mix, which is how this reaches the WebView the
+        // online player sings out of — but it is also the session OEMs are most likely to
+        // refuse, and the constructor throws rather than returning null when they do.
+        // Unprotected it was survivable while this was opt-in; as a default it runs on
+        // every device from onCreate, and one throw would take the service down at launch.
+        loudnessEnhancer = runCatching { LoudnessEnhancer(0) }
+            .onFailure { Timber.e("PlayerService initializeNormalizeVolume: LoudnessEnhancer unavailable, playing without normalisation (${it.message})") }
+            .getOrNull()
+        if (loudnessEnhancer == null) {
+            // Otherwise the collector from a previous, working init stays subscribed to Room
+            // for a song whose gain nothing can apply any more.
+            volumeNormalizationJob?.cancel()
+            return
+        }
 
-        val baseGain = preferences.getFloat(loudnessBaseGainKey, 5.00f)
+        val baseGain = preferences.getFloat(loudnessBaseGainKey, 2.00f)
         val boostLevel = preferences.getFloat(volumeBoostLevelKey, 0.00f)
 
         if (currentSong.value?.isLocal == true && currentSong.value?.mediaId?.isEmpty() == true) return
@@ -2131,8 +2302,16 @@ class PlayerService : Service(),
                     } else it
                 }
                 try {
-                    loudnessEnhancer?.setTargetGain((baseGain.toMb() + boostLevel.toMb()) - loudnessMb)
+                    val targetGainMb = (baseGain.toMb() + boostLevel.toMb()) - loudnessMb
+                    loudnessEnhancer?.setTargetGain(targetGainMb)
                     loudnessEnhancer?.enabled = true
+                    // Only failures were logged here, so a normalisation that silently did
+                    // nothing looked exactly like one that worked. Now the log carries the
+                    // arithmetic: gain = base + boost - the song's own loudness.
+                    Timber.d(
+                        "PERF-GAIN mediaId=${currentSong.value?.id} loudnessDb=$loudnessDb " +
+                                "base=$baseGain boost=$boostLevel targetDb=${targetGainMb / 100f}"
+                    )
                 } catch (e: Exception) {
                     Timber.e("PlayerService maybeNormalizeVolume apply targetGain ${e.stackTraceToString()}")
                 }
@@ -2379,7 +2558,7 @@ class PlayerService : Service(),
         }
 
         val resumeOnBt = preferences.getBoolean(resumeOrPausePlaybackWhenDeviceBtKey, false)
-        val resumeOnWired = preferences.getBoolean(resumeOrPausePlaybackWhenDeviceWiredKey, false)
+        val resumeOnWired = preferences.getBoolean(resumeOrPausePlaybackWhenDeviceWiredKey, true)
 
         // Se l'utente ha disabilitato entrambe, rimuovo il callback e risparmiiamo risorse
         if (!resumeOnBt && !resumeOnWired) {
@@ -2440,6 +2619,10 @@ class PlayerService : Service(),
                     if (!hasRemainingBt && !hasRemainingWired) {
                         player.pause()
                         _internalOnlinePlayer.value?.pause()
+                        // The headphones are gone, so a reconnect must not start the song
+                        // again — that would put it on the phone speaker.
+                        onlinePlaybackIntended = false
+                        resumeOnlineWhenNetworkReturns = false
 
                         SmartMessage(getString(R.string.music_paused_headphones_disconnected), context = this@PlayerService)
                     }
@@ -2453,6 +2636,238 @@ class PlayerService : Service(),
     fun unregisterAudioDeviceCallback() {
         audioManager.unregisterAudioDeviceCallback(audioDeviceCallback)
         audioDeviceCallback = null
+    }
+
+    /**
+     * Watches connectivity so online playback can pick itself back up. See the comment on
+     * [resumeOnlineWhenNetworkReturns] for why nothing else notices the connection is gone.
+     *
+     * Validation, not mere availability, is what counts: joining a captive portal or a
+     * router with no upstream raises onAvailable while the embed still cannot fetch a byte,
+     * and cueing the song there only burns a recovery attempt.
+     */
+    private fun initializeNetworkResume() {
+        if (playerNetworkCallback != null) return
+
+        val manager = getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager ?: return
+
+        val mainThreadHandler = Handler(Looper.getMainLooper())
+        val callback = object : ConnectivityManager.NetworkCallback() {
+            override fun onLost(network: Network) {
+                mainThreadHandler.post { markOnlineStalledByNetwork() }
+            }
+
+            override fun onUnavailable() {
+                mainThreadHandler.post { markOnlineStalledByNetwork() }
+            }
+
+            override fun onCapabilitiesChanged(
+                network: Network,
+                networkCapabilities: NetworkCapabilities
+            ) {
+                val validated = networkCapabilities
+                    .hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+                mainThreadHandler.post {
+                    if (validated) resumeOnlineAfterNetworkReturned()
+                    else markOnlineStalledByNetwork()
+                }
+            }
+        }
+
+        // registerDefaultNetworkCallback throws on some OEMs (a SecurityException over a
+        // permission they expect) and once a process has registered enough callbacks. The
+        // player works without this; taking the service down with it would be worse.
+        runCatching { manager.registerDefaultNetworkCallback(callback) }
+            .onSuccess { playerNetworkCallback = callback }
+            .onFailure { Timber.e("PlayerService initializeNetworkResume failed ${it.message}") }
+    }
+
+    private fun unregisterNetworkResume() {
+        val callback = playerNetworkCallback ?: return
+        playerNetworkCallback = null
+        val manager = getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager ?: return
+        runCatching { manager.unregisterNetworkCallback(callback) }
+    }
+
+    /**
+     * Remembers where online playback was when the connection went away, so the reconnect
+     * can put it back. Only arms while playback is what the user is asking for — with the
+     * song paused there is nothing to resume, and starting it later would be music nobody
+     * asked for, possibly hours on and out of the phone's own speaker.
+     *
+     * The condition is [onlinePlaybackIntended] and not isPlayingNow, because by the time
+     * this runs the two disagree in exactly the case worth covering. A Wi-Fi router that
+     * loses its upstream raises no onLost at all; Android only drops NET_CAPABILITY_VALIDATED
+     * after it revalidates, tens of seconds later, and the embed has long since gone to
+     * BUFFERING — which clears isPlayingNow. Reading that flag here would leave the feature
+     * dead in the one scenario it exists for.
+     */
+    private fun markOnlineStalledByNetwork() {
+        if (resumeOnlineWhenNetworkReturns) return
+        val item = localMediaItem ?: return
+        if (item.isLocal || GlobalSharedData.riTuneCastActive) return
+        if (!onlinePlaybackIntended) return
+
+        secondBeforeNetworkLoss = currentSecond.value
+        resumeOnlineWhenNetworkReturns = true
+        Timber.d(
+            "PlayerService network lost while playing ${item.mediaId} at ${secondBeforeNetworkLoss}s, " +
+                    "will resume when the connection is back"
+        )
+    }
+
+    /**
+     * Puts the song back where it stalled. cueVideo rather than loadVideo on purpose: the
+     * VIDEO_CUED branch of onStateChange is what calls play(), which is the same route the
+     * error recovery already takes, so there is one code path that starts online audio.
+     */
+    @kotlin.OptIn(ExperimentalCoroutinesApi::class)
+    private fun resumeOnlineAfterNetworkReturned() {
+        if (!resumeOnlineWhenNetworkReturns) return
+
+        val item = localMediaItem
+        if (item == null || item.isLocal || GlobalSharedData.riTuneCastActive) {
+            resumeOnlineWhenNetworkReturns = false
+            return
+        }
+        // The embed recovered by itself while we were arming this — nothing to do.
+        if (_internalOnlinePlayerState.value == PlayerConstants.PlayerState.PLAYING) {
+            resumeOnlineWhenNetworkReturns = false
+            return
+        }
+
+        resumeOnlineWhenNetworkReturns = false
+        // The position captured at the moment of the loss is too early: the embed keeps
+        // playing out of its buffer, often for a good while, before it actually stalls.
+        // The page's ticker reports position through BUFFERING as well as PLAYING, so
+        // currentSecond holds where the audio really stopped. Take the later of the two —
+        // a recreated WebView resets currentSecond to zero.
+        val resumeAt = maxOf(secondBeforeNetworkLoss, currentSecond.value)
+
+        coroutineScope.launch {
+            withContext(Dispatchers.Main) {
+                // Bounded, for the same reason the UNSTARTED watchdog is: ensureOnlinePlayerInitialized
+                // waits on a WebView that may never come back, and an unbounded wait here
+                // would leave a coroutine suspended for the life of the service.
+                val onlinePlayer = withTimeoutOrNull(10_000) {
+                    runCatching { ensureOnlinePlayerInitialized() }.getOrNull()
+                }
+                if (onlinePlayer == null) {
+                    Timber.w("PlayerService network resume: no online player, giving up")
+                    return@withContext
+                }
+                Timber.d("PlayerService network back, resuming ${item.mediaId} at ${resumeAt}s")
+                // Deliberately NOT written into playFromSecond, tempting as it is so the
+                // UNSTARTED watchdog would recover to the same place. onMediaItemTransition
+                // hands that field to loadVideo before resetting it, so a value left behind
+                // here would start the NEXT song a minute and a half in.
+                markOnlineLoadStart(item.mediaId, "recoveryNetwork")
+                onlinePlayer.pause()
+                onlinePlayer.cueVideo(item.mediaId, resumeAt)
+                onlinePlayer.setVolume(getSystemMediaVolume())
+            }
+        }
+    }
+
+    /**
+     * Warms the cover of the song after this one into Coil's cache, in both shapes the app
+     * asks for later: the square bitmap the notification, widgets and lock screen share,
+     * and the 1200px one the full player draws. Cache keys have to match the real requests
+     * byte for byte or the warm copy is never found — hence the same size, transformation
+     * and key as [BitmapProvider.load] and the player's Thumbnail.
+     */
+    private fun preloadNextArtwork() {
+        val nextIndex = player.nextMediaItemIndex
+        if (nextIndex == C.INDEX_UNSET) return
+        val next = runCatching { player.getMediaItemAt(nextIndex) }.getOrNull() ?: return
+        if (preloadedArtworkForMediaId == next.mediaId) return
+        val artworkUri = next.mediaMetadata.artworkUri?.toString() ?: return
+        preloadedArtworkForMediaId = next.mediaId
+
+        runCatching {
+            val notificationSize = (512 * resources.displayMetrics.density).roundToInt()
+            val notificationUrl = artworkUri.thumbnail(notificationSize) ?: artworkUri
+            imageLoader.enqueue(
+                ImageRequest.Builder(this)
+                    .data(notificationUrl)
+                    .size(notificationSize, notificationSize)
+                    .transformations(LandscapeToSquareTransformation(notificationSize))
+                    .allowHardware(false)
+                    .diskCacheKey(notificationUrl)
+                    .memoryCacheKey(notificationUrl)
+                    .build()
+            )
+
+            val playerUrl = artworkUri.thumbnail(1200) ?: artworkUri
+            imageLoader.enqueue(
+                ImageRequest.Builder(this)
+                    .data(playerUrl)
+                    .size(Size.ORIGINAL)
+                    .build()
+            )
+        }.onFailure {
+            Timber.e("PlayerService preloadNextArtwork failed ${it.message}")
+        }
+    }
+
+    /**
+     * Asks the player page to buffer the next song in its standby embed while this one
+     * plays, so a queue advance becomes a swap instead of a fresh fetch. The measurement
+     * that motivates it is in [trackOnlineLoadState]: ~1.7 s median between BUFFERING and
+     * PLAYING, all of it the embed pulling the new video down.
+     *
+     * Deliberately late rather than at PLAYING: two embeds fetching at once would have the
+     * preload competing with the song the user is actually listening to for the same
+     * connection. Twenty seconds in, the current one is comfortably buffered.
+     */
+    private fun scheduleOnlinePreload() {
+        onlinePreloadJob?.cancel()
+        if (!preferences.getBoolean(preloadNextSongKey, true)) return
+        if (GlobalSharedData.riTuneCastActive) return
+
+        val playingMediaId = localMediaItem?.mediaId ?: return
+
+        onlinePreloadJob = coroutineScope.launch {
+            delay(20_000)
+            withContext(Dispatchers.Main) {
+                // The queue may have moved on, or playback stopped, while we waited.
+                if (localMediaItem?.mediaId != playingMediaId) return@withContext
+                if (_internalOnlinePlayerState.value != PlayerConstants.PlayerState.PLAYING) return@withContext
+
+                val nextIndex = player.nextMediaItemIndex
+                if (nextIndex == C.INDEX_UNSET) return@withContext
+                val next = runCatching { player.getMediaItemAt(nextIndex) }.getOrNull() ?: return@withContext
+                if (next.isLocal) return@withContext
+                if (preloadedOnlineMediaId == next.mediaId) return@withContext
+                // The id is about to be pasted into a JavaScript string literal. Video ids
+                // are [A-Za-z0-9_-]{11}; anything else is either not a video or something
+                // that would break out of the quotes, and neither is worth preloading.
+                if (!next.mediaId.matches(Regex("^[A-Za-z0-9_-]+$"))) return@withContext
+
+                // The library's YouTubePlayer interface has no room for a second embed, so
+                // the call goes to the page directly. Nothing else in the app reaches into
+                // the WebView; if the view hierarchy ever stops holding one, preloading
+                // simply stops happening and ordinary playback is untouched.
+                val webView = findWebView(_internalOnlinePlayerView.value) ?: return@withContext
+                preloadedOnlineMediaId = next.mediaId
+                runCatching {
+                    webView.evaluateJavascript("preloadVideo('${next.mediaId}')", null)
+                    Timber.d("PERF-SWITCH preload requested mediaId=${next.mediaId}")
+                }.onFailure {
+                    preloadedOnlineMediaId = null
+                    Timber.e("PlayerService scheduleOnlinePreload failed ${it.message}")
+                }
+            }
+        }
+    }
+
+    private fun findWebView(view: View?): WebView? {
+        if (view is WebView) return view
+        if (view !is ViewGroup) return null
+        for (index in 0 until view.childCount) {
+            findWebView(view.getChildAt(index))?.let { return it }
+        }
+        return null
     }
 
     @kotlin.OptIn(ExperimentalCoroutinesApi::class)
@@ -3065,6 +3480,74 @@ class PlayerService : Service(),
     }
 
 
+
+    /**
+     * Records the moment a song is handed to the online player. Called from every place
+     * that loads or cues a video, each with its own trigger label, so the log tells a
+     * normal queue advance apart from a recovery retry.
+     */
+    private fun markOnlineLoadStart(mediaId: String, trigger: String) {
+        val now = SystemClock.elapsedRealtime()
+        val sinceEnded = if (onlineEndedAtMs == 0L) -1L else now - onlineEndedAtMs
+        onlineEndedAtMs = 0L
+        onlineLoadStartedAtMs = now
+        onlineLoadBufferingAtMs = 0L
+        onlineLoadMediaId = mediaId
+        onlineLoadTrigger = trigger
+        Timber.d(
+            "PERF-SWITCH start trigger=$trigger mediaId=$mediaId afterEndedMs=$sinceEnded"
+        )
+    }
+
+    /**
+     * Closes the measurement opened by [markOnlineLoadStart]. BUFFERING marks the end of
+     * the player's own startup; PLAYING marks the moment sound actually comes out.
+     */
+    private fun trackOnlineLoadState(state: PlayerConstants.PlayerState) {
+        if (state == PlayerConstants.PlayerState.ENDED) {
+            onlineEndedAtMs = SystemClock.elapsedRealtime()
+            return
+        }
+
+        val startedAt = onlineLoadStartedAtMs
+        if (startedAt == 0L) return
+
+        when (state) {
+            PlayerConstants.PlayerState.UNSTARTED -> {
+                // The player has dropped the previous song and is starting the new one. In
+                // every switch measured so far this lands around half a second in, and the
+                // rest of the wait follows it — which is why it is worth logging on its own.
+                Timber.d(
+                    "PERF-SWITCH unstarted trigger=$onlineLoadTrigger mediaId=$onlineLoadMediaId " +
+                            "atMs=${SystemClock.elapsedRealtime() - startedAt}"
+                )
+            }
+
+            PlayerConstants.PlayerState.BUFFERING -> {
+                if (onlineLoadBufferingAtMs == 0L) {
+                    onlineLoadBufferingAtMs = SystemClock.elapsedRealtime()
+                    Timber.d(
+                        "PERF-SWITCH startup trigger=$onlineLoadTrigger mediaId=$onlineLoadMediaId " +
+                                "startupMs=${onlineLoadBufferingAtMs - startedAt}"
+                    )
+                }
+            }
+
+            PlayerConstants.PlayerState.PLAYING -> {
+                val now = SystemClock.elapsedRealtime()
+                val bufferingAt = onlineLoadBufferingAtMs
+                Timber.d(
+                    "PERF-SWITCH playing trigger=$onlineLoadTrigger mediaId=$onlineLoadMediaId " +
+                            "totalMs=${now - startedAt} " +
+                            "startupMs=${if (bufferingAt == 0L) -1L else bufferingAt - startedAt} " +
+                            "networkMs=${if (bufferingAt == 0L) -1L else now - bufferingAt}"
+                )
+                onlineLoadStartedAtMs = 0L
+            }
+
+            else -> {}
+        }
+    }
 
     private fun createMediaSourceFactory() = DefaultMediaSourceFactory(
         createLocalDataSourceFactory(),
@@ -3681,6 +4164,7 @@ class PlayerService : Service(),
                                                 state != PlayerConstants.PlayerState.BUFFERING) {
                                                 Timber.w("PlayerService onPlayClick: state=$state after play(), forcing loadVideo recovery at ${currentSecond.value}s")
                                                 withContext(Dispatchers.Main) {
+                                                    markOnlineLoadStart(currentMediaId, "recoveryPlayClick")
                                                     ytPlayer.loadVideo(currentMediaId, currentSecond.value)
                                                 }
                                             }

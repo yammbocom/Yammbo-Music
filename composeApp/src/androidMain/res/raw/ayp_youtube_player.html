@@ -10,6 +10,18 @@
             overflow: hidden;
             position: fixed;
         }
+
+        /* Two embeds occupy the same box; the active one is stacked on top. Both stay
+           laid out and painted on purpose — display:none or visibility:hidden detaches
+           the iframe from the compositor and browsers throttle media inside it, which is
+           exactly the buffering the standby exists to do ahead of time. */
+        .ytSlot {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
     </style>
 
   <head>
@@ -38,7 +50,8 @@
   </head>
 
   <body>
-    <div id="youTubePlayerDOM"></div>
+    <div class="ytSlot" id="ytSlot0"><div id="youTubePlayerDOM"></div></div>
+    <div class="ytSlot" id="ytSlot1"><div id="youTubePlayerDOM_standby"></div></div>
   </body>
 
   <script type="text/javascript">
@@ -51,159 +64,193 @@
 
     var YouTubePlayerBridge = window.YouTubePlayerBridge;
     var YouTubePlayerCallbacks = window.YouTubePlayerCallbacks;
-    var player;
+
+    // Two embeds, one audible.
+    //
+    // Changing song costs a wait that no amount of work on the Kotlin side can shorten:
+    // the instrumentation in PlayerService splits it into startup (~64 ms median) and
+    // network (~1.7 s median), and the second number is the embed fetching the new video.
+    // A single iframe plays one video at a time, so the only way to have those bytes
+    // already in hand is a second embed that loaded the next song while the current one
+    // was still playing. On a queue advance the two swap roles and playback starts from
+    // a buffer instead of from a request.
+    //
+    // Kotlin still sees exactly one player: every entry point below acts on the active
+    // slot, and only the active slot's callbacks reach the bridge. The standby is created
+    // lazily on the first preloadVideo call, so with the feature off this page behaves,
+    // and costs, precisely what it did when it hosted a single embed.
+    var players = [null, null];
+    var slots = [null, null];
+    var playerReady = [false, false];
+    var activeIndex = 0;
+    var reportedReady = false;
+
+    // Held by the standby: the id it was asked to warm, and whether it got far enough
+    // (fetched audio, then parked at 0) for a swap to be instant rather than a gamble.
+    var preloadedVideoId = null;
+    var preloadArmed = false;
+    var pendingPreloadVideoId = null;
+
+    // The embed cannot be asked what volume it is at without a round trip, and a swap has
+    // to hand the incoming player the same level the outgoing one had.
+    var lastVolume = 100;
+
+    var injectedPlayerVars = <<injectedPlayerVars>>;
 
     var timerId;
-    let adblockIntervalId;
+    var captionIntervalId = null;
 
-function hideCaption() {
-  setInterval(() => {
-    if(!player) {
-      return;
-    }
-    player.unloadModule('captions');
-  }, 1000);
-}
-
-function showCaption() {
-  if(!player) {
-    return;
-  }
-  player.loadModule('captions');
-}
-
-function hideTabletPopup() {
-  setInterval(() => {
-    const playerIFrame = document.querySelector("iframe");
-    if (!playerIFrame) {
-      return;
+    function activePlayer() {
+      return players[activeIndex];
     }
 
-    const frameDoc = playerIFrame.contentDocument;
-    if (!frameDoc) {
-      return;
+    function standbyIndex() {
+      return 1 - activeIndex;
     }
 
-    const collection = frameDoc.getElementsByClassName("ytp-pause-overlay-container")[0];
-    if (!collection) {
-      return;
+    function applyStacking() {
+      if (!slots[0] || !slots[1]) return;
+      slots[activeIndex].style.zIndex = '2';
+      slots[standbyIndex()].style.zIndex = '1';
     }
-    collection.style.display = 'none';
-  }, 100);
-}
 
-        function hideVideoTitle() {
-      setInterval(() => {
-        const playerIFrame = document.querySelector("iframe");
-        if (!playerIFrame) {
-          return;
+    // YT.Player mutates the options object it is given, so the two embeds cannot share one.
+    function playerVarsCopy() {
+      var copy = {};
+      for (var key in injectedPlayerVars) {
+        if (Object.prototype.hasOwnProperty.call(injectedPlayerVars, key)) {
+          copy[key] = injectedPlayerVars[key];
         }
-
-        const frameDoc = playerIFrame.contentDocument;
-        if (!frameDoc) {
-          return;
-        }
-
-        const title = frameDoc.querySelector('.ytp-chrome-top');
-        if (title) {
-          title.style.display = 'none';
-        }
-      }, 100);
-    }
-
-    function initializeAdBlock() {
-      if (adblockIntervalId) {
-        clearInterval(adblockIntervalId);
       }
+      return copy;
+    }
 
-      const playerIFrame = document.querySelector("iframe");
-      if (playerIFrame) {
-        adblockIntervalId = setInterval(() => {
-          if (!playerIFrame) {
-            return;
-          }
-
-          const frameDoc = playerIFrame.contentDocument;
-          if (!frameDoc) {
-            return;
-          }
-
-
-          const adsContainer = frameDoc.querySelector('.video-ads');
-          if (!adsContainer || adsContainer.childElementCount == 0) {
-            return;
-          }
-
-          const adsVideo = adsContainer.querySelector("video");
-
-          if (adsVideo) {
-            adsVideo.muted = true;
-            adsVideo.style.display = 'none';
-            adsVideo.currentTime = adsVideo.duration - 0.15;
-            adsVideo.muted = false;
-            adsVideo.style.display = '';
-            if (adblockIntervalId) {
-              clearInterval(adblockIntervalId);
-            }
-          }
-          else {
-            const isAdShowing = frameDoc.getElementsByClassName('ad-showing').length != 0;
-            if (!isAdShowing) {
-              return;
-            }
-
-            const mainVideo = frameDoc.querySelector('.html5-main-video');
-            if (!mainVideo) {
-              return;
-            }
-
-            mainVideo.muted = true;
-            mainVideo.currentTime = mainVideo.duration - 0.15;
-            mainVideo.muted = false;
-            if (adblockIntervalId) {
-              clearInterval(adblockIntervalId);
-            }
-          }
-        }, 100);
+    // What used to live here: three tweaks that reached into the embed's document to hide
+    // the video title, hide the pause overlay, and skip ads. They could never work. This
+    // page is served from music.youtube.com and the embed is www.youtube.com, so the browser
+    // refuses every read across that boundary — contentDocument comes back null, silently,
+    // and the code just tried again ten times a second forever. The proof is in the log: the
+    // one place that read contentWindow instead got a SecurityError naming both origins.
+    //
+    // They are gone rather than fixed. Making them work means serving this page from the
+    // embed's own origin, and that origin is what tells YouTube this is a music client;
+    // trading that for a set of tweaks that poke at private CSS class names, which break
+    // whenever YouTube renames one, is a bad deal.
+    //
+    // Captions are different and stay: unloadModule goes through the player's own API, not
+    // through the document, so it crosses the origin boundary legitimately.
+    function armCaptionHiding() {
+      if (captionIntervalId) {
+        clearInterval(captionIntervalId);
       }
+      var ticks = 0;
+      captionIntervalId = setInterval(function () {
+        ticks++;
+        var current = activePlayer();
+        if (current) {
+          current.unloadModule('captions');
+        }
+        // unloadModule reports nothing back, so this cannot detect success. It covers the
+        // load of each song and then stops, instead of running for the whole session.
+        if (ticks >= 15) {
+          clearInterval(captionIntervalId);
+          captionIntervalId = null;
+        }
+      }, 1000);
+    }
+
+    function showCaption() {
+      var current = activePlayer();
+      if (!current) {
+        return;
+      }
+      current.loadModule('captions');
+    }
+
+    function buildPlayer(index, domId) {
+      return new YT.Player(domId, {
+
+        height: '100%',
+        width: '100%',
+
+        events: {
+          onReady: function(event) {
+            playerReady[index] = true;
+
+            if (index === activeIndex) {
+              armCaptionHiding();
+              // The library treats sendReady as "the player exists", and answering it twice
+              // would run the service's onReady twice — reassigning the player reference and
+              // reloading the current song from the top.
+              if (!reportedReady) {
+                reportedReady = true;
+                YouTubePlayerBridge.sendReady();
+              }
+            } else {
+              event.target.mute();
+              event.target.setVolume(0);
+              // The standby is built on the first preload request, so by the time it is
+              // ready there is already a song waiting for it.
+              if (pendingPreloadVideoId) {
+                var queued = pendingPreloadVideoId;
+                pendingPreloadVideoId = null;
+                preloadVideo(queued);
+              }
+            }
+          },
+          onStateChange: function(event) { handleStateChange(index, event.data) },
+          onPlaybackQualityChange: function(event) {
+            if (index === activeIndex) YouTubePlayerBridge.sendPlaybackQualityChange(event.data)
+          },
+          onPlaybackRateChange: function(event) {
+            if (index === activeIndex) YouTubePlayerBridge.sendPlaybackRateChange(event.data)
+          },
+          onError: function(error) { handleError(index, error.data) },
+          onApiChange: function(event) {
+            if (index === activeIndex) YouTubePlayerBridge.sendApiChange()
+          }
+        },
+
+        playerVars: playerVarsCopy()
+
+      });
     }
 
     function onYouTubeIframeAPIReady() {
 
       YouTubePlayerBridge.sendYouTubeIFrameAPIReady();
-            
-    	player = new YT.Player('youTubePlayerDOM', {
-    			
-        height: '100%',
-    	  width: '100%',
-    			
-        events: {
-    	    onReady: function(event) {
-              hideVideoTitle()
-              hideTabletPopup()
-              hideCaption()
-              YouTubePlayerBridge.sendReady()
-    	    },
-    		  onStateChange: function(event) { sendPlayerStateChange(event.data) },
-    		  onPlaybackQualityChange: function(event) { YouTubePlayerBridge.sendPlaybackQualityChange(event.data) },
-    		  onPlaybackRateChange: function(event) { YouTubePlayerBridge.sendPlaybackRateChange(event.data) },
-    		  onError: function(error) { YouTubePlayerBridge.sendError(error.data) },
-    		  onApiChange: function(event) { YouTubePlayerBridge.sendApiChange() }
-    	  },
 
-    	  playerVars: <<injectedPlayerVars>>
+      slots[0] = document.getElementById('ytSlot0');
+      slots[1] = document.getElementById('ytSlot1');
+      applyStacking();
 
-      });
+      players[0] = buildPlayer(0, 'youTubePlayerDOM');
     }
 
-    function sendPlayerStateChange(playerState) {
+    // Built on demand rather than up front: a second embed is tens of megabytes and a
+    // second set of requests, and a user who never turns preloading on should pay neither.
+    function ensureStandbyPlayer() {
+      var index = standbyIndex();
+      if (players[index]) return players[index];
+      if (typeof YT === 'undefined' || !YT.Player) return null;
+
+      players[index] = buildPlayer(index, index === 1 ? 'youTubePlayerDOM_standby' : 'youTubePlayerDOM');
+      applyStacking();
+      return players[index];
+    }
+
+    function handleStateChange(index, playerState) {
+      if (index !== activeIndex) {
+        handleStandbyStateChange(index, playerState);
+        return;
+      }
+
       clearTimeout(timerId);
-      initializeAdBlock();
 
       switch (playerState) {
         case YT.PlayerState.UNSTARTED:
           sendStateChange(UNSTARTED);
-          sendVideoIdFromPlaylistIfAvailable(player);
+          sendVideoIdFromPlaylistIfAvailable();
           return;
 
         case YT.PlayerState.ENDED:
@@ -214,7 +261,7 @@ function hideTabletPopup() {
           sendStateChange(PLAYING);
 
           startSendCurrentTimeInterval();
-          sendVideoData(player);
+          sendVideoData();
           return;
 
         case YT.PlayerState.PAUSED:
@@ -229,105 +276,253 @@ function hideTabletPopup() {
           // the seekbar froze even though the song was advancing. Keep reporting position
           // and duration here, exactly as PLAYING does.
           startSendCurrentTimeInterval();
-          sendVideoData(player);
+          sendVideoData();
           return;
 
         case YT.PlayerState.CUED:
           sendStateChange(CUED);
           return;
       }
+    }
 
-      function sendVideoData(player) {
-        var videoDuration = player.getDuration();
+    // The standby is warming up, so none of this is anybody's business but ours.
+    //
+    // PLAYING is the signal we are waiting for: cueVideoById only fetches the player
+    // module and the metadata, not the media, so the only way to have audio in hand is to
+    // load it for real. It runs muted, and the moment it reports playback — meaning the
+    // first bytes have arrived — it is parked back at zero so the swap starts the song
+    // where it should and not a third of a second in.
+    function handleStandbyStateChange(index, playerState) {
+      if (!preloadedVideoId || preloadArmed) return;
+      var standby = players[index];
+      if (!standby) return;
 
-        YouTubePlayerBridge.sendVideoDuration(videoDuration);
-      }
-
-      // This method checks if the player is playing a playlist.
-      // If yes, it sends out the video id of the video being played.
-      function sendVideoIdFromPlaylistIfAvailable(player) {
-        var playlist = player.getPlaylist();
-        if ( typeof playlist !== 'undefined' && Array.isArray(playlist) && playlist.length > 0 ) {
-          var index = player.getPlaylistIndex();
-          var videoId = playlist[index];
-          YouTubePlayerBridge.sendVideoId(videoId);
+      if (playerState === YT.PlayerState.PLAYING) {
+        preloadArmed = true;
+        try {
+          standby.pauseVideo();
+          standby.seekTo(0, true);
+        } catch (e) {
+          preloadArmed = false;
         }
       }
+    }
 
-      function sendStateChange(newState) {
-        YouTubePlayerBridge.sendStateChange(newState)
+    function handleError(index, errorCode) {
+      if (index === activeIndex) {
+        YouTubePlayerBridge.sendError(errorCode);
+        return;
       }
 
-      function startSendCurrentTimeInterval() {
-        timerId = setInterval(function() {
-          YouTubePlayerBridge.sendVideoCurrentTime( player.getCurrentTime() )
-          YouTubePlayerBridge.sendVideoLoadedFraction( player.getVideoLoadedFraction() )
-        }, 100 );
+      // A preload that will not play is not worth reporting. The song is not the one
+      // playing, and forwarding this would fire the service's error recovery — which
+      // reloads and restarts whatever IS playing — over a song nobody has reached yet.
+      preloadedVideoId = null;
+      preloadArmed = false;
+    }
+
+    function sendVideoData() {
+      var current = activePlayer();
+      if (!current) return;
+      YouTubePlayerBridge.sendVideoDuration(current.getDuration());
+    }
+
+    // This method checks if the player is playing a playlist.
+    // If yes, it sends out the video id of the video being played.
+    function sendVideoIdFromPlaylistIfAvailable() {
+      var current = activePlayer();
+      if (!current) return;
+      var playlist = current.getPlaylist();
+      if ( typeof playlist !== 'undefined' && Array.isArray(playlist) && playlist.length > 0 ) {
+        var index = current.getPlaylistIndex();
+        var videoId = playlist[index];
+        YouTubePlayerBridge.sendVideoId(videoId);
       }
+    }
+
+    function sendStateChange(newState) {
+      YouTubePlayerBridge.sendStateChange(newState)
+    }
+
+    function startSendCurrentTimeInterval() {
+      clearTimeout(timerId);
+      timerId = setInterval(function() {
+        var current = activePlayer();
+        if (!current) return;
+        YouTubePlayerBridge.sendVideoCurrentTime( current.getCurrentTime() )
+        YouTubePlayerBridge.sendVideoLoadedFraction( current.getVideoLoadedFraction() )
+      }, 100 );
     }
 
     // JAVA to WEB functions
 
     function seekTo(startSeconds) {
-      player.seekTo(startSeconds, true);
+      activePlayer().seekTo(startSeconds, true);
     }
 
     function pauseVideo() {
-      player.pauseVideo();
+      activePlayer().pauseVideo();
     }
 
     function playVideo() {
-      player.playVideo();
+      activePlayer().playVideo();
     }
 
     function loadVideo(videoId, startSeconds) {
-      player.loadVideoById(videoId, startSeconds);
+      if (swapToPreloaded(videoId, startSeconds)) return;
+
+      // Whatever the standby holds is not what was asked for.
+      discardPreload();
+
+      activePlayer().loadVideoById(videoId, startSeconds);
+      armCaptionHiding();
       YouTubePlayerBridge.sendVideoId(videoId);
+    }
+
+    // Forgetting the preload is not enough — it has to be stopped.
+    //
+    // The standby only parks itself in handleStandbyStateChange, and that function opens by
+    // returning when preloadedVideoId is null. So clearing the state on its own left an
+    // embed that never got its pauseVideo: it went on pulling video down, muted, in
+    // parallel with the song the user is listening to, until it reached the end. Skipping
+    // the swap is not rare either — pressing next before the standby has buffered, or any
+    // recovery that loads with a position, takes this path.
+    function discardPreload() {
+      preloadedVideoId = null;
+      preloadArmed = false;
+      pendingPreloadVideoId = null;
+
+      var standby = players[standbyIndex()];
+      if (!standby) return;
+      try {
+        standby.mute();
+        standby.stopVideo();
+      } catch (e) { }
     }
 
     function cueVideo(videoId, startSeconds) {
-      player.cueVideoById(videoId, startSeconds);
+      activePlayer().cueVideoById(videoId, startSeconds);
+      armCaptionHiding();
       YouTubePlayerBridge.sendVideoId(videoId);
     }
 
+    // Warms the given song in the standby embed. Safe to call repeatedly with the same id
+    // and safe to call when nothing is playing; it is a no-op both times.
+    function preloadVideo(videoId) {
+      if (!videoId) return;
+      if (preloadedVideoId === videoId) return;
+
+      var standby = ensureStandbyPlayer();
+      if (!standby) return;
+
+      // Built just now: hold the request until its onReady says the embed can take it.
+      if (!playerReady[standbyIndex()]) {
+        pendingPreloadVideoId = videoId;
+        return;
+      }
+
+      preloadedVideoId = videoId;
+      preloadArmed = false;
+
+      try {
+        standby.mute();
+        standby.setVolume(0);
+        standby.loadVideoById(videoId, 0);
+      } catch (e) {
+        preloadedVideoId = null;
+      }
+    }
+
+    // Returns true when the song asked for was already sitting buffered in the standby and
+    // the two embeds have traded places. Every condition here is a reason to fall back to
+    // an ordinary load instead: a half-finished preload, a different song, or a request to
+    // start part-way in, which is a recovery or a restored position and not a queue advance.
+    function swapToPreloaded(videoId, startSeconds) {
+      if (!preloadArmed) return false;
+      if (preloadedVideoId !== videoId) return false;
+      if (startSeconds && startSeconds > 1) return false;
+
+      var incoming = standbyIndex();
+      var outgoing = activeIndex;
+      if (!players[incoming] || !playerReady[incoming]) return false;
+
+      // Flipping activeIndex first is what silences the outgoing embed: the stopVideo
+      // below raises UNSTARTED, and reaching the bridge it would read as the new song
+      // failing to start and trip the service's watchdog.
+      activeIndex = incoming;
+      applyStacking();
+
+      try {
+        players[outgoing].mute();
+        players[outgoing].stopVideo();
+      } catch (e) { }
+
+      // The incoming player gets a net too. If its object has been invalidated — a WebView
+      // renderer restart does that — throwing here would escape loadVideo before it could
+      // fall back, with activeIndex already pointing at the broken embed: no state change,
+      // no videoId, nothing for the service's watchdog to catch, and a song that simply
+      // never starts. Putting activeIndex back and reporting failure sends the caller down
+      // the ordinary load path on the player that was working a moment ago.
+      try {
+        var current = players[incoming];
+        current.unMute();
+        current.setVolume(lastVolume);
+        current.playVideo();
+      } catch (e) {
+        activeIndex = outgoing;
+        applyStacking();
+        preloadedVideoId = null;
+        preloadArmed = false;
+        return false;
+      }
+
+      preloadedVideoId = null;
+      preloadArmed = false;
+
+      armCaptionHiding();
+      YouTubePlayerBridge.sendVideoId(videoId);
+      return true;
+    }
+
     function mute() {
-      player.mute();
+      activePlayer().mute();
     }
 
     function unMute() {
-      player.unMute();
+      activePlayer().unMute();
     }
 
     function setVolume(volumePercent) {
-      player.setVolume(volumePercent);
+      lastVolume = volumePercent;
+      activePlayer().setVolume(volumePercent);
     }
 
     function setPlaybackRate(playbackRate) {
-      player.setPlaybackRate(playbackRate);
+      activePlayer().setPlaybackRate(playbackRate);
     }
 
     function toggleFullscreen() {
-      player.toggleFullscreen();
+      activePlayer().toggleFullscreen();
     }
 
     function nextVideo() {
-      player.nextVideo();
+      activePlayer().nextVideo();
     }
 
     function previousVideo() {
-      player.previousVideo();
+      activePlayer().previousVideo();
     }
 
     function playVideoAt(index) {
-      player.playVideoAt(index);
+      activePlayer().playVideoAt(index);
     }
 
     function setLoop(loop) {
-      player.setLoop(loop);
+      activePlayer().setLoop(loop);
     }
 
     function setShuffle(shuffle) {
-      player.setShuffle(shuffle);
+      activePlayer().setShuffle(shuffle);
     }
 
     // Backs YouTubePlayer.isMutedAsync / isMuted. Without it the Kotlin side registers
@@ -336,7 +531,7 @@ function hideTabletPopup() {
     // rather than a visible failure. Nothing calls it today; this keeps it from becoming
     // a trap the first time something does.
     function getMuteValue(requestId) {
-      var isMuted = player.isMuted();
+      var isMuted = activePlayer().isMuted();
       YouTubePlayerCallbacks.sendBooleanValue(requestId, isMuted);
     }
 

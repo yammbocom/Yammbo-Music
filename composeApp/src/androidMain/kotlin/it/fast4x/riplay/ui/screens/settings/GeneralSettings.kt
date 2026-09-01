@@ -115,6 +115,7 @@ import it.fast4x.riplay.extensions.preferences.rememberPreference
 import it.fast4x.riplay.extensions.preferences.resumePlaybackOnStartKey
 import it.fast4x.riplay.ui.styling.semiBold
 import it.fast4x.riplay.extensions.preferences.shakeEventEnabledKey
+import it.fast4x.riplay.extensions.preferences.preloadNextSongKey
 import it.fast4x.riplay.extensions.preferences.skipMediaOnErrorKey
 import it.fast4x.riplay.extensions.preferences.skipSilenceKey
 import it.fast4x.riplay.extensions.preferences.volumeNormalizationKey
@@ -225,7 +226,7 @@ fun GeneralSettings(
     )
     var resumeOrPausePlaybackWhenDeviceWired by rememberPreference(
         resumeOrPausePlaybackWhenDeviceWiredKey,
-        false
+        true
     )
 
     var resumeOrPausePlaybackWhenCall by rememberPreference(
@@ -245,7 +246,10 @@ fun GeneralSettings(
 
     var skipSilence by rememberPreference(skipSilenceKey, false)
     var skipMediaOnError by rememberPreference(skipMediaOnErrorKey, true)
-    var volumeNormalization by rememberPreference(volumeNormalizationKey, false)
+    // Off by default: it runs a second YouTube embed, which is memory the phone may not
+    // have going spare. Read from the service on every song, so no restart is needed.
+    var preloadNextSong by rememberPreference(preloadNextSongKey, true)
+    var volumeNormalization by rememberPreference(volumeNormalizationKey, true)
     var isConnectionMeteredEnabled by rememberPreference(isConnectionMeteredEnabledKey, true)
 
     var useDnsOverHttpsType by rememberPreference(dnsOverHttpsTypeKey, DnsOverHttpsType.None)
@@ -310,7 +314,7 @@ fun GeneralSettings(
     var pauseListenHistory by rememberPreference(pauseListenHistoryKey, false)
 
 
-    var loudnessBaseGain by rememberPreference(loudnessBaseGainKey, 5.00f)
+    var loudnessBaseGain by rememberPreference(loudnessBaseGainKey, 2.00f)
     var autoLoadSongsInQueue by rememberPreference(autoLoadSongsInQueueKey, true)
 
     var bassboostEnabled by rememberPreference(bassboostEnabledKey,false)
@@ -1324,6 +1328,23 @@ fun GeneralSettings(
 
                         RestartPlayerService(restartService, onRestart = { restartService = false })
 
+                    }
+
+                    if (search.input.isBlank() || stringResource(R.string.preload_next_song).contains(
+                            search.input,
+                            true
+                        )
+                    ) {
+                        SwitchSettingEntry(
+                            online = true,
+                            offline = false,
+                            title = stringResource(R.string.preload_next_song),
+                            text = stringResource(R.string.preload_next_song_description),
+                            isChecked = preloadNextSong,
+                            onCheckedChange = {
+                                preloadNextSong = it
+                            }
+                        )
                     }
 
                     if (search.input.isBlank() || stringResource(R.string.skip_silence).contains(

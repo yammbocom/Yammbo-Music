@@ -130,7 +130,6 @@ import it.fast4x.riplay.utils.getDeviceVolume
 import it.fast4x.riplay.utils.isLandscape
 import it.fast4x.riplay.utils.isValidIP
 import it.fast4x.riplay.ui.styling.medium
-import it.fast4x.riplay.extensions.preferences.playbackDeviceVolumeKey
 import it.fast4x.riplay.extensions.preferences.playbackDurationKey
 import it.fast4x.riplay.extensions.preferences.playbackPitchKey
 import it.fast4x.riplay.extensions.preferences.playbackSpeedKey
@@ -3036,7 +3035,13 @@ fun PlaybackParamsDialog(
     var playbackSpeed  by rememberPreference(playbackSpeedKey,   defaultSpeed)
     var playbackPitch  by rememberPreference(playbackPitchKey,   defaultPitch)
     var playbackVolume  by rememberPreference(playbackVolumeKey, 0.5f)
-    var playbackDeviceVolume  by rememberPreference(playbackDeviceVolumeKey, getDeviceVolume(context))
+    // The device volume slider used to restore a saved value instead of reading the device.
+    // Change the volume with the phone's own buttons, open this dialog, and the slider sat
+    // where it had been left — so the first touch snapped the device to that stale position.
+    // That is what the log shows: jumps from 4 to 15 and from 4 to 0 on a scale of 15, sizes
+    // no single key press can produce. A device's volume belongs to the device, so it is read
+    // here and never remembered.
+    var playbackDeviceVolume by remember { mutableStateOf(getDeviceVolume(context)) }
     var playbackDuration by rememberPreference(playbackDurationKey, defaultDuration)
     var blurStrength  by rememberPreference(blurStrengthKey, defaultStrength)
     var bassBoost  by rememberPreference(bassboostLevelKey, defaultBassboost)

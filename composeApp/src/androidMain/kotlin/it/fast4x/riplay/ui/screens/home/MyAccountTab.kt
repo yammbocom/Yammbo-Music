@@ -69,7 +69,11 @@ import it.fast4x.riplay.utils.typography
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import androidx.compose.runtime.collectAsState
+import kotlinx.coroutines.withContext
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
@@ -101,12 +105,24 @@ fun MyAccountTab(
 
     // Summary counters for the stats strip. Single-row aggregates, so collecting
     // them on the tab is cheap; they update live as the user listens.
-    val listenedMs by remember { Database.totalListeningTimeMs() }
-        .collectAsState(initial = 0L, context = Dispatchers.IO)
-    val artistsCount by remember { Database.listenedArtistsCount() }
-        .collectAsState(initial = 0, context = Dispatchers.IO)
-    val playlistsCount by remember { Database.playlistsCount() }
-        .collectAsState(initial = 0, context = Dispatchers.IO)
+    //
+    // rememberSaveable rather than collectAsState(initial = 0): the tabs live inside a
+    // SaveableStateProvider keyed by tab index feeding a `when`, so leaving this tab
+    // disposes it outright. With a plain remember every counter fell back to its initial
+    // 0 on return and only refilled once Room had re-run the aggregate — the reported
+    // "48 artists, switch tab, come back, 0 artists". A saveable survives that disposal,
+    // so the last known figure stays on screen while the query runs again underneath.
+    var listenedMs by rememberSaveable { mutableLongStateOf(0L) }
+    var artistsCount by rememberSaveable { mutableIntStateOf(0) }
+    var playlistsCount by rememberSaveable { mutableIntStateOf(0) }
+
+    LaunchedEffect(Unit) {
+        withContext(Dispatchers.IO) {
+            launch { Database.totalListeningTimeMs().collect { listenedMs = it } }
+            launch { Database.listenedArtistsCount().collect { artistsCount = it } }
+            launch { Database.playlistsCount().collect { playlistsCount = it } }
+        }
+    }
 
     LifecycleResumeEffect(Unit) {
         val userId = authManager.getUserId()
