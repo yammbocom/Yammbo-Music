@@ -41,6 +41,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import coil.compose.AsyncImagePainter
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import coil.size.Size
@@ -74,6 +75,7 @@ import it.fast4x.riplay.extensions.preferences.rememberPreference
 import it.fast4x.riplay.extensions.preferences.showCoverThumbnailAnimationKey
 import it.fast4x.riplay.extensions.preferences.showlyricsthumbnailKey
 import it.fast4x.riplay.extensions.preferences.showvisthumbnailKey
+import it.fast4x.riplay.commonutils.PLAYER_COVER_PX
 import it.fast4x.riplay.commonutils.thumbnail
 import it.fast4x.riplay.extensions.preferences.thumbnailTypeKey
 import it.fast4x.riplay.extensions.preferences.thumbnailpauseKey
@@ -139,14 +141,10 @@ fun Thumbnail(
 
     val formatUnsupported = stringResource(R.string.error_file_unsupported_format)
 
-    // Keyed on the song: with a bare remember this stayed false for every later
-    // track once a single cover had failed, so one bad artwork left the
-    // placeholder stuck in the player while the mini player kept showing covers
-    // fine. nullableWindow is read here rather than `window` because that one is
-    // only resolved further down.
-    var artImageAvailable by remember(nullableWindow?.mediaItem?.mediaId) {
-        mutableStateOf(true)
-    }
+    // artImageAvailable is derived from the painter further down rather than kept
+    // as state here. Holding it by hand meant a cancelled request — which is what
+    // a quick track change produces — latched the placeholder on, and a bare
+    // remember then carried that over to every following song.
 
     val clickLyricsText by rememberPreference(clickOnLyricsTextKey, true)
     var showvisthumbnail by rememberPreference(showvisthumbnailKey, false)
@@ -175,26 +173,25 @@ fun Thumbnail(
 
     val artworkUrl = window.mediaItem.mediaMetadata.artworkUri.toString()
 
-    // Not every cover is served at 1200px. Rather than dropping straight to the
-    // placeholder, retry once with the URL exactly as the metadata gave it: that
-    // one already carries a size the CDN is known to serve, since it is what the
-    // feed handed us.
+    // A cover the CDN will not serve at 1200px still usually exists at whatever
+    // size the feed handed us, so fall back to the untouched URL once before
+    // giving up on it.
     var useOriginalArtwork by remember(window.mediaItem.mediaId) { mutableStateOf(false) }
 
     val coverPainter = rememberAsyncImagePainter(
         model = ImageRequest.Builder(LocalContext.current)
-            .data(if (useOriginalArtwork) artworkUrl else artworkUrl.thumbnail(1200))
+            .data(if (useOriginalArtwork) artworkUrl else artworkUrl.thumbnail(PLAYER_COVER_PX))
             .size(Size.ORIGINAL)
             .build(),
-        onError = {
-            if (useOriginalArtwork) {
-                artImageAvailable = false
-            } else {
-                useOriginalArtwork = true
-            }
-        },
-        onSuccess = { artImageAvailable = true }
+        onError = { if (!useOriginalArtwork) useOriginalArtwork = true }
     )
+
+    // Coil's own state, not a flag of ours. Only a settled Error means there is
+    // nothing to draw: while the request is still in flight — or was cancelled by
+    // the user skipping on — showing the broken-image icon flashes failure over
+    // artwork that is seconds away. The player cover is ~200KB at 1200px, so that
+    // window is long enough to see.
+    val artImageAvailable = coverPainter.state !is AsyncImagePainter.State.Error
 
     val showCoverThumbnailAnimation by rememberPreference(showCoverThumbnailAnimationKey, false)
     var coverThumbnailAnimation by rememberPreference(coverThumbnailAnimationKey, ThumbnailCoverType.Vinyl)

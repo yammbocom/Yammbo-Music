@@ -70,6 +70,17 @@ fun cleanString(text: String): String {
     return cleanText
 }
 
+/**
+ * Size the player asks the CDN for.
+ *
+ * The full-screen cover, the blurred backdrop behind it and the palette the
+ * background gradient is sampled from are all the same image, so they have to
+ * agree: a mismatch turns one download into two or three. Measured on YouTube's
+ * CDN, one cover is ~208KB at 1200px against ~156KB here, and the player is not
+ * shown at a size where the difference is visible.
+ */
+const val PLAYER_COVER_PX = 800
+
 fun String?.thumbnail(size: Int): String? {
     val s = this ?: return null
     val googleCdnSized = Regex("(https://(?:lh3|yt3)\\.googleusercontent\\.com/[^=]+)=w\\d+-h\\d+.*")

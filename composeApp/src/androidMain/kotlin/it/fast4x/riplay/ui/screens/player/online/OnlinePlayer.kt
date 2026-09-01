@@ -167,6 +167,7 @@ import it.fast4x.riplay.appRunningInBackground
 import it.fast4x.riplay.commonutils.cleanPrefix
 import it.fast4x.riplay.commonutils.durationTextToMillis
 import it.fast4x.riplay.commonutils.setDisLikeState
+import it.fast4x.riplay.commonutils.PLAYER_COVER_PX
 import it.fast4x.riplay.commonutils.thumbnail
 import it.fast4x.riplay.data.Database
 import it.fast4x.riplay.data.models.Info
@@ -915,7 +916,7 @@ fun OnlinePlayer(
             try {
                 val bitmap = getBitmapFromUrl(
                     context,
-                    binder.player.currentWindow?.mediaItem?.mediaMetadata?.artworkUri.toString().thumbnail(1200)
+                    binder.player.currentWindow?.mediaItem?.mediaMetadata?.artworkUri.toString().thumbnail(PLAYER_COVER_PX)
                         .toString()
                 )
 
@@ -995,13 +996,13 @@ fun OnlinePlayer(
     val painter = rememberAsyncImagePainter(
         model = ImageRequest.Builder(LocalContext.current)
             .data(
-                mediaItem.mediaMetadata.artworkUri.toString().thumbnail(1200)
+                mediaItem.mediaMetadata.artworkUri.toString().thumbnail(PLAYER_COVER_PX)
             )
-            .size(1200, 1200)
+            .size(PLAYER_COVER_PX, PLAYER_COVER_PX)
             .crossfade(true)
             .memoryCacheKey(playerCoverCacheKey)
             .diskCacheKey(playerCoverCacheKey)
-            .transformations(LandscapeToSquareTransformation(1200))
+            .transformations(LandscapeToSquareTransformation(PLAYER_COVER_PX))
             .transformations(
                 listOf(
                     if (showthumbnail) {
