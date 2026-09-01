@@ -36,6 +36,7 @@ import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.os.Build
+import com.yambo.music.BuildConfig
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
@@ -141,6 +142,9 @@ import it.fast4x.riplay.extensions.ads.YammboAdManager
 import it.fast4x.riplay.extensions.audiovolume.AudioVolumeObserver
 import it.fast4x.riplay.extensions.audiovolume.OnAudioVolumeChangedListener
 import it.fast4x.riplay.extensions.discord.DiscordPresenceManager
+import it.fast4x.riplay.extensions.yammboapi.PlayReportRequest
+import it.fast4x.riplay.extensions.yammboapi.YammboApiService
+import it.fast4x.riplay.extensions.yammboapi.YammboAuthManager
 import it.fast4x.riplay.extensions.discord.updateDiscordPresenceWithOfflinePlayer
 import it.fast4x.riplay.extensions.discord.updateDiscordPresenceWithOnlinePlayer
 import it.fast4x.riplay.extensions.history.updateOnlineHistory
@@ -3669,10 +3673,47 @@ class PlayerService : Service(),
                     }
                 }
 
+                reportPlayToServer(mediaId)
             }
 
         }
 
+    }
+
+    /**
+     * Mirror a finished listen to the backend so it reaches the admin panel.
+     *
+     * Called from the same branch that writes the local Event, so the two agree on
+     * what counts as a listen and the user's "pause listening history" setting —
+     * checked by the caller — silences both together.
+     *
+     * Deliberately fire and forget on the service's IO scope: reporting is never
+     * worth delaying the next track for, and reportPlay already swallows failures.
+     */
+    private fun reportPlayToServer(mediaId: String) {
+        val song = currentSong.value ?: return
+
+        coroutineScope.launch {
+            runCatching {
+                YammboApiService.reportPlay(
+                    PlayReportRequest(
+                        videoId = mediaId,
+                        title = song.title,
+                        artist = song.artistsText,
+                        // currentDuration is seconds — it is compared against
+                        // currentSecond elsewhere — and the field is milliseconds.
+                        durationMs = currentDuration.value.takeIf { it > 0 }
+                            ?.let { (it * 1000f).toInt() },
+                        playedMs = onlineListenedDurationMs.toInt(),
+                        source = "online",
+                        appVersion = BuildConfig.VERSION_NAME,
+                        androidSdk = Build.VERSION.SDK_INT,
+                        deviceModel = Build.MODEL,
+                    ),
+                    token = YammboAuthManager(this@PlayerService).getAccessToken(),
+                )
+            }
+        }
     }
 
     // Mirrors incrementOnlineListenedPlaytimeMs() but for LOCAL songs, using the

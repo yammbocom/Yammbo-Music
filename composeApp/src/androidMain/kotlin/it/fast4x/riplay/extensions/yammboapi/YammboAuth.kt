@@ -153,3 +153,26 @@ data class BugReportResponse(
     val success: Boolean = false,
     val message: String? = null
 )
+
+// Play reporting (listening stats for the admin panel) -> POST /api/v1/app-plays
+//
+// The country is deliberately absent: the server resolves it from the request IP,
+// because a figure that ends up in an admin chart should not be a client's claim.
+@Serializable
+data class PlayReportRequest(
+    @SerialName("video_id") val videoId: String,
+    val title: String? = null,
+    val artist: String? = null,
+    @SerialName("duration_ms") val durationMs: Int? = null,
+    @SerialName("played_ms") val playedMs: Int? = null,
+    val source: String = "online",
+    @SerialName("app_version") val appVersion: String? = null,
+    @SerialName("android_sdk") val androidSdk: Int? = null,
+    @SerialName("device_model") val deviceModel: String? = null
+)
+
+@Serializable
+data class PlayReportResponse(
+    val success: Boolean = false,
+    val logged: Boolean = false
+)

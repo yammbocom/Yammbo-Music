@@ -103,6 +103,29 @@ object YammboApiService {
         }.body<BugReportResponse>()
     }.onFailure { Timber.e("YammboApi reportBug error: ${it.message}") }
 
+    /**
+     * Report one finished listen so it shows up in the admin panel.
+     *
+     * Fire and forget: the caller is the playback service finishing a song, and a
+     * failed report must never surface to the user or hold up the next track. The
+     * server de-duplicates repeats of the same video within a minute, so a retry
+     * that the caller cannot know succeeded is harmless.
+     *
+     * Sent anonymously when there is no token — a play still counts towards the
+     * totals, it just is not attributed to anyone.
+     */
+    suspend fun reportPlay(
+        request: PlayReportRequest,
+        token: String?
+    ): Result<PlayReportResponse> = runCatching {
+        client.post("$SUPPORT_BASE/app-plays") {
+            contentType(ContentType.Application.Json)
+            header("Accept", "application/json")
+            if (!token.isNullOrBlank()) header("Authorization", "Bearer $token")
+            setBody(request)
+        }.body<PlayReportResponse>()
+    }.onFailure { Timber.e("YammboApi reportPlay error: ${it.message}") }
+
     // TV Link (QR device pairing)
     private const val TV_LINK_BASE = "https://music.yammbo.com/api/v1/tv-link"
 
