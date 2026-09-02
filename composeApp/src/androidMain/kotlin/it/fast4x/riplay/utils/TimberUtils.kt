@@ -1,5 +1,6 @@
 package it.fast4x.riplay.utils
 
+import android.content.Context
 import android.util.Log
 import timber.log.Timber
 import java.io.ByteArrayOutputStream
@@ -11,6 +12,27 @@ import java.io.RandomAccessFile
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+
+/**
+ * Point Timber at the log file, or away from it.
+ *
+ * Called both at startup and the moment the setting is toggled. It used to happen
+ * only in MainApplication.onCreate, so turning the log on did nothing until the
+ * app was restarted — and someone who flipped the switch and went straight to
+ * "export" got "no log available" and no way to tell that from a broken log.
+ */
+fun applyLogTree(context: Context, enabled: Boolean) {
+    Timber.uprootAll()
+
+    if (!enabled) {
+        Timber.plant(Timber.DebugTree())
+        return
+    }
+
+    val dir = context.filesDir.resolve("logs").also { if (!it.exists()) it.mkdirs() }
+    Timber.plant(FileLoggingTree(File(dir, "YammboMusic_log.txt")))
+    Timber.d("Log enabled at ${dir.absolutePath}")
+}
 
 class FileLoggingTree(private val logFile: File) : Timber.DebugTree() {
 

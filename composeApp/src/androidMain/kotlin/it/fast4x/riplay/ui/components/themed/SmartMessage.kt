@@ -15,6 +15,16 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
+/**
+ * Show a short message to the user.
+ *
+ * Prefers the in-app bar drawn by [BoxWithMessages]: it is monochrome like the rest
+ * of the app, animates in, and sits clear of the mini player instead of covering it.
+ *
+ * Falls back to a system Toast whenever no host is on screen — the playback service
+ * reports things while the UI is gone, and those messages still need to arrive.
+ * The signature is unchanged so none of the call sites had to move.
+ */
 @OptIn(UnstableApi::class)
 fun SmartMessage(
     message: String,
@@ -23,6 +33,8 @@ fun SmartMessage(
     durationLong: Boolean = false,
     context: Context,
 ) {
+    if (AppMessages.post(AppMessage(message, type, durationLong))) return
+
     CoroutineScope(Dispatchers.Main).launch {
         val length = if (durationLong) Toast.LENGTH_LONG else Toast.LENGTH_SHORT
 
@@ -34,10 +46,8 @@ fun SmartMessage(
                 PopupType.Warning -> Toasty.warning(context, message, length, true).show()
                 null -> Toasty.normal(context, message, length).show()
             }
-
-        } else
-        //if (durationLong == true) context.toastLong(message) else context.toast(message)
-        Toasty.normal(context, message, length).show()
+        } else {
+            Toasty.normal(context, message, length).show()
+        }
     }
 }
-

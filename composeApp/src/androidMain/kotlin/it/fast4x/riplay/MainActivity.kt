@@ -195,6 +195,7 @@ import it.fast4x.riplay.ui.components.LocalGlobalSheetState
 import it.fast4x.riplay.ui.components.rememberBottomSheetState
 import it.fast4x.riplay.ui.components.themed.ConfirmationDialog
 import it.fast4x.riplay.ui.components.themed.CrossfadeContainer
+import it.fast4x.riplay.ui.components.themed.BoxWithMessages
 import it.fast4x.riplay.ui.components.themed.SmartMessage
 import it.fast4x.riplay.ui.screens.player.local.LocalMiniPlayer
 import it.fast4x.riplay.ui.screens.player.local.LocalPlayer
@@ -1245,6 +1246,9 @@ class MainActivity :
                             LocalOnDeviceViewModel provides onDeviceViewModel
                             //LocalInternetAvailable provides isInternetAvailable
                         ) {
+                            // Wraps the whole UI so an in-app message can be drawn over it, lifted
+                            // clear of the mini player instead of covering it like the old Toast.
+                            BoxWithMessages(bottomInset = Dimensions.miniPlayerHeight) {
 
                             if (intent.action == action_rescuecenter) {
                                 RescueScreen(
@@ -1475,6 +1479,7 @@ class MainActivity :
 
                                  */
 
+                            }
                             }
                         }
 

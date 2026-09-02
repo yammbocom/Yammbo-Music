@@ -38,6 +38,7 @@ import it.fast4x.riplay.ui.styling.Dimensions
 import it.fast4x.riplay.extensions.preferences.logDebugEnabledKey
 import it.fast4x.riplay.extensions.preferences.navigationBarPositionKey
 import it.fast4x.riplay.extensions.preferences.rememberPreference
+import it.fast4x.riplay.utils.applyLogTree
 import it.fast4x.riplay.utils.colorPalette
 import it.fast4x.riplay.utils.typography
 import java.io.File
@@ -159,6 +160,13 @@ fun MiscSettings() {
                 isChecked = logDebugEnabled,
                 onCheckedChange = {
                     logDebugEnabled = it
+
+                    // Take effect now. This used to only store the preference and tell the
+                    // user to restart, so flipping the switch and going straight to
+                    // "export log" reported "no log available" — indistinguishable from a
+                    // log that was broken.
+                    applyLogTree(context, it)
+
                     if (!it) {
                         val file = File(context.filesDir.resolve("logs"), "YammboMusic_log.txt")
                         if (file.exists()) file.delete()
@@ -167,22 +175,12 @@ fun MiscSettings() {
                         // button right below it announcing that it is always on: turning the
                         // debug log off threw away the record of a crash that had already
                         // happened, exactly when someone goes looking for it.
-                    } else {
-                        SmartMessage(
-                            context.resources.getString(R.string.restarting_riplay_is_required),
-                            type = PopupType.Info, context = context
-                        )
                     }
                 }
             )
-            BasicText(
-                text = stringResource(R.string.restarting_riplay_is_required),
-                style = typography().xxs.copy(
-                    color = colorPalette().red,
-                    fontWeight = FontWeight.SemiBold
-                ),
-                modifier = Modifier.padding(vertical = 4.dp)
-            )
+            // The "restart required" warning that stood here is gone: the switch now
+            // takes effect immediately, and leaving the notice up would have people
+            // restarting for nothing and doubting a log that is already recording.
             ButtonBarSettingEntry(
                 online = false,
                 offline = false,

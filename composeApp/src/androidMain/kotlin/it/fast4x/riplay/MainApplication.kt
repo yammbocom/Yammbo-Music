@@ -13,7 +13,7 @@ import coil.memory.MemoryCache
 import coil.request.CachePolicy
 import it.fast4x.riplay.data.DatabaseInitializer
 import it.fast4x.riplay.enums.CoilDiskCacheMaxSize
-import it.fast4x.riplay.utils.FileLoggingTree
+import it.fast4x.riplay.utils.applyLogTree
 import it.fast4x.riplay.extensions.preferences.coilCustomDiskCacheKey
 import it.fast4x.riplay.extensions.preferences.coilDiskCacheMaxSizeKey
 import it.fast4x.riplay.extensions.preferences.getEnum
@@ -81,14 +81,7 @@ class MainApplication : MultiDexApplication(), ImageLoaderFactory {
         /***** CRASH LOG ALWAYS ENABLED *****/
 
         /**** LOG *********/
-        val logEnabled = preferences.getBoolean(logDebugEnabledKey, false)
-        if (logEnabled) {
-            Timber.plant(FileLoggingTree(File(dir, "YammboMusic_log.txt")))
-            Timber.d("Log enabled at ${dir.absolutePath}")
-        } else {
-            Timber.uprootAll()
-            Timber.plant(Timber.DebugTree())
-        }
+        applyLogTree(this, preferences.getBoolean(logDebugEnabledKey, false))
         /**** LOG *********/
     }
 
