@@ -805,7 +805,8 @@ class PlayerService : Service(),
 
     }
 
-    private fun restoreStateIfNeeded() {
+    /** Returns true when it handed the embed a song, so the caller knows not to. */
+    private fun restoreStateIfNeeded(): Boolean {
         val mediaId = statePersistence.getSavedMediaId()
         val position = statePersistence.getSavedPosition()
         val wasPlaying = statePersistence.getSavedIsPlaying()
@@ -832,7 +833,10 @@ class PlayerService : Service(),
                 Timber.d("PlayerService restoreStateIfNeeded ONLINE $mediaId position $position")
             }
             statePersistence.clearState()
+            return true
         }
+
+        return false
     }
 
     private fun initializeVariables() {
@@ -1302,17 +1306,38 @@ class PlayerService : Service(),
 
                     youTubePlayer.setVolume(getSystemMediaVolume())
 
+                    var embedHasSong = false
+
                     localMediaItem?.let{
                         if (isPersistentQueueEnabled && isResumePlaybackOnStart && firstTimeStarted && !skipAutoload) {
                             markOnlineLoadStart(it.mediaId, "onReady")
                             youTubePlayer.loadVideo(it.mediaId, playFromSecond)
                             Timber.d("PlayerService onlinePlayer onReady loadVideo ${it.mediaId}")
+                            embedHasSong = true
                         }
                     }
 
                     firstTimeStarted = false
 
-                    restoreStateIfNeeded()
+                    if (restoreStateIfNeeded()) embedHasSong = true
+
+                    // Hand the embed the restored song even when neither branch above
+                    // wanted to start it — with "resume on start" off and nothing playing
+                    // when the app was closed, both were skipped and the embed was left
+                    // holding nothing at all.
+                    //
+                    // An empty embed does not sit quietly: measured 2026-09-01, it reported
+                    // INVALID_PARAMETER_IN_REQUEST 11.3s after onReady, and only the error
+                    // recovery that followed actually loaded the song — 16s from launch to
+                    // sound. cueVideo fetches the player module and metadata without
+                    // playing, so startup stays silent as intended and the first press has
+                    // something to start.
+                    if (!embedHasSong && !skipAutoload) {
+                        localMediaItem?.let {
+                            youTubePlayer.cueVideo(it.mediaId, playFromSecond)
+                            Timber.d("PlayerService onlinePlayer onReady cueVideo ${it.mediaId} (idle embed)")
+                        }
+                    }
                 }
 
                 override fun onCurrentSecond(youTubePlayer: YouTubePlayer, second: Float) {
