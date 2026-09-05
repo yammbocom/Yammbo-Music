@@ -380,7 +380,7 @@ fun HomePlaylists(
     val sync = autoSyncToolbutton(R.string.autosync)
 
     val doAutoSync by rememberPreference(autosyncKey, false)
-    var justSynced by rememberSaveable { mutableStateOf(!doAutoSync) }
+    var justSynced by rememberSaveable { mutableStateOf(false) } // import on open when YTM sync is on
 
     val viewType = viewTypeToolbutton(R.string.viewType)
 
@@ -1449,7 +1449,7 @@ fun HomePlaylists(
     val sync = autoSyncToolbutton(R.string.autosync)
 
     val doAutoSync by rememberPreference(autosyncKey, false)
-    var justSynced by rememberSaveable { mutableStateOf(!doAutoSync) }
+    var justSynced by rememberSaveable { mutableStateOf(false) } // import on open when YTM sync is on
 
     val viewType = viewTypeToolbutton(R.string.viewType)
 

@@ -149,7 +149,10 @@ import it.fast4x.riplay.data.Database
 import it.fast4x.riplay.enums.CheckUpdateState
 import it.fast4x.riplay.enums.ContentType
 import it.fast4x.riplay.enums.EqualizerType
+import it.fast4x.riplay.utils.appContext
 import it.fast4x.riplay.extensions.preferences.castToRiTuneDeviceEnabledKey
+import it.fast4x.riplay.extensions.preferences.castShowVideoKey
+import it.fast4x.riplay.extensions.cast.CastManager
 import it.fast4x.riplay.extensions.preferences.checkUpdateStateKey
 import it.fast4x.riplay.extensions.preferences.closePlayerServiceAfterMinutesKey
 import it.fast4x.riplay.extensions.preferences.closePlayerServiceWhenPausedAfterMinutesKey
@@ -372,6 +375,7 @@ fun GeneralSettings(
     var parentalControlEnabled by rememberPreference(parentalControlEnabledKey, false)
 
     var castToRiTuneDeviceEnabled by rememberPreference(castToRiTuneDeviceEnabledKey, false )
+    var castShowVideo by rememberPreference(castShowVideoKey, false)
 
     val eventsCount by remember {
         Database.eventsCount().distinctUntilChanged()
@@ -1746,6 +1750,31 @@ fun GeneralSettings(
                     RestartPlayerService(restartService, onRestart = { restartService = false })
                 }
                 */
+
+                settingsItem(
+                    isHeader = true
+                ) {
+                    SettingsGroupSpacer()
+                    SettingsEntryGroupText(title = stringResource(R.string.cast))
+                }
+
+                settingsItem {
+                    if (search.input.isBlank() || stringResource(R.string.cast_show_video).contains(
+                            search.input,
+                            true
+                        )
+                    )
+                        SwitchSettingEntry(
+                            title = stringResource(R.string.cast_show_video),
+                            text = stringResource(R.string.cast_show_video_info),
+                            isChecked = castShowVideo,
+                            onCheckedChange = {
+                                castShowVideo = it
+                                // Takes effect on the TV straight away, no restart
+                                CastManager.showVideo = it
+                            }
+                        )
+                }
 
                 settingsItem(
                     isHeader = true

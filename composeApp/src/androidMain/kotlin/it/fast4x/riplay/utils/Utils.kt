@@ -28,6 +28,7 @@ import androidx.core.net.toUri
 import androidx.core.os.bundleOf
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
+import androidx.media3.common.MimeTypes
 import androidx.media3.common.util.UnstableApi
 import com.zionhuang.innertube.pages.LibraryPage
 import io.ktor.client.plugins.ClientRequestException
@@ -319,18 +320,15 @@ val Song.asMediaItem: MediaItem
                         "isPodcast" to (isPodcast == 1),
                         "isDisliked" to (likedAt?.toInt() == -1),
                         "isLiked" to ((likedAt?.toInt() ?: 0) > 0),
-                        "mediaId" to mediaId
+                        "mediaId" to mediaId,
+                        "isRadio" to isRadio
                     )
                 )
                 .build()
         )
         .setMediaId(id)
-        .setUri(
-            if (isLocal) ContentUris.withAppendedId(
-                MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
-                id.substringAfter(LOCAL_KEY_PREFIX).toLong()
-            ) else id.toUri()
-        )
+        .setUri(playbackUriOf(id))
+        .setMimeType(radioMimeTypeOf(id))
         .setCustomCacheKey(id)
         .build()
 
@@ -352,12 +350,8 @@ val Song.asVideoMediaItem: MediaItem
                 .build()
         )
         .setMediaId(id)
-        .setUri(
-            if (isLocal) ContentUris.withAppendedId(
-                MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
-                id.substringAfter(LOCAL_KEY_PREFIX).toLong()
-            ) else id.toUri()
-        )
+        .setUri(playbackUriOf(id))
+        .setMimeType(radioMimeTypeOf(id))
         .setCustomCacheKey(id)
         .build()
 
@@ -381,12 +375,8 @@ val SongEntity.asMediaItem: MediaItem
                 .build()
         )
         .setMediaId(song.id)
-        .setUri(
-            if (song.isLocal) ContentUris.withAppendedId(
-                MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
-                song.id.substringAfter(LOCAL_KEY_PREFIX).toLong()
-            ) else song.id.toUri()
-        )
+        .setUri(playbackUriOf(song.id))
+        .setMimeType(radioMimeTypeOf(song.id))
         .setCustomCacheKey(song.id)
         .build()
 

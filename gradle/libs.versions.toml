@@ -38,6 +38,7 @@ toasty = "1.5.2"
 haze = "0.7.3"
 androidyoutubeplayer = "13.0.0"
 mediarouter = "1.8.1"
+playServicesCast = "22.3.1"
 glance = "1.1.1"
 kizzyrpc = "1.0.71"
 gson = "2.13.2"
@@ -84,6 +85,9 @@ media3-exoplayer = {group = "androidx.media3", name = "media3-exoplayer", versio
 media3-session = {group = "androidx.media3", name = "media3-session", version.ref = "media3"}
 media3-datasource-okhttp = {group = "androidx.media3", name = "media3-datasource-okhttp", version.ref = "media3"}
 media3-ui = {group = "androidx.media3", name = "media3-ui", version.ref = "media3"}
+media3-exoplayer-hls = {group = "androidx.media3", name = "media3-exoplayer-hls", version.ref = "media3"}
+play-services-cast-framework = {group = "com.google.android.gms", name = "play-services-cast-framework", version.ref = "playServicesCast"}
+androidx-mediarouter = {group = "androidx.mediarouter", name = "mediarouter", version.ref = "mediarouter"}
 ktor-client-core = {group = "io.ktor", name = "ktor-client-core", version.ref = "ktor"}
 ktor-client-okhttp = {group = "io.ktor", name = "ktor-client-okhttp", version.ref = "ktor"}
 ktor-client-websockets = { group = "io.ktor", name = "ktor-client-websockets", version.ref = "ktor"}

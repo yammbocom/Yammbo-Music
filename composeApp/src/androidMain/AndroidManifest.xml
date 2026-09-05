@@ -89,7 +89,7 @@
         android:requestLegacyExternalStorage="true"
         android:enableOnBackInvokedCallback="true"
         android:networkSecurityConfig="@xml/network_security_config"
-        android:usesCleartextTraffic="false"
+        android:usesCleartextTraffic="true"
         tools:targetApi="tiramisu"
         android:hardwareAccelerated="true">
 
@@ -287,6 +287,11 @@
 
         <meta-data android:name="com.google.android.gms.car.notification.SmallIcon"
             android:resource="@drawable/yambo_icon" />
+
+        <!-- Google Cast: the framework reads this the first time a CastContext is created -->
+        <meta-data
+            android:name="com.google.android.gms.cast.framework.OPTIONS_PROVIDER_CLASS_NAME"
+            android:value="it.fast4x.riplay.extensions.cast.YammboCastOptionsProvider" />
 
     </application>
 </manifest>

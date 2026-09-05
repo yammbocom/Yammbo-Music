@@ -52,6 +52,7 @@ private val SongsTint = Color(0xFFEF5350)      // red — match brand accent
 private val ArtistsTint = Color(0xFF5C6BC0)    // indigo
 private val AlbumsTint = Color(0xFFAB47BC)     // purple
 private val PlaylistsTint = Color(0xFFFFA726)  // amber
+private val RadioTint = Color(0xFF26A69A)      // teal
 
 @Composable
 fun MyMusicTab(
@@ -59,6 +60,7 @@ fun MyMusicTab(
     onArtistsClick: () -> Unit,
     onAlbumsClick: () -> Unit,
     onPlaylistsClick: () -> Unit,
+    onRadioClick: () -> Unit,
     onDeviceClick: () -> Unit
 ) {
     val navigationBarPosition by rememberPreference(
@@ -113,12 +115,23 @@ fun MyMusicTab(
                     )
                 }
 
+                // Right under Canciones: at the bottom of the list it sat behind the mini player.
+                StaggeredEntry(index = 1) {
+                    BentoWideCard(
+                        iconId = R.drawable.radio,
+                        label = stringResource(R.string.favorite_radios),
+                        hint = stringResource(R.string.favorite_radios_hint),
+                        tint = RadioTint,
+                        onClick = onRadioClick
+                    )
+                }
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Box(modifier = Modifier.weight(1f)) {
-                        StaggeredEntry(index = 1) {
+                        StaggeredEntry(index = 2) {
                             BentoSquareCard(
                                 iconId = R.drawable.person,
                                 label = stringResource(R.string.artists),
@@ -129,7 +142,7 @@ fun MyMusicTab(
                         }
                     }
                     Box(modifier = Modifier.weight(1f)) {
-                        StaggeredEntry(index = 2) {
+                        StaggeredEntry(index = 3) {
                             BentoSquareCard(
                                 iconId = R.drawable.album,
                                 label = stringResource(R.string.albums),
@@ -141,7 +154,7 @@ fun MyMusicTab(
                     }
                 }
 
-                StaggeredEntry(index = 3) {
+                StaggeredEntry(index = 4) {
                     BentoWideCard(
                         iconId = R.drawable.library,
                         label = stringResource(R.string.playlists),
@@ -151,12 +164,13 @@ fun MyMusicTab(
                     )
                 }
 
-                StaggeredEntry(index = 4) {
+                StaggeredEntry(index = 5) {
                     OnDeviceBannerCard(onClick = onDeviceClick)
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            // Room for the mini player, which floats over the bottom of the page
+            Spacer(modifier = Modifier.height(Dimensions.bottomSpacer))
         }
     }
 }

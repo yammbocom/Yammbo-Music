@@ -4,6 +4,7 @@ import it.fast4x.environment.Environment
 import it.fast4x.environment.Environment.getBestQuality
 import it.fast4x.environment.models.BrowseEndpoint
 import it.fast4x.environment.models.MusicCarouselShelfRenderer
+import it.fast4x.environment.models.MusicResponsiveListItemRenderer
 import it.fast4x.environment.models.MusicTwoRowItemRenderer
 import it.fast4x.environment.models.NavigationEndpoint
 import it.fast4x.environment.models.SectionListRenderer
@@ -40,13 +41,80 @@ data class HomePage(
                     ),
                     items = renderer.contents
                         .map {
+                            // A carousel can mix two shapes. Reading only the card one left
+                            // shelves like "Listen together" with a single item and a hole
+                            // where every list-shaped entry should have been.
                             fromMusicTwoRowItemRenderer(
                                 it.musicTwoRowItemRenderer,
                                 renderer.header?.musicCarouselShelfBasicHeaderRenderer?.title?.runs?.firstOrNull()?.text
-                            )
+                            ) ?: fromMusicResponsiveListItemRenderer(it.musicResponsiveListItemRenderer)
                         } //.filter { it?.title?.isNotEmpty() == true }
 
                 )
+            }
+
+            /**
+             * The list-shaped carousel entry: same content as the card one, different json.
+             * Navigation buttons (the chips at the end of some shelves) are not playable and
+             * stay unmapped on purpose.
+             */
+            private fun fromMusicResponsiveListItemRenderer(
+                renderer: MusicResponsiveListItemRenderer?
+            ): Environment.Item? {
+                if (renderer == null) return null
+
+                val name = renderer.flexColumns
+                    .firstOrNull()
+                    ?.musicResponsiveListItemFlexColumnRenderer
+                    ?.text
+                    ?.runs
+                    ?.firstOrNull()
+                    ?.text
+                val subtitle = renderer.flexColumns
+                    .getOrNull(1)
+                    ?.musicResponsiveListItemFlexColumnRenderer
+                    ?.text
+                    ?.runs
+                    ?.firstOrNull()
+                    ?.text
+                val thumbnail = renderer.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.getBestQuality()
+                    ?: renderer.thumbnail?.croppedSquareThumbnailRenderer?.thumbnail?.thumbnails?.getBestQuality()
+
+                val browse = renderer.navigationEndpoint?.browseEndpoint
+                val watch = renderer.navigationEndpoint?.watchEndpoint
+
+                return when {
+                    renderer.isAlbum && browse != null -> Environment.AlbumItem(
+                        info = Environment.Info(name, browse),
+                        authors = subtitle?.let { listOf(Environment.Info<NavigationEndpoint.Endpoint.Browse>(it, null)) },
+                        year = null,
+                        thumbnail = thumbnail,
+                    )
+
+                    renderer.isArtist && browse != null -> Environment.ArtistItem(
+                        info = Environment.Info(name, browse),
+                        subscribersCountText = subtitle,
+                        thumbnail = thumbnail,
+                    )
+
+                    renderer.isPlaylist && browse != null -> Environment.PlaylistItem(
+                        info = Environment.Info(name, browse),
+                        channel = subtitle?.let { Environment.Info<NavigationEndpoint.Endpoint.Browse>(it, null) },
+                        songCount = null,
+                        thumbnail = thumbnail,
+                        isEditable = false,
+                    )
+
+                    watch != null -> Environment.SongItem(
+                        info = Environment.Info(name, watch),
+                        authors = subtitle?.let { listOf(Environment.Info<NavigationEndpoint.Endpoint.Browse>(it, null)) },
+                        album = null,
+                        durationText = null,
+                        thumbnail = thumbnail,
+                    )
+
+                    else -> null
+                }
             }
 
             private fun fromMusicTwoRowItemRenderer(renderer: MusicTwoRowItemRenderer?, sectionTitle: String? = null): Environment.Item? {

@@ -155,12 +155,12 @@ class PlayerHorizontalWidget: GlanceAppWidget() {
                             widgetBinder?.let { binder ->
                                 if (isPlaying) {
                                     binder.player.pause()
-                                    binder.onlinePlayer?.pause()
+                                    binder.onlinePlayerPause()
                                 } else {
                                     if (binder.currentMediaItemAsSong?.isLocal == true)
                                         binder.player.play()
                                     else
-                                        binder.onlinePlayer?.play()
+                                        binder.onlinePlayerPlay()
                                 }
                             }
                         },

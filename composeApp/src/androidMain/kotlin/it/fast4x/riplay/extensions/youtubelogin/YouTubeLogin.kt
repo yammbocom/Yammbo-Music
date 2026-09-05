@@ -31,6 +31,7 @@ import it.fast4x.riplay.extensions.preferences.preferences
 import it.fast4x.riplay.extensions.preferences.ytAccountChannelHandleKey
 import it.fast4x.riplay.extensions.preferences.ytAccountEmailKey
 import it.fast4x.riplay.extensions.preferences.ytAccountNameKey
+import it.fast4x.riplay.extensions.preferences.enableYouTubeSyncKey
 import it.fast4x.riplay.extensions.preferences.ytAccountThumbnailKey
 import it.fast4x.riplay.extensions.preferences.ytCookieKey
 import it.fast4x.riplay.extensions.preferences.ytDataSyncIdKey
@@ -168,6 +169,10 @@ fun YouTubeLogin(
                                 context.preferences.edit { putString(ytVisitorDataKey, refreshedVisitorData) }
                                 context.preferences.edit { putString(ytDataSyncIdKey, refreshedDataSyncId) }
                                 context.preferences.edit { putString(ytCookieKey, freshCookie) }
+                                // Connecting the account and then finding sync off is a trap: nothing syncs and nobody
+
+                                // knows why. Turn it on here; the Accounts screen still lets the user turn it back off.
+                                context.preferences.edit { putBoolean(enableYouTubeSyncKey, true) }
                                 delay(200)
 
                                 Timber.d("YouTubeLogin: Initialize Environment")

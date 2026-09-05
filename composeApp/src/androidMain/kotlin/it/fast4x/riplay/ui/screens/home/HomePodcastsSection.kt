@@ -66,7 +66,14 @@ fun HomePodcastsSection(
                 fromMusicShelfRendererContent = Environment.PlaylistItem::from
             )
         }?.onSuccess { page ->
-            podcasts = page?.items?.distinctBy { p -> p.key }?.take(15) ?: emptyList()
+            // Only show pages open into an episode list. The search also returns channels and
+            // single episodes, whose ids browse into a page with no episodes at all, so tapping
+            // them used to land on an empty screen.
+            podcasts = page?.items
+                ?.filter { p -> p.key.startsWith("MPSP") }
+                ?.distinctBy { p -> p.key }
+                ?.take(15)
+                ?: emptyList()
         }
     }
 

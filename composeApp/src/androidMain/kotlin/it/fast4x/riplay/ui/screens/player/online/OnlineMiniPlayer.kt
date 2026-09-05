@@ -372,7 +372,7 @@ fun OnlineMiniPlayer(
                             else if (dragAmount > 20) {
                                 if (!disableClosingPlayerSwipingDown) {
                                     if (!GlobalSharedData.riTuneCastActive)
-                                        binder.onlinePlayer?.pause()
+                                        binder.onlinePlayerPause()
                                     else
                                         CoroutineScope(Dispatchers.IO).launch {
                                             binder.riTuneClient.sendCommand(
@@ -508,7 +508,7 @@ fun OnlineMiniPlayer(
                             .clickable {
                                 if (shouldBePlaying) {
                                     if (!GlobalSharedData.riTuneCastActive)
-                                        binder.onlinePlayer?.pause()
+                                        binder.onlinePlayerPause()
                                     else
                                         CoroutineScope(Dispatchers.IO).launch {
                                             binder.riTuneClient.sendCommand(
@@ -519,7 +519,7 @@ fun OnlineMiniPlayer(
                                         }
                                 } else {
                                     if (!GlobalSharedData.riTuneCastActive)
-                                        binder.onlinePlayer?.play()
+                                        binder.onlinePlayerPlay()
                                     else
                                         CoroutineScope(Dispatchers.IO).launch {
                                             binder.riTuneClient.sendCommand(

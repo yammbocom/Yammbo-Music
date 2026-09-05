@@ -1,5 +1,6 @@
 package it.fast4x.riplay.data.models
 
+import it.fast4x.riplay.utils.isRadioId
 import androidx.compose.runtime.Immutable
 import androidx.room.ColumnInfo
 import androidx.room.Entity
@@ -35,15 +36,15 @@ data class Song(
 ) {
 
     val shareYTUrl: String?
-        get() = if(!id.startsWith(LOCAL_KEY_PREFIX))
+        get() = if(!id.startsWith(LOCAL_KEY_PREFIX) && !id.isRadioId)
             id.let { "${YT_VIDEOORSONG_SHARE_BASEURL}$it" } else null
 
     val shareYTMUrl: String?
-        get() = if(!id.startsWith(LOCAL_KEY_PREFIX))
+        get() = if(!id.startsWith(LOCAL_KEY_PREFIX) && !id.isRadioId)
             id.let { "${YTM_VIDEOORSONG_SHARE_BASEURL}$it" } else null
 
     val shareYamboUrl: String?
-        get() = if(!id.startsWith(LOCAL_KEY_PREFIX))
+        get() = if(!id.startsWith(LOCAL_KEY_PREFIX) && !id.isRadioId)
             "${YAMBO_TRACK_SHARE_BASEURL}$id/${slugify(title)}" else null
 
     val formattedTotalPlayTime: String

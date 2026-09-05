@@ -1336,6 +1336,13 @@
     <string name="storage_your_device_is_low_on_storage_consider_freeing_up_some_space_soon">Your device is low on storage. Consider freeing up some space soon.</string>
     <string name="warning_skipped_video">Skipped video</string>
     <string name="warning_skipped_blacklisted_song">Skipped blacklisted song</string>
+    <string name="vpn_notice_free_country">You have a VPN on. Free access is given by the country you are really in, and a VPN hides it. Turn it off and register again to get it.</string>
+    <string name="account_connected">Connected</string>
+    <string name="account_not_connected">Not connected</string>
+    <string name="account_off">Off</string>
+    <string name="account_not_signed_in">Not signed in</string>
+    <string name="account_sign_out">Sign out</string>
+    <string name="account_sign_out_info">Leave your Yammbo Music account on this phone</string>
     <string name="cast">Cast</string>
     <string name="enable_ritune_cast">Enable RiTune Cast</string>
     <string name="ritune_cast_info">"Cast to RiTune devices, require RiTune installed in other devices "</string>
@@ -1452,4 +1459,38 @@
     <string name="yt_login_needed_title">Can\'t play this</string>
     <string name="yt_login_needed_message">This content may require your YouTube account. Connect it to play.</string>
     <string name="yt_login_needed_connect">Connect</string>
+    <!-- Live radio (radio-browser.info directory) -->
+    <string name="live_radio">Live radio</string>
+    <string name="live_radio_badge">LIVE</string>
+    <string name="live_radio_search_hint">Search stations</string>
+    <string name="live_radio_all_genres">All genres</string>
+    <string name="live_radio_all_countries">All countries</string>
+    <string name="live_radio_country">Country</string>
+    <string name="live_radio_order">Sort by</string>
+    <string name="live_radio_order_popular">Most listened</string>
+    <string name="live_radio_order_votes">Top rated</string>
+    <string name="live_radio_order_bitrate">Best quality</string>
+    <string name="live_radio_order_name">Name (A-Z)</string>
+    <string name="live_radio_load_more">Load more</string>
+    <string name="live_radio_empty">No stations found</string>
+    <string name="live_radio_error">Could not reach the radio directory. Please try again.</string>
+    <string name="live_radio_retry">Retry</string>
+    <string name="live_radio_clear_filters">Clear filters</string>
+    <string name="live_radio_tab">Radio</string>
+    <string name="favorite_radios">Favorite stations</string>
+    <string name="favorite_radios_hint">Stations you saved with the heart</string>
+    <string name="favorite_radios_empty">Tap the heart while a station plays to keep it here.</string>
+    <!-- Google Cast -->
+    <string name="cast_section">Cast</string>
+    <string name="cast_youtube_mode">Cast mode: YouTube songs</string>
+    <string name="cast_youtube_mode_info">Off, the TV plays live radio. On, it plays YouTube songs instead. No single free receiver does both yet.</string>
+    <string name="cast_mode_changed">Restart the app for the new Cast mode to take effect</string>
+    <string name="cast_receiver_cannot_play_this">This Cast device cannot play this. Change the Cast mode in Settings.</string>
+    <string name="cast_local_song_stays_on_phone">A song stored on the phone cannot be cast, so it plays here</string>
+    <string name="cast_tv_not_playing_back_on_phone">The TV is not playing this song, so the sound comes back to the phone</string>
+    <string name="cast_show_video">Show the video on the TV</string>
+    <string name="cast_show_video_info">Off, the TV shows the cover and the lyrics. On, it plays the YouTube video.</string>
+    <string name="download_all_with_ytdlnis">Download all with YTDLnis</string>
+    <string name="nothing_to_download">Nothing here can be downloaded</string>
+    <string name="ytdlnis_not_installed">YTDLnis is not installed</string>
 </resources>

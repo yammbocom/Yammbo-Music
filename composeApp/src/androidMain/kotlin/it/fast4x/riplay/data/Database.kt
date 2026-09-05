@@ -916,6 +916,12 @@ interface Database {
     @RewriteQueriesToDropUnusedColumns
     fun songsOnDevice(): Flow<List<Song>>
 
+    /** Stations the listener hearted: a station is a Song row whose id starts with radio: */
+    @Transaction
+    @Query("SELECT * FROM Song WHERE id LIKE 'radio:%' AND likedAt IS NOT NULL AND likedAt > 0 ORDER BY likedAt DESC")
+    @RewriteQueriesToDropUnusedColumns
+    fun favoriteRadios(): Flow<List<Song>>
+
     @Transaction
     @Query("SELECT * FROM Song WHERE mediaId = :mediaId")
     @RewriteQueriesToDropUnusedColumns
@@ -1641,16 +1647,16 @@ interface Database {
         }
     }
 
-    @Query("SELECT * FROM Artist WHERE id LIKE '$LOCAL_KEY_PREFIX%' ORDER BY name DESC")
+    @Query("SELECT * FROM Artist WHERE id LIKE '$LOCAL_KEY_PREFIX%' AND EXISTS (SELECT 1 FROM SongArtistMap INNER JOIN Song ON Song.id = SongArtistMap.songId WHERE SongArtistMap.artistId = Artist.id) ORDER BY name DESC")
     fun artistsOnDeviceByNameDesc(): Flow<List<Artist>>
 
-    @Query("SELECT * FROM Artist WHERE id LIKE '$LOCAL_KEY_PREFIX%' ORDER BY name ASC")
+    @Query("SELECT * FROM Artist WHERE id LIKE '$LOCAL_KEY_PREFIX%' AND EXISTS (SELECT 1 FROM SongArtistMap INNER JOIN Song ON Song.id = SongArtistMap.songId WHERE SongArtistMap.artistId = Artist.id) ORDER BY name ASC")
     fun artistsOnDeviceByNameAsc(): Flow<List<Artist>>
 
-    @Query("SELECT * FROM Artist WHERE id LIKE '$LOCAL_KEY_PREFIX%' ORDER BY id DESC")
+    @Query("SELECT * FROM Artist WHERE id LIKE '$LOCAL_KEY_PREFIX%' AND EXISTS (SELECT 1 FROM SongArtistMap INNER JOIN Song ON Song.id = SongArtistMap.songId WHERE SongArtistMap.artistId = Artist.id) ORDER BY id DESC")
     fun artistsOnDeviceByRowIdDesc(): Flow<List<Artist>>
 
-    @Query("SELECT * FROM Artist WHERE id LIKE '$LOCAL_KEY_PREFIX%' ORDER BY id ASC")
+    @Query("SELECT * FROM Artist WHERE id LIKE '$LOCAL_KEY_PREFIX%' AND EXISTS (SELECT 1 FROM SongArtistMap INNER JOIN Song ON Song.id = SongArtistMap.songId WHERE SongArtistMap.artistId = Artist.id) ORDER BY id ASC")
     fun artistsOnDeviceByRowIdAsc(): Flow<List<Artist>>
 
     fun artistsOnDevice(sortBy: ArtistSortBy, sortOrder: SortOrder): Flow<List<Artist>> {
@@ -1879,50 +1885,50 @@ interface Database {
 
     @Transaction
     @Query("SELECT *, (SELECT SUM(CAST(REPLACE(durationText, ':', '') AS INTEGER)) FROM Song JOIN SongAlbumMap ON Song.id = SongAlbumMap.songId WHERE SongAlbumMap.albumId = Album.id AND position IS NOT NULL) as totalDuration " +
-            "FROM Album WHERE id LIKE '$LOCAL_KEY_PREFIX%' ORDER BY totalDuration ASC" )
+            "FROM Album WHERE id LIKE '$LOCAL_KEY_PREFIX%' AND EXISTS (SELECT 1 FROM SongAlbumMap INNER JOIN Song ON Song.id = SongAlbumMap.songId WHERE SongAlbumMap.albumId = Album.id) ORDER BY totalDuration ASC" )
     @RewriteQueriesToDropUnusedColumns
     fun albumsOnDeviceByTotalDurationAsc(): Flow<List<Album>>
 
     @Transaction
     @Query("SELECT *, (SELECT SUM(CAST(REPLACE(durationText, ':', '') AS INTEGER)) FROM Song JOIN SongAlbumMap ON Song.id = SongAlbumMap.songId WHERE SongAlbumMap.albumId = Album.id AND position IS NOT NULL) as totalDuration " +
-            "FROM Album WHERE id LIKE '$LOCAL_KEY_PREFIX%' ORDER BY totalDuration DESC" )
+            "FROM Album WHERE id LIKE '$LOCAL_KEY_PREFIX%' AND EXISTS (SELECT 1 FROM SongAlbumMap INNER JOIN Song ON Song.id = SongAlbumMap.songId WHERE SongAlbumMap.albumId = Album.id) ORDER BY totalDuration DESC" )
     @RewriteQueriesToDropUnusedColumns
     fun albumsOnDeviceByTotalDurationDesc(): Flow<List<Album>>
 
     @Transaction
     @Query("SELECT *, (SELECT COUNT(*) FROM SongAlbumMap WHERE albumId = Album.id) as songCount " +
-            "FROM Album WHERE id LIKE '$LOCAL_KEY_PREFIX%' ORDER BY songCount ASC" )
+            "FROM Album WHERE id LIKE '$LOCAL_KEY_PREFIX%' AND EXISTS (SELECT 1 FROM SongAlbumMap INNER JOIN Song ON Song.id = SongAlbumMap.songId WHERE SongAlbumMap.albumId = Album.id) ORDER BY songCount ASC" )
     @RewriteQueriesToDropUnusedColumns
     fun albumsOnDeviceBySongsCountAsc(): Flow<List<Album>>
 
     @Transaction
     @Query("SELECT *, (SELECT COUNT(*) FROM SongAlbumMap WHERE albumId = Album.id) as songCount " +
-            "FROM Album WHERE id LIKE '$LOCAL_KEY_PREFIX%' ORDER BY songCount DESC" )
+            "FROM Album WHERE id LIKE '$LOCAL_KEY_PREFIX%' AND EXISTS (SELECT 1 FROM SongAlbumMap INNER JOIN Song ON Song.id = SongAlbumMap.songId WHERE SongAlbumMap.albumId = Album.id) ORDER BY songCount DESC" )
     @RewriteQueriesToDropUnusedColumns
     fun albumsOnDeviceBySongsCountDesc(): Flow<List<Album>>
 
-    @Query("SELECT * FROM Album WHERE id LIKE '$LOCAL_KEY_PREFIX%' ORDER BY authorsText COLLATE NOCASE ASC")
+    @Query("SELECT * FROM Album WHERE id LIKE '$LOCAL_KEY_PREFIX%' AND EXISTS (SELECT 1 FROM SongAlbumMap INNER JOIN Song ON Song.id = SongAlbumMap.songId WHERE SongAlbumMap.albumId = Album.id) ORDER BY authorsText COLLATE NOCASE ASC")
     fun albumsOnDeviceByArtistAsc(): Flow<List<Album>>
 
-    @Query("SELECT * FROM Album WHERE id LIKE '$LOCAL_KEY_PREFIX%' ORDER BY authorsText COLLATE NOCASE DESC")
+    @Query("SELECT * FROM Album WHERE id LIKE '$LOCAL_KEY_PREFIX%' AND EXISTS (SELECT 1 FROM SongAlbumMap INNER JOIN Song ON Song.id = SongAlbumMap.songId WHERE SongAlbumMap.albumId = Album.id) ORDER BY authorsText COLLATE NOCASE DESC")
     fun albumsOnDeviceByArtistDesc(): Flow<List<Album>>
 
-    @Query("SELECT * FROM Album WHERE id LIKE '$LOCAL_KEY_PREFIX%' ORDER BY id ASC")
+    @Query("SELECT * FROM Album WHERE id LIKE '$LOCAL_KEY_PREFIX%' AND EXISTS (SELECT 1 FROM SongAlbumMap INNER JOIN Song ON Song.id = SongAlbumMap.songId WHERE SongAlbumMap.albumId = Album.id) ORDER BY id ASC")
     fun albumsOnDeviceByRowIdAsc(): Flow<List<Album>>
 
-    @Query("SELECT * FROM Album WHERE id LIKE '$LOCAL_KEY_PREFIX%' ORDER BY id DESC")
+    @Query("SELECT * FROM Album WHERE id LIKE '$LOCAL_KEY_PREFIX%' AND EXISTS (SELECT 1 FROM SongAlbumMap INNER JOIN Song ON Song.id = SongAlbumMap.songId WHERE SongAlbumMap.albumId = Album.id) ORDER BY id DESC")
     fun albumsOnDeviceByRowIdDesc(): Flow<List<Album>>
 
-    @Query("SELECT * FROM Album WHERE id LIKE '$LOCAL_KEY_PREFIX%' ORDER BY year ASC")
+    @Query("SELECT * FROM Album WHERE id LIKE '$LOCAL_KEY_PREFIX%' AND EXISTS (SELECT 1 FROM SongAlbumMap INNER JOIN Song ON Song.id = SongAlbumMap.songId WHERE SongAlbumMap.albumId = Album.id) ORDER BY year ASC")
     fun albumsOnDeviceByYearAsc(): Flow<List<Album>>
 
-    @Query("SELECT * FROM Album WHERE id LIKE '$LOCAL_KEY_PREFIX%' ORDER BY year DESC")
+    @Query("SELECT * FROM Album WHERE id LIKE '$LOCAL_KEY_PREFIX%' AND EXISTS (SELECT 1 FROM SongAlbumMap INNER JOIN Song ON Song.id = SongAlbumMap.songId WHERE SongAlbumMap.albumId = Album.id) ORDER BY year DESC")
     fun albumsOnDeviceByYearDesc(): Flow<List<Album>>
 
-    @Query("SELECT * FROM Album WHERE id LIKE '$LOCAL_KEY_PREFIX%' ORDER BY title COLLATE NOCASE ASC")
+    @Query("SELECT * FROM Album WHERE id LIKE '$LOCAL_KEY_PREFIX%' AND EXISTS (SELECT 1 FROM SongAlbumMap INNER JOIN Song ON Song.id = SongAlbumMap.songId WHERE SongAlbumMap.albumId = Album.id) ORDER BY title COLLATE NOCASE ASC")
     fun albumsOnDeviceByTitleDesc(): Flow<List<Album>>
 
-    @Query("SELECT * FROM Album WHERE id LIKE '$LOCAL_KEY_PREFIX%' ORDER BY title COLLATE NOCASE ASC")
+    @Query("SELECT * FROM Album WHERE id LIKE '$LOCAL_KEY_PREFIX%' AND EXISTS (SELECT 1 FROM SongAlbumMap INNER JOIN Song ON Song.id = SongAlbumMap.songId WHERE SongAlbumMap.albumId = Album.id) ORDER BY title COLLATE NOCASE ASC")
     fun albumsOnDeviceByTitleAsc(): Flow<List<Album>>
 
 

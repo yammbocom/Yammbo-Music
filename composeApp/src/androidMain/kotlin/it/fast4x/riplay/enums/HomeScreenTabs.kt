@@ -3,7 +3,7 @@ package it.fast4x.riplay.enums
 enum class HomeScreenTabs {
     Default,
     Inicio,
-    Top50,
+    LiveRadio,
     MyMusic,
     Search,
     MyAccount;
@@ -12,7 +12,7 @@ enum class HomeScreenTabs {
         get() = when (this) {
             Default -> 100
             Inicio -> 0
-            Top50 -> 1
+            LiveRadio -> 1
             MyMusic -> 2
             Search -> 3
             MyAccount -> 4

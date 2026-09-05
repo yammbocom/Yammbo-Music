@@ -218,16 +218,32 @@ fun PlaylistSongList(
         return true
     }
 
-    LoaderScreen(show = playlistPage == null)
+    // Anything YouTube refuses to browse (auto-mixes like "New Release Mix" among them) used to
+    // leave the spinner running forever, because the page was only ever set on success.
+    var loadFailed by remember(browseId) { mutableStateOf(false) }
+
+    LoaderScreen(show = playlistPage == null && !loadFailed)
+
+    if (playlistPage == null && loadFailed) {
+        BasicText(
+            text = stringResource(R.string.error_a_network_error_has_occurred),
+            style = typography().xs.secondary.copy(textAlign = TextAlign.Center),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 32.dp, vertical = 40.dp)
+        )
+    }
 
     LaunchedEffect(Unit, browseId) {
         EnvironmentExt.getPlaylist(browseId).completed()
             .onSuccess {
+                loadFailed = false
                 playlistPage = it
                 playlistSongs = it.songs
                 playlistSongs = if (parentalControlEnabled) it.songs.filter { !it.explicit } else
                     playlistPage?.songs ?: emptyList()
             }.onFailure {
+                loadFailed = true
                 println("PlaylistSongList error: ${it.stackTraceToString()}")
             }
 

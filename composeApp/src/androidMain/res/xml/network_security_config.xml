@@ -21,7 +21,7 @@
             | openssl dgst -sha256 -binary \
             | openssl enc -base64
     -->
-    <domain-config>
+    <domain-config cleartextTrafficPermitted="false">
         <domain includeSubdomains="false">music.yammbo.com</domain>
         <pin-set expiration="2027-04-30">
             <!-- Leaf: CN=yammbo.com (GTS, since 2026-04-21) -->
@@ -39,8 +39,10 @@
         </trust-anchors>
     </domain-config>
 
-    <!-- Default policy for everything else (YouTube, AdMob, Firebase, etc.) -->
-    <base-config cleartextTrafficPermitted="false">
+    <!-- Default policy for everything else (YouTube, AdMob, Firebase, etc.). Cleartext is allowed
+         only because live radio streams (radio-browser.info directory) are still http:// for
+         roughly one station in eight; every Yammbo endpoint stays https + pinned above. -->
+    <base-config cleartextTrafficPermitted="true">
         <trust-anchors>
             <certificates src="system" />
             <certificates src="user" />

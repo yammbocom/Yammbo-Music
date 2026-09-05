@@ -41,6 +41,8 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.yambo.music.R
 import it.fast4x.riplay.enums.NavRoutes
+import it.fast4x.riplay.extensions.yammboapi.VpnState
+import it.fast4x.riplay.ui.components.themed.ConfirmationDialog
 import it.fast4x.riplay.extensions.yammboapi.YammboApiService
 import it.fast4x.riplay.extensions.yammboapi.YammboAuthManager
 import it.fast4x.riplay.utils.colorPalette
@@ -58,6 +60,8 @@ fun RegisterScreen(
     var confirmPassword by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var showVpnNotice by remember { mutableStateOf(false) }
+    var vpnNoticeShown by remember { mutableStateOf(false) }
 
     val colors = colorPalette()
     val typo = typography()
@@ -178,6 +182,17 @@ fun RegisterScreen(
                         return@Button
                     }
                 }
+                // A country's free access is decided by where the person is, and through a
+                // VPN the server only sees the exit node. Said once, and only to a phone
+                // whose SIM belongs to a country the offer covers.
+                if (!vpnNoticeShown && VpnState.isActive() &&
+                    VpnState.simCountry() in VpnState.OFFER_SIM_COUNTRIES
+                ) {
+                    vpnNoticeShown = true
+                    showVpnNotice = true
+                    return@Button
+                }
+
                 isLoading = true
                 errorMessage = null
                 coroutineScope.launch {
@@ -237,5 +252,15 @@ fun RegisterScreen(
         )
 
         Spacer(modifier = Modifier.height(60.dp))
+    }
+
+    if (showVpnNotice) {
+        ConfirmationDialog(
+            text = stringResource(R.string.vpn_notice_free_country),
+            confirmText = stringResource(R.string.confirm),
+            cancelText = stringResource(R.string.cancel),
+            onDismiss = { showVpnNotice = false },
+            onConfirm = { showVpnNotice = false },
+        )
     }
 }

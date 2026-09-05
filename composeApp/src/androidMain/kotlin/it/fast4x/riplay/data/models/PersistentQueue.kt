@@ -3,6 +3,8 @@ package it.fast4x.riplay.data.models
 import android.content.ContentUris
 import android.provider.MediaStore
 import androidx.core.net.toUri
+import it.fast4x.riplay.utils.playbackUriOf
+import it.fast4x.riplay.utils.radioMimeTypeOf
 import androidx.core.os.bundleOf
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
@@ -43,11 +45,7 @@ val PersistentSong.asMediaItem: MediaItem
                 .build()
         )
         .setMediaId(id)
-        .setUri(
-            if (id.startsWith(LOCAL_KEY_PREFIX)) ContentUris.withAppendedId(
-                MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
-                id.substringAfter(LOCAL_KEY_PREFIX).toLong()
-            ) else id.toUri()
-        )
+        .setUri(playbackUriOf(id))
+        .setMimeType(radioMimeTypeOf(id))
         .setCustomCacheKey(id)
         .build()

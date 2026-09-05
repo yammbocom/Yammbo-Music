@@ -255,6 +255,9 @@ kotlin {
             implementation(libs.palette)
             implementation(libs.media3.exoplayer)
             implementation(libs.media3.datasource.okhttp)
+            implementation(libs.media3.exoplayer.hls)
+            implementation(libs.play.services.cast.framework)
+            implementation(libs.androidx.mediarouter)
             implementation(libs.appcompat)
             implementation(libs.appcompat.resources)
             implementation(libs.support)
@@ -336,8 +339,8 @@ android {
         applicationId = "com.yambo.music"
         minSdk = 24
         targetSdk = 36
-        versionCode = 120
-        versionName = "0.7.120"
+        versionCode = 141
+        versionName = "0.7.141"
 
         multiDexEnabled = true
 

@@ -2,6 +2,9 @@ package it.fast4x.riplay.ui.screens.home
 
 import android.annotation.SuppressLint
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
+import androidx.compose.runtime.mutableStateOf
+import it.fast4x.riplay.ui.components.navigation.header.HamburgerMenu
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -94,6 +97,10 @@ fun HomeGreetingHeader(
         else -> stringResource(R.string.good_night)
     }
 
+    // The tools menu (equalizer, history, statistics, settings…) hangs off the profile here.
+    // It used to live in the top bar, where it competed with the search icon.
+    var menuExpanded by remember { mutableStateOf(false) }
+
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
@@ -104,9 +111,18 @@ fun HomeGreetingHeader(
             modifier = Modifier
                 .size(44.dp)
                 .clip(CircleShape)
-                .background(colors.background2),
+                .background(colors.background2)
+                .clickable { menuExpanded = true },
             contentAlignment = Alignment.Center
         ) {
+            HamburgerMenu(
+                expanded = menuExpanded,
+                onItemClick = { route ->
+                    menuExpanded = false
+                    navController.navigate(route.name)
+                },
+                onDismissRequest = { menuExpanded = false }
+            )
             if (avatarUrl.isNotEmpty()) {
                 AsyncImage(
                     model = avatarUrl,
@@ -126,7 +142,11 @@ fun HomeGreetingHeader(
 
         Spacer(modifier = Modifier.width(12.dp))
 
-        Column(modifier = Modifier.weight(1f)) {
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .clickable { menuExpanded = true }
+        ) {
             BasicText(
                 text = greeting.uppercase(),
                 style = typography().xxs.copy(

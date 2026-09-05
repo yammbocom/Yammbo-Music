@@ -90,6 +90,10 @@ fun BottomSheet(
     ) {
         // Content
         if (contentAlwaysAvailable) {
+            // Back closes the sheet, wherever it was opened from. Without this the player only
+            // collapsed on Home (which has its own handler); on an album or a playlist screen
+            // back fell through to navigation and took the listener out of the section.
+            BackHandler(enabled = !state.isCollapsed && !state.isDismissed) { state.collapseSoft() }
             Box(
                 modifier = Modifier
                     .graphicsLayer {

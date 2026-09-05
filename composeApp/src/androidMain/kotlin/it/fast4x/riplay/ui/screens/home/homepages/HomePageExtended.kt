@@ -127,7 +127,8 @@ fun HomePageExtended(
     onSearchClick: () -> Unit,
     onMoodAndGenresClick: (mood: Environment.Mood.Item) -> Unit,
     onChipClick: (chip: Environment.Chip) -> Unit,
-    onSettingsClick: () -> Unit
+    onSettingsClick: () -> Unit,
+    onLiveRadioClick: () -> Unit = {}
 ) {
     val binder = LocalPlayerServiceBinder.current
     val menuState = LocalGlobalSheetState.current
@@ -210,7 +211,8 @@ fun HomePageExtended(
                         )
 
                         if (effectiveSongId != null) {
-                            if (relatedPageResult == null || trending?.id != song?.id || trending?.mediaId != song?.id) {
+                            // Same as the classic Home: keep the cached picks instead of re-seeding on every visit
+                            if (relatedPageResult == null) {
                                 relatedPageResult = Environment.relatedPage(
                                     NextBody(
                                         videoId = effectiveSongId
@@ -240,7 +242,8 @@ fun HomePageExtended(
                         )
 
                         if (effectiveSongId != null) {
-                            if (relatedPageResult == null || trending?.id != song?.id || trending?.mediaId != song?.id) {
+                            // Same as the classic Home: keep the cached picks instead of re-seeding on every visit
+                            if (relatedPageResult == null) {
                                 relatedPageResult =
                                     Environment.relatedPage(
                                         NextBody(
@@ -518,6 +521,7 @@ fun HomePageExtended(
             trending = trending,
             relatedInit = relatedInit,
             quickPicksLoading = quickPicksLoading,
+            onLiveRadioClick = onLiveRadioClick,
             discoverPageInit = discoverPageInit,
             playEventType = playEventType,
             quickPicksLazyGridState = quickPicksLazyGridState,

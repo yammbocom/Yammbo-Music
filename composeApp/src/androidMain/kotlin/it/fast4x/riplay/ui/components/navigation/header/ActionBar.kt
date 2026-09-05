@@ -14,7 +14,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import coil.compose.AsyncImage
 import it.fast4x.riplay.LocalPlayerServiceBinder
 import com.yambo.music.R
 import it.fast4x.riplay.enums.EqualizerType
@@ -23,6 +22,7 @@ import it.fast4x.riplay.extensions.equalizer.InternalEqualizerScreen
 import it.fast4x.riplay.extensions.equalizer.rememberSystemEqualizerLauncher
 import it.fast4x.riplay.extensions.pip.isPipSupported
 import it.fast4x.riplay.extensions.pip.rememberPipHandler
+import it.fast4x.riplay.extensions.cast.CastButton
 import it.fast4x.riplay.extensions.preferences.castToRiTuneDeviceEnabledKey
 import it.fast4x.riplay.extensions.preferences.enableMusicIdentifierKey
 import it.fast4x.riplay.extensions.preferences.enablePictureInPictureKey
@@ -38,7 +38,6 @@ import it.fast4x.riplay.utils.thumbnailShape
 import it.fast4x.riplay.ui.screens.events.EventsScreen
 import it.fast4x.riplay.ui.screens.settings.isYtLoggedIn
 import it.fast4x.riplay.utils.MusicIdentifier
-import it.fast4x.riplay.utils.ytAccountThumbnail
 import timber.log.Timber
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.layout.*
@@ -49,6 +48,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.Image
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntOffset
@@ -56,7 +56,7 @@ import androidx.compose.ui.window.PopupProperties
 import it.fast4x.riplay.utils.typography
 
 @Composable
-private fun HamburgerMenu(
+fun HamburgerMenu(
     expanded: Boolean,
     onItemClick: (NavRoutes) -> Unit,
     onDismissRequest: () -> Unit
@@ -358,7 +358,7 @@ private fun ModernMenuCheckboxItem(
 
 /*
 @Composable
-private fun HamburgerMenu(
+fun HamburgerMenu(
     expanded: Boolean,
     onItemClick: (NavRoutes) -> Unit,
     onDismissRequest: () -> Unit
@@ -534,38 +534,15 @@ fun ActionBar(
         }
     }
 
+    // Cast, right next to the search icon; it hides itself when no Chromecast is around
+    CastButton()
+
     // Search Icon
     HeaderIcon( R.drawable.search, tint = colorPalette().accent) {
         navController.navigate(NavRoutes.search.name)
     }
 
-    if (isYtLoggedIn()) {
-        if (ytAccountThumbnail() != "")
-            AsyncImage(
-                model = ytAccountThumbnail(),
-                contentDescription = null,
-                modifier = Modifier
-                    .height(40.dp)
-                    .padding(end = 10.dp)
-                    .clip(thumbnailShape())
-                    .clickable { expanded = !expanded }
-            )
-        else HeaderIcon( R.drawable.internet, tint = colorPalette().accent, size = 30.dp ) { expanded = !expanded }
-
-        // Define actions for when item inside menu clicked,
-        // and when user clicks on places other than the menu (dismiss)
-        val onItemClick: (NavRoutes) -> Unit = {
-            expanded = false
-            navController.navigate(it.name)
-        }
-        val onDismissRequest: () -> Unit = { expanded = false }
-
-        // Hamburger menu
-        HamburgerMenu(
-            expanded = expanded,
-            onItemClick = onItemClick,
-            onDismissRequest = onDismissRequest
-        )
-    }
+    // Nothing else lives here: the tools menu moved to the Yammbo profile on Home, so the top
+    // bar is the search icon (plus Cast when a device is around) and nothing more.
 // END
 }

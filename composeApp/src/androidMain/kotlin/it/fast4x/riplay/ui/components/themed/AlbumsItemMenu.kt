@@ -31,6 +31,8 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.platform.LocalContext
+import it.fast4x.riplay.enums.PopupType
+import it.fast4x.riplay.extensions.fastshare.shareCollectionToDownloader
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -90,6 +92,7 @@ fun AlbumsItemMenu(
     onBlacklist: (() -> Unit)? = null,
 ) {
     val density = LocalDensity.current
+    val downloadContext = LocalContext.current
 
     var isViewingPlaylists by remember {
         mutableStateOf(false)
@@ -555,6 +558,35 @@ fun AlbumsItemMenu(
                             }
                         )
                     }
+
+                    // The whole thing to the downloader, as one link it can expand by itself.
+                    MenuEntry(
+                        icon = R.drawable.downloaded,
+                        text = stringResource(R.string.download_all_with_ytdlnis),
+                        onClick = {
+                            onDismiss()
+                            shareCollectionToDownloader(
+                                context = downloadContext,
+                                url = album.shareYTUrl,
+                                songs = emptyList(),
+                                title = album.title.orEmpty(),
+                                onEmpty = {
+                                    SmartMessage(
+                                        downloadContext.resources.getString(R.string.nothing_to_download),
+                                        context = downloadContext,
+                                        type = PopupType.Info,
+                                    )
+                                },
+                                onAppMissing = {
+                                    SmartMessage(
+                                        downloadContext.resources.getString(R.string.ytdlnis_not_installed),
+                                        context = downloadContext,
+                                        type = PopupType.Error,
+                                    )
+                                },
+                            )
+                        }
+                    )
 
                     onBlacklist?.let { onBlacklist ->
                         MenuEntry(

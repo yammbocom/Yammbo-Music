@@ -3,6 +3,14 @@ package it.fast4x.riplay.extensions.fastshare
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
+import java.net.HttpURLConnection
+import java.net.URL
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import androidx.core.content.FileProvider
+import java.io.File
 import android.net.Uri
 import it.fast4x.riplay.extensions.ads.PremiumFeature
 import it.fast4x.riplay.extensions.ads.PremiumGuard
@@ -50,6 +58,7 @@ import com.yambo.music.R
 import it.fast4x.riplay.data.models.Album
 import it.fast4x.riplay.data.models.Artist
 import it.fast4x.riplay.data.models.Playlist
+import it.fast4x.riplay.data.models.Song
 import it.fast4x.riplay.enums.PopupType
 import it.fast4x.riplay.enums.ThumbnailRoundness
 import it.fast4x.riplay.extensions.preferences.rememberObservedPreference
@@ -475,6 +484,9 @@ internal fun shareUrlToDownloader(
     val intent = Intent(Intent.ACTION_SEND).apply {
         type = "text/plain"
         putExtra(Intent.EXTRA_TEXT, url)
+        // YTDLnis opens its card on whichever tab this names. This is a music app, so
+        // audio, every time; it used to land on whatever the last download had been.
+        putExtra("TYPE", "audio")
         setPackage(app.packageName)
         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     }
@@ -482,6 +494,143 @@ internal fun shareUrlToDownloader(
         context.startActivity(intent)
     } catch (e: ActivityNotFoundException) {
         onAppMissing()
+    }
+}
+
+/**
+ * Hands a whole list to YTDLnis in one go.
+ *
+ * Not as shared text: YTDLnis runs extractURL() on it, a regex that returns the FIRST match and
+ * nothing else, so a playlist sent that way downloaded exactly one song. What it does read in
+ * full is a text file of links, one per line, which is what the application/txt entry in its
+ * manifest is for. So the list is written to a file in the cache and handed over as a content
+ * uri. Local files and radio stations have nothing to download and are left out.
+ */
+private const val MAX_BULK_DOWNLOAD_URLS = 1000
+
+/**
+ * A whole playlist, album or artist, by its own url.
+ *
+ * One link is worth far more than a file of many: yt-dlp expands a playlist or a channel
+ * by itself, so YTDLnis opens its quick download card with every track already in it,
+ * instead of the app opening on a list of links. The song list is only the fallback for
+ * collections with no url of their own, like a playlist made here.
+ */
+fun shareCollectionToDownloader(
+    context: Context,
+    url: String?,
+    songs: List<Song>,
+    title: String = "",
+    onEmpty: () -> Unit = {},
+    onAppMissing: () -> Unit = {},
+) {
+    if (!url.isNullOrBlank()) {
+        shareUrlToDownloader(context, YTDLNIS_APP, url, onAppMissing)
+        return
+    }
+    shareSongsToDownloader(context, songs, title, onEmpty, onAppMissing)
+}
+
+/** YouTube's own limit for a temporary playlist built out of ids. */
+private const val MAX_TEMP_PLAYLIST_IDS = 50
+
+/**
+ * Turns a handful of video ids into a playlist link.
+ *
+ * youtube.com/watch_videos?video_ids=... answers 303 with a list=TLGG... id, a real
+ * playlist holding exactly those videos. That matters because YTDLnis reads ONE link per
+ * share: with this, a playlist of your own, or the songs on screen, arrive as a single
+ * link and its download card opens with every track, instead of the app opening on a
+ * file of links.
+ */
+private fun temporaryPlaylistUrl(videoIds: List<String>): String? {
+    if (videoIds.isEmpty()) return null
+    val ids = videoIds.take(MAX_TEMP_PLAYLIST_IDS).joinToString(",")
+    return runCatching {
+        val connection = (URL("https://www.youtube.com/watch_videos?video_ids=$ids")
+            .openConnection() as HttpURLConnection).apply {
+            instanceFollowRedirects = false
+            requestMethod = "GET"
+            setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
+            connectTimeout = 10_000
+            readTimeout = 10_000
+        }
+        val location = connection.getHeaderField("Location")
+        connection.disconnect()
+        location?.substringAfter("list=", "")?.substringBefore('&')
+            ?.takeIf { it.isNotBlank() }
+            ?.let { "https://www.youtube.com/playlist?list=$it" }
+    }.getOrNull()
+}
+
+fun shareSongsToDownloader(
+    context: Context,
+    songs: List<Song>,
+    title: String = "",
+    onEmpty: () -> Unit = {},
+    onAppMissing: () -> Unit = {},
+) {
+    val urls = songs
+        .mapNotNull { it.shareYTMUrl ?: it.shareYTUrl }
+        .distinct()
+        // An intent extra travels through Binder, which refuses transactions around 500 KB.
+        // A thousand links is roughly 90 KB, comfortably inside it and more than any real list.
+        .take(MAX_BULK_DOWNLOAD_URLS)
+
+    if (urls.isEmpty()) {
+        onEmpty()
+        return
+    }
+
+    // A local file or a station has no video id, so they never travel.
+    val videoIds = songs.map { it.id }.filterNot { it.startsWith("local:") || it.startsWith("radio:") }
+    CoroutineScope(Dispatchers.IO).launch {
+        val playlistUrl = temporaryPlaylistUrl(videoIds)
+        withContext(Dispatchers.Main) {
+            if (playlistUrl != null) shareUrlToDownloader(context, YTDLNIS_APP, playlistUrl, onAppMissing)
+            else shareLinksFileToDownloader(context, urls, title, onEmpty, onAppMissing)
+        }
+    }
+}
+
+/** Last resort when the temporary playlist cannot be built: the app opens on the links. */
+private fun shareLinksFileToDownloader(
+    context: Context,
+    urls: List<String>,
+    title: String,
+    onEmpty: () -> Unit,
+    onAppMissing: () -> Unit,
+) {
+    val uri = runCatching {
+        val folder = File(context.cacheDir, "downloads-share").apply { mkdirs() }
+        val safeTitle = title.replace(Regex("[^A-Za-z0-9._-]"), "_").take(40).ifBlank { "yammbo" }
+        val file = File(folder, safeTitle + "-links.txt")
+        file.writeText(urls.joinToString("\n"))
+        FileProvider.getUriForFile(context, context.packageName + ".fileprovider", file)
+    }.getOrNull()
+
+    if (uri == null) {
+        onEmpty()
+        return
+    }
+
+    val intent = Intent(Intent.ACTION_SEND).apply {
+        // The mime type its manifest listens on for a file of links; text/plain goes to the
+        // single-link share screen, which is where the whole list was being thrown away.
+        type = "application/txt"
+        putExtra(Intent.EXTRA_STREAM, uri)
+        putExtra("TYPE", "audio")
+        if (title.isNotEmpty()) putExtra(Intent.EXTRA_SUBJECT, title)
+        setPackage(YTDLNIS_APP.packageName)
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
+    try {
+        context.startActivity(intent)
+    } catch (e: ActivityNotFoundException) {
+        onAppMissing()
+    } catch (e: Exception) {
+        // A list far past the cap, or an odd OEM restriction: never crash on a share
+        onEmpty()
     }
 }
 

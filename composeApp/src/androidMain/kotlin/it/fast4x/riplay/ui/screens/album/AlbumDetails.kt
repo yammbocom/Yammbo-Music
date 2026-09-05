@@ -139,6 +139,7 @@ import me.bush.translator.Language
 import me.bush.translator.Translator
 import it.fast4x.riplay.utils.colorPalette
 import it.fast4x.riplay.enums.PopupType
+import it.fast4x.riplay.extensions.fastshare.shareSongsToDownloader
 import it.fast4x.riplay.extensions.fastshare.FastShare
 import it.fast4x.riplay.data.models.SongAlbumMap
 import it.fast4x.riplay.data.models.defaultQueue
@@ -655,6 +656,40 @@ fun AlbumDetails(
                                             modifier = Modifier.size(20.dp)
                                         )
                                     }
+
+                                    // The whole album to the downloader, left of Share.
+                                    HeaderIconButton(
+                                        icon = R.drawable.downloaded,
+                                        color = colorPalette().text,
+                                        iconSize = 20.dp,
+                                        modifier = Modifier
+                                            .align(Alignment.TopEnd)
+                                            .padding(end = 62.dp, top = statusBarTop + 2.dp)
+                                            .size(40.dp)
+                                            .glassSurface(shape = CircleShape, elevation = 6.dp)
+                                            .padding(10.dp),
+                                        onClick = {
+                                            shareSongsToDownloader(
+                                                context = context,
+                                                songs = songs,
+                                                title = album?.title.orEmpty(),
+                                                onEmpty = {
+                                                    SmartMessage(
+                                                        context.resources.getString(R.string.nothing_to_download),
+                                                        context = context,
+                                                        type = PopupType.Info,
+                                                    )
+                                                },
+                                                onAppMissing = {
+                                                    SmartMessage(
+                                                        context.resources.getString(R.string.ytdlnis_not_installed),
+                                                        context = context,
+                                                        type = PopupType.Error,
+                                                    )
+                                                },
+                                            )
+                                        }
+                                    )
 
                                     // Share as a glass pill, matching Back on the other side.
                                     HeaderIconButton(

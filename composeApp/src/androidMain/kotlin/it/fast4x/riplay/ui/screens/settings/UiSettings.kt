@@ -1059,7 +1059,7 @@ fun UiSettings(
                             when (it) {
                                 HomeScreenTabs.Default -> stringResource(R.string._default)
                                 HomeScreenTabs.Inicio -> stringResource(R.string.home)
-                                HomeScreenTabs.Top50 -> stringResource(R.string.top_50)
+                                HomeScreenTabs.LiveRadio -> stringResource(R.string.live_radio_tab)
                                 HomeScreenTabs.MyMusic -> stringResource(R.string.my_music)
                                 HomeScreenTabs.Search -> stringResource(R.string.search)
                                 HomeScreenTabs.MyAccount -> stringResource(R.string.my_account)

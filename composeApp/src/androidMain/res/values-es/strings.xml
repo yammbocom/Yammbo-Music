@@ -1105,7 +1105,7 @@
     <string name="dns_adguard_public_dns">AdGuard Public Dns</string>
     <string name="dns_custom_dns">Custom Dns</string>
     <string name="title_music_identifier">MUSIC IDENTIFIER</string>
-    <string name="enable_music_identifier">Enable Music Identifier</string>
+    <string name="enable_music_identifier">Activar el identificador de música</string>
     <string name="api_key">Api key</string>
     <string name="if_empty_system_api_key_will_be_used">If empty, system api key will be used</string>
     <string name="api_expiration">Api expiration: %1$s</string>
@@ -1203,7 +1203,7 @@
     <string name="lastfm_connect">Connect</string>
     <string name="lastfm_disconnect">Disconnect</string>
     <string name="title_lastfm">last.fm</string>
-    <string name="enable_lastfm">Enable last.fm</string>
+    <string name="enable_lastfm">Activar last.fm</string>
     <string name="lastfm_scrobble_simple">Simple</string>
     <string name="lastfm_scrobble_now_playing">Now Playing</string>
     <string name="lastfm_scrobble_type">Scrobble type</string>
@@ -1230,7 +1230,18 @@
     <string name="storage_your_device_is_low_on_storage_consider_freeing_up_some_space_soon">Tu dispositivo tiene poco almacenamiento. Considerá liberar espacio pronto.</string>
     <string name="warning_skipped_video">Skipped video</string>
     <string name="warning_skipped_blacklisted_song">Skipped blacklisted song</string>
+    <string name="vpn_notice_free_country">Tienes una VPN activa. El acceso gratuito se da por el país en el que estás de verdad, y la VPN lo oculta. Desactívala y vuelve a registrarte para obtenerlo.</string>
+    <string name="account_connected">Conectado</string>
+    <string name="account_not_connected">Sin conectar</string>
+    <string name="account_off">Desactivado</string>
+    <string name="account_not_signed_in">Sin sesión iniciada</string>
+    <string name="account_sign_out">Cerrar sesión</string>
+    <string name="account_sign_out_info">Salir de tu cuenta de Yammbo Music en este teléfono</string>
     <string name="cast">Cast</string>
+    <string name="cast_local_song_stays_on_phone">Una canción guardada en el teléfono no se puede enviar al TV, así que suena aquí</string>
+    <string name="cast_tv_not_playing_back_on_phone">El TV no está reproduciendo esta canción, así que el sonido vuelve al teléfono</string>
+    <string name="cast_show_video">Mostrar el vídeo en el TV</string>
+    <string name="cast_show_video_info">Desactivado, el TV muestra la portada y la letra. Activado, reproduce el vídeo de YouTube.</string>
     <string name="enable_ritune_cast">Enable RiTune Cast</string>
     <string name="ritune_cast_info">"Cast to RiTune devices, require RiTune installed in other devices "</string>
     <string name="queue_create_new_queue">Create new queue</string>
@@ -1454,4 +1465,34 @@
     <string name="yt_login_needed_title">No se pudo reproducir</string>
     <string name="yt_login_needed_message">Este contenido puede requerir tu cuenta de YouTube. Conéctala para reproducirlo.</string>
     <string name="yt_login_needed_connect">Conectar</string>
+    <!-- Live radio (radio-browser.info directory) -->
+    <string name="live_radio">Radio en vivo</string>
+    <string name="live_radio_badge">EN VIVO</string>
+    <string name="live_radio_search_hint">Buscar emisoras</string>
+    <string name="live_radio_all_genres">Todos los géneros</string>
+    <string name="live_radio_all_countries">Todos los países</string>
+    <string name="live_radio_country">País</string>
+    <string name="live_radio_order">Ordenar por</string>
+    <string name="live_radio_order_popular">Más escuchadas</string>
+    <string name="live_radio_order_votes">Mejor valoradas</string>
+    <string name="live_radio_order_bitrate">Mejor calidad</string>
+    <string name="live_radio_order_name">Nombre (A-Z)</string>
+    <string name="live_radio_load_more">Cargar más</string>
+    <string name="live_radio_empty">No se encontraron emisoras</string>
+    <string name="live_radio_error">No se pudo conectar con el directorio de radios. Inténtalo de nuevo.</string>
+    <string name="live_radio_retry">Reintentar</string>
+    <string name="live_radio_clear_filters">Limpiar filtros</string>
+    <string name="live_radio_tab">Radio</string>
+    <string name="favorite_radios">Radios favoritas</string>
+    <string name="favorite_radios_hint">Tus emisoras guardadas con el corazón</string>
+    <string name="favorite_radios_empty">Toca el corazón mientras suena una emisora para guardarla aquí.</string>
+    <!-- Google Cast -->
+    <string name="cast_section">Cast</string>
+    <string name="cast_youtube_mode">Modo Cast: canciones de YouTube</string>
+    <string name="cast_youtube_mode_info">Apagado, el televisor reproduce la radio en vivo. Encendido, reproduce canciones de YouTube. Todavía no hay un receptor gratuito que haga las dos cosas.</string>
+    <string name="cast_mode_changed">Reinicia la app para aplicar el nuevo modo de Cast</string>
+    <string name="cast_receiver_cannot_play_this">Este dispositivo Cast no puede reproducir esto. Cambia el modo de Cast en Ajustes.</string>
+    <string name="download_all_with_ytdlnis">Descargar todo con YTDLnis</string>
+    <string name="nothing_to_download">Aquí no hay nada que se pueda descargar</string>
+    <string name="ytdlnis_not_installed">YTDLnis no está instalado</string>
 </resources>

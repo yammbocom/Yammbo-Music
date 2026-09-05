@@ -68,6 +68,7 @@ import it.fast4x.riplay.data.models.Artist
 import it.fast4x.riplay.enums.BlacklistType
 import it.fast4x.riplay.enums.NavRoutes
 import it.fast4x.riplay.ui.screens.home.HomePodcastsSection
+import it.fast4x.riplay.ui.screens.home.HomeLiveRadioSection
 import it.fast4x.riplay.extensions.listenerlevel.HomepageListenerLevelBadges
 import it.fast4x.riplay.ui.components.LocalGlobalSheetState
 import it.fast4x.riplay.ui.components.PullToRefreshBox
@@ -109,6 +110,7 @@ import it.fast4x.riplay.ui.components.themed.TitleMiniSection
 import it.fast4x.riplay.ui.items.AlbumItem
 import it.fast4x.riplay.ui.items.ArtistItem
 import it.fast4x.riplay.ui.items.PlaylistItem
+import it.fast4x.riplay.ui.items.HomeShelfCard
 import it.fast4x.riplay.ui.items.SongItem
 import it.fast4x.riplay.ui.items.VideoItem
 import it.fast4x.riplay.ui.styling.color
@@ -143,7 +145,8 @@ fun HomePage(
     onSearchClick: () -> Unit,
     onMoodAndGenresClick: (mood: Environment.Mood.Item) -> Unit,
     onChipClick: (chip: Environment.Chip) -> Unit,
-    onSettingsClick: () -> Unit
+    onSettingsClick: () -> Unit,
+    onLiveRadioClick: () -> Unit = {}
 ) {
     val binder = LocalPlayerServiceBinder.current
     val menuState = LocalGlobalSheetState.current
@@ -220,7 +223,10 @@ fun HomePage(
                         )
 
                         if (effectiveSongId != null) {
-                            if (relatedPage == null || trending?.id != song?.id || trending?.mediaId != song?.id) {
+                            // Kept from the cache while the app lives: re-seeding these on every visit made Home
+                            // look half empty each time the listener came back from another screen.
+                            // Pull to refresh clears the cache when new picks are actually wanted.
+                            if (relatedPage == null) {
                                 relatedPage = Environment.relatedPage(
                                     NextBody(
                                         videoId = effectiveSongId
@@ -267,7 +273,10 @@ fun HomePage(
                         )
 
                         if (effectiveSongId != null) {
-                            if (relatedPage == null || trending?.id != song?.id || trending?.mediaId != song?.id) {
+                            // Kept from the cache while the app lives: re-seeding these on every visit made Home
+                            // look half empty each time the listener came back from another screen.
+                            // Pull to refresh clears the cache when new picks are actually wanted.
+                            if (relatedPage == null) {
                                 relatedPage =
                                     Environment.relatedPage(
                                         NextBody(
@@ -743,10 +752,16 @@ fun HomePage(
                     )
                 }
 
+                HomeLiveRadioSection(
+                    thumbnailSizeDp = albumThumbnailSizeDp,
+                    onOpenAll = onLiveRadioClick
+                )
+
                 homePage?.let { page ->
 
                     page.sections.forEach {
-                        if (it.items.isEmpty() || it.items.firstOrNull()?.key == null) return@forEach
+                        // A shelf whose first entry failed to parse is still a shelf; judge it by what survived
+                        if (it.items.filterNotNull().none { item -> item.key.isNotEmpty() }) return@forEach
 
                         TitleMiniSection(
                             it.label ?: "", modifier = Modifier
@@ -762,16 +777,17 @@ fun HomePage(
                                 .padding(vertical = 4.dp)
                         )
                         LazyRow(contentPadding = endPaddingValues) {
-                            items(it.items.filter { item -> blacklisted.value?.none { bl -> bl.path == item?.key } ?: true }) { item ->
+                            items(it.items.filterNotNull().filter { item -> blacklisted.value?.none { bl -> bl.path == item.key } ?: true }) { item ->
                                 when (item) {
                                     is Environment.SongItem -> {
                                         Timber.d("Environment homePage SongItem: ${item.info?.name}")
-                                        SongItem(
-                                            song = item,
+                                        HomeShelfCard(
+                                            thumbnailUrl = item.thumbnail?.url,
+                                            title = item.info?.name,
+                                            subtitle = item.authors?.joinToString(", ") { a -> a.name ?: "" },
                                             thumbnailSizePx = albumThumbnailSizePx,
                                             thumbnailSizeDp = albumThumbnailSizeDp,
-                                            //disableScrollingText = disableScrollingText,
-                                            //isNowPlaying = false,
+                                            disableScrollingText = disableScrollingText,
                                             modifier = Modifier.clickable(onClick = {
                                                 binder?.stopRadio()
                                                 binder?.player?.forcePlay(item.asMediaItem)
@@ -805,6 +821,7 @@ fun HomePage(
                                             artist = item,
                                             thumbnailSizePx = artistThumbnailSizePx,
                                             thumbnailSizeDp = artistThumbnailSizeDp,
+                                            alternative = true,
                                             disableScrollingText = disableScrollingText,
                                             modifier = Modifier.clickable(onClick = {
                                                 navController.navigate("${NavRoutes.artist.name}/${item.key}")
@@ -821,17 +838,27 @@ fun HomePage(
                                             thumbnailSizeDp = playlistThumbnailSizeDp,
                                             disableScrollingText = disableScrollingText,
                                             modifier = Modifier.clickable(onClick = {
-                                                navController.navigate("${NavRoutes.playlist.name}/${item.key}")
+                                                // A podcast show is not a playlist: browsing it as one gives an empty list
+                                                                                // A mix (radio-style auto playlist) has no browsable page: play it instead of opening one
+                                                if (item.key.startsWith("RD")) {
+                                                    binder?.stopRadio()
+                                                    binder?.playRadio(NavigationEndpoint.Endpoint.Watch(playlistId = item.key))
+                                                } else if (item.key.startsWith("MPSP"))
+                                                                                    navController.navigate("${NavRoutes.podcast.name}/${item.key}")
+                                                                                else
+                                                                                    navController.navigate("${NavRoutes.playlist.name}/${item.key}")
                                             })
                                         )
                                     }
 
                                     is Environment.VideoItem -> {
                                         Timber.d("Environment homePage VideoItem: ${item.info?.name}")
-                                        VideoItem(
-                                            video = item,
-                                            thumbnailHeightDp = playlistThumbnailSizeDp,
-                                            thumbnailWidthDp = playlistThumbnailSizeDp,
+                                        HomeShelfCard(
+                                            thumbnailUrl = item.thumbnail?.url,
+                                            title = item.info?.name,
+                                            subtitle = item.authors?.joinToString(", ") { a -> a.name ?: "" },
+                                            thumbnailSizePx = albumThumbnailSizePx,
+                                            thumbnailSizeDp = albumThumbnailSizeDp,
                                             disableScrollingText = disableScrollingText,
                                             modifier = Modifier.clickable(onClick = {
                                                 binder?.stopRadio()

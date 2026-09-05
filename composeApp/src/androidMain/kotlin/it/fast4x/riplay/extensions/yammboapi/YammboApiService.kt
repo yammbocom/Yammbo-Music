@@ -33,6 +33,9 @@ object YammboApiService {
         client.post("$BASE_URL/login") {
             contentType(ContentType.Application.Json)
             header("Accept", "application/json")
+            // A country offer cannot be judged through a VPN: the server would see the
+            // exit node's country instead of this phone's.
+            header("X-Yammbo-Vpn", VpnState.header())
             setBody(LoginRequest(email = email, password = password))
         }.body<AuthResponse>()
     }.onFailure {
@@ -47,6 +50,7 @@ object YammboApiService {
         client.post("$BASE_URL/register") {
             contentType(ContentType.Application.Json)
             header("Accept", "application/json")
+            header("X-Yammbo-Vpn", VpnState.header())
             setBody(
                 RegisterRequest(
                     email = email,

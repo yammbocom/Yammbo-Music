@@ -36,6 +36,13 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.util.UnstableApi
 import androidx.navigation.NavController
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.firstOrNull
+import it.fast4x.riplay.enums.PopupType
+import it.fast4x.riplay.extensions.fastshare.shareCollectionToDownloader
+import it.fast4x.riplay.extensions.fastshare.shareSongsToDownloader
 import it.fast4x.riplay.data.Database
 import it.fast4x.riplay.commonutils.MONTHLY_PREFIX
 import it.fast4x.riplay.commonutils.PINNED_PREFIX
@@ -80,6 +87,8 @@ fun PlaylistsItemMenu(
     onDeleteSongsNotInLibrary: (() -> Unit)? = null,
     onEnqueue: (() -> Unit)? = null,
     onImportOnlinePlaylist: (() -> Unit)? = null,
+    // Any list of songs the caller can produce: the Songs tab has no playlist behind it.
+    onDownloadAllSongs: (() -> Unit)? = null,
     onAddToPlaylist: ((PlaylistPreview) -> Unit)? = null,
     onAddToPreferites: (() -> Unit)? = null,
     showonAddToPreferitesYoutube: Boolean = false,
@@ -408,6 +417,7 @@ fun PlaylistsItemMenu(
                     }
                 }
             } else {
+                val downloadContext = LocalContext.current
                 //val density = LocalDensity.current
                 Menu(
                     modifier = modifier
@@ -689,6 +699,59 @@ fun PlaylistsItemMenu(
                             onClick = {
                                 onDismiss()
                                 onExport()
+                            }
+                        )
+                    }
+
+                    onDownloadAllSongs?.let { download ->
+                        MenuEntry(
+                            icon = R.drawable.downloaded,
+                            text = stringResource(R.string.download_all_with_ytdlnis),
+                            onClick = {
+                                onDismiss()
+                                download()
+                            }
+                        )
+                    }
+
+                    // The whole list to the downloader in one go, instead of song by song
+                    playlist?.let { preview ->
+                        MenuEntry(
+                            icon = R.drawable.downloaded,
+                            text = stringResource(R.string.download_all_with_ytdlnis),
+                            onClick = {
+                                onDismiss()
+                                // Not the composition scope: the menu closes first and its scope dies mid-query
+                                CoroutineScope(Dispatchers.IO).launch {
+                                    val songs = Database.songsInPlaylist(preview.playlist.id)
+                                        .firstOrNull()
+                                        .orEmpty()
+                                        .map { it.song }
+                                    withContext(Dispatchers.Main) {
+                                        shareCollectionToDownloader(
+                                            context = downloadContext,
+                                            // A YouTube playlist travels as one link and
+                                            // arrives complete; one made here has no url.
+                                            url = preview.playlist.shareYTUrl,
+                                            songs = songs,
+                                            title = preview.playlist.name,
+                                            onEmpty = {
+                                                SmartMessage(
+                                                    downloadContext.resources.getString(R.string.nothing_to_download),
+                                                    context = downloadContext,
+                                                    type = PopupType.Info
+                                                )
+                                            },
+                                            onAppMissing = {
+                                                SmartMessage(
+                                                    downloadContext.resources.getString(R.string.ytdlnis_not_installed),
+                                                    context = downloadContext,
+                                                    type = PopupType.Error
+                                                )
+                                            }
+                                        )
+                                    }
+                                }
                             }
                         )
                     }

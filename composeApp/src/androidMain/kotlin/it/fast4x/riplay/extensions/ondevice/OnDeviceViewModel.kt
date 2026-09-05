@@ -170,7 +170,11 @@ class OnDeviceViewModel(application: Application) : AndroidViewModel(application
                     }
 
 
-                    val selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0"
+                    // is_music, plus the downloader's own folder and nothing else.
+                    // Accepting everything that was not a ringtone or an alarm pulled in
+                    // call recordings and voicemail, which are audio but not music.
+                    val selection = "(${MediaStore.Audio.Media.IS_MUSIC} != 0" +
+                        " OR ${MediaStore.Audio.Media.DATA} LIKE '%/YTDLnis/%')"
                     val albumUriBase = "content://media/external/audio/albumart".toUri()
                     val audioFiles = mutableListOf<Song>()
 

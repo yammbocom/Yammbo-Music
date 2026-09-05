@@ -9,6 +9,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
+import it.fast4x.riplay.enums.PopupType
+import it.fast4x.riplay.extensions.fastshare.shareCollectionToDownloader
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onPlaced
@@ -34,6 +37,7 @@ fun ArtistsItemMenu(
     disableScrollingText: Boolean,
 ) {
     val density = LocalDensity.current
+    val downloadContext = LocalContext.current
 
     var height by remember {
         mutableStateOf(0.dp)
@@ -72,6 +76,35 @@ fun ArtistsItemMenu(
                 modifier = Modifier
                     .height(8.dp)
             )
+            // The whole thing to the downloader, as one link it can expand by itself.
+            MenuEntry(
+                icon = R.drawable.downloaded,
+                text = stringResource(R.string.download_all_with_ytdlnis),
+                onClick = {
+                    onDismiss()
+                    shareCollectionToDownloader(
+                        context = downloadContext,
+                        url = artist.shareYTUrl,
+                        songs = emptyList(),
+                        title = artist.name.orEmpty(),
+                        onEmpty = {
+                            SmartMessage(
+                                downloadContext.resources.getString(R.string.nothing_to_download),
+                                context = downloadContext,
+                                type = PopupType.Info,
+                            )
+                        },
+                        onAppMissing = {
+                            SmartMessage(
+                                downloadContext.resources.getString(R.string.ytdlnis_not_installed),
+                                context = downloadContext,
+                                type = PopupType.Error,
+                            )
+                        },
+                    )
+                }
+            )
+
             onBlacklist?.let {
                 MenuEntry(
                     icon = R.drawable.alert_circle,

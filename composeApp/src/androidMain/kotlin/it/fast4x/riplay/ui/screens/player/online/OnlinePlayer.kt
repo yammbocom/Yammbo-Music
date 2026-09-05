@@ -1404,17 +1404,17 @@ fun OnlinePlayer(
             isExplicit = mediaItem.isExplicit,
             mediaItem = mediaItem,
             onPlay = {
-                binder.onlinePlayer?.play()
+                binder.onlinePlayerPlay()
             },
             onPause = {
-                binder.onlinePlayer?.pause()
+                binder.onlinePlayerPause()
             },
             onSeekTo = { binder.onlinePlayerSeekTo(it) },
             onNext = { binder.player.playNext() },
             onPrevious = {
                 if (jumpPrevious == "") jumpPrevious = "0"
                 if(!binder.player.hasPreviousMediaItem() || (jumpPrevious != "0" && positionAndDuration.first > jumpPrevious.toFloat())){
-                    binder.onlinePlayer?.seekTo(0f)
+                    binder.onlinePlayerSeekTo(0f)
                 }
                 else binder.player.playPrevious()
             },
@@ -2823,12 +2823,12 @@ fun OnlinePlayer(
                                         .padding(vertical = 8.dp),
                                     onPlay = {
                                         //player.value?.play()
-                                        binder.onlinePlayer?.play()
+                                        binder.onlinePlayerPlay()
                                         //println("LinkClient OnLinePlayer Controls play")
                                     },
                                     onPause = {
                                         //player.value?.pause()
-                                        binder.onlinePlayer?.pause()
+                                        binder.onlinePlayerPause()
                                         //println("LinkClient OnLinePlayer Controls pause 2")
                                     },
                                     onSeekTo = { binder.onlinePlayerSeekTo(it) },
@@ -2836,7 +2836,7 @@ fun OnlinePlayer(
                                     onPrevious = {
                                         if (jumpPrevious == "") jumpPrevious = "0"
                                         if(!binder.player.hasPreviousMediaItem() || (jumpPrevious != "0" && positionAndDuration.first > jumpPrevious.toFloat())){
-                                            binder.onlinePlayer?.seekTo(0f)
+                                            binder.onlinePlayerSeekTo(0f)
                                         }
                                         else binder.player.playPrevious()
                                     },
@@ -3131,12 +3131,12 @@ fun OnlinePlayer(
                                                 .fillMaxWidth(),
                                             onPlay = {
                                                 //player.value?.play()
-                                                binder.onlinePlayer?.play()
+                                                binder.onlinePlayerPlay()
                                                 //println("LinkClient OnLinePlayer Controls pause 3")
                                             },
                                             onPause = {
                                                 //player.value?.pause()
-                                                binder.onlinePlayer?.pause()
+                                                binder.onlinePlayerPause()
                                                 //println("LinkClient OnLinePlayer Controls pause 4")
                                             },
                                             onSeekTo = { binder.onlinePlayerSeekTo(it) },
@@ -3144,7 +3144,7 @@ fun OnlinePlayer(
                                             onPrevious = {
                                                 if (jumpPrevious == "") jumpPrevious = "0"
                                                 if(!binder.player.hasPreviousMediaItem() || (jumpPrevious != "0" && positionAndDuration.first > jumpPrevious.toFloat())){
-                                                    binder.onlinePlayer?.seekTo(0f)
+                                                    binder.onlinePlayerSeekTo(0f)
                                                 }
                                                 else binder.player.playPrevious()
                                             },
@@ -3873,12 +3873,12 @@ fun OnlinePlayer(
                                         .fillMaxWidth(),
                                     onPlay = {
                                         //player.value?.play()
-                                        binder.onlinePlayer?.play()
+                                        binder.onlinePlayerPlay()
                                         //println("LinkClient OnLinePlayer Controls play")
                                     },
                                     onPause = {
                                         //player.value?.pause()
-                                        binder.onlinePlayer?.pause()
+                                        binder.onlinePlayerPause()
 
                                         //println("LinkClient OnLinePlayer Controls pause 5")
                                     },
@@ -3887,7 +3887,7 @@ fun OnlinePlayer(
                                     onPrevious = {
                                         if (jumpPrevious == "") jumpPrevious = "0"
                                         if(!binder.player.hasPreviousMediaItem() || (jumpPrevious != "0" && positionAndDuration.first > jumpPrevious.toFloat())){
-                                            binder.onlinePlayer?.seekTo(0f)
+                                            binder.onlinePlayerSeekTo(0f)
                                         }
                                         else binder.player.playPrevious()
                                     },

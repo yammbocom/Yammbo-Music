@@ -185,9 +185,15 @@ import it.fast4x.riplay.data.models.defaultQueue
 import it.fast4x.riplay.extensions.audiotag.AudioTagViewModel
 import it.fast4x.riplay.extensions.preferences.closebackgroundPlayerKey
 import it.fast4x.riplay.extensions.preferences.showAutostartPermissionDialogKey
+import it.fast4x.riplay.utils.importYTMPrivatePlaylists
+import it.fast4x.riplay.utils.importYTMSubscribedChannels
+import it.fast4x.riplay.utils.importYTMLikedAlbums
+import it.fast4x.riplay.ui.screens.settings.isYtSyncEnabled
+import kotlinx.coroutines.delay
+import it.fast4x.riplay.extensions.cast.CastManager
 import it.fast4x.riplay.navigation.AppNavigation
 import it.fast4x.riplay.service.PlayerService
-import it.fast4x.riplay.utils.isLocal
+import it.fast4x.riplay.utils.usesLocalPlayer
 import it.fast4x.riplay.ui.components.BottomSheet
 import it.fast4x.riplay.ui.components.BottomSheetState
 import it.fast4x.riplay.ui.components.CustomModalBottomSheet
@@ -555,6 +561,34 @@ class MainActivity :
         }
 
         checkIfAppIsRunningInBackground()
+
+        // Wake the Cast framework early so an existing session is picked up on launch
+        runCatching { CastManager.initialize(this) }
+
+        // Pull the YouTube Music library once per launch. These imports used to run only when
+        // the matching tab was opened, and only with a second hidden switch on, so a freshly
+        // connected account looked empty everywhere.
+        lifecycleScope.launch(Dispatchers.IO) {
+            if (!isYtSyncEnabled()) return@launch
+            // The YouTube cookie is handed to Environment from inside the Compose tree, which
+            // runs after onCreate. Importing before that would send the requests logged out and
+            // come back empty, which downstream reads as "the account has nothing".
+            var waited = 0
+            while (Environment.cookie.isNullOrBlank() && waited < 15_000) {
+                delay(500)
+                waited += 500
+            }
+            if (Environment.cookie.isNullOrBlank()) {
+                Timber.w("MainActivity: no YouTube session yet, skipping library import")
+                return@launch
+            }
+            runCatching { importYTMPrivatePlaylists() }
+                .onFailure { Timber.e("MainActivity: YTM playlists import failed: ${it.message}") }
+            runCatching { importYTMSubscribedChannels() }
+                .onFailure { Timber.e("MainActivity: YTM artists import failed: ${it.message}") }
+            runCatching { importYTMLikedAlbums() }
+                .onFailure { Timber.e("MainActivity: YTM albums import failed: ${it.message}") }
+        }
 
         // todo ritune in the future add a try catch
         //registerNsdService()
@@ -1279,7 +1313,7 @@ class MainActivity :
                                             b.currentMediaItemFlow.collect { currentItem = it }
                                         }
 
-                                        if (currentItem?.isLocal == true)
+                                        if (currentItem?.usesLocalPlayer == true)
                                             LocalMiniPlayer(
                                                 showPlayer = { localPlayerSheetState.expandSoft() },
                                                 hidePlayer = { localPlayerSheetState.collapseSoft() },
@@ -1376,7 +1410,7 @@ class MainActivity :
                                     },
                                     contentAlwaysAvailable = true
                                 ) {
-                                    if (binder?.currentMediaItemAsSong?.isLocal == true)
+                                    if (binder?.currentMediaItemAsSong?.usesLocalPlayer == true)
                                         localPlayer()
                                     else
                                         onlinePlayer()
@@ -1690,7 +1724,9 @@ class MainActivity :
     override fun onResume() {
         super.onResume()
 
-        binder?.onlinePlayer?.setVolume(100) // maybe is needed when webview lost audiofocus
+        // maybe is needed when webview lost audiofocus — but never while the TV has the sound,
+        // or coming back to the app would start playing out of the phone as well.
+        if (!CastManager.isConnected.value) binder?.onlinePlayer?.setVolume(100)
 
         preferences.edit(commit = true) { putBoolean(appIsRunningKey, true) }
 

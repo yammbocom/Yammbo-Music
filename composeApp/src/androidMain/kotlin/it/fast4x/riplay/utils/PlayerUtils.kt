@@ -19,6 +19,11 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MimeTypes
+import androidx.core.net.toUri
+import android.provider.MediaStore
+import android.net.Uri
+import android.content.ContentUris
 import androidx.media3.common.Player
 import androidx.media3.common.Player.REPEAT_MODE_ALL
 import androidx.media3.common.Player.REPEAT_MODE_OFF
@@ -28,6 +33,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSpec
 import com.yambo.music.R
 import it.fast4x.riplay.commonutils.durationTextToMillis
+import it.fast4x.riplay.extensions.cast.CastManager
 import it.fast4x.riplay.data.Database
 import it.fast4x.riplay.data.models.QueuedMediaItem
 import it.fast4x.riplay.data.models.Queues
@@ -75,11 +81,54 @@ val DataSpec.isLocalUri get() = uri.toString().startsWith("content://")
 val MediaItem.isLocal get() = mediaId.startsWith(LOCAL_KEY_PREFIX)
 val Song.isLocal get() = id.startsWith(LOCAL_KEY_PREFIX)
 
+const val RADIO_KEY_PREFIX = "radio:"
+
+/** Live radio stations play through Media3 like device files do; the id carries the stream url. */
+val MediaItem.isRadio get() = mediaId.startsWith(RADIO_KEY_PREFIX)
+val Song.isRadio get() = id.startsWith(RADIO_KEY_PREFIX)
+val String.isRadioId get() = startsWith(RADIO_KEY_PREFIX)
+
+/**
+ * True when the local Media3 player owns this item (device files and live radio), false when the
+ * YouTube embed does. Use this, not isLocal, wherever the code picks a playback engine.
+ */
+val MediaItem.usesLocalPlayer get() = isLocal || isRadio
+val Song.usesLocalPlayer get() = isLocal || isRadio
+
+/** Marker appended to a radio id when the directory flags the stream as HLS but the url does not say so. */
+const val RADIO_HLS_MARKER = "#hls"
+
+/** Stream url carried inside a radio id, or null for any other id. */
+fun radioStreamUrlOf(mediaId: String): String? =
+    if (mediaId.isRadioId) mediaId.substringAfter(RADIO_KEY_PREFIX).removeSuffix(RADIO_HLS_MARKER) else null
+
+/** HLS mime type for a radio id that needs it, so Media3 does not run the progressive extractors on a playlist. */
+fun radioMimeTypeOf(mediaId: String): String? =
+    if (mediaId.isRadioId && (mediaId.endsWith(RADIO_HLS_MARKER) || mediaId.contains(".m3u8", ignoreCase = true)))
+        MimeTypes.APPLICATION_M3U8 else null
+
+/**
+ * Playback uri for any media id: the MediaStore row for `local:`, the embedded stream url for
+ * `radio:`, the id itself (a YouTube video id, refused by the local player by design) otherwise.
+ * Every MediaItem builder must go through this, or a station restored from the database or the
+ * persistent queue comes back with a `radio` scheme and the local player refuses it.
+ */
+fun playbackUriOf(mediaId: String): Uri = when {
+    mediaId.isRadioId -> mediaId.substringAfter(RADIO_KEY_PREFIX).removeSuffix(RADIO_HLS_MARKER).toUri()
+    mediaId.startsWith(LOCAL_KEY_PREFIX) -> ContentUris.withAppendedId(
+        MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+        mediaId.substringAfter(LOCAL_KEY_PREFIX).toLong()
+    )
+    else -> mediaId.toUri()
+}
+
 var GlobalVolume: Float = 0.5f
 
 fun Player.restoreGlobalVolume() {
     CoroutineScope(Dispatchers.Main).launch {
-        volume = GlobalVolume
+        // Silent here while a Chromecast is playing: every play/next/previous passes through
+        // this and would otherwise bring the phone back in over the TV.
+        volume = if (CastManager.isConnected.value) 0f else GlobalVolume
     }
 }
 
@@ -581,7 +630,8 @@ fun Player.loadMasterQueue(onLoaded: (Long) -> Unit) {
             setMediaItems(
                 queuedSong.map { mediaItem ->
                     mediaItem.mediaItem.buildUpon()
-                        .setUri(mediaItem.mediaItem.mediaId)
+                        .setUri(playbackUriOf(mediaItem.mediaItem.mediaId))
+                        .setMimeType(radioMimeTypeOf(mediaItem.mediaItem.mediaId))
                         .setCustomCacheKey(mediaItem.mediaItem.mediaId)
                         .build().apply {
                             mediaMetadata.extras?.putBoolean("isFromPersistentQueue", true)
@@ -612,7 +662,7 @@ fun Player.positionAndDurationStateFlow(
     binder: PlayerService.Binder?
 ): StateFlow<Pair<Long, Long>> {
 
-    val initialValue = if (currentMediaItem?.isLocal == true) {
+    val initialValue = if (currentMediaItem?.usesLocalPlayer == true) {
         currentPosition to duration
     } else {
         (binder?.onlinePlayerCurrentSecond?.toLong() ?: 0L) to
@@ -630,7 +680,7 @@ fun Player.positionAndDurationStateFlow(
             }
 
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-                val newValue = if (mediaItem?.isLocal == true) {
+                val newValue = if (mediaItem?.usesLocalPlayer == true) {
                     currentPosition to duration
                 } else {
                     (binder?.onlinePlayerCurrentSecond?.toLong() ?: 0L) to
@@ -644,7 +694,7 @@ fun Player.positionAndDurationStateFlow(
                 newPosition: Player.PositionInfo,
                 reason: Int
             ) {
-                if (reason == Player.DISCONTINUITY_REASON_SEEK && currentMediaItem?.isLocal == true) {
+                if (reason == Player.DISCONTINUITY_REASON_SEEK && currentMediaItem?.usesLocalPlayer == true) {
                     isSeeking = true
                     trySend(currentPosition to duration)
                 }
@@ -658,7 +708,7 @@ fun Player.positionAndDurationStateFlow(
             while (isActive) {
                 delay(500) // Aggiorna ogni 500ms
                 if (!isSeeking) {
-                    val newValue = if (currentMediaItem?.isLocal == true) {
+                    val newValue = if (currentMediaItem?.usesLocalPlayer == true) {
                         currentPosition to duration
                     } else {
                         (binder?.onlinePlayerCurrentSecond?.toLong() ?: 0L) to

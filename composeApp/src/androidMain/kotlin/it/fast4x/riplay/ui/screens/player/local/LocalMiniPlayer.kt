@@ -70,6 +70,7 @@ import com.yambo.music.R
 import it.fast4x.riplay.utils.appContext
 import it.fast4x.riplay.commonutils.cleanPrefix
 import it.fast4x.riplay.utils.colorPalette
+import it.fast4x.riplay.utils.isRadio
 import it.fast4x.riplay.enums.BackgroundProgress
 import it.fast4x.riplay.enums.MiniPlayerType
 import it.fast4x.riplay.enums.NavRoutes
@@ -196,7 +197,7 @@ fun LocalMiniPlayer(
             }
             if (!isNetworkConnected(appContext()) && isYtSyncEnabled()) {
                 SmartMessage(appContext().resources.getString(R.string.no_connection), context = appContext(), type = PopupType.Error)
-            } else if (!isYtSyncEnabled()){
+            } else if (!isYtSyncEnabled() || mediaItem.isRadio){
                 mediaItemToggleLike(mediaItem)
                 if (likedAt == null || likedAt == -1L)
                     SmartMessage(context.resources.getString(R.string.added_to_favorites), context = context)
@@ -212,7 +213,7 @@ fun LocalMiniPlayer(
         if (updateDislike) {
             if (!isNetworkConnected(appContext()) && isYtSyncEnabled()) {
                 SmartMessage(appContext().resources.getString(R.string.no_connection), context = appContext(), type = PopupType.Error)
-            } else if (!isYtSyncEnabled()){
+            } else if (!isYtSyncEnabled() || mediaItem.isRadio){
                 Database.asyncTransaction {
                     if (like(mediaItem.mediaId, setDisLikeState(likedAt)) == 0)
                         insert(mediaItem, Song::toggleDislike)
@@ -465,7 +466,7 @@ fun LocalMiniPlayer(
                            .size(24.dp)
                    )
 
-                if (positionAndDuration.second != C.TIME_UNSET) {
+                if (positionAndDuration.second != C.TIME_UNSET || mediaItem.isRadio) {
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(playPauseRoundness))

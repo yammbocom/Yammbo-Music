@@ -112,7 +112,9 @@ import it.fast4x.environment.requests.searchPage
 import it.fast4x.environment.utils.from
 import it.fast4x.riplay.MainActivity
 import it.fast4x.riplay.enums.DurationInMilliseconds
+import it.fast4x.lrclib.LrcLib
 import it.fast4x.riplay.data.models.Event
+import it.fast4x.riplay.data.models.Lyrics
 import it.fast4x.riplay.data.models.Song
 import it.fast4x.riplay.ui.components.themed.SmartMessage
 import it.fast4x.riplay.utils.asSong
@@ -169,6 +171,7 @@ import it.fast4x.riplay.extensions.preferences.notificationPlayerSecondIconKey
 import it.fast4x.riplay.extensions.preferences.pauseListenHistoryKey
 import it.fast4x.riplay.extensions.preferences.persistentQueueKey
 import it.fast4x.riplay.extensions.preferences.playbackDurationKey
+import it.fast4x.riplay.extensions.preferences.castShowVideoKey
 import it.fast4x.riplay.extensions.preferences.playbackFadeAudioDurationKey
 import it.fast4x.riplay.extensions.preferences.playbackPitchKey
 import it.fast4x.riplay.extensions.preferences.playbackSpeedKey
@@ -216,6 +219,7 @@ import it.fast4x.riplay.extensions.encryptedpreferences.encryptedPreferences
 import it.fast4x.riplay.extensions.lastfm.sendNowPlaying
 import it.fast4x.riplay.extensions.lastfm.sendScrobble
 import it.fast4x.riplay.extensions.players.getOnlineMetadata
+import it.fast4x.riplay.extensions.cast.CastManager
 import it.fast4x.riplay.extensions.preferences.castToRiTuneDeviceEnabledKey
 import it.fast4x.riplay.extensions.preferences.enableWallpaperKey
 import it.fast4x.riplay.extensions.preferences.excludeSongIfIsVideoKey
@@ -239,7 +243,11 @@ import it.fast4x.riplay.utils.LOCAL_KEY_PREFIX
 import it.fast4x.riplay.utils.isAtLeastAndroid11
 
 import it.fast4x.riplay.utils.isExplicit
+import it.fast4x.riplay.utils.GlobalVolume
 import it.fast4x.riplay.utils.isLocal
+import it.fast4x.riplay.utils.isRadio
+import it.fast4x.riplay.utils.isRadioId
+import it.fast4x.riplay.utils.usesLocalPlayer
 import it.fast4x.riplay.utils.isVideo
 import it.fast4x.riplay.utils.mediaItems
 import it.fast4x.riplay.utils.playAtIndex
@@ -265,6 +273,7 @@ import kotlinx.coroutines.flow.cancellable
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
@@ -280,6 +289,7 @@ import kotlin.collections.map
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
 import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 import android.os.Binder as AndroidBinder
 import androidx.core.graphics.scale
 import it.fast4x.riplay.utils.getScreenRealSize
@@ -456,7 +466,7 @@ class PlayerService : Service(),
      */
 
     private fun playerPositionMonitor(player: ExoPlayer) = flow {
-        while (player.isPlaying && player.currentMediaItem?.isLocal == true) {
+        while (player.isPlaying && player.currentMediaItem?.usesLocalPlayer == true) {
             emit(player.currentPosition)
             delay(1000)
         }
@@ -572,6 +582,7 @@ class PlayerService : Service(),
         initializeVariables()
         initializeOnlinePlayer()
         initializeUnifiedMediaSession()
+        initializeCast()
 
         startForeground()
 
@@ -604,7 +615,7 @@ class PlayerService : Service(),
 
         coroutineScope.launch {
             withContext(Dispatchers.Main) {
-                if (localMediaItem?.isLocal == true) {
+                if (localMediaItem?.usesLocalPlayer == true) {
                     playerPositionMonitor(player).collect {
                         updateUnifiedNotification()
                     }
@@ -668,7 +679,7 @@ class PlayerService : Service(),
             //Update online (local songs have no online format/metadata — skip the network fetch)
             currentMediaId = song.id
 
-            if (!song.isLocal) {
+            if (!song.usesLocalPlayer) {
             val format = Database.format(currentMediaId.toString()).first()
             Timber.d("PlayerService onCreate update currentSong $currentMediaId format $format")
             if (format == null) {
@@ -703,7 +714,7 @@ class PlayerService : Service(),
                 // Reconcile every tick: when the tracked local song stops being the
                 // active local song (changed, switched to online, or stopped), flush it
                 // exactly once; otherwise accumulate while playing.
-                val currentLocalId = localMediaItem?.takeIf { it.isLocal == true }?.mediaId
+                val currentLocalId = localMediaItem?.takeIf { it.usesLocalPlayer == true }?.mediaId
                 if (localTrackedMediaId != null && localTrackedMediaId != currentLocalId) {
                     incrementLocalListenedPlaytimeMs()
                     localListenedDurationMs = 0L
@@ -714,7 +725,7 @@ class PlayerService : Service(),
                     if (isPlayingNow) localListenedDurationMs += 1000
                 }
 
-                if (localMediaItem?.isLocal == false) {
+                if (localMediaItem?.usesLocalPlayer == false) {
                     if (_internalOnlinePlayerState.value == PlayerConstants.PlayerState.PLAYING) {
                         onlineListenedDurationMs += 1000
                     } else {
@@ -811,15 +822,22 @@ class PlayerService : Service(),
         val position = statePersistence.getSavedPosition()
         val wasPlaying = statePersistence.getSavedIsPlaying()
 
-        Timber.d("PlayerService restoreStateIfNeeded mediaId $mediaId position $position wasPlaying $wasPlaying")
+        Timber.d("PlayerService restoreStateIfNeeded mediaId $mediaId position $position wasPlaying $wasPlaying resumeOnStart $isResumePlaybackOnStart")
 
-        if (mediaId != null && wasPlaying) {
-            if (mediaId.startsWith(LOCAL_KEY_PREFIX)) {
+        // Restoring what was playing is one thing; starting it again is another, and only the
+        // "resume on start" setting is allowed to do that.
+        if (mediaId != null && wasPlaying && isResumePlaybackOnStart) {
+            if (mediaId.startsWith(LOCAL_KEY_PREFIX) || mediaId.isRadioId) {
                 val index = player.mediaItems
                     .indexOf(
                         player.mediaItems
                             .firstOrNull { it.mediaId == mediaId }
                     )
+                // The queue may not be loaded yet; seeking to -1 throws.
+                if (index < 0) {
+                    Timber.d("PlayerService restoreStateIfNeeded: $mediaId not in the queue yet")
+                    return false
+                }
                 player.seekTo(
                     index, position)
                 player.prepare()
@@ -866,7 +884,7 @@ class PlayerService : Service(),
     }
 
     private fun initializePlaybackParameters() {
-        when (localMediaItem?.isLocal) {
+        when (localMediaItem?.usesLocalPlayer) {
             false -> {
                 val playbackSpeed = preferences.getFloat(playbackSpeedKey, 1f)
                 val onlinePlabackRate = when {
@@ -920,15 +938,81 @@ class PlayerService : Service(),
     }
      */
 
+    /** True while a Chromecast session owns playback; the phone must then stay silent. */
+    private val isCasting: Boolean get() = CastManager.isConnected.value
+
+    /** When the queue last moved, to tell a real end-of-song from a leftover report. */
+    private var lastQueueAdvanceAt = 0L
+
+    /** True once the TV has been given a song and has not said it is playing it. */
+    private var castSilentFallback = false
+    private var castConfirmJob: Job? = null
+
+    /** Songs skipped in a row because the TV refused them; a whole queue could be like that. */
+    private var castSkipsInARow = 0
+
+    /**
+     * Waits for the TV to say it is playing, and hands the sound back to the phone if it
+     * never does. A receiver can take a song and stay quiet - the video refuses to start,
+     * the embed dies - and until now that left the phone muted too: everything on screen
+     * said "playing" and the room was silent.
+     */
+    private fun awaitCastPlaybackOrFallBack() {
+        castConfirmJob?.cancel()
+        castSilentFallback = false
+        applyCastMuting()
+        castConfirmJob = coroutineScope.launch(Dispatchers.Main) {
+            delay(9_000)
+            if (isCasting && !CastManager.isPlayingOnTv.value) {
+                Timber.w("PlayerService: the TV never confirmed playback, sound returns to the phone")
+                castSilentFallback = true
+                applyCastMuting()
+                SmartMessage(
+                    message = getString(R.string.cast_tv_not_playing_back_on_phone),
+                    context = this@PlayerService,
+                    durationLong = true,
+                )
+            }
+        }
+    }
+
+    /**
+     * Resumes the YouTube embed unless the TV is playing. Without this guard the service kept
+     * handing playback back to the embed after every state change, and the song came out of the
+     * phone and the TV at the same time.
+     */
+    private fun resumeOnlinePlayerUnlessCasting() {
+        if (isCasting) CastManager.play()
+        _internalOnlinePlayer.value?.play()
+    }
+
+    /**
+     * Silence on this side, without stopping.
+     *
+     * While casting, the local players keep running muted: they are what tracks the position,
+     * ends the song and moves the queue on. Pausing them instead would freeze the app's own
+     * state and the TV would never get a next song.
+     */
+    private fun applyCastMuting() {
+        // Not simply "is there a session": a local file cannot be cast, and muting for it
+        // left nothing playing anywhere.
+        val muted = isCasting && !castSilentFallback &&
+            CastManager.canCastCurrentItem(localMediaItem ?: player.currentMediaItem)
+        runCatching { player.volume = if (muted) 0f else GlobalVolume }
+        runCatching { _internalOnlinePlayer.value?.setVolume(getSystemMediaVolume()) }
+    }
+
     private fun pausePlayback() {
-        if (localMediaItem?.isLocal == true)
+        if (isCasting) CastManager.pause()
+        if (localMediaItem?.usesLocalPlayer == true)
             player.pause()
         else
             _internalOnlinePlayer.value?.pause()
     }
 
     private fun playPlayback() {
-        if (localMediaItem?.isLocal == true) {
+        if (isCasting) CastManager.play()
+        if (localMediaItem?.usesLocalPlayer == true) {
             if (player.playbackState == Player.STATE_IDLE) {
                 Timber.w("PlayerService playPlayback: local player STATE_IDLE, forcing prepare()")
                 try { player.prepare() } catch (e: Throwable) {
@@ -938,7 +1022,7 @@ class PlayerService : Service(),
             player.playWhenReady = true
             player.play()
         } else {
-            _internalOnlinePlayer.value?.play()
+            resumeOnlinePlayerUnlessCasting()
         }
     }
 
@@ -948,7 +1032,7 @@ class PlayerService : Service(),
                 withContext(Dispatchers.Main) {
                     Timber.d("PlayerService initializeMedleyMode medleyDuration $medleyDuration player.isPlaying ${player.isPlaying} internalOnlinePlayerState ${_internalOnlinePlayerState.value == PlayerConstants.PlayerState.PLAYING}")
                     val seconds =
-                        if (localMediaItem?.isLocal == true) player.currentPosition.div(1000)
+                        if (localMediaItem?.usesLocalPlayer == true) player.currentPosition.div(1000)
                             .toInt() else currentSecond.value.toInt()
                     if (medleyDuration.toInt() <= seconds) {
                         handlePlayNext()
@@ -1063,6 +1147,166 @@ class PlayerService : Service(),
         }
     }
 
+    /**
+     * Hands playback over to a Chromecast while a session is up.
+     *
+     * Only the sound moves: the queue, the notification and the rest of the app keep running
+     * here, and the local players are paused so the phone is not playing over the TV.
+     */
+    private fun initializeCast() {
+        CastManager.initialize(this)
+        // What the TV shows for a song: the cover, or the video the user asked for
+        CastManager.showVideo = preferences.getBoolean(castShowVideoKey, false)
+        CastManager.onSessionStarted = {
+            coroutineScope.launch(Dispatchers.Main) {
+                applyCastMuting()
+                val item = player.currentMediaItem ?: return@launch
+                if (CastManager.castItem(item, currentSecond.value)) {
+                    sendLyricsToCast(item.mediaId)
+                    awaitCastPlaybackOrFallBack()
+                } else if (!CastManager.canCastCurrentItem(item)) {
+                    SmartMessage(
+                        message = getString(R.string.cast_receiver_cannot_play_this),
+                        context = this@PlayerService
+                    )
+                }
+            }
+        }
+        CastManager.onRemoteTime = { time, duration ->
+            // The TV is the one actually playing, so it is the one that knows where the
+            // song is. Without this the seek bar sat at 0:00 for the whole song.
+            if (isCasting && !castSilentFallback) {
+                currentSecond.value = time
+                if (duration > 0f) currentDuration.value = duration
+            }
+        }
+        CastManager.onPlaybackConfirmed = {
+            // The TV got there in the end: stop doubling it on the phone.
+            coroutineScope.launch(Dispatchers.Main) {
+                castConfirmJob?.cancel()
+                castSkipsInARow = 0
+                if (castSilentFallback) {
+                    castSilentFallback = false
+                    applyCastMuting()
+                }
+            }
+        }
+        CastManager.onPlaybackFailed = {
+            coroutineScope.launch(Dispatchers.Main) {
+                castConfirmJob?.cancel()
+                // The sound comes back here first, so nothing is lost while the queue moves.
+                castSilentFallback = true
+                applyCastMuting()
+                // The TV would otherwise sit on the cover in silence for the rest of the
+                // song. Three in a row and it stops skipping: a whole queue of videos the
+                // TV refuses would run through to the end on its own.
+                // The receiver retries once on its own, so the same song reports the error more
+                // than once; without this the queue jumped two or three songs at a time.
+                val sinceChange = android.os.SystemClock.elapsedRealtime() - lastQueueAdvanceAt
+                if (castSkipsInARow < 3 && sinceChange > 2_500) {
+                    castSkipsInARow++
+                    handlePlayNext()
+                }
+            }
+        }
+        CastManager.onSessionEnded = {
+            // The sound comes back to the phone, at the volume it had before
+            coroutineScope.launch(Dispatchers.Main) {
+                castConfirmJob?.cancel()
+                castSilentFallback = false
+                applyCastMuting()
+            }
+        }
+        CastManager.onSessionError = { detail ->
+            SmartMessage(
+                message = "Cast: $detail",
+                context = this@PlayerService,
+                type = PopupType.Error,
+                durationLong = true,
+            )
+        }
+
+        // Buttons pressed on the TV remote. The receiver has no queue of its own, so it asks.
+        CastManager.onRemoteAction = { action ->
+            coroutineScope.launch(Dispatchers.Main) {
+                when (action) {
+                    "next" -> handlePlayNext(isUserSkip = true)
+                    "previous" -> player.playPrevious()
+                    // Through the app's own play/pause, so the local player stops too. Left to
+                    // the TV alone, the phone kept counting and skipped to the next song, which
+                    // undid the pause a second later.
+                    "play" -> playPlayback()
+                    "pause" -> pausePlayback()
+                    // The TV finished the song. The phone's muted copy usually reports the
+                    // end too, so an "ended" arriving right after a song change is that
+                    // second voice: acting on it would skip a song. Five seconds in, the
+                    // phone clearly did not notice and the TV is the only one that knows.
+                    "ended" -> {
+                        val sinceChange = android.os.SystemClock.elapsedRealtime() - lastQueueAdvanceAt
+                        if (sinceChange > 5_000) handlePlayNext()
+                        else Timber.d("PlayerService: cast 'ended' ignored, queue moved ${sinceChange}ms ago")
+                    }
+                }
+            }
+        }
+    }
+
+    /** Feeds the TV the lyrics already stored for this song, timed ones first. */
+    private var castLyricsJob: Job? = null
+
+    private fun sendLyricsToCast(mediaId: String) {
+        castLyricsJob?.cancel()
+        // Watch the row for as long as this song is the one playing: lyrics opened on the
+        // phone are written here, and until now the TV had already asked and moved on.
+        castLyricsJob = coroutineScope.launch(Dispatchers.IO) {
+            runCatching {
+                Database.lyrics(mediaId).collect { stored ->
+                    val text = stored?.synced?.takeIf { it.isNotBlank() } ?: stored?.fixed
+                    if (!text.isNullOrBlank() && localMediaItem?.mediaId == mediaId) {
+                        CastManager.sendLyrics(text)
+                    }
+                }
+            }
+        }
+        coroutineScope.launch(Dispatchers.IO) {
+            val lyrics = runCatching { Database.lyrics(mediaId).firstOrNull() }.getOrNull()
+            val stored = lyrics?.synced?.takeIf { it.isNotBlank() } ?: lyrics?.fixed
+            if (!stored.isNullOrBlank()) {
+                CastManager.sendLyrics(stored)
+                return@launch
+            }
+
+            // Nothing stored: lyrics only reach the database when someone opens them on the
+            // phone, so the TV had none for almost every song. Fetched once here and kept,
+            // which is what the phone would have done anyway.
+            CastManager.sendLyrics(null)
+            val item = localMediaItem ?: return@launch
+            if (item.mediaId != mediaId) return@launch
+            val artist = item.mediaMetadata.artist?.toString().orEmpty()
+            val title = cleanPrefix(item.mediaMetadata.title?.toString().orEmpty())
+            if (artist.isBlank() || title.isBlank()) return@launch
+            // The whole result list, and plain lyrics count too: asking only for the synced
+            // ones of the first hit came back empty for most songs, which is why the TV
+            // never showed any.
+            val fetched = runCatching {
+                val tracks = LrcLib.lyrics(artist = artist, title = title)?.getOrNull().orEmpty()
+                tracks.firstNotNullOfOrNull { track ->
+                    track.syncedLyrics?.takeIf { it.isNotBlank() }
+                } ?: tracks.firstNotNullOfOrNull { track ->
+                    track.plainLyrics?.takeIf { it.isNotBlank() }
+                }
+            }.getOrNull()
+            Timber.d("PlayerService: cast lyrics for '$artist - $title' -> ${fetched?.length ?: 0} chars")
+            if (fetched.isNullOrBlank()) return@launch
+            runCatching {
+                Database.upsert(Lyrics(songId = mediaId, fixed = lyrics?.fixed, synced = fetched))
+            }
+            // Only if the TV is still on the same song by the time they arrive.
+            if (localMediaItem?.mediaId == mediaId) CastManager.sendLyrics(fetched)
+        }
+    }
+
+
     private fun initializeDiscordPresence() {
         if (!isAtLeastAndroid81) return
 
@@ -1128,9 +1372,12 @@ class PlayerService : Service(),
     }
 
     private fun resumePlaybackOnStart() {
-        if (!isPersistentQueueEnabled && !isResumePlaybackOnStart) return
+        // "Persistent queue" restores what was queued; only "resume on start" may press play.
+        // The old condition needed BOTH to be off to stay quiet, so with the queue on (the
+        // default) the app started playing by itself with resume switched off.
+        if (!isResumePlaybackOnStart) return
 
-        when (player.currentMediaItem?.isLocal) {
+        when (player.currentMediaItem?.usesLocalPlayer) {
             true -> {
                 if (!player.isPlaying) player.play()
             }
@@ -1309,7 +1556,7 @@ class PlayerService : Service(),
                     var embedHasSong = false
 
                     localMediaItem?.let{
-                        if (isPersistentQueueEnabled && isResumePlaybackOnStart && firstTimeStarted && !skipAutoload) {
+                        if (isPersistentQueueEnabled && isResumePlaybackOnStart && firstTimeStarted && !skipAutoload && !it.usesLocalPlayer) {
                             markOnlineLoadStart(it.mediaId, "onReady")
                             youTubePlayer.loadVideo(it.mediaId, playFromSecond)
                             Timber.d("PlayerService onlinePlayer onReady loadVideo ${it.mediaId}")
@@ -1333,7 +1580,7 @@ class PlayerService : Service(),
                     // playing, so startup stays silent as intended and the first press has
                     // something to start.
                     if (!embedHasSong && !skipAutoload) {
-                        localMediaItem?.let {
+                        localMediaItem?.takeIf { !it.usesLocalPlayer }?.let {
                             youTubePlayer.cueVideo(it.mediaId, playFromSecond)
                             Timber.d("PlayerService onlinePlayer onReady cueVideo ${it.mediaId} (idle embed)")
                         }
@@ -1343,6 +1590,10 @@ class PlayerService : Service(),
                 override fun onCurrentSecond(youTubePlayer: YouTubePlayer, second: Float) {
                     super.onCurrentSecond(youTubePlayer, second)
 
+                    // While the TV plays, its clock is the one that counts. Both writing
+                    // here left the bar, the mini player and the lyrics jumping back and
+                    // forth by the second or two the two players differ by.
+                    if (isCasting && !castSilentFallback && CastManager.isPlayingOnTv.value) return
                     currentSecond.value = second
                     //Timber.d("PlayerService onlinePlayerView: onCurrentSecond $second")
 
@@ -1492,7 +1743,7 @@ class PlayerService : Service(),
                 ) {
                     //super.onError(youTubePlayer, error)
 
-                    if (localMediaItem == null || localMediaItem?.isLocal == true) return
+                    if (localMediaItem == null || localMediaItem?.usesLocalPlayer == true) return
 
                     if (isPersistentQueueEnabled)
                         player.saveMasterQueue(currentSecond.value.toInt())
@@ -1544,7 +1795,7 @@ class PlayerService : Service(),
                         if (error == PlayerConstants.PlayerError.VIDEO_NOT_PLAYABLE_IN_EMBEDDED_PLAYER && !isYtLoggedIn())
                             binder.playbackNeedsYtLogin.value = true
 
-                        localMediaItem?.let {
+                        localMediaItem?.takeIf { !it.usesLocalPlayer }?.let {
                             if (!GlobalSharedData.riTuneCastActive) {
                                 markOnlineLoadStart(it.mediaId, "recoveryError")
                                 youTubePlayer.pause()
@@ -1561,6 +1812,11 @@ class PlayerService : Service(),
                         }
                         //if (checkVolumeLevel)
                         youTubePlayer.setVolume(getSystemMediaVolume())
+                        // Recorded before leaving, not after: the return below jumped over the
+                        // line that records it, so "same error as last time" was never true.
+                        // The retry then raised the login dialog again the moment it was
+                        // dismissed, which from the sofa looked like buttons that did nothing.
+                        lastError = error
                         return
                     }
 
@@ -1644,7 +1900,7 @@ class PlayerService : Service(),
 
         currentSong.value?.asMediaItem?.let{
 
-            if (!it.isLocal) {
+            if (!it.usesLocalPlayer) {
                 updateDiscordPresenceWithOnlinePlayer(
                     discordPresenceManager,
                     it,
@@ -1743,6 +1999,18 @@ class PlayerService : Service(),
     @UnstableApi
     override fun onDestroy() {
         Timber.d("PlayerService onDestroy")
+
+        // CastManager outlives the service (it is a process-wide object), so callbacks holding
+        // this instance keep the player and its WebView alive after it is gone.
+        CastManager.onSessionStarted = null
+        CastManager.onSessionEnded = null
+        CastManager.onRemoteAction = null
+        CastManager.onSessionError = null
+        CastManager.onPlaybackConfirmed = null
+        CastManager.onPlaybackFailed = null
+        CastManager.onRemoteTime = null
+        castLyricsJob?.cancel()
+        castConfirmJob?.cancel()
 
         // First, and outside the shared runCatching further down, because ConnectivityManager
         // holds the callback — and through it this destroyed service — until it is handed
@@ -1844,17 +2112,17 @@ class PlayerService : Service(),
     override fun onAudioVolumeChanged(currentVolume: Int, maxVolume: Int) {
         if (preferences.getBoolean(isPauseOnVolumeZeroEnabledKey, false)) {
             if ((player.isPlaying || _internalOnlinePlayerState.value == PlayerConstants.PlayerState.PLAYING) && currentVolume < 1) {
-                if (player.currentMediaItem?.isLocal == true) {
+                if (player.currentMediaItem?.usesLocalPlayer == true) {
                     binder.callPause {}
                 } else {
                     _internalOnlinePlayer.value?.pause()
                 }
                 pausedByZeroVolume = true
             } else if (pausedByZeroVolume && currentVolume >= 1) {
-                if (player.currentMediaItem?.isLocal == true) {
+                if (player.currentMediaItem?.usesLocalPlayer == true) {
                     binder.player.play()
                 } else {
-                    _internalOnlinePlayer.value?.play()
+                    resumeOnlinePlayerUnlessCasting()
                 }
                 pausedByZeroVolume = false
             }
@@ -1864,7 +2132,13 @@ class PlayerService : Service(),
         // was loaded, which hid exactly the presses we need to count.
         Timber.d("PERF-VOL changed currentVolume=$currentVolume maxVolume=$maxVolume")
 
-        if (localMediaItem?.isLocal == false
+        if (isCasting) {
+            // Volume keys should move the TV, not the phone's silent embed
+            CastManager.setVolume(if (maxVolume > 0) currentVolume.toFloat() / maxVolume else 0f)
+            return
+        }
+
+        if (localMediaItem?.usesLocalPlayer == false
             //&& checkVolumeLevel
             ) {
             val onlineVolume = getSystemMediaVolume()
@@ -1898,7 +2172,7 @@ class PlayerService : Service(),
         val mediaItem =
             eventTime.timeline.getWindow(eventTime.windowIndex, Timeline.Window()).mediaItem
 
-        if (!mediaItem.isLocal) return
+        if (!mediaItem.usesLocalPlayer) return
 
         Timber.d("PlayerService onPlaybackStatsReady PROCESS eventTime $eventTime playbackStats $playbackStats")
 
@@ -1946,7 +2220,7 @@ class PlayerService : Service(),
         // per song: 21 of them in a listening session, all identical, all expected. A log
         // that cries wolf that often is where a real failure goes to hide, so the expected
         // case gets one quiet line and anything else still comes through as an error.
-        if (mi != null && !mi.isLocal) {
+        if (mi != null && !mi.usesLocalPlayer) {
             Timber.d(
                 "PlayerService onPlayerError: local player refused online song " +
                         "${mi.mediaId} (${error.errorCodeName}), as expected"
@@ -2050,8 +2324,38 @@ class PlayerService : Service(),
             currentMediaItemState.value = it
 
             localMediaItem = it
+            lastQueueAdvanceAt = android.os.SystemClock.elapsedRealtime()
 
-            if (!it.isLocal){
+            // Point the framework at the receiver that can play this, before anyone taps Cast
+            CastManager.prepareFor(it)
+
+            if (CastManager.isConnected.value) {
+                // The TV owns the sound while a Cast session is up
+                applyCastMuting()
+                // A song the queue moves to always starts at the beginning on the TV; only a
+                // session that starts mid-song joins where the phone already was.
+                if (CastManager.castItem(it, 0f)) {
+                    sendLyricsToCast(it.mediaId)
+                    awaitCastPlaybackOrFallBack()
+                } else if (!CastManager.canCastCurrentItem(it)) {
+                    // Nothing reached the TV. Without a word here the phone stayed muted and the
+                    // TV kept the previous song frozen: silence on both sides and no reason given.
+                    SmartMessage(
+                        message = getString(
+                            if (it.isLocal) R.string.cast_local_song_stays_on_phone
+                            else R.string.cast_receiver_cannot_play_this
+                        ),
+                        context = this@PlayerService
+                    )
+                }
+            }
+
+            if (it.isRadio && !GlobalSharedData.riTuneCastActive) {
+                // A station plays in the local player; make sure the embed is not still sounding underneath.
+                _internalOnlinePlayer.value?.pause()
+            }
+
+            if (!it.usesLocalPlayer){
 
                 //Timber.d("PlayerService onMediaItemTransition system volume ${getSystemMediaVolume()}")
 
@@ -2204,7 +2508,7 @@ class PlayerService : Service(),
 
     private fun maybeRecoverPlaybackError() {
         try {
-            if (localMediaItem?.isLocal == true) {
+            if (localMediaItem?.usesLocalPlayer == true) {
                 if (player.playerError != null) {
                     Timber.w("PlayerService maybeRecoverPlaybackError: try to recover player error")
                     player.prepare()
@@ -2243,6 +2547,9 @@ class PlayerService : Service(),
     }
 
     private fun maybeProcessRadio(reason: Int) {
+        // Live radio brings its own related stations; a YouTube "radio" seeded from a stream url
+        // would only add songs that have nothing to do with the station.
+        if (player.currentMediaItem?.isRadio == true) return
         if (!preferences.getBoolean(autoLoadSongsInQueueKey, true)
             || preferences.getEnum(
                 queueLoopTypeKey,
@@ -2284,7 +2591,9 @@ class PlayerService : Service(),
             loudnessEnhancer?.release()
             loudnessEnhancer = null
             volumeNormalizationJob?.cancel()
-            player.volume = 1f
+            // Full volume unless the TV owns the sound, or every song change would bring the
+            // phone back in over the Chromecast.
+            player.volume = if (isCasting) 0f else 1f
             return
         }
 
@@ -2312,14 +2621,14 @@ class PlayerService : Service(),
         val baseGain = preferences.getFloat(loudnessBaseGainKey, 2.00f)
         val boostLevel = preferences.getFloat(volumeBoostLevelKey, 0.00f)
 
-        if (currentSong.value?.isLocal == true && currentSong.value?.mediaId?.isEmpty() == true) return
+        if (currentSong.value?.usesLocalPlayer == true && currentSong.value?.mediaId?.isEmpty() == true) return
 
         volumeNormalizationJob?.cancel()
         volumeNormalizationJob = coroutineScope.launch(Dispatchers.Main) {
 
             fun Float?.toMb() = ((this ?: 0f) * 100).toInt()
 
-            Database.loudnessDb((if(currentSong.value?.isLocal == true)
+            Database.loudnessDb((if(currentSong.value?.usesLocalPlayer == true)
                 currentSong.value?.mediaId else currentSong.value?.id).toString())
                 .cancellable().collectLatest { loudnessDb ->
                 val loudnessMb = loudnessDb.toMb().let {
@@ -2459,7 +2768,7 @@ class PlayerService : Service(),
             AudioManager.AUDIOFOCUS_LOSS -> {
                 // Lost focus for an unbounded amount of time: stop playback and release media resources
                 val isAudioActuallyPlaying = audioManager.isMusicActive
-                if (localMediaItem?.isLocal == false && isAudioActuallyPlaying) {
+                if (localMediaItem?.usesLocalPlayer == false && isAudioActuallyPlaying) {
                     hasAudioFocus = true
                     Timber.w("PlayerService initializeAudioFocusHelper LOSS intercettato, ma isMusicActive = TRUE. Ignoro (La Webview ha il controllo).")
                     return
@@ -2468,7 +2777,7 @@ class PlayerService : Service(),
                 hasAudioFocus = false
                 //isPlayingBeforeLossOfFocus = (isPlayingNow || player.isPlaying)
 
-                if (localMediaItem?.isLocal == true)
+                if (localMediaItem?.usesLocalPlayer == true)
                     player.pause()
                 else
                     _internalOnlinePlayer.value?.pause()
@@ -2531,7 +2840,7 @@ class PlayerService : Service(),
                 // Lost control stop playback
 //                val isActuallyPlaying = isPlayingNow || player.isPlaying
 //                if (isActuallyPlaying) {
-//                    if (localMediaItem?.isLocal == true)
+//                    if (localMediaItem?.usesLocalPlayer == true)
 //                        player.volume = 0.2f
 //                    else
 //                        CoroutineScope(Dispatchers.Main).launch {
@@ -2552,10 +2861,10 @@ class PlayerService : Service(),
         bluetoothReceiver = BluetoothConnectReceiver(
             context = this,
             onDeviceConnected = {
-                if (currentSong.value?.isLocal == true) {
+                if (currentSong.value?.usesLocalPlayer == true) {
                     player.play()
                 } else {
-                    _internalOnlinePlayer.value?.play()
+                    resumeOnlinePlayerUnlessCasting()
                 }
                 SmartMessage(getString(R.string.music_resumed_headphones_connected), context = this)
             },
@@ -2617,7 +2926,7 @@ class PlayerService : Service(),
                 val shouldPlay = (hasNewBt && resumeOnBt) || (hasNewWired && resumeOnWired)
 
                 if (shouldPlay) {
-                    val local = currentSong.value?.isLocal == true
+                    val local = currentSong.value?.usesLocalPlayer == true
                     Timber.d("PlayerService AudioDeviceAdded song local = $local _internalOnlinePlayer = ${_internalOnlinePlayer.value}")
                     if (local) {
                         player.play()
@@ -2734,7 +3043,7 @@ class PlayerService : Service(),
     private fun markOnlineStalledByNetwork() {
         if (resumeOnlineWhenNetworkReturns) return
         val item = localMediaItem ?: return
-        if (item.isLocal || GlobalSharedData.riTuneCastActive) return
+        if (item.usesLocalPlayer || GlobalSharedData.riTuneCastActive) return
         if (!onlinePlaybackIntended) return
 
         secondBeforeNetworkLoss = currentSecond.value
@@ -2755,7 +3064,7 @@ class PlayerService : Service(),
         if (!resumeOnlineWhenNetworkReturns) return
 
         val item = localMediaItem
-        if (item == null || item.isLocal || GlobalSharedData.riTuneCastActive) {
+        if (item == null || item.usesLocalPlayer || GlobalSharedData.riTuneCastActive) {
             resumeOnlineWhenNetworkReturns = false
             return
         }
@@ -2866,7 +3175,7 @@ class PlayerService : Service(),
                 val nextIndex = player.nextMediaItemIndex
                 if (nextIndex == C.INDEX_UNSET) return@withContext
                 val next = runCatching { player.getMediaItemAt(nextIndex) }.getOrNull() ?: return@withContext
-                if (next.isLocal) return@withContext
+                if (next.usesLocalPlayer) return@withContext
                 if (preloadedOnlineMediaId == next.mediaId) return@withContext
                 // The id is about to be pasted into a JavaScript string literal. Video ids
                 // are [A-Za-z0-9_-]{11}; anything else is either not a video or something
@@ -2964,7 +3273,7 @@ class PlayerService : Service(),
                     MediaMetadataCompat.METADATA_KEY_ALBUM,
                     currentMediaItem?.mediaMetadata?.albumTitle.toString()
                 )
-                .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, if (currentMediaItem?.isLocal == false) (currentDuration.value * 1000).toLong() else player.duration)
+                .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, if (currentMediaItem?.usesLocalPlayer == false) (currentDuration.value * 1000).toLong() else player.duration)
                 .build()
         )
 
@@ -3026,7 +3335,7 @@ class PlayerService : Service(),
                     setState(
                         if (_internalOnlinePlayerState.value == PlayerConstants.PlayerState.PLAYING || player.isPlaying)
                             PlaybackStateCompat.STATE_PLAYING else PlaybackStateCompat.STATE_PAUSED,
-                        if(player.currentMediaItem?.isLocal == false) (currentSecond.value * 1000).toLong() else player.currentPosition,
+                        if(player.currentMediaItem?.usesLocalPlayer == false) (currentSecond.value * 1000).toLong() else player.currentPosition,
                         1f
                     )
                 }
@@ -3060,11 +3369,11 @@ class PlayerService : Service(),
                             }
                     }
                     Action.play.value -> {
-                        if (player.currentMediaItem?.isLocal == true)
+                        if (player.currentMediaItem?.usesLocalPlayer == true)
                             it.player.play()
                         else {
                             if (!GlobalSharedData.riTuneCastActive)
-                                _internalOnlinePlayer.value?.play()
+                                resumeOnlinePlayerUnlessCasting()
                             else
                                 coroutineScope.launch {
                                     riTuneClient.sendCommand(
@@ -3094,7 +3403,7 @@ class PlayerService : Service(),
                             it.player.seamlessQueue(currentMediaItem)
 
                             if(!GlobalSharedData.riTuneCastActive)
-                                _internalOnlinePlayer.value?.play()
+                                resumeOnlinePlayerUnlessCasting()
                             else
                                 coroutineScope.launch {
                                     riTuneClient.sendCommand(
@@ -3218,7 +3527,7 @@ class PlayerService : Service(),
                 fadeIn = true
             )
 
-        if (currentMediaItemState.value?.isLocal == true)
+        if (currentMediaItemState.value?.usesLocalPlayer == true)
             updateUnifiedNotification()
 
         updateDiscordPresence()
@@ -3665,7 +3974,7 @@ class PlayerService : Service(),
     }
 
     private fun incrementOnlineListenedPlaytimeMs() {
-        if (currentSong.value?.isLocal == true
+        if (currentSong.value?.usesLocalPlayer == true
                 || preferences.getBoolean(pauseListenHistoryKey, false)
         ) return
 
@@ -3792,7 +4101,7 @@ class PlayerService : Service(),
 
                     statePersistence.saveState(
                         mediaId = player.currentMediaItem?.mediaId ?: "",
-                        position = if (player.currentMediaItem?.isLocal == true) player.currentPosition else currentSecond.value.toLong().times(1000),
+                        position = if (player.currentMediaItem?.usesLocalPlayer == true) player.currentPosition else currentSecond.value.toLong().times(1000),
                         isPlaying = player.isPlaying || isPlayingNow
                     )
 
@@ -3800,10 +4109,10 @@ class PlayerService : Service(),
 
                     //Timber.d("PlayerService initializePositionObserver BEFORE player.playbackState ${player.playbackState} internalOnlinePlayerState ${internalOnlinePlayerState} lastProcessedIndex $lastProcessedIndex player.currentMediaItemIndex ${player.currentMediaItemIndex}")
 
-                    if (player.currentMediaItem?.isLocal == false)
+                    if (player.currentMediaItem?.usesLocalPlayer == false)
                         player.pauseAtEndOfMediaItems = true else player.pauseAtEndOfMediaItems = false
 
-                    if (player.currentMediaItem?.isLocal == false && (player.playbackState == Player.STATE_ENDED || _internalOnlinePlayerState.value == PlayerConstants.PlayerState.ENDED)
+                    if (player.currentMediaItem?.usesLocalPlayer == false && (player.playbackState == Player.STATE_ENDED || _internalOnlinePlayerState.value == PlayerConstants.PlayerState.ENDED)
                         && lastProcessedIndex != player.currentMediaItemIndex && !firedNext
                     ) {
 
@@ -3856,6 +4165,10 @@ class PlayerService : Service(),
     }
 
     private fun getSystemMediaVolume(): Int {
+        // Single choke point for the embed's volume: while the TV is playing, everything that
+        // sets it here sets it to zero, so the song cannot come out of the phone as well.
+        if (isCasting && !castSilentFallback &&
+            CastManager.canCastCurrentItem(localMediaItem ?: player.currentMediaItem)) return 0
         return 100 // set to max
 //        val maxMediaVolume = audioManager?.getStreamMaxVolume(AudioManager.STREAM_MUSIC) ?: 15
 //        val minVolume = maxMediaVolume.div(3)
@@ -3930,6 +4243,22 @@ class PlayerService : Service(),
         val onlinePlayer: YouTubePlayer?
             get() = this@PlayerService.internalOnlinePlayer.value
 
+        /**
+         * Play/pause for the online player that knows about the TV.
+         *
+         * Every button in the app used to talk to the embed directly, so while casting the
+         * pause button paused a player nobody could hear and the TV kept going.
+         */
+        fun onlinePlayerPlay() {
+            if (this@PlayerService.isCasting) CastManager.play()
+            this@PlayerService.internalOnlinePlayer.value?.play()
+        }
+
+        fun onlinePlayerPause() {
+            if (this@PlayerService.isCasting) CastManager.pause()
+            this@PlayerService.internalOnlinePlayer.value?.pause()
+        }
+
         val onlinePlayerPlayingState: Boolean
             get() = this@PlayerService.internalOnlinePlayerState.value == PlayerConstants.PlayerState.PLAYING
 
@@ -3951,6 +4280,8 @@ class PlayerService : Service(),
         fun onlinePlayerSeekTo(seconds: Float) {
             this@PlayerService.internalOnlinePlayer.value?.seekTo(seconds)
             this@PlayerService.currentSecond.value = seconds
+            // Dragging the bar on the phone has to move the TV too, or the two drift apart
+            if (this@PlayerService.isCasting) CastManager.seekTo(seconds)
         }
 
         val onlinePlayerView: StateFlow<YouTubePlayerView?>
@@ -4164,6 +4495,15 @@ class PlayerService : Service(),
 
 
         fun callPause(onPause: () -> Unit) {
+            if (isCasting) {
+                // Both sides: the TV stops and the phone's own player stops with it, so the
+                // button state and the position stay honest.
+                CastManager.pause()
+                runCatching { player.pause() }
+                runCatching { this@PlayerService.internalOnlinePlayer.value?.pause() }
+                onPause()
+                return
+            }
             val fadeDisabled = preferences.getEnum(playbackFadeAudioDurationKey, DurationInMilliseconds.Disabled) == DurationInMilliseconds.Disabled
             val duration = preferences.getEnum(playbackFadeAudioDurationKey, DurationInMilliseconds.Disabled).milliSeconds
             if (player.isPlaying) {
@@ -4208,8 +4548,10 @@ class PlayerService : Service(),
                 PlayerMediaSessionCallback(
                     binder = it,
                     onPlayClick = {
-                        Timber.d("PlayerService InitializeUnifiedSessionCallback onPlayClick isLocal=${player.currentMediaItem?.isLocal} ytPlayer=${_internalOnlinePlayer.value != null} ytState=${_internalOnlinePlayerState.value}")
-                        if (player.currentMediaItem?.isLocal == true)
+                        // The TV as well, exactly like the pause button below it.
+                        if (isCasting) CastManager.play()
+                        Timber.d("PlayerService InitializeUnifiedSessionCallback onPlayClick isLocal=${player.currentMediaItem?.usesLocalPlayer} ytPlayer=${_internalOnlinePlayer.value != null} ytState=${_internalOnlinePlayerState.value}")
+                        if (player.currentMediaItem?.usesLocalPlayer == true)
                             it.player.play()
                         else {
                             if (!GlobalSharedData.riTuneCastActive) {
@@ -4256,6 +4598,9 @@ class PlayerService : Service(),
                     },
                     onPauseClick = {
                         Timber.d("PlayerService InitializeUnifiedSessionCallback onPauseClick")
+                        // The TV first. This button stopped only the phone's muted copy, so
+                        // the music carried on coming out of the television.
+                        if (isCasting) CastManager.pause()
                         it.player.pause()
                         if (!GlobalSharedData.riTuneCastActive) {
                             _internalOnlinePlayer.value?.pause()
@@ -4273,7 +4618,9 @@ class PlayerService : Service(),
                         val newPosition = (second / 1000).toFloat()
                         Timber.d("PlayerService InitializeUnifiedSessionCallback onSeekPosTo ${newPosition}")
                         if (!GlobalSharedData.riTuneCastActive)
-                            _internalOnlinePlayer.value?.seekTo(newPosition)
+                            // Through the binder, which also moves the TV; seeking the embed
+                            // straight left the two players minutes apart.
+                            binder.onlinePlayerSeekTo(newPosition)
                         else
                             coroutineScope.launch {
                                 riTuneClient.sendCommand(
@@ -4328,7 +4675,7 @@ class PlayerService : Service(),
                                     it.player.seamlessQueue(currentMediaItem)
 
                                     if(!GlobalSharedData.riTuneCastActive)
-                                        _internalOnlinePlayer.value?.play()
+                                        resumeOnlinePlayerUnlessCasting()
                                     else
                                         coroutineScope.launch {
                                             riTuneClient.sendCommand(
@@ -4396,7 +4743,7 @@ class PlayerService : Service(),
                 val endedMediaId = player.currentMediaItem?.mediaId
                 if (!player.hasNextMediaItem()
                     && player.repeatMode == Player.REPEAT_MODE_OFF
-                    && player.currentMediaItem?.isLocal == false
+                    && player.currentMediaItem?.usesLocalPlayer == false
                     && preferences.getBoolean(autoLoadSongsInQueueKey, true)
                     && !binder.isLoadingRadio
                 ) {

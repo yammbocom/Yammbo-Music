@@ -28,6 +28,7 @@ import com.yambo.music.R
 import it.fast4x.riplay.data.models.toUiChip
 import it.fast4x.riplay.enums.CheckUpdateState
 import it.fast4x.riplay.enums.HomeScreenTabs
+import it.fast4x.riplay.ui.screens.liveradio.LiveRadio
 import it.fast4x.riplay.enums.NavRoutes
 import it.fast4x.riplay.data.models.toUiMood
 import it.fast4x.riplay.enums.HomePagetype
@@ -45,6 +46,16 @@ import it.fast4x.riplay.extensions.preferences.indexNavigationTabKey
 import it.fast4x.riplay.extensions.preferences.preferences
 import it.fast4x.riplay.extensions.preferences.rememberObservedPreference
 import it.fast4x.riplay.extensions.preferences.rememberPreference
+import it.fast4x.riplay.extensions.preferences.builtInPlaylistKey
+import it.fast4x.riplay.extensions.preferences.playlistTypeKey
+import it.fast4x.riplay.extensions.preferences.putEnum
+import it.fast4x.riplay.enums.BuiltInPlaylist
+import it.fast4x.riplay.enums.PlaylistType
+import it.fast4x.riplay.enums.ArtistsType
+import it.fast4x.riplay.enums.AlbumsType
+import it.fast4x.riplay.extensions.preferences.artistTypeKey
+import it.fast4x.riplay.extensions.preferences.albumTypeKey
+import androidx.core.content.edit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -95,6 +106,24 @@ fun HomeScreen(
     val saveableStateHolder = rememberSaveableStateHolder()
 
     val preferences = LocalContext.current.preferences
+
+    /*
+     * Coming into My Music means the ordinary lists, not the phone's own files.
+     *
+     * The "on device" entry writes these same global preferences before opening the very
+     * same screens, so one visit there left every later visit to Songs or Playlists showing
+     * the device tab, whichever way it was opened.
+     */
+    val leaveOnDeviceSelection = {
+        if (preferences.getEnum(builtInPlaylistKey, BuiltInPlaylist.Favorites) == BuiltInPlaylist.OnDevice)
+            preferences.edit { putEnum(builtInPlaylistKey, BuiltInPlaylist.Favorites) }
+        if (preferences.getEnum(playlistTypeKey, PlaylistType.Playlist) == PlaylistType.OnDevicePlaylist)
+            preferences.edit { putEnum(playlistTypeKey, PlaylistType.Playlist) }
+        if (preferences.getEnum(artistTypeKey, ArtistsType.Favorites) == ArtistsType.OnDevice)
+            preferences.edit { putEnum(artistTypeKey, ArtistsType.Favorites) }
+        if (preferences.getEnum(albumTypeKey, AlbumsType.Favorites) == AlbumsType.OnDevice)
+            preferences.edit { putEnum(albumTypeKey, AlbumsType.Favorites) }
+    }
     //val enableQuickPicksPage by rememberPreference(enableQuickPicksPageKey, true)
 
     val openTabFromShortcut1 by remember{ mutableIntStateOf(openTabFromShortcut) }
@@ -173,7 +202,7 @@ fun HomeScreen(
         miniPlayer,
         navBarContent = { Item ->
             Item(0, stringResource(R.string.home), R.drawable.home)
-            Item(1, stringResource(R.string.top_50), R.drawable.trending)
+            Item(1, stringResource(R.string.live_radio_tab), R.drawable.radio)
             Item(2, stringResource(R.string.my_music), R.drawable.musical_notes)
             Item(3, stringResource(R.string.search), R.drawable.search)
             Item(4, stringResource(R.string.my_account), R.drawable.person)
@@ -212,6 +241,7 @@ fun HomeScreen(
                         onSettingsClick = {
                             navController.navigate(NavRoutes.settings.name)
                         },
+                        onLiveRadioClick = { onTabChanged(HomeScreenTabs.LiveRadio.index) },
                         navController = navController
                     )
 
@@ -245,20 +275,20 @@ fun HomeScreen(
                         onSettingsClick = {
                             navController.navigate(NavRoutes.settings.name)
                         },
+                        onLiveRadioClick = { onTabChanged(HomeScreenTabs.LiveRadio.index) },
                         navController = navController
                     )
 
                 }
 
-                1 -> Top50Tab(
-                    navController = navController
-                )
+                1 -> LiveRadio()
 
                 2 -> MyMusicTab(
-                    onSongsClick = { subTabsParent = 2; onTabChanged(10) },
-                    onArtistsClick = { subTabsParent = 2; onTabChanged(11) },
-                    onAlbumsClick = { subTabsParent = 2; onTabChanged(12) },
-                    onPlaylistsClick = { subTabsParent = 2; onTabChanged(13) },
+                    onSongsClick = { subTabsParent = 2; leaveOnDeviceSelection(); onTabChanged(10) },
+                    onArtistsClick = { subTabsParent = 2; leaveOnDeviceSelection(); onTabChanged(11) },
+                    onAlbumsClick = { subTabsParent = 2; leaveOnDeviceSelection(); onTabChanged(12) },
+                    onPlaylistsClick = { subTabsParent = 2; leaveOnDeviceSelection(); onTabChanged(13) },
+                    onRadioClick = { subTabsParent = 2; onTabChanged(15) },
                     onDeviceClick = { onTabChanged(14) }
                 )
 
@@ -332,6 +362,9 @@ fun HomeScreen(
                     onPlaylistsClick = { subTabsParent = 14; onTabChanged(13) }
                 )
 
+                // Favourite stations, launched from the Mi Música hub
+                15 -> FavoriteRadiosTab()
+
             }
         }
     }
@@ -391,7 +424,7 @@ fun HomeScreen(
 
         // Shared sub-tabs (Songs 10, Artists 11, Albums 12, Playlists 13) → back to
         // whichever hub launched them (Mi Música = 2, En mi dispositivo = 14).
-        if (tabIndex in 10..13) {
+        if (tabIndex in 10..13 || tabIndex == 15) {
             onTabChanged(subTabsParent)
             return@BackHandler
         }

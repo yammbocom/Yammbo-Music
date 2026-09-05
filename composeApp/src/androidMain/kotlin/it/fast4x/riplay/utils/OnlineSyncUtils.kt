@@ -50,8 +50,16 @@ suspend fun importYTMPrivatePlaylists(): Boolean {
 
             val localPlaylists = Database.ytmPrivatePlaylists().firstOrNull()
 
-            (localPlaylists?.filter { playlist -> playlist.browseId != "LM" && playlist.browseId !in ytmPrivatePlaylists.map { if (it.key.startsWith("VL")) it.key.substringAfter("VL") else it.key }  })?.forEach { playlist ->
-                Database.asyncTransaction{ delete(playlist) }
+            // 🚨 A request that comes back empty is not proof the account has no playlists: a
+            // missing cookie or a bad response also lands here, and this used to delete every
+            // imported playlist as "no longer on YouTube". Only mirror deletions when the
+            // account genuinely answered with something.
+            if (ytmPrivatePlaylists.isNotEmpty()) {
+                (localPlaylists?.filter { playlist -> playlist.browseId != "LM" && playlist.browseId !in ytmPrivatePlaylists.map { if (it.key.startsWith("VL")) it.key.substringAfter("VL") else it.key }  })?.forEach { playlist ->
+                    Database.asyncTransaction{ delete(playlist) }
+                }
+            } else {
+                Timber.w("importYTMPrivatePlaylists: empty library response, keeping local playlists")
             }
 
             ytmPrivatePlaylists.forEach { remotePlaylist ->
@@ -145,9 +153,19 @@ fun ytmPrivatePlaylistSync(playlist: Playlist, playlistId: Long) {
                         if (remotePlaylist.songs.isNotEmpty()) {
                             //Database.clearPlaylist(playlistId)
 
+                            // The account's liked songs arrive as the playlist with browseId "LM".
+                            // Importing them as a playlist alone left "Favoritos" empty, because
+                            // that list is built from Song.likedAt, so mark them liked too.
+                            val isLikedMusic = plist.browseId == "LM"
+
                             remotePlaylist.songs
                                 .map(Environment.SongItem::asMediaItem)
                                 .onEach(Database::insert)
+                                .onEach { mediaItem ->
+                                    if (isLikedMusic && Database.likedAt(mediaItem.mediaId).firstOrNull() == null) {
+                                        Database.like(mediaItem.mediaId, System.currentTimeMillis())
+                                    }
+                                }
                                 .mapIndexed { position, mediaItem ->
                                     SongPlaylistMap(
                                         songId = mediaItem.mediaId,

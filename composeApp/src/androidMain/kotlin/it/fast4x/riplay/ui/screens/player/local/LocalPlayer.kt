@@ -344,6 +344,7 @@ import it.fast4x.riplay.utils.LandscapeToSquareTransformation
 import it.fast4x.riplay.utils.applyIf
 import it.fast4x.riplay.utils.conditional
 import it.fast4x.riplay.utils.isLocal
+import it.fast4x.riplay.utils.isRadio
 import it.fast4x.riplay.utils.saturate
 
 @ExperimentalPermissionsApi
@@ -3336,7 +3337,8 @@ fun LocalPlayer(
                                     if (!LocalPremiumGuard.checkFeature(localGlobalContext(), LocalPremiumFeature.Like)) return@IconButton
                                     if (!isNetworkConnected(appContext()) && isYtSyncEnabled()) {
                                         SmartMessage(appContext().resources.getString(R.string.no_connection), context = appContext(), type = PopupType.Error)
-                                    } else if (!isYtSyncEnabled()){
+                                    } else if (!isYtSyncEnabled() || mediaItem.isRadio){
+                                        // A station is not a YouTube song: the heart only means "keep it in Radios favoritas"
                                         Database.asyncTransaction {
                                             CoroutineScope(Dispatchers.IO).launch {
                                                 mediaItem.takeIf { it.mediaId == mediaItem.mediaId }?.let { mediaItem ->
@@ -3354,7 +3356,7 @@ fun LocalPlayer(
                                 onLongClick = {
                                     if (!isNetworkConnected(appContext()) && isYtSyncEnabled()) {
                                         SmartMessage(appContext().resources.getString(R.string.no_connection), context = appContext(), type = PopupType.Error)
-                                    } else if (!isYtSyncEnabled()){
+                                    } else if (!isYtSyncEnabled() || mediaItem.isRadio){
                                         Database.asyncTransaction {
                                             CoroutineScope(Dispatchers.IO).launch {
                                                 mediaItem.takeIf { it.mediaId == mediaItem.mediaId }?.let { mediaItem ->
@@ -3379,7 +3381,8 @@ fun LocalPlayer(
                     }
                   }
                 if (!expandedplayer || !isShowingLyrics || queueDurationExpanded) {
-                    if (showTotalTimeQueue)
+                    // A live station has no length, so the queue total would read 0s
+                    if (showTotalTimeQueue && !mediaItem.isRadio)
                         Row(
                             horizontalArrangement = Arrangement.Center,
                             verticalAlignment = Alignment.CenterVertically,

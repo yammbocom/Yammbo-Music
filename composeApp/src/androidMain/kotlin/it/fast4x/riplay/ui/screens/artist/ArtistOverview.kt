@@ -78,6 +78,7 @@ import it.fast4x.riplay.utils.colorPalette
 import it.fast4x.riplay.enums.NavRoutes
 import it.fast4x.riplay.enums.NavigationBarPosition
 import it.fast4x.riplay.enums.PopupType
+import it.fast4x.riplay.extensions.fastshare.shareSongsToDownloader
 import it.fast4x.riplay.enums.ThumbnailRoundness
 import it.fast4x.riplay.enums.UiType
 import it.fast4x.riplay.extensions.fastshare.FastShare
@@ -548,6 +549,44 @@ fun ArtistOverview(
                                 .padding(10.dp)
                         )
                     }
+
+                    // Everything this artist has in the library, in one download.
+                    HeaderIconButton(
+                        icon = R.drawable.downloaded,
+                        enabled = true,
+                        color = colorPalette().text,
+                        onClick = {
+                            // Not the composition scope: the query outlives this click.
+                            CoroutineScope(Dispatchers.IO).launch {
+                                val songs = Database.artistSongs(browseId).firstOrNull().orEmpty()
+                                withContext(Dispatchers.Main) {
+                                    shareSongsToDownloader(
+                                        context = context,
+                                        songs = songs,
+                                        title = artist?.name.orEmpty(),
+                                        onEmpty = {
+                                            SmartMessage(
+                                                context.resources.getString(R.string.nothing_to_download),
+                                                context = context,
+                                                type = PopupType.Info,
+                                            )
+                                        },
+                                        onAppMissing = {
+                                            SmartMessage(
+                                                context.resources.getString(R.string.ytdlnis_not_installed),
+                                                context = context,
+                                                type = PopupType.Error,
+                                            )
+                                        },
+                                    )
+                                }
+                            }
+                        },
+                        modifier = Modifier
+                            .padding(horizontal = 6.dp)
+                            .glassSurface(shape = CircleShape, elevation = 6.dp)
+                            .padding(10.dp)
+                    )
 
                     artistPage?.let {
                         HeaderIconButton(

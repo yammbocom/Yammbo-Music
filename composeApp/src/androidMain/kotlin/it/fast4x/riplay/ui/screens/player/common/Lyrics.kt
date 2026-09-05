@@ -160,7 +160,7 @@ import me.bush.translator.Language
 import me.bush.translator.Translator
 import it.fast4x.riplay.utils.colorPalette
 import it.fast4x.riplay.enums.ColorPaletteName
-import it.fast4x.riplay.utils.isLocal
+import it.fast4x.riplay.utils.usesLocalPlayer
 import it.fast4x.riplay.utils.thumbnailShape
 import it.fast4x.riplay.utils.typography
 import it.fast4x.riplay.ui.components.themed.LyricsSizeDialog
@@ -945,7 +945,7 @@ fun Lyrics(
                         run {
                             invalidLrc = false
                             SynchronizedLyrics(sentences) {
-                                if (player.currentMediaItem?.isLocal ?: false)
+                                if (player.currentMediaItem?.usesLocalPlayer ?: false)
                                     player.currentPosition + 50L //- (lyrics?.startTime ?: 0L)
                                 else
                                     // Read the iframe position directly (float
@@ -1361,7 +1361,7 @@ fun Lyrics(
                                                     if (clickLyricsText) {
                                                         Timber.d("Jump to lyric: position=${sentence.first}, text='${sentence.second}'")
                                                         val positionMs = sentence.first
-                                                        if (binder?.player?.currentMediaItem?.isLocal == true) {
+                                                        if (binder?.player?.currentMediaItem?.usesLocalPlayer == true) {
                                                             Timber.d("Seeking local player to ${positionMs}ms")
                                                             binder?.player?.seekTo(positionMs)
                                                         } else {
@@ -1420,7 +1420,7 @@ fun Lyrics(
                                                     if (clickLyricsText) {
                                                         Timber.d("Jump to lyric: position=${sentence.first}, text='${sentence.second}'")
                                                         val positionMs = sentence.first
-                                                        if (binder?.player?.currentMediaItem?.isLocal == true) {
+                                                        if (binder?.player?.currentMediaItem?.usesLocalPlayer == true) {
                                                             Timber.d("Seeking local player to ${positionMs}ms")
                                                             binder?.player?.seekTo(positionMs)
                                                         } else {
@@ -1487,7 +1487,7 @@ fun Lyrics(
                                                     if (clickLyricsText) {
                                                         Timber.d("Jump to lyric: position=${sentence.first}, text='${sentence.second}'")
                                                         val positionMs = sentence.first
-                                                        if (binder?.player?.currentMediaItem?.isLocal == true) {
+                                                        if (binder?.player?.currentMediaItem?.usesLocalPlayer == true) {
                                                             Timber.d("Seeking local player to ${positionMs}ms")
                                                             binder?.player?.seekTo(positionMs)
                                                         } else {
@@ -1532,7 +1532,7 @@ fun Lyrics(
                                          .clickable {
                                              if (enableClick) {
                                                  val positionMs = sentence.first
-                                                 if (binder?.player?.currentMediaItem?.isLocal == true) {
+                                                 if (binder?.player?.currentMediaItem?.usesLocalPlayer == true) {
                                                      Timber.d("Seeking local player to ${positionMs}ms")
                                                      binder?.player?.seekTo(positionMs)
                                                  } else {
@@ -1929,10 +1929,10 @@ fun Lyrics(
                                     if (binder?.player?.hasPreviousMediaItem() == false || (jumpPrevious != "0" && (binder?.player?.currentPosition
                                             ?: 0) > jumpPrevious.toInt() * 1000)
                                     ) {
-                                        if (binder?.player?.currentMediaItem?.isLocal == true) {
+                                        if (binder?.player?.currentMediaItem?.usesLocalPlayer == true) {
                                             binder?.player?.seekTo(0)
                                         } else {
-                                            binder?.onlinePlayer?.seekTo(0f)
+                                            binder?.onlinePlayerSeekTo(0f)
                                         }
                                     } else binder?.player?.playPrevious()
                                     if (effectRotationEnabled) isRotated = !isRotated

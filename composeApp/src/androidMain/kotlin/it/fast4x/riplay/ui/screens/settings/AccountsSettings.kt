@@ -146,18 +146,19 @@ fun AccountsSettings(
 
         /****** YAMMBO MUSIC ACCOUNT ******/
         if (authManager != null) {
-            SettingsCard(title = "Yammbo Music") {
-                if (authManager.isLoggedIn()) {
-                    BasicText(
-                        text = "Logged in as ${authManager.getUserEmail()}",
-                        style = typography().xxs.copy(color = colorPalette().textSecondary),
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    )
-
+            val yammboLoggedIn = authManager.isLoggedIn()
+            AccountCard(
+                title = "Yammbo Music",
+                icon = R.drawable.app_logo,
+                connected = yammboLoggedIn,
+                statusText = if (yammboLoggedIn) authManager.getUserEmail().orEmpty()
+                    else stringResource(R.string.account_not_signed_in),
+            ) {
+                if (yammboLoggedIn) {
                     ButtonBarSettingEntry(
                         isEnabled = true,
-                        title = "Logout",
-                        text = "Sign out of your Yammbo Music account",
+                        title = stringResource(R.string.account_sign_out),
+                        text = stringResource(R.string.account_sign_out_info),
                         icon = R.drawable.close,
                         iconColor = colorPalette().text,
                         onClick = {
@@ -171,11 +172,6 @@ fun AccountsSettings(
                             authManager.logout()
                             onLogout?.invoke()
                         }
-                    )
-                } else {
-                    BasicText(
-                        text = "Not logged in",
-                        style = typography().xxs.copy(color = colorPalette().textSecondary)
                     )
                 }
             }
@@ -207,21 +203,27 @@ fun AccountsSettings(
 
 
 
-        SettingsCard(title = stringResource(R.string.title_youtube_music)) {
-
-        SwitchSettingEntry(
-            title = stringResource(R.string.enable_youtube_music_login),
-            text = "",
-            isChecked = isYouTubeLoginEnabled,
-            onCheckedChange = {
+        AccountCard(
+            title = stringResource(R.string.title_youtube_music),
+            icon = R.drawable.musical_notes,
+            connected = isYouTubeLoginEnabled && isLoggedIn,
+            statusText = when {
+                !isYouTubeLoginEnabled -> stringResource(R.string.account_off)
+                isLoggedIn -> accountName.ifBlank { accountEmail }
+                    .ifBlank { stringResource(R.string.account_connected) }
+                else -> stringResource(R.string.account_not_connected)
+            },
+            avatarUrl = accountThumbnail.takeIf { isYouTubeLoginEnabled && isLoggedIn },
+            switchChecked = isYouTubeLoginEnabled,
+            onSwitchChange = {
                 isYouTubeLoginEnabled = it
                 if (!it) {
                     accountName = ""
                     accountChannelHandle = ""
                     accountEmail = ""
                 }
-            }
-        )
+            },
+        ) {
 
         AnimatedVisibility(visible = isYouTubeLoginEnabled) {
             Column(
@@ -260,6 +262,8 @@ fun AccountsSettings(
                                         accountChannelHandle = ""
                                         accountEmail = ""
                                         accountThumbnail = ""
+                                        // Disconnecting must not leave sync armed for the next account
+                                        isYouTubeSyncEnabled = false
                                         loginYouTube = false
                                         val cookieManager = CookieManager.getInstance()
                                         cookieManager.removeAllCookies(null)
@@ -389,14 +393,20 @@ fun AccountsSettings(
             key = discordAccountNameKey,
             defaultValue = ""
         )
-        SettingsCard(title = stringResource(R.string.social_discord)) {
-        SwitchSettingEntry(
-            isEnabled = isAtLeastAndroid81,
-            title = stringResource(R.string.discord_enable_rich_presence),
-            text = "",
-            isChecked = isDiscordPresenceEnabled,
-            onCheckedChange = { isDiscordPresenceEnabled = it }
-        )
+        AccountCard(
+            title = stringResource(R.string.social_discord),
+            icon = R.drawable.logo_discord,
+            connected = isDiscordPresenceEnabled && discordPersonalAccessToken.isNotEmpty(),
+            statusText = when {
+                !isDiscordPresenceEnabled -> stringResource(R.string.account_off)
+                discordPersonalAccessToken.isNotEmpty() ->
+                    discordAccountName.ifBlank { stringResource(R.string.account_connected) }
+                else -> stringResource(R.string.account_not_connected)
+            },
+            switchChecked = isDiscordPresenceEnabled,
+            onSwitchChange = { isDiscordPresenceEnabled = it },
+            switchEnabled = isAtLeastAndroid81,
+        ) {
 
         AnimatedVisibility(visible = isDiscordPresenceEnabled) {
             Column(
@@ -489,17 +499,18 @@ fun AccountsSettings(
             LastFmScrobbleType.Simple
         )
 
-        SettingsCard(title = stringResource(R.string.title_lastfm)) {
-
-        SwitchSettingEntry(
-            title = stringResource(R.string.enable_lastfm),
-            text = "",
-            isChecked = isEnabledLastfm,
-            onCheckedChange = {
-                isEnabledLastfm = it
+        AccountCard(
+            title = stringResource(R.string.title_lastfm),
+            icon = R.drawable.logo_lastfm,
+            connected = isEnabledLastfm && lastFmSessionToken.isNotEmpty(),
+            statusText = when {
+                !isEnabledLastfm -> stringResource(R.string.account_off)
+                lastFmSessionToken.isNotEmpty() -> stringResource(R.string.account_connected)
+                else -> stringResource(R.string.account_not_connected)
             },
-            offline = false,
-        )
+            switchChecked = isEnabledLastfm,
+            onSwitchChange = { isEnabledLastfm = it },
+        ) {
 
         AnimatedVisibility(visible = isEnabledLastfm) {
             Column(
@@ -567,17 +578,15 @@ fun AccountsSettings(
         /****** LASTFM ******/
 
         /**** MUSIC IDENTIFIER ******/
-        SettingsCard(title = stringResource(R.string.title_music_identifier)) {
-
-        SwitchSettingEntry(
-            title = stringResource(R.string.enable_music_identifier),
-            text = "",
-            isChecked = isEnabledMusicIdentifier,
-            onCheckedChange = {
-                isEnabledMusicIdentifier = it
-            },
-            offline = false
-        )
+        AccountCard(
+            title = stringResource(R.string.title_music_identifier),
+            icon = R.drawable.locate,
+            connected = isEnabledMusicIdentifier,
+            statusText = if (isEnabledMusicIdentifier) musicIdentifierProvider.title
+                else stringResource(R.string.account_off),
+            switchChecked = isEnabledMusicIdentifier,
+            onSwitchChange = { isEnabledMusicIdentifier = it },
+        ) {
 
         AnimatedVisibility(visible = isEnabledMusicIdentifier) {
             Column(

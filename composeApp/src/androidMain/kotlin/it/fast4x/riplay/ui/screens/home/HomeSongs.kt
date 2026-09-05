@@ -102,7 +102,9 @@ import it.fast4x.riplay.commonutils.EXPLICIT_PREFIX
 import it.fast4x.riplay.LocalPlayerServiceBinder
 import it.fast4x.riplay.LocalSelectedQueue
 import com.yambo.music.R
+import it.fast4x.riplay.extensions.fastshare.shareSongsToDownloader
 import it.fast4x.riplay.utils.appContext
+import it.fast4x.riplay.utils.isRadio
 import it.fast4x.riplay.utils.colorPalette
 import it.fast4x.riplay.enums.BuiltInPlaylist
 import it.fast4x.riplay.enums.DurationInMinutes
@@ -295,6 +297,30 @@ fun HomeSongs(
     var songs: List<SongEntity> = emptyList()
     var folders: List<Folder> = emptyList()
     var filteredSongs = songs
+
+    // The list the user is actually looking at, handed to the downloader in one file.
+    val downloadEverythingShown = {
+        val shown = if (builtInPlaylist == BuiltInPlaylist.OnDevice) filteredSongs else items
+        shareSongsToDownloader(
+            context = context,
+            songs = shown.map { it.song },
+            title = builtInPlaylist.name,
+            onEmpty = {
+                SmartMessage(
+                    context.resources.getString(R.string.nothing_to_download),
+                    context = context,
+                    type = PopupType.Info,
+                )
+            },
+            onAppMissing = {
+                SmartMessage(
+                    context.resources.getString(R.string.ytdlnis_not_installed),
+                    context = context,
+                    type = PopupType.Error,
+                )
+            },
+        )
+    }
     var filteredFolders = folders
     var currentFolder: Folder? = null
     var currentFolderPath by remember { mutableStateOf(defaultFolder) }
@@ -355,18 +381,18 @@ fun HomeSongs(
         BuiltInPlaylist.All -> {
             LaunchedEffect(sortBy, sortOrder, filter, showHiddenSongs, includeLocalSongs) {
                 Database.songs(sortBy, sortOrder, showHiddenSongs)
-                    .collect { items = it.filter { item -> blacklisted.value?.map { it.path }?.contains(item.song.id) == false } }
+                    .collect { items = it.filter { item -> blacklisted.value?.map { it.path }?.contains(item.song.id) == false && !item.song.isRadio } }
             }
         }
         BuiltInPlaylist.Favorites, BuiltInPlaylist.Top, BuiltInPlaylist.Disliked -> {
             LaunchedEffect(Unit, builtInPlaylist, sortBy, sortOrder, filter, topPlaylistPeriod) {
                 if (builtInPlaylist == BuiltInPlaylist.Favorites) {
                     Database.songsFavorites(sortBy, sortOrder)
-                        .collect { items = (if (autoShuffle) it.shuffled() else it).filter { item -> blacklisted.value?.map { it.path }?.contains(item.song.id) == false } }
+                        .collect { items = (if (autoShuffle) it.shuffled() else it).filter { item -> blacklisted.value?.map { it.path }?.contains(item.song.id) == false && !item.song.isRadio } }
                 }
                 if (builtInPlaylist == BuiltInPlaylist.Disliked) {
                     Database.songsDisliked(sortBy, sortOrder)
-                        .collect { items = (if (autoShuffle) it.shuffled() else it).filter { item -> blacklisted.value?.map { it.path }?.contains(item.song.id) == false } }
+                        .collect { items = (if (autoShuffle) it.shuffled() else it).filter { item -> blacklisted.value?.map { it.path }?.contains(item.song.id) == false && !item.song.isRadio } }
                 }
                 if (builtInPlaylist == BuiltInPlaylist.Top) {
                     if (topPlaylistPeriod.duration == Duration.INFINITE) {
@@ -375,7 +401,7 @@ fun HomeSongs(
                                 items = it.filter { item ->
                                     if (excludeSongWithDurationLimit == DurationInMinutes.Disabled) true
                                     else (item.song.durationText?.let { durationTextToMillis(it) } ?: 0L) < excludeSongWithDurationLimit.minutesInMilliSeconds
-                                }.filter { item -> blacklisted.value?.map { it.path }?.contains(item.song.id) == false }
+                                }.filter { item -> blacklisted.value?.map { it.path }?.contains(item.song.id) == false && !item.song.isRadio }
                             }
                     } else {
                         Database.trendingSongEntity(
@@ -385,7 +411,7 @@ fun HomeSongs(
                             items = it.filter { item ->
                                 if (excludeSongWithDurationLimit == DurationInMinutes.Disabled) true
                                 else (item.song.durationText?.let { durationTextToMillis(it) } ?: 0L) < excludeSongWithDurationLimit.minutesInMilliSeconds
-                            }.filter { item -> blacklisted.value?.map { it.path }?.contains(item.song.id) == false }
+                            }.filter { item -> blacklisted.value?.map { it.path }?.contains(item.song.id) == false && !item.song.isRadio }
                         }
                     }
                 }
@@ -411,13 +437,13 @@ fun HomeSongs(
                 sortOrder,
                 sortByFolderOnDevice,
                 currentFolder?.songs?.map { it.toSongEntity() } ?: emptyList()
-            ).filter { item -> blacklisted.value?.map { it.path }?.contains(item.song.id) == false }
+            ).filter { item -> blacklisted.value?.map { it.path }?.contains(item.song.id) == false && !item.song.isRadio }
             filteredSongs = songs
             folders = currentFolder?.subFolders?.toList() ?: emptyList()
             filteredFolders = folders
         } else {
             songs = songsDevice.map { it.toSongEntity() }
-                .filter { item -> blacklisted.value?.map { it.path }?.contains(item.song.id) == false }
+                .filter { item -> blacklisted.value?.map { it.path }?.contains(item.song.id) == false && !item.song.isRadio }
             filteredSongs = songs
         }
     }
@@ -828,6 +854,10 @@ fun HomeSongs(
                                     PlaylistsItemMenu(
                                         navController = navController, modifier = Modifier.fillMaxHeight(0.4f),
                                         onDismiss = menuState::hide,
+                                        // Whatever list is on screen right now, to the downloader
+                                        onDownloadAllSongs = {
+                                            downloadEverythingShown()
+                                        },
                                         onSelectUnselect = {
                                             selectItems = !selectItems; if (!selectItems) listMediaItems.clear()
                                         },
@@ -1307,6 +1337,30 @@ fun HomeSongs(
 
     var filteredSongs = songs
 
+    // The list the user is actually looking at, handed to the downloader in one file.
+    val downloadEverythingShown = {
+        val shown = if (builtInPlaylist == BuiltInPlaylist.OnDevice) filteredSongs else items
+        shareSongsToDownloader(
+            context = context,
+            songs = shown.map { it.song },
+            title = builtInPlaylist.name,
+            onEmpty = {
+                SmartMessage(
+                    context.resources.getString(R.string.nothing_to_download),
+                    context = context,
+                    type = PopupType.Info,
+                )
+            },
+            onAppMissing = {
+                SmartMessage(
+                    context.resources.getString(R.string.ytdlnis_not_installed),
+                    context = context,
+                    type = PopupType.Error,
+                )
+            },
+        )
+    }
+
     var filteredFolders = folders
     var currentFolder: Folder? = null;
     var currentFolderPath by remember {
@@ -1399,7 +1453,7 @@ fun HomeSongs(
         BuiltInPlaylist.All -> {
             LaunchedEffect(sortBy, sortOrder, filter, showHiddenSongs, includeLocalSongs) {
                 Database.songs(sortBy, sortOrder, showHiddenSongs)
-                    .collect { items = it.filter {item -> blacklisted.value?.map { it.path }?.contains(item.song.id) == false } }
+                    .collect { items = it.filter {item -> blacklisted.value?.map { it.path }?.contains(item.song.id) == false && !item.song.isRadio } }
             }
         }
         BuiltInPlaylist.Favorites,
@@ -1411,7 +1465,7 @@ fun HomeSongs(
                     Database.songsFavorites(sortBy, sortOrder)
                         .collect {
                             items = (if (autoShuffle) it.shuffled() else it)
-                                .filter {item -> blacklisted.value?.map { it.path }?.contains(item.song.id) == false }
+                                .filter {item -> blacklisted.value?.map { it.path }?.contains(item.song.id) == false && !item.song.isRadio }
                         }
                 }
 
@@ -1420,7 +1474,7 @@ fun HomeSongs(
                         .collect {
                             items =
                                 (if (autoShuffle) it.shuffled() else it)
-                                    .filter {item -> blacklisted.value?.map { it.path }?.contains(item.song.id) == false }
+                                    .filter {item -> blacklisted.value?.map { it.path }?.contains(item.song.id) == false && !item.song.isRadio }
                         }
                 }
 
@@ -1441,7 +1495,7 @@ fun HomeSongs(
                                             durationTextToMillis(it1)
                                         } ?: 0L) < excludeSongWithDurationLimit.minutesInMilliSeconds
                                 }
-                                .filter {item -> blacklisted.value?.map { it.path }?.contains(item.song.id) == false }
+                                .filter {item -> blacklisted.value?.map { it.path }?.contains(item.song.id) == false && !item.song.isRadio }
                             }
                     } else {
                         Database
@@ -1458,7 +1512,7 @@ fun HomeSongs(
                                             durationTextToMillis(it1)
                                         } ?: 0L) < excludeSongWithDurationLimit.minutesInMilliSeconds
                                 }
-                                .filter {item -> blacklisted.value?.map { it.path }?.contains(item.song.id) == false }
+                                .filter {item -> blacklisted.value?.map { it.path }?.contains(item.song.id) == false && !item.song.isRadio }
                             }
                     }
                 }
@@ -1486,13 +1540,13 @@ fun HomeSongs(
                 sortOrder,
                 sortByFolderOnDevice,
                 currentFolder?.songs?.map { it.toSongEntity() } ?: emptyList())
-                .filter {item -> blacklisted.value?.map { it.path }?.contains(item.song.id) == false }
+                .filter {item -> blacklisted.value?.map { it.path }?.contains(item.song.id) == false && !item.song.isRadio }
             filteredSongs = songs
             folders = currentFolder?.subFolders?.toList() ?: emptyList()
             filteredFolders = folders
         } else {
             songs = songsDevice.map { it.toSongEntity() }
-                .filter {item -> blacklisted.value?.map { it.path }?.contains(item.song.id) == false }
+                .filter {item -> blacklisted.value?.map { it.path }?.contains(item.song.id) == false && !item.song.isRadio }
             filteredSongs = songs
         }
     }
@@ -2211,6 +2265,9 @@ fun HomeSongs(
                                         navController = navController,
                                         modifier = Modifier.fillMaxHeight(0.4f),
                                         onDismiss = menuState::hide,
+                                        onDownloadAllSongs = {
+                                            downloadEverythingShown()
+                                        },
                                         onSelectUnselect = {
                                             selectItems = !selectItems
                                             if (!selectItems) {

@@ -75,7 +75,7 @@ fun PageContainer(
     )
     navigationBar.add { Item ->
         Item(0, stringResource(R.string.home), R.drawable.home)
-        Item(1, stringResource(R.string.top_50), R.drawable.trending)
+        Item(1, stringResource(R.string.live_radio_tab), R.drawable.radio)
         Item(2, stringResource(R.string.my_music), R.drawable.musical_notes)
         Item(3, stringResource(R.string.search), R.drawable.search)
         Item(4, stringResource(R.string.my_account), R.drawable.person)

@@ -5,6 +5,13 @@ import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -14,6 +21,15 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.annotation.DrawableRes
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextOverflow
+import coil3.compose.AsyncImage
+import it.fast4x.riplay.ui.components.themed.Switch
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -33,6 +49,7 @@ import it.fast4x.riplay.extensions.preferences.showMonthlyPlaylistInQuickPicksKe
 import it.fast4x.riplay.extensions.preferences.showMoodsAndGenresKey
 import it.fast4x.riplay.extensions.preferences.showNewAlbumsArtistsKey
 import it.fast4x.riplay.extensions.preferences.showNewAlbumsKey
+import it.fast4x.riplay.extensions.preferences.showLiveRadioKey
 import it.fast4x.riplay.extensions.preferences.showPlaylistMightLikeKey
 import it.fast4x.riplay.extensions.preferences.showRelatedAlbumsKey
 import it.fast4x.riplay.extensions.preferences.showSimilarArtistsKey
@@ -51,6 +68,7 @@ fun HomeSettings(navController: androidx.navigation.NavController? = null) {
     var showSimilarArtists by rememberPreference(showSimilarArtistsKey, true)
     var showNewAlbumsArtists by rememberPreference(showNewAlbumsArtistsKey, true)
     var showNewAlbums by rememberPreference(showNewAlbumsKey, true)
+    var showLiveRadio by rememberPreference(showLiveRadioKey, true)
     var showPlaylistMightLike by rememberPreference(showPlaylistMightLikeKey, true)
     var showMoodsAndGenres by rememberPreference(showMoodsAndGenresKey, true)
     var showMonthlyPlaylistInQuickPicks by rememberPreference(showMonthlyPlaylistInQuickPicksKey, true)
@@ -120,6 +138,12 @@ fun HomeSettings(navController: androidx.navigation.NavController? = null) {
                 onCheckedChange = { showNewAlbums = it }
             )
             SwitchSettingEntry(
+                title = stringResource(R.string.live_radio),
+                text = "",
+                isChecked = showLiveRadio,
+                onCheckedChange = { showLiveRadio = it }
+            )
+            SwitchSettingEntry(
                 offline = false,
                 title = stringResource(R.string.moods_and_genres),
                 text = "",
@@ -175,6 +199,118 @@ fun HomeSettings(navController: androidx.navigation.NavController? = null) {
         }
 
         Spacer(modifier = Modifier.height(Dimensions.bottomSpacer))
+    }
+}
+
+/**
+ * One connected service.
+ *
+ * The old cards said only "Enable X" behind a toggle, so whether an account was actually
+ * linked - and which one - took a tap each to find out. This one carries the badge, the
+ * name, the live status and the switch on a single line, and keeps the actions folded
+ * underneath.
+ */
+@Composable
+internal fun AccountCard(
+    title: String,
+    @DrawableRes icon: Int,
+    connected: Boolean,
+    statusText: String,
+    modifier: Modifier = Modifier,
+    avatarUrl: String? = null,
+    switchChecked: Boolean? = null,
+    onSwitchChange: ((Boolean) -> Unit)? = null,
+    switchEnabled: Boolean = true,
+    content: (@Composable () -> Unit)? = null,
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .background(colorPalette().background1)
+            .padding(horizontal = 16.dp, vertical = 14.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(46.dp)
+                    .clip(CircleShape)
+                    .background(colorPalette().background2),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (!avatarUrl.isNullOrBlank()) {
+                    AsyncImage(
+                        model = avatarUrl,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize().clip(CircleShape),
+                    )
+                } else {
+                    Image(
+                        painter = painterResource(icon),
+                        contentDescription = null,
+                        colorFilter = ColorFilter.tint(colorPalette().text),
+                        modifier = Modifier.size(22.dp),
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(14.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                BasicText(
+                    text = title,
+                    style = typography().s.copy(
+                        fontWeight = FontWeight.SemiBold,
+                        color = colorPalette().text,
+                    ),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    // Filled while the account is linked, hollow while it is not: the state
+                    // has to read from across the room without turning the app colourful.
+                    Box(
+                        modifier = Modifier
+                            .size(7.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (connected) colorPalette().text else colorPalette().textDisabled
+                            )
+                    )
+                    Spacer(modifier = Modifier.width(7.dp))
+                    BasicText(
+                        text = statusText,
+                        style = typography().xxs.copy(color = colorPalette().textSecondary),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+
+            if (switchChecked != null && onSwitchChange != null) {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable(enabled = switchEnabled) { onSwitchChange(!switchChecked) }
+                        .padding(start = 10.dp, top = 6.dp, bottom = 6.dp)
+                ) {
+                    Switch(isChecked = switchChecked)
+                }
+            }
+        }
+
+        if (content != null) {
+            Spacer(modifier = Modifier.height(12.dp))
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(colorPalette().background2)
+            )
+            content()
+        }
     }
 }
 

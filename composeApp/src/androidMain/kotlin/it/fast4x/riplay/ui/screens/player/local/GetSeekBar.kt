@@ -64,6 +64,8 @@ import it.fast4x.riplay.ui.components.ModernSeekbar
 import it.fast4x.riplay.ui.components.SeekBarAudioForms
 import it.fast4x.riplay.ui.components.SeekBarSinusoidalWave
 import it.fast4x.riplay.utils.typography
+import it.fast4x.riplay.utils.isRadioId
+import it.fast4x.riplay.ui.items.LiveStreamIndicator
 import it.fast4x.riplay.utils.formatAsDuration
 import it.fast4x.riplay.utils.isCompositionLaunched
 import it.fast4x.riplay.ui.styling.semiBold
@@ -83,6 +85,12 @@ fun GetSeekBar(
 
     val binder = LocalPlayerServiceBinder.current
     binder?.player ?: return
+
+    // A live station has no timeline: show a LIVE marker instead of a bar that cannot scrub.
+    if (mediaId.isRadioId) {
+        LiveStreamIndicator()
+        return
+    }
     val playerTimelineType by rememberObservedPreference(
         playerTimelineTypeKey,
         PlayerTimelineType.Wavy
