@@ -398,7 +398,9 @@ fun OnlineMiniPlayer(
                 }
                 // Glass panel, matching the local mini player. The clip keeps the progress
                 // overlay inside the rounded shape.
-                .glassSurface(shape = RoundedCornerShape(22.dp), elevation = 12.dp)
+                // Opaque (alpha = 1): at 0.82 the list behind showed through and its text
+                // overlapped the title. Border, sheen and shadow stay.
+                .glassSurface(shape = RoundedCornerShape(22.dp), alpha = 1f, elevation = 12.dp)
                 .clip(RoundedCornerShape(22.dp))
                 .fillMaxWidth()
                 .drawBehind {

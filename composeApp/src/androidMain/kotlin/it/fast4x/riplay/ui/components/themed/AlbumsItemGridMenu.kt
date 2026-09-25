@@ -234,7 +234,7 @@ fun AlbumsItemGridMenu(
                                                 painter = painterResource(R.drawable.internet),
                                                 contentDescription = null,
                                                 colorFilter = ColorFilter.tint(
-                                                    Color.Red.copy(0.75f).compositeOver(Color.White)
+                                                    colorPalette().text
                                                 ),
                                                 modifier = Modifier
                                                     .size(18.dp)

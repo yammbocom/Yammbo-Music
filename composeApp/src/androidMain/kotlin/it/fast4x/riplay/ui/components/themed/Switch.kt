@@ -24,12 +24,14 @@ fun Switch(
 ) {
     val transition = updateTransition(targetState = isChecked, label = null)
 
+    // Monochrome: the unchecked track uses background2 so it still reads on the
+    // background1 settings cards.
     val backgroundColor by transition.animateColor(label = "") {
-        if (it) colorPalette().accent else colorPalette().background1
+        if (it) colorPalette().text else colorPalette().background2
     }
 
     val color by transition.animateColor(label = "") {
-        if (it) colorPalette().onAccent else colorPalette().textDisabled
+        if (it) colorPalette().background0 else colorPalette().textSecondary
     }
 
     val offset by transition.animateDp(label = "") {

@@ -1,5 +1,6 @@
 package it.fast4x.riplay.extensions.equalizer
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
@@ -9,6 +10,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -128,7 +130,8 @@ fun InternalEqualizerScreen(equalizerHelper: EqualizerHelper) {
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier
                     .graphicsLayer {
-                        alpha = if (isEqEnabled) 1f else 0.3f
+                        // Dimmed but still readable while the EQ is off (0.3 was near-black on black).
+                        alpha = if (isEqEnabled) 1f else 0.6f
                     }
                     .fillMaxWidth()
             ) {
@@ -329,25 +332,42 @@ fun PresetSelector(
         contentPadding = PaddingValues(horizontal = 16.dp)
     ) {
         items(presets) { preset ->
+            val isSelected = selectedPreset == preset
+            // Monochrome chips: outlined when idle, inverted when selected.
             FilterChip(
-                selected = selectedPreset == preset,
+                selected = isSelected,
                 onClick = { onPresetSelected(preset) },
-                label = { 
+                label = {
                     Text(
-                        text = stringResource(id = preset.labelRes), 
+                        text = stringResource(id = preset.labelRes),
                         fontSize = 12.sp
-                    ) 
+                    )
                 },
+                shape = RoundedCornerShape(50),
+                colors = FilterChipDefaults.filterChipColors(
+                    containerColor = Color.Transparent,
+                    labelColor = colorPalette().text,
+                    selectedContainerColor = colorPalette().text,
+                    selectedLabelColor = colorPalette().background0
+                ),
+                border = BorderStroke(
+                    width = 1.dp,
+                    color = if (isSelected) colorPalette().text else colorPalette().background2
+                ),
                 modifier = Modifier.height(32.dp)
             )
         }
-        
+
         item {
             TextButton(
-                onClick = onReset, 
+                onClick = onReset,
                 modifier = Modifier.height(32.dp)
             ) {
-                Text(stringResource(R.string.equalizer_reset), fontSize = 12.sp)
+                Text(
+                    stringResource(R.string.equalizer_reset),
+                    fontSize = 12.sp,
+                    color = colorPalette().textSecondary
+                )
             }
         }
     }

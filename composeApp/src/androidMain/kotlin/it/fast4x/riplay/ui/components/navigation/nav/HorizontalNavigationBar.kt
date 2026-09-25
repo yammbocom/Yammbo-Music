@@ -2,6 +2,11 @@ package it.fast4x.riplay.ui.components.navigation.nav
 
 
 import android.annotation.SuppressLint
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.animation.animateColor
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -229,17 +234,17 @@ class HorizontalNavigationBar(
                     buttonsProvider?.invoke { index, text, iconId ->
                         items.add(Triple(index, text, iconId))
                     }
-                    // With more than 5 tabs (e.g. the 7-tab search bar) they no longer fit
-                    // evenly, so switch to a horizontally scrollable row of fixed-width tabs.
-                    // The 5-tab main bar keeps the original even, non-scrolling layout.
+                    // With more than 5 tabs (e.g. the 7-tab search bar) labelled tabs no longer
+                    // fit: a scrolling row left the last ones cut at the right edge. Those bars
+                    // go icons-only instead, evenly spread so every tab is visible at once.
+                    // The 5-tab main bar keeps the original labelled layout.
                     val isCompact = items.size > 5
 
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = if (isCompact) Arrangement.Start else Arrangement.SpaceEvenly,
+                        horizontalArrangement = Arrangement.SpaceEvenly,
                         modifier = Modifier
                             .fillMaxSize()
-                            .applyIf(isCompact) { horizontalScroll(scrollState) }
                             .padding(horizontal = 8.dp),
                     ) {
                         items.forEach { (index, text, iconId) ->
@@ -257,14 +262,19 @@ class HorizontalNavigationBar(
                                 animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
                                 label = "indicatorWidth"
                             )
-                            val tabSizeModifier =
-                                if (isCompact) Modifier.width(74.dp) else Modifier.weight(1f)
                             Column(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.Top,
-                                modifier = tabSizeModifier
+                                modifier = Modifier
+                                    .weight(1f)
                                     .clip(RoundedCornerShape(12.dp))
                                     .clickable(onClick = { onTabChanged(index) })
+                                    // Icons-only tabs still need a name for TalkBack; the label is not drawn
+                                    .semantics(mergeDescendants = true) {
+                                        contentDescription = text
+                                        role = Role.Tab
+                                        selected = isSelected
+                                    }
                                     .padding(vertical = 6.dp, horizontal = 2.dp)
                             ) {
                                 // Top accent indicator that grows/shrinks when the tab activates
@@ -279,9 +289,9 @@ class HorizontalNavigationBar(
                                     contentAlignment = Alignment.Center,
                                     modifier = Modifier.scale(iconScale)
                                 ) {
-                                    Button(iconId, iconColor, 0.dp, if (isCompact) 20.dp else 22.dp).Draw()
+                                    Button(iconId, iconColor, 0.dp, 22.dp).Draw()
                                 }
-                                if (!NavigationBarType.IconOnly.isCurrent()) {
+                                if (!isCompact && !NavigationBarType.IconOnly.isCurrent()) {
                                     Spacer(modifier = Modifier.height(3.dp))
                                     androidx.compose.foundation.text.BasicText(
                                         text = text,

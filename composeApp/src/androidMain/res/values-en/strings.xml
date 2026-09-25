@@ -1385,6 +1385,7 @@
     <string name="subscription_active">Active subscription</string>
     <string name="subscription_inactive">No subscription</string>
     <!-- Share sheet -->
+    <string name="share_sheet_title">Share</string>
     <string name="share_section_label">Share on</string>
     <string name="share_generating_image">Generating image…</string>
     <string name="share_with_other_apps">Share with other apps</string>

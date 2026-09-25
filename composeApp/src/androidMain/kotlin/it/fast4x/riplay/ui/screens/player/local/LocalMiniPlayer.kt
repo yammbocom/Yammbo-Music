@@ -365,7 +365,9 @@ fun LocalMiniPlayer(
                 // draws on top of it, so the played portion stays visible. The explicit clip
                 // keeps that overlay inside the rounded shape — on a translucent panel a
                 // square-cornered block is glaringly obvious, especially in the light theme.
-                .glassSurface(shape = RoundedCornerShape(22.dp), elevation = 12.dp)
+                // Opaque (alpha = 1): at 0.82 the list behind showed through and its text
+                // overlapped the title. Border, sheen and shadow stay.
+                .glassSurface(shape = RoundedCornerShape(22.dp), alpha = 1f, elevation = 12.dp)
                 .clip(RoundedCornerShape(22.dp))
                 .fillMaxWidth()
                 .drawBehind {

@@ -253,6 +253,7 @@ import it.fast4x.riplay.utils.isRadio
 import it.fast4x.riplay.utils.isRadioId
 import it.fast4x.riplay.utils.removeRadioStationsExceptCurrent
 import it.fast4x.riplay.utils.usesLocalPlayer
+import it.fast4x.riplay.utils.youTubeVideoId
 import it.fast4x.riplay.utils.isVideo
 import it.fast4x.riplay.utils.playbackUriOf
 import it.fast4x.riplay.utils.mediaItems
@@ -975,8 +976,14 @@ class PlayerService : Service(),
     /** When the queue last moved, to tell a real end-of-song from a leftover report. */
     private var lastQueueAdvanceAt = 0L
 
-    /** True once the TV has been given a song and has not said it is playing it. */
-    private var castSilentFallback = false
+    /**
+     * True once the TV has been given a song and has not said it is playing it. Lives in
+     * CastManager so restoreGlobalVolume, which has no access to this service, decides the
+     * phone's volume from the same state as applyCastMuting.
+     */
+    private var castSilentFallback: Boolean
+        get() = CastManager.silentFallback
+        set(value) { CastManager.silentFallback = value }
     private var castConfirmJob: Job? = null
 
     /** Songs skipped in a row because the TV refused them; a whole queue could be like that. */
@@ -1027,10 +1034,76 @@ class PlayerService : Service(),
     private fun applyCastMuting() {
         // Not simply "is there a session": a local file cannot be cast, and muting for it
         // left nothing playing anywhere.
-        val muted = isCasting && !castSilentFallback &&
-            CastManager.canCastCurrentItem(localMediaItem ?: player.currentMediaItem)
+        val muted = castOwnsSound()
         runCatching { player.volume = if (muted) 0f else GlobalVolume }
         runCatching { _internalOnlinePlayer.value?.setVolume(getSystemMediaVolume()) }
+    }
+
+    /**
+     * Whether the TV is the one sounding the current item, so the phone must stay silent. One
+     * check for every volume decision, shared with restoreGlobalVolume through CastManager, so
+     * that nothing can mute the phone for an item the TV cannot play.
+     */
+    private fun castOwnsSound(): Boolean =
+        CastManager.mutesPhoneFor(localMediaItem ?: player.currentMediaItem)
+
+    /**
+     * Whether a report from the TV (its clock, its "ended") is about the item the phone is on.
+     * After a song the TV cannot take, the previous one is still loaded there.
+     */
+    private fun castReportIsCurrent(): Boolean {
+        val current = (localMediaItem ?: player.currentMediaItem)?.mediaId ?: return false
+        return CastManager.castMediaId == current
+    }
+
+    /**
+     * Puts the online song back in place of its downloaded copy at [index], for a cast. The TV
+     * can only play a video id, and the local player's screens and controls call the phone's
+     * player directly, so a copy cast as its video left the TV paused, unseeked and at 0:00
+     * while the phone stayed muted. The online item goes through the cast path that works.
+     *
+     * [positionMs] is where the online song starts, on the TV and in the muted embed, when the
+     * copy is still the current item by the time the swap runs. Returns false, touching
+     * nothing, when there is no video behind the item (a plain device file stays here).
+     */
+    private fun swapLocalCopyBackToOnline(index: Int, positionMs: Long): Boolean {
+        if (index !in 0 until player.mediaItemCount) return false
+        val copy = player.getMediaItemAt(index)
+        if (!copy.isLocal) return false
+        val videoId = copy.youTubeVideoId ?: return false
+        // The online row keeps its own metadata and heart. Without one (the song was never
+        // stored online), the copy's metadata goes with the video id, built like
+        // Song.asMediaItem builds an online item from its id.
+        val online = runBlocking(Dispatchers.IO) {
+            runCatching { Database.songNoFlow(videoId) }.getOrNull()
+        }?.asMediaItem
+            ?: copy.buildUpon()
+                .setMediaId(videoId)
+                .setUri(playbackUriOf(videoId))
+                .setMimeType(null)
+                .setCustomCacheKey(videoId)
+                .build()
+        val copyId = copy.mediaId
+        Timber.d("PlayerService casting: local copy $copyId goes back to online $videoId at ${positionMs}ms")
+        // Posted: this runs from a transition callback, and changing the timeline inside its own
+        // callback re-enters the listeners.
+        coroutineScope.launch(Dispatchers.Main) {
+            // The queue may have moved while this was waiting, or another swap got there first.
+            if (index >= player.mediaItemCount || player.getMediaItemAt(index).mediaId != copyId) return@launch
+            val playWhenReady = player.playWhenReady
+            // The same song again, not another one, for the ads.
+            localCopySwapFor = videoId
+            // Otherwise the online transition, with the id the history last saw, would look like
+            // the stuck-player symptom and skip the song.
+            if (lastOnlineMediaId == videoId) lastOnlineMediaId = null
+            // Read by the online transition for both the TV and the embed, then reset there.
+            if (index == player.currentMediaItemIndex) playFromSecond = positionMs / 1000f
+            player.replaceMediaItem(index, online)
+            // The copy may have failed in this player and parked it in IDLE; see the forward swap.
+            player.prepare()
+            player.playWhenReady = playWhenReady
+        }
+        return true
     }
 
     private fun pausePlayback() {
@@ -1192,6 +1265,12 @@ class PlayerService : Service(),
             coroutineScope.launch(Dispatchers.Main) {
                 applyCastMuting()
                 val item = player.currentMediaItem ?: return@launch
+                // A downloaded copy cannot follow the TV: its controls drive the local player
+                // only. The online song goes back in its place, from where the copy was
+                // (currentSecond is never set for a local item), and its transition casts it.
+                if (item.isLocal &&
+                    swapLocalCopyBackToOnline(player.currentMediaItemIndex, player.currentPosition)
+                ) return@launch
                 if (CastManager.castItem(item, currentSecond.value)) {
                     sendLyricsToCast(item.mediaId)
                     awaitCastPlaybackOrFallBack()
@@ -1205,8 +1284,9 @@ class PlayerService : Service(),
         }
         CastManager.onRemoteTime = { time, duration ->
             // The TV is the one actually playing, so it is the one that knows where the
-            // song is. Without this the seek bar sat at 0:00 for the whole song.
-            if (isCasting && !castSilentFallback) {
+            // song is. Without this the seek bar sat at 0:00 for the whole song. Only its own
+            // song: a clock from the one left on the TV would drive a file playing here.
+            if (isCasting && !castSilentFallback && castReportIsCurrent()) {
                 currentSecond.value = time
                 if (duration > 0f) currentDuration.value = duration
             }
@@ -1274,7 +1354,10 @@ class PlayerService : Service(),
                     // phone clearly did not notice and the TV is the only one that knows.
                     "ended" -> {
                         val sinceChange = android.os.SystemClock.elapsedRealtime() - lastQueueAdvanceAt
-                        if (sinceChange > 5_000) handlePlayNext()
+                        // The end of a song the phone is no longer on (left on the TV when the
+                        // queue reached a file it cannot play) must not skip the file.
+                        if (!castReportIsCurrent()) Timber.d("PlayerService: cast 'ended' ignored, TV is not on the current item")
+                        else if (sinceChange > 5_000) handlePlayNext()
                         else Timber.d("PlayerService: cast 'ended' ignored, queue moved ${sinceChange}ms ago")
                     }
                 }
@@ -2325,7 +2408,10 @@ class PlayerService : Service(),
 
         // Track song change for interstitial ads
         // A downloaded copy swapped in for the song just counted is the same song, not another one
-        if (localCopySwapFor != null && localCopySwapFor == localCopyMediaIdOf(mediaItem)) localCopySwapFor = null
+        // (nor is the online song put back in place of its copy for a cast; see swapLocalCopyBackToOnline)
+        if (localCopySwapFor != null &&
+            (localCopySwapFor == mediaItem.mediaId || localCopySwapFor == localCopyMediaIdOf(mediaItem))
+        ) localCopySwapFor = null
         else it.fast4x.riplay.extensions.ads.YammboAdManager.onSongChanged(this@PlayerService)
 
         currentSecond.value = 0F
@@ -2428,6 +2514,10 @@ class PlayerService : Service(),
                     val index = player.currentMediaItemIndex
                     // The listener may have moved on while this was waiting to run.
                     if (player.currentMediaItem?.mediaId != videoId) return@launch
+                    // Decided above, with the casting check, and done here regardless: the
+                    // online item's transition was cut short by the return below, so skipping
+                    // the swap would leave nothing loaded. If a cast started in the meantime,
+                    // the copy's own transition puts the online song back and casts it.
                     // The embed may still be sounding the previous song; nothing will stop it
                     // otherwise, because the transition for the file skips the online branch.
                     _internalOnlinePlayer.value?.pause()
@@ -2445,6 +2535,13 @@ class PlayerService : Service(),
             }
         }
 
+        // The reverse while casting: a downloaded copy reached in the queue goes back to its
+        // online song. The TV can only play a video id, and the local player's controls (play,
+        // seek) never reach it, so a copy cast as its video fell out of step with the TV.
+        if (mediaItem.isLocal && isCasting && !GlobalSharedData.riTuneCastActive &&
+            swapLocalCopyBackToOnline(player.currentMediaItemIndex, 0L)
+        ) return
+
         mediaItem.let {
 
             currentMediaItemState.value = it
@@ -2458,12 +2555,19 @@ class PlayerService : Service(),
             if (CastManager.isConnected.value) {
                 // The TV owns the sound while a Cast session is up
                 applyCastMuting()
-                // A song the queue moves to always starts at the beginning on the TV; only a
-                // session that starts mid-song joins where the phone already was.
-                if (CastManager.castItem(it, 0f)) {
+                // A song the queue moves to starts on the TV where the embed below starts it:
+                // the beginning, unless a downloaded copy was swapped back for a session that
+                // started mid-song (swapLocalCopyBackToOnline sets playFromSecond for that).
+                if (CastManager.castItem(it, playFromSecond)) {
                     sendLyricsToCast(it.mediaId)
                     awaitCastPlaybackOrFallBack()
                 } else if (!CastManager.canCastCurrentItem(it)) {
+                    // The TV would otherwise carry on with the previous song over this one, and
+                    // its clock and "ended" would keep driving the phone. Stopped and forgotten;
+                    // the wait for the previous song's confirmation goes too, or it would report
+                    // a TV failure nine seconds into a file that was never meant for it.
+                    castConfirmJob?.cancel()
+                    CastManager.release()
                     // Nothing reached the TV. Without a word here the phone stayed muted and the
                     // TV kept the previous song frozen: silence on both sides and no reason given.
                     SmartMessage(
@@ -2690,9 +2794,12 @@ class PlayerService : Service(),
             //if (isDiscoverEnabled) 10 else 3
         ) {
             if (radio == null) {
+                // A downloaded copy seeds with the video it came from: "local:N" is no video
+                // id, and a device file with nothing behind it has nothing to relate to.
+                val seedId = player.currentMediaItem?.youTubeVideoId ?: return
                 binder.setupRadio(
                     NavigationEndpoint.Endpoint.Watch(
-                        videoId = player.currentMediaItem?.mediaId
+                        videoId = seedId
                     )
                 )
             } else {
@@ -2718,8 +2825,9 @@ class PlayerService : Service(),
             loudnessEnhancer = null
             volumeNormalizationJob?.cancel()
             // Full volume unless the TV owns the sound, or every song change would bring the
-            // phone back in over the Chromecast.
-            player.volume = if (isCasting) 0f else 1f
+            // phone back in over the Chromecast. The TV owning it, not merely a session being
+            // up: a device file stays on the phone and zero here left it silent everywhere.
+            player.volume = if (castOwnsSound()) 0f else 1f
             return
         }
 
@@ -3515,10 +3623,17 @@ class PlayerService : Service(),
             binder.let {
                 when (intent.action) {
                     Action.pause.value -> {
+                        // Same as the session's pause: the TV first, or the music carried on
+                        // coming out of the television.
+                        if (isCasting) CastManager.pause()
                         player.pause()
-                        if (!GlobalSharedData.riTuneCastActive)
+                        if (!GlobalSharedData.riTuneCastActive) {
                             _internalOnlinePlayer.value?.pause()
-                        else
+                            // The session must say "paused" now, not when the embed reports it
+                            // (see sessionShowsPlaying); refreshed by updateUnifiedNotification below.
+                            onlinePlaybackIntended = false
+                            resumeOnlineWhenNetworkReturns = false
+                        } else
                             coroutineScope.launch {
                                 riTuneClient.sendCommand(
                                     RiTuneRemoteCommand(
@@ -3529,12 +3644,18 @@ class PlayerService : Service(),
                             }
                     }
                     Action.play.value -> {
-                        if (player.currentMediaItem?.usesLocalPlayer == true)
+                        if (player.currentMediaItem?.usesLocalPlayer == true) {
+                            // The TV as well: a station plays there too. A device file left
+                            // nothing loaded on it, so this is a no-op for one.
+                            if (isCasting) CastManager.play()
                             it.player.play()
-                        else {
-                            if (!GlobalSharedData.riTuneCastActive)
+                        } else {
+                            if (!GlobalSharedData.riTuneCastActive) {
+                                // Published before the embed answers, like the session's play.
+                                onlinePlaybackIntended = true
+                                // Resumes the TV too while casting.
                                 resumeOnlinePlayerUnlessCasting()
-                            else
+                            } else
                                 coroutineScope.launch {
                                     riTuneClient.sendCommand(
                                         RiTuneRemoteCommand(
@@ -4327,8 +4448,7 @@ class PlayerService : Service(),
     private fun getSystemMediaVolume(): Int {
         // Single choke point for the embed's volume: while the TV is playing, everything that
         // sets it here sets it to zero, so the song cannot come out of the phone as well.
-        if (isCasting && !castSilentFallback &&
-            CastManager.canCastCurrentItem(localMediaItem ?: player.currentMediaItem)) return 0
+        if (castOwnsSound()) return 0
         return 100 // set to max
 //        val maxMediaVolume = audioManager?.getStreamMaxVolume(AudioManager.STREAM_MUSIC) ?: 15
 //        val minVolume = maxMediaVolume.div(3)

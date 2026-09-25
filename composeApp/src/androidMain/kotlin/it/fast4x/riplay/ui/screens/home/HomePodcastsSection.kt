@@ -95,7 +95,8 @@ fun HomePodcastsSection(
                 modifier = Modifier.clickable {
                     navController.navigate("${NavRoutes.podcast.name}/${p.key}")
                 },
-                disableScrollingText = disableScrollingText
+                disableScrollingText = disableScrollingText,
+                shelfCard = true
             )
         }
     }

@@ -1,6 +1,7 @@
 package it.fast4x.riplay.ui.items
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.layout.Box
@@ -79,7 +80,8 @@ fun AlbumItem(
     yearCentered: Boolean? = true,
     showAuthors: Boolean? = false,
     isYoutubeAlbum: Boolean = false,
-    disableScrollingText: Boolean
+    disableScrollingText: Boolean,
+    shelfCard: Boolean = false
 ) {
     AlbumItem(
         thumbnailUrl = album.thumbnail?.url,
@@ -92,10 +94,15 @@ fun AlbumItem(
         alternative = alternative,
         modifier = modifier,
         disableScrollingText = disableScrollingText,
-        isYoutubeAlbum = isYoutubeAlbum
+        isYoutubeAlbum = isYoutubeAlbum,
+        shelfCard = shelfCard
     )
 }
 
+/**
+ * [shelfCard]: Home shelf look. The title wraps to two lines and ends in an ellipsis instead
+ * of scrolling, since a marquee caught mid-scroll reads as a cut title; the authors keep one line.
+ */
 @Composable
 fun AlbumItem(
     thumbnailUrl: String?,
@@ -111,8 +118,10 @@ fun AlbumItem(
     alternative: Boolean = false,
     showAuthors: Boolean? = false,
     disableScrollingText: Boolean,
-    isYoutubeAlbum: Boolean = false
+    isYoutubeAlbum: Boolean = false,
+    shelfCard: Boolean = false
 ) {
+    val scrollText = !disableScrollingText && !shelfCard
     ItemContainer(
         alternative = alternative,
         thumbnailSizeDp = thumbnailSizeDp,
@@ -145,9 +154,10 @@ fun AlbumItem(
             if (isYoutubeAlbum) {
                 Image(
                     painter = painterResource(R.drawable.internet),
-                    colorFilter = ColorFilter.tint(Color.Red.copy(0.75f).compositeOver(Color.White)),
+                    colorFilter = ColorFilter.tint(Color.White),
                     modifier = Modifier
                         .size(if (homePage) 0.3*iconSize else 40.dp)
+                        .background(Color.Black.copy(alpha = 0.55f), CircleShape)
                         .padding(all = 5.dp),
                     contentDescription = "Background Image",
                     contentScale = ContentScale.Fit
@@ -158,10 +168,10 @@ fun AlbumItem(
             BasicText(
                 text = cleanPrefix(title ?: ""),
                 style = typography().xs.semiBold,
-                maxLines = 1, //if (alternative) 1 else 2,
+                maxLines = if (shelfCard) 2 else 1, //if (alternative) 1 else 2,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier
-                    .applyIf(!disableScrollingText) { basicMarquee(iterations = Int.MAX_VALUE) }
+                    .applyIf(scrollText) { basicMarquee(iterations = Int.MAX_VALUE) }
                     .align(
                         if (yearCentered == true) Alignment.CenterHorizontally else Alignment.Start)
             )
@@ -174,7 +184,7 @@ fun AlbumItem(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier
-                            .applyIf(!disableScrollingText) { basicMarquee(iterations = Int.MAX_VALUE) }
+                            .applyIf(scrollText) { basicMarquee(iterations = Int.MAX_VALUE) }
                             .align(
                                 if (yearCentered == true) Alignment.CenterHorizontally else Alignment.Start)
                     )

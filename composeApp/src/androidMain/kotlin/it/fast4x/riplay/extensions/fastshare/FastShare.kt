@@ -1,6 +1,8 @@
 package it.fast4x.riplay.extensions.fastshare
 
 import android.content.ActivityNotFoundException
+import it.fast4x.riplay.utils.isLocal
+import it.fast4x.riplay.utils.isRadio
 import android.content.Context
 import android.content.Intent
 import java.net.HttpURLConnection
@@ -64,14 +66,41 @@ import it.fast4x.riplay.enums.ThumbnailRoundness
 import it.fast4x.riplay.extensions.preferences.rememberObservedPreference
 import it.fast4x.riplay.extensions.preferences.thumbnailRoundnessKey
 import it.fast4x.riplay.ui.components.CustomModalBottomSheet
+import it.fast4x.riplay.ui.components.GlobalSheetState
+import it.fast4x.riplay.ui.components.SheetDragHandle
+import it.fast4x.riplay.ui.components.SheetShape
 import it.fast4x.riplay.ui.components.themed.ConfirmationDialog
 import it.fast4x.riplay.ui.components.themed.SmartMessage
+import it.fast4x.riplay.ui.styling.semiBold
 import it.fast4x.riplay.utils.asSong
 import it.fast4x.riplay.utils.colorPalette
 import it.fast4x.riplay.utils.copyTextToClipboard
 import it.fast4x.riplay.utils.thumbnailShape
 import it.fast4x.riplay.utils.typography
 import kotlinx.coroutines.launch
+
+/**
+ * Opens the share sheet from inside a menu shown by [GlobalSheetState]. The menu
+ * sheet is replaced rather than left open underneath, so the two never stack.
+ */
+fun GlobalSheetState.displayFastShare(
+    content: Any,
+    showLinks: Boolean? = true,
+    showShareWith: Boolean? = true,
+) {
+    // Stations and device files have no link to share; closing the menu onto nothing
+    // looked like the tap was swallowed, so the menu simply stays.
+    if (content is MediaItem && (content.isRadio || content.isLocal)) return
+    displayDetached {
+        FastShare(
+            showFastShare = true,
+            showLinks = showLinks,
+            showShareWith = showShareWith,
+            onDismissRequest = { hide() },
+            content = content
+        )
+    }
+}
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
@@ -141,21 +170,18 @@ fun FastShare(
         contentColor = colorPalette().background0,
         modifier = Modifier.fillMaxWidth(),
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        tonalElevation = 0.dp,
         dragHandle = {
-            Surface(
-                modifier = Modifier.padding(vertical = 0.dp),
-                color = colorPalette().background0,
-                shape = thumbnailShape()
-            ) {
-                Image(
-                    painter = painterResource(R.drawable.share_social),
-                    contentDescription = null,
-                    colorFilter = ColorFilter.tint(colorPalette().text),
-                    modifier = Modifier.size(30.dp)
+            Column(modifier = Modifier.fillMaxWidth()) {
+                SheetDragHandle()
+                Text(
+                    text = stringResource(R.string.share_sheet_title),
+                    style = typography().m.semiBold,
+                    modifier = Modifier.padding(horizontal = 24.dp)
                 )
             }
         },
-        shape = thumbnailRoundness.shape()
+        shape = SheetShape
     ) {
         val shareToApp = { packageName: String? ->
             if (!isGeneratingImage) {

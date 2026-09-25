@@ -88,7 +88,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import it.fast4x.riplay.utils.colorPalette
 import it.fast4x.riplay.enums.PopupType
-import it.fast4x.riplay.extensions.fastshare.FastShare
+import it.fast4x.riplay.extensions.fastshare.displayFastShare
+import it.fast4x.riplay.ui.components.LocalGlobalSheetState
 import it.fast4x.riplay.data.models.Queues
 import it.fast4x.riplay.data.models.Song
 import it.fast4x.riplay.data.models.defaultQueue
@@ -424,11 +425,12 @@ fun MediaItemGridMenu (
     }
 
     val topContent = @Composable {
-        var showFastShare by remember { mutableStateOf(false) }
+        val menuState = LocalGlobalSheetState.current
+        // SongItem already pads 16.dp, so start = 4.dp lines the artwork up at 20.dp.
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
-                .padding(end = 12.dp)
+                .padding(start = 4.dp, end = 16.dp)
         ) {
             SongItem(
                 mediaItem = mediaItem,
@@ -484,7 +486,7 @@ fun MediaItemGridMenu (
                         icon = R.drawable.share_social,
                         color = colorPalette().text,
                         onClick = {
-                            showFastShare = true
+                            menuState.displayFastShare(mediaItem)
 //                            val sendIntent = Intent().apply {
 //                                action = Intent.ACTION_SEND
 //                                type = "text/plain"
@@ -506,11 +508,7 @@ fun MediaItemGridMenu (
             }
 
         }
-        FastShare(
-            showFastShare = showFastShare,
-            content = mediaItem,
-            onDismissRequest = { showFastShare = false }
-        )
+        MenuHeaderDivider()
     }
 
     var showCircularSlider by remember {
@@ -889,14 +887,7 @@ fun MediaItemGridMenu (
                 )
             }
 
-            var showFastShare by remember { mutableStateOf(false) }
-            FastShare(
-                showFastShare,
-                showLinks = false,
-                showShareWith = false,
-                onDismissRequest = { showFastShare = false },
-                content = mediaItem
-            )
+            val menuState = LocalGlobalSheetState.current
 
             GridMenu(
                 contentPadding = PaddingValues(
@@ -943,7 +934,11 @@ fun MediaItemGridMenu (
                         colorIcon = colorPalette.text,
                         colorText = colorPalette.text,
                         onClick = {
-                            showFastShare = true
+                            menuState.displayFastShare(
+                                mediaItem,
+                                showLinks = false,
+                                showShareWith = false
+                            )
                         }
                     )
                 }

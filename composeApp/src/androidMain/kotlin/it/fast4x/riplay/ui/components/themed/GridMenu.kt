@@ -15,9 +15,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyGridScope
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ShapeDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -30,7 +29,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import it.fast4x.riplay.ui.styling.medium
 import it.fast4x.riplay.utils.colorPalette
+import it.fast4x.riplay.utils.typography
 
 val GridMenuItemHeight = 96.dp
 
@@ -43,12 +44,12 @@ fun GridMenu(
 ) {
 
     Column(
+        // No transparent top gap any more: the global sheet now draws its own rounded
+        // surface and drag-handle pill above this content.
         modifier = modifier
-            .padding(top = 48.dp)
             .fillMaxWidth()
             .background(colorPalette().background1)
-            .padding(top = 2.dp)
-            .padding(vertical = 8.dp),
+            .padding(bottom = 8.dp),
     ) {
 
         if (topContent != null) {
@@ -105,7 +106,7 @@ fun LazyGridScope.GridMenuItem(
     item {
         Column(
             modifier = modifier
-                .clip(ShapeDefaults.Large)
+                .clip(RoundedCornerShape(16.dp))
                 .height(GridMenuItemHeight)
                 .clickable(
                     enabled = enabled,
@@ -125,7 +126,7 @@ fun LazyGridScope.GridMenuItem(
                 text = titleString.ifEmpty { stringResource(title) },
                 overflow = TextOverflow.Ellipsis,
                 color = colorText,
-                style = MaterialTheme.typography.labelLarge,
+                style = typography().xs.medium,
                 textAlign = TextAlign.Center,
                 maxLines = 1,
                 modifier = Modifier.fillMaxWidth()

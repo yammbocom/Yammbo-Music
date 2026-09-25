@@ -201,7 +201,10 @@ fun ConfirmationDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         modifier = modifier,
+        shape = RoundedCornerShape(20.dp),
         containerColor = colorPalette().background1,
+        // No Material tonal tint: the surface must stay the exact palette grey.
+        tonalElevation = 0.dp,
         textContentColor = colorPalette().text,
 
         text = {
@@ -252,6 +255,7 @@ fun ConfirmationDialog(
                         onConfirm()
                         onDismiss()
                     },
+                    shape = CircleShape,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = colorPalette().text,
                         contentColor = colorPalette().background0
@@ -280,6 +284,7 @@ fun ConfirmationDialog(
             if (cancelBackgroundPrimary) {
                 Button(
                     onClick = onCancel,
+                    shape = CircleShape,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = colorPalette().text,
                         contentColor = colorPalette().background0
@@ -291,7 +296,7 @@ fun ConfirmationDialog(
                 TextButton(
                     onClick = onCancel,
                     colors = ButtonDefaults.textButtonColors(
-                        contentColor = colorPalette().textSecondary
+                        contentColor = colorPalette().text
                     )
                 ) {
                     Text(cancelText)
@@ -403,9 +408,9 @@ inline fun DefaultDialog(
                 .padding(all = 10.dp)
                 .background(
                     color = colorPalette().background1,
-                    shape = RoundedCornerShape(8.dp)
+                    shape = RoundedCornerShape(20.dp)
                 )
-                .padding(horizontal = 24.dp, vertical = 16.dp),
+                .padding(all = 24.dp),
             content = content
         )
     }
@@ -426,8 +431,8 @@ fun <T> ValueSelectorDialog(
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             modifier = modifier,
-            shape = RoundedCornerShape(8.dp),
-            tonalElevation = 6.dp,
+            shape = RoundedCornerShape(20.dp),
+            tonalElevation = 0.dp,
             color = colorPalette().background1
         ) {
             Column(
@@ -437,7 +442,8 @@ fun <T> ValueSelectorDialog(
                 // Header
                 Text(
                     text = title,
-                    style = typography().s.semiBold,
+                    style = typography().m.semiBold,
+                    color = colorPalette().text,
                     modifier = Modifier.padding(horizontal = 24.dp)
                 )
 
@@ -445,7 +451,7 @@ fun <T> ValueSelectorDialog(
                     Text(
                         text = titleSecondary,
                         style = typography().xxs.semiBold,
-                        color = colorPalette().background1,
+                        color = colorPalette().textSecondary,
                         modifier = Modifier.padding(horizontal = 24.dp).padding(top = 8.dp)
                     )
                 }
@@ -453,7 +459,8 @@ fun <T> ValueSelectorDialog(
                 // Divider
                 HorizontalDivider(
                     modifier = Modifier.padding(vertical = 12.dp),
-                    color = colorPalette().accent
+                    thickness = 1.dp,
+                    color = colorPalette().background2
                 )
 
                 // List
@@ -635,8 +642,8 @@ fun SelectorDialog(
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             modifier = modifier,
-            shape = RoundedCornerShape(8.dp),
-            tonalElevation = 6.dp,
+            shape = RoundedCornerShape(20.dp),
+            tonalElevation = 0.dp,
             color = colorPalette().background1
         ) {
             Column(
@@ -645,14 +652,16 @@ fun SelectorDialog(
                 // Title
                 Text(
                     text = title,
-                    style =  typography().s.semiBold,
+                    style =  typography().m.semiBold,
+                    color = colorPalette().text,
                     modifier = Modifier.padding(horizontal = 24.dp)
                 )
 
                 // Divider
                 HorizontalDivider(
                     modifier = Modifier.padding(vertical = 12.dp),
-                    color = colorPalette().accent
+                    thickness = 1.dp,
+                    color = colorPalette().background2
                 )
 
                 // List
@@ -806,9 +815,9 @@ fun SelectorArtistsDialog(
         Surface(
             modifier = modifier
                 .size(dialogSize)
-                .clip(thumbnailRoundness.shape()),
+                .clip(RoundedCornerShape(20.dp)),
             color = colorPalette().background1,
-            tonalElevation = 8.dp
+            tonalElevation = 0.dp
         ) {
             if (values != null) {
                 val pagerState = rememberPagerState(pageCount = { values.size })
@@ -859,7 +868,7 @@ fun SelectorArtistsDialog(
                                     painter = painterResource(R.drawable.internet),
                                     contentDescription = "Youtube Artist",
                                     colorFilter = ColorFilter.tint(
-                                        Color.Red.copy(alpha = 0.75f).compositeOver(Color.White)
+                                        colorPalette().text
                                     ),
                                     modifier = Modifier
                                         .padding(10.dp)
@@ -1011,7 +1020,7 @@ inline fun SelectorArtistsDialog(
                                 Image(
                                     painter = painterResource(R.drawable.internet),
                                     colorFilter = ColorFilter.tint(
-                                        Color.Red.copy(0.75f).compositeOver(Color.White)
+                                        colorPalette().text
                                     ),
                                     modifier = Modifier
                                         .size(40.dp)
@@ -1095,8 +1104,8 @@ fun InputNumericDialog(
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             modifier = modifier,
-            shape = RoundedCornerShape(8.dp),
-            tonalElevation = 6.dp,
+            shape = RoundedCornerShape(20.dp),
+            tonalElevation = 0.dp,
             color = colorPalette().background1
         ) {
             Column(
@@ -1107,7 +1116,7 @@ fun InputNumericDialog(
                 // Title
                 Text(
                     text = title,
-                    style = typography().s.semiBold,
+                    style = typography().m.semiBold,
                     color = colorPalette().text
                 )
 
@@ -1149,12 +1158,17 @@ fun InputNumericDialog(
                     horizontalArrangement = Arrangement.End
                 ) {
                     TextButton(onClick = onDismiss) {
-                        Text(stringResource(R.string.cancel))
+                        Text(stringResource(R.string.cancel), color = colorPalette().text)
                     }
 
                     Spacer(modifier = Modifier.width(8.dp))
 
-                    TextButton(
+                    Button(
+                        shape = CircleShape,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = colorPalette().text,
+                            contentColor = colorPalette().background0
+                        ),
                         onClick = {
 
                             val numericValue = text.toIntOrNull()
@@ -1176,7 +1190,7 @@ fun InputNumericDialog(
                             }
                         }
                     ) {
-                        Text(stringResource(R.string.confirm), color = colorPalette().text)
+                        Text(stringResource(R.string.confirm), color = colorPalette().background0)
                     }
                 }
             }
@@ -1347,8 +1361,8 @@ fun InputTextDialog(
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             modifier = modifier,
-            shape = RoundedCornerShape(8.dp),
-            tonalElevation = 6.dp,
+            shape = RoundedCornerShape(20.dp),
+            tonalElevation = 0.dp,
             color = colorPalette().background1
         ) {
             Column(
@@ -1359,7 +1373,7 @@ fun InputTextDialog(
                 // Title
                 Text(
                     text = title,
-                    style = typography().s.semiBold,
+                    style = typography().m.semiBold,
                     color = colorPalette().text
                 )
 
@@ -1407,12 +1421,18 @@ fun InputTextDialog(
                     ) {
                         Checkbox(
                             checked = usePrefix,
-                            onCheckedChange = { usePrefix = it }
+                            onCheckedChange = { usePrefix = it },
+                            colors = CheckboxDefaults.colors(
+                                checkedColor = colorPalette().text,
+                                checkmarkColor = colorPalette().background0,
+                                uncheckedColor = colorPalette().textSecondary
+                            )
                         )
                         Spacer(Modifier.width(8.dp))
                         Text(
                             text = stringResource(R.string.set_custom_value),
-                            style = typography().xs.medium
+                            style = typography().xs.medium,
+                            color = colorPalette().textSecondary
                         )
                     }
                 }
@@ -1429,7 +1449,12 @@ fun InputTextDialog(
 
                     Spacer(modifier = Modifier.width(8.dp))
 
-                    TextButton(
+                    Button(
+                        shape = CircleShape,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = colorPalette().text,
+                            contentColor = colorPalette().background0
+                        ),
                         onClick = {
 
                             val currentValue = text.trim()
@@ -1464,7 +1489,7 @@ fun InputTextDialog(
                             }
                         }
                     ) {
-                        Text(stringResource(R.string.confirm), color = colorPalette().text)
+                        Text(stringResource(R.string.confirm), color = colorPalette().background0)
                     }
                 }
             }
@@ -1685,8 +1710,9 @@ inline fun StringListDialog(
         Column(
             modifier = modifier
                 .padding(all = 10.dp)
-                .background(color = colorPalette().background1, shape = RoundedCornerShape(8.dp))
-                .padding(vertical = 16.dp)
+                .background(color = colorPalette().background1, shape = RoundedCornerShape(20.dp))
+                // 12.dp here plus the 12.dp row padding below = 24.dp content inset.
+                .padding(vertical = 24.dp, horizontal = 12.dp)
                 .defaultMinSize(Dp.Unspecified, 250.dp)
                 .verticalScroll(rememberScrollState())
         ) {
@@ -1700,7 +1726,7 @@ inline fun StringListDialog(
             ) {
                 BasicText(
                     text = title,
-                    style = typography().m.semiBold,
+                    style = typography().m.semiBold.copy(color = colorPalette().text),
                     modifier = Modifier
                         //.padding(vertical = 8.dp, horizontal = 24.dp)
                 )
@@ -1738,7 +1764,7 @@ inline fun StringListDialog(
                         Image(
                             painter = painterResource(R.drawable.folder),
                             contentDescription = null,
-                            colorFilter = ColorFilter.tint(colorPalette().red),
+                            colorFilter = ColorFilter.tint(colorPalette().textSecondary),
                             modifier = Modifier
                                 .size(24.dp)
                                 //.padding(vertical = 8.dp, horizontal = 24.dp)
@@ -1754,7 +1780,7 @@ inline fun StringListDialog(
                         Image(
                             painter = painterResource(R.drawable.trash),
                             contentDescription = null,
-                            colorFilter = ColorFilter.tint(colorPalette().red),
+                            colorFilter = ColorFilter.tint(colorPalette().text),
                             modifier = Modifier
                                 .size(24.dp)
                                 //.padding(vertical = 8.dp, horizontal = 24.dp)

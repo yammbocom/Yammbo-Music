@@ -28,8 +28,20 @@ class GlobalSheetState {
     var content by mutableStateOf<@Composable () -> Unit>({})
         private set
 
+    // True when the content draws its own window (e.g. the share sheet) and must be
+    // composed without the menu sheet around it, so two sheets never stack.
+    var isDetached by mutableStateOf(false)
+        private set
+
     fun display(content: @Composable () -> Unit) {
         this.content = content
+        isDetached = false
+        isDisplayed = true
+    }
+
+    fun displayDetached(content: @Composable () -> Unit) {
+        this.content = content
+        isDetached = true
         isDisplayed = true
     }
 

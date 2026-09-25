@@ -45,12 +45,14 @@ import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.media3.common.util.UnstableApi
 import androidx.navigation.NavController
 import com.yambo.music.R
 import it.fast4x.riplay.enums.ValidationType
 import it.fast4x.riplay.ui.components.themed.DialogColorPicker
 import it.fast4x.riplay.ui.components.themed.InputTextDialog
+import it.fast4x.riplay.ui.components.themed.LocalSettingsCard
 import it.fast4x.riplay.ui.components.themed.Slider
 import it.fast4x.riplay.ui.components.themed.SmartMessage
 import it.fast4x.riplay.ui.components.themed.StringListDialog
@@ -292,46 +294,66 @@ fun SettingsEntry(
     online: Boolean = true,
     offline: Boolean = true
 ) {
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable(enabled = isEnabled, onClick = onClick)
-            .padding(horizontal = 4.dp, vertical = 10.dp)
-    ) {
-        Column(
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-            modifier = Modifier.weight(1f)
+    // Inside a settings card (settingsItem) rows get the card inset and a hairline
+    // above them; the first row's hairline is clipped by the card's top edge.
+    val inCard = LocalSettingsCard.current
+    Column(modifier = Modifier.fillMaxWidth()) {
+        if (inCard) SettingsRowDivider()
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = modifier
+                .fillMaxWidth()
+                .clickable(enabled = isEnabled, onClick = onClick)
+                .padding(horizontal = if (inCard) 12.dp else 4.dp, vertical = 14.dp)
         ) {
-            BasicText(
-                text = title,
-                style = typography().xs.semiBold.copy(color = colorPalette().text),
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-
-            if (text.isNotEmpty()) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier.weight(1f)
+            ) {
                 BasicText(
-                    text = text,
-                    style = typography().xxs.copy(color = colorPalette().textSecondary),
-                    maxLines = 3,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-
-            if (titleSecondary != null) {
-                BasicText(
-                    text = titleSecondary,
-                    style = typography().xxs.secondary,
+                    text = title,
+                    style = typography().xs.semiBold.copy(color = colorPalette().text),
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
-            }
-        }
 
-        trailingContent?.invoke()
+                if (text.isNotEmpty()) {
+                    BasicText(
+                        text = text,
+                        style = typography().xxs.copy(color = colorPalette().textSecondary),
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                if (titleSecondary != null) {
+                    BasicText(
+                        text = titleSecondary,
+                        style = typography().xxs.secondary,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+
+            trailingContent?.invoke()
+        }
     }
+}
+
+/**
+ * Hairline between rows of a settings card (same step as the MyAccountTab cards).
+ */
+@Composable
+private fun SettingsRowDivider() {
+    Box(
+        modifier = Modifier
+            .padding(horizontal = 12.dp)
+            .fillMaxWidth()
+            .height(1.dp)
+            .background(colorPalette().background2)
+    )
 }
 
 @Composable
@@ -340,21 +362,16 @@ fun SettingsEntryGroup(
     offline: Boolean = true,
     content: @Composable () -> Unit,
 ) {
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.padding(all = 12.dp)
-    ) {
-        Box(
+    val inCard = LocalSettingsCard.current
+    Column(modifier = Modifier.fillMaxWidth()) {
+        if (inCard) SettingsRowDivider()
+        // Laid out like a SettingsEntry row; the old 4x30dp side bar is gone.
+        Column(
             modifier = Modifier
-                .width(4.dp)
-                .height(30.dp)
-                .background(colorPalette().textSecondary)
-        )
-        Box(modifier = Modifier.fillMaxSize()) {
-            Column {
-                content()
-            }
+                .fillMaxWidth()
+                .padding(horizontal = if (inCard) 12.dp else 4.dp, vertical = 14.dp)
+        ) {
+            content()
 //            SettingsContextIcons(
 //                modifier = Modifier
 //                    .align(Alignment.BottomEnd),
@@ -449,10 +466,11 @@ fun SettingsEntryGroupText(
         text = if (uppercase) title.uppercase() else title,
         style = typography().xxs.copy(
             color = color,
-            fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold
+            fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+            letterSpacing = 1.sp
         ),
         modifier = modifier
-            .padding(start = 16.dp, top = 8.dp, bottom = 4.dp)
+            .padding(start = 20.dp, top = 24.dp, bottom = 8.dp)
     )
 }
 
@@ -541,7 +559,7 @@ fun ColorSettingEntry(
                 modifier = Modifier
                     .size(20.dp)
                     .background(color)
-                    .border(BorderStroke(1.dp, Color.LightGray))
+                    .border(BorderStroke(1.dp, colorPalette().textDisabled))
             )
         },
         modifier = modifier

@@ -318,6 +318,8 @@ fun GetSeekBar(
             .height(8.dp)
     )
 
+    // Unknown length (C.TIME_UNSET is negative): no elapsed / remaining labels to show.
+    if (duration < 0) return
 
     Row(
         horizontalArrangement = Arrangement.SpaceBetween,

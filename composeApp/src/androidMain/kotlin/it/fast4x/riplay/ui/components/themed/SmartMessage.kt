@@ -38,16 +38,8 @@ fun SmartMessage(
     CoroutineScope(Dispatchers.Main).launch {
         val length = if (durationLong) Toast.LENGTH_LONG else Toast.LENGTH_SHORT
 
-        if (context.preferences.getEnum(messageTypeKey, MessageType.Modern) == MessageType.Modern) {
-            when (type) {
-                PopupType.Info -> Toasty.info(context, message, length, true).show()
-                PopupType.Success -> Toasty.success(context, message, length, true).show()
-                PopupType.Error -> Toasty.error(context, message, length, true).show()
-                PopupType.Warning -> Toasty.warning(context, message, length, true).show()
-                null -> Toasty.normal(context, message, length).show()
-            }
-        } else {
-            Toasty.normal(context, message, length).show()
-        }
+        // Every type uses the neutral dark Toasty style: the coloured info/success/
+        // error/warning variants break the black-and-white brand, like the in-app bar.
+        Toasty.normal(context, message, length).show()
     }
 }

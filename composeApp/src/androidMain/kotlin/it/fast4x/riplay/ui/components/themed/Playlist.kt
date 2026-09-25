@@ -107,8 +107,9 @@ fun Playlist(
             ) {
                 Image(
                     painter = painterResource(R.drawable.internet),
-                    colorFilter = ColorFilter.tint(if (playlist.playlist.isYoutubePlaylist) Color.Red.copy(0.75f).compositeOver(
-                        Color.White) else colorPalette().textDisabled),
+                    // Badge sits on a colors.text circle, so the monochrome tint is inverted.
+                    colorFilter = ColorFilter.tint(if (playlist.playlist.isYoutubePlaylist) colorPalette().background0
+                        else colorPalette().textDisabled),
                     modifier = Modifier
                         .padding(all = 5.dp)
                         .background(colorPalette().text, CircleShape)

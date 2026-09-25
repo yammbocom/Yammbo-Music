@@ -307,6 +307,9 @@ class PlayerMediaBrowserService : MediaBrowserServiceCompat(),
                             Database
                                 .songs(songsSortBy, songSortOrder, 0)
                                 .first()
+                                // Stations have their own Radio node; as a song entry their id is
+                                // split on '/' by onPlayFromMediaId and the tap does nothing.
+                                .filterNot { it.song.isRadio }
                                 .take(500)
                                 .also { lastSongs = it.map { it.song } }
                                 .map { it.song.asBrowserMediaItem }
@@ -338,6 +341,9 @@ class PlayerMediaBrowserService : MediaBrowserServiceCompat(),
                             .songsFavorites(songsSortBy, songSortOrder)
                             //.favorites()
                             .first()
+                            // A hearted station is listed under Radio; here its id would be split
+                            // on '/' by onPlayFromMediaId and the tap ignored.
+                            .filterNot { it.song.isRadio }
                             .take(500)
                             .also { lastSongs = it.map { it.song }}
                             .map { it.song.asBrowserMediaItem }
@@ -395,6 +401,8 @@ class PlayerMediaBrowserService : MediaBrowserServiceCompat(),
                                 //.playlistWithSongs(id.toLong())
                                 .first()
                                 //?.songs
+                                // Same as the song lists: a station here could not be played.
+                                .filterNot { it.song.isRadio }
                                 .take(500)
                                 .also { lastSongs = it.map { it.song } }
                                 .map { it.song.asBrowserMediaItem }
@@ -813,6 +821,7 @@ class PlayerMediaBrowserService : MediaBrowserServiceCompat(),
                             .songsFavorites(songsSortBy, songSortOrder)
                             //.favorites()
                             .first()
+                            .filterNot { it.song.isRadio }
                             .also { lastSongs = it.map { it.song }}
                             .map { it.song.asBrowserMediaItem }
                             .toMutableList()

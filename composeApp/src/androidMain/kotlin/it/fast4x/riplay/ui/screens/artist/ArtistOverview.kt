@@ -297,10 +297,11 @@ fun ArtistOverview(
                                 Image(
                                     painter = painterResource(R.drawable.internet),
                                     colorFilter = ColorFilter.tint(
-                                        Color.Red.copy(0.75f).compositeOver(Color.White)
+                                        Color.White
                                     ),
                                     modifier = Modifier
                                         .size(40.dp)
+                                        .background(Color.Black.copy(alpha = 0.55f), CircleShape)
                                         .padding(all = 5.dp)
                                         .offset(10.dp,10.dp),
                                     contentDescription = "Background Image",

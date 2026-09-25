@@ -388,7 +388,9 @@ fun LocalPlayer(
         mutableStateOf(binder.player.currentMediaItem, neverEqualPolicy())
     }
 
-    var shouldBePlaying by rememberSaveable {
+    // remember, not rememberSaveable: a restored value can be stale (the listener below only
+    // fires on the next change), which left the big button on PLAY while audio was playing.
+    var shouldBePlaying by remember {
         mutableStateOf(binder.player.shouldBePlaying)
     }
 
@@ -3382,7 +3384,7 @@ fun LocalPlayer(
                   }
                 if (!expandedplayer || !isShowingLyrics || queueDurationExpanded) {
                     // A live station has no length, so the queue total would read 0s
-                    if (showTotalTimeQueue && !mediaItem.isRadio)
+                    if (showTotalTimeQueue && !mediaItem.isRadio && totalPlayTimes > 0)
                         Row(
                             horizontalArrangement = Arrangement.Center,
                             verticalAlignment = Alignment.CenterVertically,

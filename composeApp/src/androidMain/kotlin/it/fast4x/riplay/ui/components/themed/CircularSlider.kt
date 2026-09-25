@@ -40,9 +40,11 @@ fun CircularSlider(
     stroke: Float = 20f,
     cap: StrokeCap = StrokeCap.Round,
     touchStroke: Float = 50f,
-    thumbColor: Color = Color.Blue,
-    progressColor: Color = Color.Black,
-    backgroundColor: Color = Color.LightGray,
+    // Monochrome palette defaults (sleep timer): the old Black progress arc vanished on
+    // dark themes and Blue/LightGray were off-brand.
+    thumbColor: Color = colorPalette().text,
+    progressColor: Color = colorPalette().text,
+    backgroundColor: Color = colorPalette().background2,
     debug: Boolean = false,
     text: String = "",
     onChange: ((Float)->Unit)? = null

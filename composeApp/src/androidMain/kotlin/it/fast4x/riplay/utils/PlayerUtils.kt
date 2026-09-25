@@ -122,13 +122,38 @@ fun playbackUriOf(mediaId: String): Uri = when {
     else -> mediaId.toUri()
 }
 
+private val youTubeVideoIdPattern = Regex("^[A-Za-z0-9_-]{11}$")
+
+/**
+ * The YouTube video id behind this item, or null when there is none.
+ *
+ * A downloaded copy plays as `local:N`, but its row remembers the video it came from; that id
+ * is what lets the TV play the song and what seeds a related-songs radio. Stations and plain
+ * device files have no such id, and anything that is not shaped like one is refused, because
+ * YouTube answers a malformed id with an error rather than an empty result.
+ */
+val MediaItem.youTubeVideoId: String?
+    get() {
+        if (isRadio) return null
+        if (!isLocal) return mediaId.takeIf { youTubeVideoIdPattern.matches(it) }
+        // Song.asMediaItem carries it in the extras; items rebuilt elsewhere may not.
+        val id = mediaMetadata.extras?.getString("mediaId")
+            ?.takeIf { youTubeVideoIdPattern.matches(it) }
+            ?: runBlocking(Dispatchers.IO) {
+                runCatching { Database.mediaIdOfLocalSong(mediaId) }.getOrNull()
+            }
+        return id?.takeIf { youTubeVideoIdPattern.matches(it) }
+    }
+
 var GlobalVolume: Float = 0.5f
 
 fun Player.restoreGlobalVolume() {
     CoroutineScope(Dispatchers.Main).launch {
         // Silent here while a Chromecast is playing: every play/next/previous passes through
-        // this and would otherwise bring the phone back in over the TV.
-        volume = if (CastManager.isConnected.value) 0f else GlobalVolume
+        // this and would otherwise bring the phone back in over the TV. Only when the TV can
+        // actually play this item, though: a device file stays on the phone and must be heard.
+        // Same check as the service's muting, so the two can never disagree.
+        volume = if (CastManager.mutesPhoneFor(currentMediaItem)) 0f else GlobalVolume
     }
 }
 

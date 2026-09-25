@@ -1128,9 +1128,9 @@
     <string name="info_backup_or_share_appearance_settings">Backup or share appearance settings</string>
     <string name="import_appearance_settings">Import appearance settings</string>
     <string name="info_restore_backup_or_shared_appearance_settings">Restore backup or shared appearance settings</string>
-    <string name="content_type_all">All</string>
-    <string name="content_type_official">Official</string>
-    <string name="content_type_user_generated">User Generated</string>
+    <string name="content_type_all">Todo</string>
+    <string name="content_type_official">Oficial</string>
+    <string name="content_type_user_generated">Subido por usuarios</string>
     <string name="audio_preset_none">None</string>
     <string name="audio_preset_small_room">Small Room</string>
     <string name="audio_preset_medium_room">Medium Room</string>
@@ -1429,6 +1429,7 @@
     <string name="my_account">Mi Cuenta</string>
     <string name="logout_confirmation">¿Estás seguro de que quieres cerrar sesión?</string>
     <!-- Share sheet -->
+    <string name="share_sheet_title">Compartir</string>
     <string name="share_section_label">Compartir en</string>
     <string name="share_generating_image">Generando imagen…</string>
     <string name="share_with_other_apps">Compartir con otras apps</string>

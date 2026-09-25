@@ -66,7 +66,8 @@ fun Modifier.glassSurface(
     // whatever sits behind it — and in the light theme the jump between "content behind"
     // and "empty background behind" reads as a bright band across the bar. Dark themes hide
     // it because everything behind is near-black, so only the light one needs the opacity.
-    val effectiveAlpha = if (isDark) alpha else (alpha + 0.14f).coerceAtMost(0.96f)
+    // An explicitly opaque panel (alpha >= 1) stays opaque in the light theme too.
+    val effectiveAlpha = if (isDark || alpha >= 1f) alpha else (alpha + 0.14f).coerceAtMost(0.96f)
 
     return this
         .shadow(elevation = effectiveElevation, shape = shape, clip = false)

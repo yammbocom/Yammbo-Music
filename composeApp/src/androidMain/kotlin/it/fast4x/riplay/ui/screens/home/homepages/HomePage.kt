@@ -186,6 +186,9 @@ fun HomePage(
     suspend fun loadData() {
 
         runCatching {
+            // Awaited (join below): callers flip quickPicksLoading off right after this returns,
+            // which used to happen before the request had even run, so the loader vanished and
+            // Quick picks showed an empty gap until the related page arrived.
             refreshScope.launch(Dispatchers.IO) {
 
                 if (homePage == null) {
@@ -327,7 +330,7 @@ fun HomePage(
                     }
 
                 }
-            }
+            }.join()
         }.onFailure {
             Timber.e("HomePage loadData failed")
         }
@@ -379,6 +382,7 @@ fun HomePage(
 
             relatedPage = null
             trending = null
+            quickPicksLoading = true
         }
 
         loadData()
@@ -488,7 +492,10 @@ fun HomePage(
                     disableScrollingText = disableScrollingText
                 )
 
-                if (showTips) {
+                // Nothing to show once loading is over (e.g. a brand-new account whose seed
+                // found no picks): hide the whole section instead of a header over an empty gap.
+                val hasQuickPicks = trending != null || !relatedPage?.songs.isNullOrEmpty()
+                if (showTips && (hasQuickPicks || quickPicksLoading)) {
                     Title2Actions(
                         title = stringResource(R.string.quick_picks),
                         onClick1 = {
@@ -733,7 +740,8 @@ fun HomePage(
                                         modifier = Modifier.clickable(onClick = {
                                             onAlbumClick(it.key)
                                         }),
-                                        disableScrollingText = disableScrollingText
+                                        disableScrollingText = disableScrollingText,
+                                        shelfCard = true
                                     )
                                 }
                             }
@@ -758,7 +766,8 @@ fun HomePage(
                                     modifier = Modifier.clickable(onClick = {
                                         onAlbumClick(it.key)
                                     }),
-                                    disableScrollingText = disableScrollingText
+                                    disableScrollingText = disableScrollingText,
+                                    shelfCard = true
                                 )
                             }
                         }
@@ -829,6 +838,7 @@ fun HomePage(
                                             thumbnailSizePx = albumThumbnailSizePx,
                                             thumbnailSizeDp = albumThumbnailSizeDp,
                                             disableScrollingText = disableScrollingText,
+                                            shelfCard = true,
                                             modifier = Modifier.clickable(onClick = {
                                                 navController.navigate("${NavRoutes.album.name}/${item.key}")
                                             })
@@ -858,6 +868,7 @@ fun HomePage(
                                             thumbnailSizePx = playlistThumbnailSizePx,
                                             thumbnailSizeDp = playlistThumbnailSizeDp,
                                             disableScrollingText = disableScrollingText,
+                                            shelfCard = true,
                                             modifier = Modifier.clickable(onClick = {
                                                 // A podcast show is not a playlist: browsing it as one gives an empty list
                                                                                 // A mix (radio-style auto playlist) has no browsable page: play it instead of opening one

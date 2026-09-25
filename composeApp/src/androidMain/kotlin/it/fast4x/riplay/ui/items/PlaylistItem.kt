@@ -228,7 +228,8 @@ fun PlaylistItem(
     showSongsCount: Boolean = true,
     disableScrollingText: Boolean,
     isYoutubePlaylist : Boolean = false,
-    isEditable : Boolean = false
+    isEditable : Boolean = false,
+    shelfCard: Boolean = false
 ) {
     PlaylistItem(
         thumbnailUrl = playlist.thumbnail?.url,
@@ -242,7 +243,8 @@ fun PlaylistItem(
         alternative = alternative,
         disableScrollingText = disableScrollingText,
         isYoutubePlaylist = isYoutubePlaylist,
-        isEditable = isEditable
+        isEditable = isEditable,
+        shelfCard = shelfCard
     )
 }
 
@@ -260,7 +262,8 @@ fun PlaylistItem(
     disableScrollingText: Boolean,
     isYoutubePlaylist : Boolean = false,
     isEditable : Boolean = false,
-    isPodcast : Boolean = false
+    isPodcast : Boolean = false,
+    shelfCard: Boolean = false
 ) {
     PlaylistItem(
         thumbnailContent = {
@@ -305,10 +308,15 @@ fun PlaylistItem(
         disableScrollingText = disableScrollingText,
         isYoutubePlaylist = isYoutubePlaylist,
         isEditable = isEditable,
-        isPodcast = isPodcast
+        isPodcast = isPodcast,
+        shelfCard = shelfCard
     )
 }
 
+/**
+ * [shelfCard]: Home shelf look. The name wraps to two lines and ends in an ellipsis instead of
+ * scrolling, since a marquee caught mid-scroll reads as a cut title; the channel keeps one line.
+ */
 @Composable
 fun PlaylistItem(
     browseId: String? = null,
@@ -326,8 +334,10 @@ fun PlaylistItem(
     disableScrollingText: Boolean,
     isYoutubePlaylist : Boolean = false,
     isEditable : Boolean = false,
-    isPodcast : Boolean = false
+    isPodcast : Boolean = false,
+    shelfCard: Boolean = false
 ) {
+    val scrollText = !disableScrollingText && !shelfCard
     val localIconSize = remember { if (homePage) 0.2*iconSize else 30.dp }
     ItemContainer(
         alternative = alternative,
@@ -392,7 +402,7 @@ fun PlaylistItem(
             if ((browseId?.isNotEmpty() == true && name?.startsWith(PIPED_PREFIX) == false) || isYoutubePlaylist) {
                 Image(
                     painter = painterResource(R.drawable.internet),
-                    colorFilter = ColorFilter.tint(if (isYoutubePlaylist) Color.Red.copy(0.75f).compositeOver(Color.White) else colorPalette().textDisabled),
+                    colorFilter = ColorFilter.tint(if (isYoutubePlaylist) colorPalette().background0 else colorPalette().textDisabled),
                     modifier = Modifier
                         .padding(all = 5.dp)
                         .background(colorPalette().text, CircleShape)
@@ -406,7 +416,7 @@ fun PlaylistItem(
             if (isPodcast) {
                 Image(
                     painter = painterResource(R.drawable.podcast),
-                    colorFilter = ColorFilter.tint(if (isYoutubePlaylist) Color.Red.copy(0.75f).compositeOver(Color.White) else colorPalette().textDisabled),
+                    colorFilter = ColorFilter.tint(if (isYoutubePlaylist) colorPalette().background0 else colorPalette().textDisabled),
                     modifier = Modifier
                         .padding(all = 5.dp)
                         .background(colorPalette().text, CircleShape)
@@ -462,10 +472,10 @@ fun PlaylistItem(
                         //text = name.substringAfter(PINNED_PREFIX) ?: "",
                         text = cleanPrefix(name),
                         style = typography().xs.semiBold,
-                        maxLines = 1,
+                        maxLines = if (shelfCard) 2 else 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier
-                            .applyIf(!disableScrollingText) { basicMarquee(iterations = Int.MAX_VALUE) }
+                            .applyIf(scrollText) { basicMarquee(iterations = Int.MAX_VALUE) }
                     )
                 }
 
@@ -476,7 +486,7 @@ fun PlaylistItem(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier
-                        .applyIf(!disableScrollingText) { basicMarquee(iterations = Int.MAX_VALUE) }
+                        .applyIf(scrollText) { basicMarquee(iterations = Int.MAX_VALUE) }
                 )
             }
         }

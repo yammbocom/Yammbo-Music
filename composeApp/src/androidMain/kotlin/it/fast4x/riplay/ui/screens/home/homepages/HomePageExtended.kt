@@ -197,7 +197,7 @@ fun HomePageExtended(
         if (loadedData) return
 
         runCatching {
-            refreshScope.launch(Dispatchers.IO) {
+            val quickPicksJob = refreshScope.launch(Dispatchers.IO) {
                 when (playEventType) {
                     PlayEventsType.MostPlayed -> {
                         // More than 3 rows so a listener whose top plays are live stations still gets a song
@@ -280,6 +280,10 @@ fun HomePageExtended(
                 homeResult = EnvironmentExt.getHomePage(setLogin = isYtLoggedIn())
             }
             homePageResult = homeResult
+
+            // Callers flip quickPicksLoading off once this returns: wait for the picks too,
+            // or the loader vanished while they were still loading (an empty gap instead).
+            quickPicksJob.join()
 
 
         }.onFailure {

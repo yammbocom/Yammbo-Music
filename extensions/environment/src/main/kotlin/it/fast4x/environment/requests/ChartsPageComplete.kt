@@ -181,7 +181,7 @@ fun parseChart(data: SectionListRenderer?): Environment.ChartsPage? {
                                                 ?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.firstOrNull()
                                                 ?.let {
                                                     Environment.Info(it)
-                                                } ?: return null,
+                                                } ?: return@forEachIndexed, // skip this row; `return null` threw away the whole chart
                                             authors = musicResponsiveListItemRenderer.flexColumns.getOrNull(
                                                 1
                                             )?.musicResponsiveListItemFlexColumnRenderer?.text?.runs
@@ -208,7 +208,7 @@ fun parseChart(data: SectionListRenderer?): Environment.ChartsPage? {
                                                 ?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.firstOrNull()
                                                 ?.let {
                                                     Environment.Info(it)
-                                                } ?: return null,
+                                                } ?: return@forEachIndexed, // skip this row; `return null` threw away the whole chart
                                             authors = musicResponsiveListItemRenderer.flexColumns.getOrNull(
                                                 1
                                             )?.musicResponsiveListItemFlexColumnRenderer?.text?.runs

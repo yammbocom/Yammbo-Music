@@ -199,6 +199,9 @@ import it.fast4x.riplay.ui.components.BottomSheet
 import it.fast4x.riplay.ui.components.BottomSheetState
 import it.fast4x.riplay.ui.components.CustomModalBottomSheet
 import it.fast4x.riplay.ui.components.LocalGlobalSheetState
+import it.fast4x.riplay.ui.components.SheetDragHandle
+import it.fast4x.riplay.ui.components.SheetShape
+import it.fast4x.riplay.utils.colorPalette
 import it.fast4x.riplay.ui.components.rememberBottomSheetState
 import it.fast4x.riplay.ui.components.themed.ConfirmationDialog
 import it.fast4x.riplay.ui.components.themed.CrossfadeContainer
@@ -1420,7 +1423,19 @@ class MainActivity :
                                     },
                                     contentAlwaysAvailable = true
                                 ) {
-                                    if (binder?.currentMediaItemAsSong?.usesLocalPlayer == true)
+                                    // Same reactive read as the mini player: the plain getter
+                                    // does not recompose on a media item change, so a station
+                                    // started after a song kept the online player (wrong
+                                    // play/pause state, position shown x1000, queue time).
+                                    var currentFullItem by remember {
+                                        mutableStateOf<MediaItem?>(binder?.currentMediaItemFlow?.value)
+                                    }
+                                    LaunchedEffect(binder) {
+                                        val b = binder ?: return@LaunchedEffect
+                                        currentFullItem = b.currentMediaItemFlow.value
+                                        b.currentMediaItemFlow.collect { currentFullItem = it }
+                                    }
+                                    if (currentFullItem?.usesLocalPlayer == true)
                                         localPlayer()
                                     else
                                         onlinePlayer()
@@ -1428,21 +1443,21 @@ class MainActivity :
 
                                 val menuState = LocalGlobalSheetState.current
                                 CustomModalBottomSheet(
-                                    showSheet = menuState.isDisplayed,
+                                    showSheet = menuState.isDisplayed && !menuState.isDetached,
                                     onDismissRequest = menuState::hide,
-                                    containerColor = Color.Transparent,
+                                    containerColor = colorPalette().background1,
+                                    tonalElevation = 0.dp,
                                     sheetState = rememberModalBottomSheetState(
                                         skipPartiallyExpanded = true
                                     ),
-                                    dragHandle = {
-                                        Surface(
-                                            modifier = Modifier.padding(vertical = 0.dp),
-                                            color = Color.Transparent,
-                                            //shape = thumbnailShape
-                                        ) {}
-                                    },
-                                    shape = thumbnailRoundness.shape()
+                                    dragHandle = { SheetDragHandle() },
+                                    shape = SheetShape
                                 ) {
+                                    menuState.content()
+                                }
+                                // Detached content (the share sheet opened from a menu) opens its
+                                // own window, so it is composed here after the menu sheet closes.
+                                if (menuState.isDisplayed && menuState.isDetached) {
                                     menuState.content()
                                 }
 

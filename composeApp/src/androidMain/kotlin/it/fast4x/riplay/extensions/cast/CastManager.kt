@@ -62,6 +62,23 @@ object CastManager {
     private val _isPlayingOnTv = MutableStateFlow(false)
     val isPlayingOnTv: StateFlow<Boolean> = _isPlayingOnTv.asStateFlow()
 
+    /**
+     * Queue id of the item the TV was last given, or null when it holds nothing the phone is
+     * playing. A song the TV cannot take (a file on the phone) leaves the previous one loaded
+     * there, and its clock, its "ended" and a later "play" all belonged to that old song.
+     */
+    @Volatile
+    var castMediaId: String? = null
+        private set
+
+    /**
+     * True once the TV was given the current item and never confirmed it, so the sound is back
+     * on the phone. Owned by the player service; kept here so every place that decides the
+     * phone's volume reads the same answer through [mutesPhoneFor].
+     */
+    @Volatile
+    var silentFallback: Boolean = false
+
     /** Fired the moment the TV confirms it is playing, so the phone can go quiet again. */
     var onPlaybackConfirmed: (() -> Unit)? = null
 
@@ -163,6 +180,7 @@ object CastManager {
 
     private fun detach() {
         session = null
+        castMediaId = null
         youTubeChannelOpen = false
         _isPlayingOnTv.value = false
         _isConnected.value = false
@@ -204,6 +222,9 @@ object CastManager {
                 CastMessages.remoteActionOf(message)?.let { action ->
                     onRemoteAction?.invoke(action)
                 }
+                // Nothing the phone is playing is on the TV (see release): whatever it still
+                // reports is about the old song, and would confirm, fail or skip the wrong one.
+                if (castMediaId == null) return@setMessageReceivedCallbacks
                 CastMessages.errorCodeOf(message)?.let { code ->
                     _isPlayingOnTv.value = false
                     onSessionError?.invoke(youTubeErrorText(code))
@@ -238,11 +259,32 @@ object CastManager {
     /** Whether the connected receiver can play this item at all. */
     fun canCastCurrentItem(mediaItem: MediaItem?): Boolean {
         if (mediaItem == null) return false
-        // A file on the phone has no address the TV could fetch, so it stays here.
+        // A file on the phone has no address the TV could fetch, so it stays here. A downloaded
+        // copy is not cast as its video either: the local player's controls never reach the TV,
+        // so the service swaps the online song back in while casting instead.
         if (mediaItem.isLocal) return false
         if (mediaItem.isRadio) return true
         // Only online songs can travel, as a video id.
         return youTubeChannelOpen
+    }
+
+    /**
+     * Whether the phone must stay silent for this item: a session is up, the TV can play it and
+     * has not handed the sound back. The one answer every volume decision reads, so the phone
+     * is never muted for something the TV cannot play.
+     */
+    fun mutesPhoneFor(mediaItem: MediaItem?): Boolean =
+        _isConnected.value && !silentFallback && canCastCurrentItem(mediaItem)
+
+    /**
+     * Stops the TV on the song it was playing and forgets it, for when the phone moves on to
+     * something the TV cannot take. Pausing is all the receiver protocol offers; with nothing
+     * recorded as loaded, the TV's later reports are ignored and [play] does not wake it.
+     */
+    fun release() {
+        castMediaId = null
+        _isPlayingOnTv.value = false
+        pause()
     }
 
     /**
@@ -263,6 +305,7 @@ object CastManager {
         radioStreamUrlOf(item.mediaId)?.let { streamUrl ->
             val loaded = castRadio(castSession, item, streamUrl)
             Timber.d("CastManager: radio $streamUrl loaded=$loaded")
+            if (loaded) castMediaId = item.mediaId
             // Our receiver says when the station is really playing, so nothing is assumed
             // here. A foreign one never reports, so there the load has to count as proof.
             _isPlayingOnTv.value = loaded && !youTubeChannelOpen
@@ -294,6 +337,7 @@ object CastManager {
                     "showVideo" to showVideo.toString(),
                 )
             )
+            castMediaId = item.mediaId
             true
         }.getOrElse {
             Timber.e("CastManager: could not send video ${item.mediaId}: ${it.message}")
@@ -374,6 +418,9 @@ object CastManager {
 
     fun play() {
         val castSession = session ?: return
+        // Nothing of the phone's is loaded there (see release): resuming would bring back the
+        // previous song on the TV over the file the phone is playing.
+        if (castMediaId == null) return
         if (youTubeChannelOpen) {
             runCatching { castSession.sendMessage(CastMessages.NAMESPACE, CastMessages.command(CastMessages.PLAY)) }
         }
@@ -415,6 +462,8 @@ object CastManager {
 
     fun seekTo(seconds: Float) {
         val castSession = session ?: return
+        // Same as play: a seek meant for the phone's file would land in the old song.
+        if (castMediaId == null) return
         if (youTubeChannelOpen) {
             runCatching {
                 castSession.sendMessage(

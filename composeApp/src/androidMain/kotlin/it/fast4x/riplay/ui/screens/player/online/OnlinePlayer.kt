@@ -3763,7 +3763,7 @@ fun OnlinePlayer(
                             }
                         }
                         if (!expandedplayer || !isShowingLyrics || queueDurationExpanded) {
-                            if (showTotalTimeQueue)
+                            if (showTotalTimeQueue && totalPlayTimes > 0)
                                 Row(
                                     horizontalArrangement = Arrangement.Center,
                                     verticalAlignment = Alignment.CenterVertically,

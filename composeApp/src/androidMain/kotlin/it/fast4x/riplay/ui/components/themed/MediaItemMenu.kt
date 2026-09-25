@@ -2,6 +2,7 @@ package it.fast4x.riplay.ui.components.themed
 
 
 import android.annotation.SuppressLint
+import it.fast4x.riplay.utils.isRadio
 import android.content.Intent
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
@@ -128,7 +129,8 @@ import kotlinx.coroutines.withContext
 import it.fast4x.riplay.utils.colorPalette
 import it.fast4x.riplay.utils.globalContext
 import it.fast4x.riplay.enums.PopupType
-import it.fast4x.riplay.extensions.fastshare.FastShare
+import it.fast4x.riplay.extensions.fastshare.displayFastShare
+import it.fast4x.riplay.ui.components.LocalGlobalSheetState
 import it.fast4x.riplay.data.models.Queues
 import it.fast4x.riplay.data.models.defaultQueue
 import it.fast4x.riplay.utils.typography
@@ -683,7 +685,7 @@ fun BaseMediaItemMenu(
 
     //println("mediaItem in BaseMediaItemMenu albumId ${mediaItem.mediaMetadata.extras?.getString("albumId")}")
 
-    var showFastShare by remember { mutableStateOf(false) }
+    val menuState = LocalGlobalSheetState.current
 
     MediaItemMenu(
         navController = navController,
@@ -746,7 +748,7 @@ fun BaseMediaItemMenu(
 //                mediaItem.asSong.shareYTUrl.toString(),
 //                context = context
 //            )
-            showFastShare = true
+            menuState.displayFastShare(mediaItem)
 
         },
         onRemoveFromQuickPicks = onRemoveFromQuickPicks,
@@ -758,12 +760,6 @@ fun BaseMediaItemMenu(
         modifier = modifier,
         disableScrollingText = disableScrollingText,
         onBlacklist = onBlacklist,
-    )
-
-    FastShare(
-        showFastShare,
-        onDismissRequest = { showFastShare = false },
-        content = mediaItem
     )
 
 }
@@ -850,31 +846,17 @@ fun FolderItemMenu(
         modifier = Modifier
             .onPlaced { with(density) { it.size.height.toDp() } }
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-
-        ) {
-            Image(
-                painter = painterResource(R.drawable.chevron_down),
-                contentDescription = null,
-                colorFilter = ColorFilter.tint(colorPalette().text),
-                modifier = Modifier
-                    .absoluteOffset(0.dp, -10.dp)
-                    .align(Alignment.TopCenter)
-                    .size(30.dp)
-                    .clickable { onDismiss() }
-            )
-        }
-
+        // The sheet's drag-handle pill replaces the old chevron close button.
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
-                .padding(end = 12.dp)
+                .padding(start = 4.dp, end = 16.dp)
         ) {
             FolderItem(folder, thumbnailSizeDp, disableScrollingText = disableScrollingText)
 
         }
+
+        MenuHeaderDivider()
 
         Spacer(
             modifier = Modifier
@@ -1306,7 +1288,7 @@ fun MediaItemMenu(
                                             painter = painterResource(R.drawable.internet),
                                             contentDescription = null,
                                             colorFilter = ColorFilter.tint(
-                                                Color.Red.copy(0.75f).compositeOver(Color.White)
+                                                colorPalette().text
                                             ),
                                             modifier = Modifier
                                                 .size(18.dp)
@@ -1425,36 +1407,15 @@ fun MediaItemMenu(
                 val thumbnailArtistSizeDp = Dimensions.thumbnails.song + 10.dp
                 val thumbnailArtistSizePx = thumbnailArtistSizeDp.px
 
-                var showFastShare by remember { mutableStateOf(false) }
-                FastShare(
-                    showFastShare,
-                    showLinks = false,
-                    showShareWith = false,
-                    onDismissRequest = { showFastShare = false },
-                    content = mediaItem
-                )
+                val menuState = LocalGlobalSheetState.current
 
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-
-                ) {
-                    Image(
-                        painter = painterResource(R.drawable.chevron_down),
-                        contentDescription = null,
-                        colorFilter = ColorFilter.tint(colorPalette().text),
-                        modifier = Modifier
-                            .absoluteOffset(0.dp, -10.dp)
-                            .align(Alignment.TopCenter)
-                            .size(30.dp)
-                            .clickable { onDismiss() }
-                    )
-                }
-
+                // The sheet's drag-handle pill replaces the old chevron close button.
+                // SongItem already pads 16.dp, so start = 4.dp lines the artwork up
+                // with the 20.dp inset of the menu rows.
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
-                        .padding(end = 12.dp)
+                        .padding(start = 4.dp, end = 16.dp)
                 ) {
                     SongItem(
                         mediaItem = mediaItem,
@@ -1512,7 +1473,7 @@ fun MediaItemMenu(
                                 .size(24.dp)
                         )
 
-                        if (!isLocal) IconButton(
+                        if (!isLocal && !mediaItem.isRadio) IconButton(
                             icon = R.drawable.share_social,
                             color = colorPalette().text,
                             onClick = { onShare?.invoke() },
@@ -1524,6 +1485,8 @@ fun MediaItemMenu(
                     }
 
                 }
+
+                MenuHeaderDivider()
 /*
                 if (artistsList.isNotEmpty())
                     Row(
@@ -1603,7 +1566,11 @@ fun MediaItemMenu(
                         icon = R.drawable.get_app,
                         text = stringResource(R.string.share_with_external_app),
                         onClick = {
-                            showFastShare = true
+                            menuState.displayFastShare(
+                                mediaItem,
+                                showLinks = false,
+                                showShareWith = false
+                            )
                         }
                     )
                 }
@@ -2319,7 +2286,7 @@ fun AddToPlaylistItemMenu(
                                     painter = painterResource(R.drawable.internet),
                                     contentDescription = null,
                                     colorFilter = ColorFilter.tint(
-                                        Color.Red.copy(0.75f).compositeOver(Color.White)
+                                        colorPalette().text
                                     ),
                                     modifier = Modifier
                                         .size(18.dp)
@@ -2555,7 +2522,7 @@ fun AddToPlaylistArtistSongsMenu(
                                     painter = painterResource(R.drawable.internet),
                                     contentDescription = null,
                                     colorFilter = ColorFilter.tint(
-                                        Color.Red.copy(0.75f).compositeOver(Color.White)
+                                        colorPalette().text
                                     ),
                                     modifier = Modifier
                                         .size(18.dp)

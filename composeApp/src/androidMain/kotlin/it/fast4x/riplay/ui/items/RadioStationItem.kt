@@ -188,7 +188,9 @@ fun RadioStationRow(
     val details = buildList {
         if (station.country.isNotBlank()) add(station.country)
         station.tagList.take(3).joinToString(", ").takeIf { it.isNotBlank() }?.let { add(it) }
-        val quality = listOf(station.codec, if (station.bitrate > 0) "${station.bitrate} kbps" else "")
+        // The directory reports "UNKNOWN" when it could not detect the codec: say nothing then
+        val codec = station.codec.trim().takeUnless { it.equals("unknown", ignoreCase = true) }.orEmpty()
+        val quality = listOf(codec, if (station.bitrate > 0) "${station.bitrate} kbps" else "")
             .filter { it.isNotBlank() }
             .joinToString(" ")
         if (quality.isNotBlank()) add(quality)

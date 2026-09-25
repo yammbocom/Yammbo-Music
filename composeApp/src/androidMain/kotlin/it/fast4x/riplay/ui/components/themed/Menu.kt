@@ -6,10 +6,13 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -40,11 +43,28 @@ inline fun Menu(
             //.padding(top = 12.dp)
             .verticalScroll(rememberScrollState())
             .fillMaxWidth()
+            // Same surface as the global sheet (so it reads as one card there), kept
+            // for menus hosted outside the sheet.
             .background(colorPalette().background1)
             //.padding(top = 2.dp)
-            .padding(vertical = 8.dp)
+            // No top padding: the sheet's drag-handle pill already spaces the top.
+            .padding(bottom = 8.dp)
             .navigationBarsPadding(),
         content = content
+    )
+}
+
+/**
+ * Hairline between a menu header (artwork + title) and its entries.
+ */
+@Composable
+fun MenuHeaderDivider(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .padding(top = 8.dp)
+            .fillMaxWidth()
+            .height(1.dp)
+            .background(colorPalette().background2)
     )
 }
 
@@ -61,29 +81,30 @@ fun MenuEntry(
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(24.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
         modifier = Modifier
             .combinedClickable(enabled = enabled, onClick = onClick, onLongClick = onLongClick)
             .fillMaxWidth()
+            .heightIn(min = 52.dp)
             .alpha(if (enabled) 1f else 0.4f)
-            .padding(horizontal = 24.dp)
+            .padding(horizontal = 20.dp)
     ) {
         Image(
             painter = painter,
             contentDescription = null,
             colorFilter = ColorFilter.tint(colorPalette().text),
             modifier = Modifier
-                .size(15.dp)
+                .size(22.dp)
         )
 
         Column(
             modifier = Modifier
-                .padding(vertical = 16.dp)
+                .padding(vertical = 10.dp)
                 .weight(1f)
         ) {
             BasicText(
                 text = text,
-                style = typography().xs.medium
+                style = typography().s.medium.copy(color = colorPalette().text)
             )
 
             secondaryText?.let { secondaryText ->

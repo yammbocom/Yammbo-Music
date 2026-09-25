@@ -169,7 +169,10 @@ fun HomePageExtendedSections(
             disableScrollingText = disableScrollingText
         )
 
-        if (showTips) {
+        // Same as the classic Home: once loading is over with no picks, hide the whole
+        // section (header and buttons) instead of leaving an empty gap.
+        val hasQuickPicks = trending != null || !relatedInit?.songs.isNullOrEmpty()
+        if (showTips && (hasQuickPicks || quickPicksLoading)) {
             Title2Actions(
                 title = stringResource(R.string.quick_picks),
                 onClick1 = {

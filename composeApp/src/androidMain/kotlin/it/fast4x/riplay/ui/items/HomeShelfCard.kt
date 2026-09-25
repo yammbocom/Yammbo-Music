@@ -2,7 +2,6 @@ package it.fast4x.riplay.ui.items
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.BasicText
@@ -22,7 +21,6 @@ import it.fast4x.riplay.commonutils.cleanPrefix
 import it.fast4x.riplay.commonutils.thumbnail
 import it.fast4x.riplay.ui.styling.secondary
 import it.fast4x.riplay.ui.styling.semiBold
-import it.fast4x.riplay.utils.applyIf
 import it.fast4x.riplay.utils.colorPalette
 import it.fast4x.riplay.utils.thumbnailShape
 import it.fast4x.riplay.utils.typography
@@ -33,6 +31,10 @@ import it.fast4x.riplay.utils.typography
  * The YouTube Music feed sections used to reuse the full-width list rows meant for a vertical
  * list, which inside a horizontal shelf came out as long banners that looked nothing like the
  * albums and playlists next to them. Songs and videos from those sections go through this card.
+ *
+ * The text never scrolls here: the title takes up to two lines and the subtitle one, both
+ * ellipsized, because a marquee caught mid-scroll reads as a cut title. [disableScrollingText]
+ * is kept so the callers stay unchanged.
  */
 @Composable
 fun HomeShelfCard(
@@ -76,9 +78,8 @@ fun HomeShelfCard(
             BasicText(
                 text = cleanPrefix(title ?: ""),
                 style = typography().xs.semiBold,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.applyIf(!disableScrollingText) { basicMarquee(iterations = Int.MAX_VALUE) }
             )
             if (!subtitle.isNullOrBlank())
                 BasicText(
@@ -86,7 +87,6 @@ fun HomeShelfCard(
                     style = typography().xs.semiBold.secondary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.applyIf(!disableScrollingText) { basicMarquee(iterations = Int.MAX_VALUE) }
                 )
         }
     }

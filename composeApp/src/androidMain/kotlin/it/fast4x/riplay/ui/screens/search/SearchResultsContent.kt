@@ -4,10 +4,16 @@ import android.annotation.SuppressLint
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.runtime.Composable
@@ -18,7 +24,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
@@ -26,6 +34,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.SoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.ExperimentalTextApi
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.util.UnstableApi
 import androidx.navigation.NavController
@@ -60,7 +69,6 @@ import it.fast4x.riplay.ui.components.themed.Menu
 import it.fast4x.riplay.ui.components.themed.MenuEntry
 import it.fast4x.riplay.ui.components.themed.NonQueuedMediaItemMenu
 import it.fast4x.riplay.ui.components.themed.NowPlayingSongIndicator
-import it.fast4x.riplay.ui.components.themed.Title2Actions
 import it.fast4x.riplay.ui.items.AlbumItem
 import it.fast4x.riplay.ui.items.AlbumItemPlaceholder
 import it.fast4x.riplay.ui.items.ArtistItem
@@ -72,7 +80,7 @@ import it.fast4x.riplay.ui.items.VideoItem
 import it.fast4x.riplay.ui.items.VideoItemPlaceholder
 import it.fast4x.riplay.ui.styling.Dimensions
 import it.fast4x.riplay.ui.styling.px
-import it.fast4x.riplay.ui.styling.secondary
+import it.fast4x.riplay.ui.styling.semiBold
 import it.fast4x.riplay.utils.addNext
 import it.fast4x.riplay.utils.asMediaItem
 import it.fast4x.riplay.utils.colorPalette
@@ -122,30 +130,53 @@ fun SearchResultsContent(
         // Songs (0) and Videos (3) tabs — on Albums/Artists/Playlists/Featured/Podcasts it was
         // a no-op header. Only render it where it does something, with a localized title.
         if (tabIndex == 0 || tabIndex == 3) {
-            Column(modifier = Modifier.background(colorPalette().accent.copy(alpha = 0.15f))) {
-                Title2Actions(
-                    title = stringResource(R.string.filter_content_type),
-                    onClick1 = {
-                        menuState.display {
-                            Menu {
-                                ContentType.entries.forEach {
-                                    MenuEntry(
-                                        icon = it.icon,
-                                        text = it.textName,
-                                        onClick = {
-                                            onFilterChanged(it)
-                                            menuState.hide()
-                                        }
-                                    )
+            // Clean row: title on the left, the active filter as a monochrome chip on the
+            // right (outlined for All, inverted once a narrower filter is picked).
+            val colors = colorPalette()
+            val isFiltered = filterContentType != ContentType.All
+            val chipShape = RoundedCornerShape(50)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 10.dp)
+            ) {
+                BasicText(
+                    text = stringResource(R.string.filter_content_type),
+                    style = typography().m.semiBold.copy(color = colors.text),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                BasicText(
+                    text = filterContentType.textName,
+                    style = typography().xs.semiBold.copy(
+                        color = if (isFiltered) colors.background0 else colors.text
+                    ),
+                    maxLines = 1,
+                    modifier = Modifier
+                        .clip(chipShape)
+                        .background(if (isFiltered) colors.text else colors.background0)
+                        .border(width = 1.dp, color = colors.background2, shape = chipShape)
+                        .clickable {
+                            menuState.display {
+                                Menu {
+                                    ContentType.entries.forEach {
+                                        MenuEntry(
+                                            icon = it.icon,
+                                            text = it.textName,
+                                            onClick = {
+                                                onFilterChanged(it)
+                                                menuState.hide()
+                                            }
+                                        )
+                                    }
                                 }
                             }
                         }
-                    }
-                )
-                BasicText(
-                    text = filterContentType.textName,
-                    style = typography().xxs.secondary,
-                    modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 8.dp)
+                        .padding(horizontal = 14.dp, vertical = 6.dp)
                 )
             }
         }
