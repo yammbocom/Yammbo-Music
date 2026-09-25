@@ -552,10 +552,11 @@ fun Queue(
                 }
 
                 Title2Actions(
-                    title = stringResource(
-                        R.string.queue_queue,
-                        selectedQueue?.title.toString()
-                    ),
+                    // The built-in queue is called "Default"; it reads better as plain "Up next".
+                    title = selectedQueue?.title
+                        ?.takeUnless { it.isBlank() || it.equals("Default", ignoreCase = true) }
+                        ?.let { stringResource(R.string.queue_queue, it) }
+                        ?: stringResource(R.string.queue_up_next),
                     icon1 = if (showQueues) R.drawable.chevron_up else R.drawable.chevron_down,
                     icon2 = R.drawable.addqueue,
                     onClick1 = {
@@ -626,15 +627,6 @@ fun Queue(
 
                     }
 
-                Row(
-                    horizontalArrangement = Arrangement.Start,
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .background(colorPalette().background1)
-                        .fillMaxWidth()
-                ) {
-                    Title(stringResource(R.string.queue_list_of_media))
-                }
 
                 if (searching)
                     Row(

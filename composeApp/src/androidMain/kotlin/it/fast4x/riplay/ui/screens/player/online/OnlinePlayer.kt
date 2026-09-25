@@ -3302,6 +3302,8 @@ fun OnlinePlayer(
                                     screenWidth
                                 )
                             }
+                            // A video keeps the same square slot as a cover (16:9 picture centred in
+                            // it): a shorter slot pulled the controls apart from each other.
                             .conditional(
                                 !it.fast4x.riplay.utils.isLandscape &&
                                         (screenWidth > (screenHeight / 2)) || expandedplayer || (isShowingLyrics && !showlyricsthumbnail)
@@ -3317,7 +3319,9 @@ fun OnlinePlayer(
                             //.border(BorderStroke(2.dp, colorPalette().collapsedPlayerProgressBar))
                     ) {
 
-                        if (showthumbnail) {
+                        // No cover pager behind a portrait video: its neighbours peeked above and below the
+                        // 16:9 window.
+                        if (showthumbnail && !(mediaItem.isVideo && !it.fast4x.riplay.utils.isLandscape)) {
                             if ((!isShowingLyrics && !isShowingVisualizer) || (isShowingVisualizer && showvisthumbnail) || (isShowingLyrics && showlyricsthumbnail)) {
                                 if (playerType == PlayerType.Modern) {
                                     val fling = PagerDefaults.flingBehavior(
@@ -3583,8 +3587,14 @@ fun OnlinePlayer(
                             )
                         }
 
+                        val videoSlotHeight = maxWidth * 9f / 16f
                         Box(
                             modifier = Modifier
+                                // With a video the lyrics sit under the picture, not behind it:
+                                // the video view is drawn on top and hid them completely.
+                                .conditional(mediaItem.isVideo && !it.fast4x.riplay.utils.isLandscape) {
+                                    fillMaxSize().padding(top = videoSlotHeight)
+                                }
                                 .pointerInput(Unit) {
                                     detectHorizontalDragGestures(
                                         onHorizontalDrag = { change, dragAmount ->
@@ -3623,6 +3633,7 @@ fun OnlinePlayer(
                                     positionProvider = { positionAndDuration.first.toLong() * 1000 },
                                     isLandscape = isLandscape,
                                     clickLyricsText = clickLyricsText,
+                                    centerOnViewport = mediaItem.isVideo,
                                 )
                             if (!showvisthumbnail)
                                 NextVisualizer(
@@ -3657,13 +3668,33 @@ fun OnlinePlayer(
                             }
                             .clip(thumbnailRoundness.shape())
 
+                        // Exact 16:9 window for the video; padding goes before the ratio so the
+                        // picture itself, not the padded box, is 16:9.
+                        // Nearly edge to edge: a 16:9 picture is short, so it gets all the width.
+                        val videoModifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp)
+                            .aspectRatio(16f / 9f)
+                            .clip(thumbnailRoundness.shape())
+
                         //use online player core in portrait mpode
-                        thumbnailContent(
-                            if ((!mediaItem.isVideo || isShowingVisualizer))
-                                Modifier.hide()
-                            else
-                                coverModifier
-                        )
+                        if (!mediaItem.isVideo || isShowingVisualizer || it.fast4x.riplay.utils.isLandscape)
+                            thumbnailContent(
+                                if ((!mediaItem.isVideo || isShowingVisualizer))
+                                    Modifier.hide()
+                                else
+                                    coverModifier
+                            )
+                        else
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                // Low in the square slot, so the picture sits with the title and
+                                // controls instead of floating in the middle of the page.
+                                contentAlignment = if (isShowingLyrics && !showlyricsthumbnail) Alignment.TopCenter
+                                else androidx.compose.ui.BiasAlignment(0f, 0.75f)
+                            ) {
+                                thumbnailContent(videoModifier)
+                            }
 
                     }
 

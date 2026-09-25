@@ -30,7 +30,7 @@ fun Environment.SongItem.Companion.from(content: MusicShelfRenderer.Content): En
             ?.let(Environment::Info),
         authors = otherRuns
             .getOrNull(otherRuns.lastIndex - if (album == null) 1 else 2)
-            ?.map(Environment::Info),
+            ?.filterNot { it.text.isArtistSeparator() }?.map(Environment::Info),
         album = album,
         durationText = otherRuns
             .lastOrNull()
@@ -51,7 +51,7 @@ fun Environment.VideoItem.Companion.from(content: MusicShelfRenderer.Content): E
                 ?.let(Environment::Info),
             authors = otherRuns
                 .getOrNull(otherRuns.lastIndex - 2)
-                ?.map(Environment::Info),
+                ?.filterNot { it.text.isArtistSeparator() }?.map(Environment::Info),
             viewsText = otherRuns
                 .getOrNull(otherRuns.lastIndex - 1)
                 ?.firstOrNull()
@@ -82,7 +82,7 @@ fun Environment.AlbumItem.Companion.from(content: MusicShelfRenderer.Content): E
         ),
         authors = otherRuns
             .getOrNull(otherRuns.lastIndex - 1)
-            ?.map(Environment::Info),
+            ?.filterNot { it.text.isArtistSeparator() }?.map(Environment::Info),
         year = otherRuns
             .getOrNull(otherRuns.lastIndex)
             ?.firstOrNull()

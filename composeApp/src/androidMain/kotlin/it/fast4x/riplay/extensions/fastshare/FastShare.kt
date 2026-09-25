@@ -1,5 +1,6 @@
 package it.fast4x.riplay.extensions.fastshare
 
+import androidx.compose.foundation.layout.Box
 import android.content.ActivityNotFoundException
 import it.fast4x.riplay.utils.isLocal
 import it.fast4x.riplay.utils.isRadio
@@ -163,6 +164,16 @@ fun FastShare(
     val scope = rememberCoroutineScope()
     var isGeneratingImage by remember { mutableStateOf(false) }
 
+    // The story image is made as soon as the sheet opens: it is shown as a preview and the
+    // share buttons reuse it instead of rendering it again.
+    var storyUri by remember { mutableStateOf<Uri?>(null) }
+    LaunchedEffect(showFastShare, urlToShare) {
+        if (showFastShare && urlToShare.isNotEmpty() && storyUri == null)
+            storyUri = ShareImageGenerator.generateShareImage(
+                context, shareTitle, shareArtist, thumbnailUrl, urlToShare
+            )
+    }
+
     CustomModalBottomSheet(
         showSheet = showFastShare,
         onDismissRequest = onDismissRequest,
@@ -187,7 +198,7 @@ fun FastShare(
             if (!isGeneratingImage) {
                 isGeneratingImage = true
                 scope.launch {
-                    val imageUri = ShareImageGenerator.generateShareImage(
+                    val imageUri = storyUri ?: ShareImageGenerator.generateShareImage(
                         context, shareTitle, shareArtist, thumbnailUrl, urlToShare
                     )
                     isGeneratingImage = false
@@ -206,7 +217,7 @@ fun FastShare(
                 .background(colorPalette().background0)
                 .fillMaxWidth()
         ) {
-            // === Hero card: thumbnail + title + artist ===
+            // === Hero card: story preview + title + artist ===
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
@@ -215,21 +226,29 @@ fun FastShare(
                     .background(colorPalette().background2)
                     .padding(12.dp)
             ) {
-                if (!thumbnailUrl.isNullOrEmpty()) {
+                // What Instagram will get, 9:16. Grey until the image is ready.
+                val previewFrame = Modifier
+                    .width(96.dp)
+                    .height(170.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(colorPalette().background1)
+                if (storyUri != null)
                     AsyncImage(
-                        model = ImageRequest.Builder(context)
-                            .data(thumbnailUrl)
-                            .crossfade(true)
-                            .build(),
-                        contentDescription = null,
-                        modifier = Modifier
-                            .size(56.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(colorPalette().background1)
+                        model = storyUri,
+                        contentDescription = stringResource(R.string.share_story_preview_label),
+                        modifier = previewFrame
                     )
-                    Spacer(modifier = Modifier.width(12.dp))
-                }
+                else
+                    Box(modifier = previewFrame)
+                Spacer(modifier = Modifier.width(16.dp))
                 Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.share_story_preview_label),
+                        color = colorPalette().textSecondary,
+                        fontSize = 12.sp,
+                        maxLines = 1
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
                     Text(
                         text = shareTitle,
                         color = colorPalette().text,

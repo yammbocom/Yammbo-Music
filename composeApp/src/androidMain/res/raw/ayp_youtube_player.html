@@ -21,6 +21,9 @@
             left: 0;
             width: 100%;
             height: 100%;
+            /* Taps never reach YouTube: its pause bezel popped up over the picture and its
+               title and logo opened the YouTube app. The app's own buttons drive playback. */
+            pointer-events: none;
         }
 
         /* Audio only (the default): nobody sees the picture, and YouTube sizes the video

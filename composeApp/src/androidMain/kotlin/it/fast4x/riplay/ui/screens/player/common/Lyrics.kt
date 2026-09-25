@@ -99,6 +99,9 @@ import it.fast4x.riplay.data.Database
 import it.fast4x.riplay.LocalPlayerServiceBinder
 import com.yambo.music.R
 import it.fast4x.riplay.commonutils.cleanPrefix
+import it.fast4x.riplay.extensions.fastshare.ShareLyricsPicker
+import it.fast4x.riplay.extensions.fastshare.currentLyricIndex
+import it.fast4x.riplay.extensions.fastshare.parseShareableLyrics
 import it.fast4x.riplay.enums.ColorPaletteMode
 import it.fast4x.riplay.enums.Languages
 import it.fast4x.riplay.enums.LyricsAlignment
@@ -182,6 +185,24 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 
+/**
+ * Scroll offset that puts the sung line a little above the middle of the list. The list is
+ * measured on the fly; before its first layout the classic offset is used.
+ */
+private fun lyricsScrollOffset(
+    state: androidx.compose.foundation.lazy.LazyListState,
+    centerOnViewport: Boolean,
+    fallback: Int
+): Int {
+    if (!centerOnViewport) return fallback
+    val viewport = state.layoutInfo.viewportSize.height
+    return if (viewport > 0) -(viewport * 0.38f).toInt() else fallback
+}
+
+/** Songs whose cached "no synced lyrics" was re-checked this session: one retry each. */
+private val emptyLyricsRechecked: MutableSet<String> =
+    java.util.Collections.synchronizedSet(mutableSetOf())
+
 @UnstableApi
 @Composable
 fun Lyrics(
@@ -197,6 +218,9 @@ fun Lyrics(
     clickLyricsText: Boolean,
     trailingContent: (@Composable () -> Unit)? = null,
     isLandscape: Boolean,
+    // Centre the sung line in the list's own height. The default offset assumes the lyrics
+    // fill the thumbnail area; under a video they get a shorter strip and the line sat low.
+    centerOnViewport: Boolean = false,
 ) {
     AnimatedVisibility(
         visible = isDisplayed,
@@ -494,7 +518,10 @@ fun Lyrics(
             withContext(Dispatchers.IO) {
 
                 Database.lyrics(mediaId).collect { currentLyrics ->
-                    if (isShowingSynchronizedLyrics && currentLyrics?.synced == null) {
+                    // An empty cached result can come from a transient LrcLib error, so it is
+                    // checked again once per session instead of being trusted forever.
+                    if (isShowingSynchronizedLyrics && (currentLyrics?.synced == null ||
+                                (currentLyrics?.synced?.isEmpty() == true && emptyLyricsRechecked.add(mediaId)))) {
                         lyrics = null
                         var duration = withContext(Dispatchers.Main) {
                             durationProvider()
@@ -906,6 +933,16 @@ fun Lyrics(
                 .clip(thumbnailShape())
 
         ) {
+            // Every source came back empty: say so instead of leaving a blank panel.
+            if (text?.isEmpty() == true && !isError && (checkedLyricsKugou || checkedLyricsInnertube))
+                BasicText(
+                    text = stringResource(R.string.lyrics_not_available),
+                    style = typography().s.center.medium.color(PureBlackColorPalette.textSecondary),
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .padding(horizontal = 32.dp)
+                )
+
             AnimatedVisibility(
                 visible = (isError && text == null) || (invalidLrc && isShowingSynchronizedLyrics),
                 enter = slideInVertically { -it },
@@ -974,7 +1011,7 @@ fun Lyrics(
 
                         lazyListState.animateScrollToItem(
                             index = synchronizedLyrics.index + 1,
-                            scrollOffset = centerOffset
+                            scrollOffset = lyricsScrollOffset(lazyListState, centerOnViewport, centerOffset)
                         )
 
                         while (isActive) {
@@ -983,7 +1020,7 @@ fun Lyrics(
 
                             lazyListState.animateScrollToItem(
                                 index = synchronizedLyrics.index + 1,
-                                scrollOffset = centerOffset
+                                scrollOffset = lyricsScrollOffset(lazyListState, centerOnViewport, centerOffset)
                             )
                         }
                     }
@@ -2029,6 +2066,26 @@ fun Lyrics(
                             onClick = {
                                 menuState.display {
                                     Menu {
+                                        MenuEntry(
+                                            icon = R.drawable.share_social,
+                                            text = stringResource(R.string.share_lyrics_title),
+                                            enabled = !text.isNullOrBlank(),
+                                            onClick = {
+                                                val shareLines = parseShareableLyrics(text)
+                                                val metadata = mediaMetadataProvider()
+                                                val startIndex = currentLyricIndex(shareLines, positionProvider())
+                                                menuState.display {
+                                                    ShareLyricsPicker(
+                                                        lines = shareLines,
+                                                        initialIndex = startIndex,
+                                                        title = cleanPrefix(metadata.title?.toString() ?: ""),
+                                                        artist = metadata.artist?.toString() ?: "",
+                                                        thumbnailUrl = metadata.artworkUri?.toString(),
+                                                        onDismiss = menuState::hide
+                                                    )
+                                                }
+                                            }
+                                        )
                                         if (isLandscape && !showlyricsthumbnail) {
                                             MenuEntry(
                                                 icon = if (landscapeControls) R.drawable.checkmark else R.drawable.play,

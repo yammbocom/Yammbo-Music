@@ -65,16 +65,104 @@ object LrcLib {
             if (album != null) parameter("album_name", album)
         }.body<List<Track>>() //.filter { it.syncedLyrics != null }
 
+    private suspend fun queryFreeText(query: String) =
+        client.get("/api/search") {
+            parameter("q", query)
+        }.body<List<Track>>()
+
+    /**
+     * Runs one search, retrying twice on server errors: LrcLib answers 503 to a share of
+     * requests (about one in ten when measured), and one bad answer used to sink the whole
+     * lookup. Returns null when every attempt failed.
+     */
+    private suspend fun searchOrNull(block: suspend () -> List<Track>): List<Track>? {
+        repeat(3) { attempt ->
+            try {
+                return block()
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                kotlinx.coroutines.delay(400L * (attempt + 1))
+            }
+        }
+        return null
+    }
+
+    /**
+     * Synced lyrics for a track, trying progressively looser searches. The first one is the
+     * exact title and artist as before; the others exist for videos, whose titles carry
+     * "(Official Video)", "(feat. ...)" and the like and never match a catalogue entry.
+     *
+     * Timing matters more than the first hit: an official video often runs longer than the
+     * song, so a result whose length matches ours wins over one that merely matches the
+     * name. Fails when nothing synced turns up (or LrcLib never answered), so the caller
+     * falls through to its next source.
+     */
     suspend fun lyrics(
         artist: String,
         title: String,
         duration: Duration,
         album: String? = null
     ) = runCatchingCancellable {
-        val tracks = queryLyrics(artist, title, album)
-        //println("mediaItem get queryLyrics tracks ${tracks}")
-        //tracks.bestMatchingFor(title, duration)?.syncedLyrics?.let(LrcLib::Lyrics)
-        tracks.first().syncedLyrics?.let(LrcLib::Lyrics)
+        val seconds = duration.inWholeSeconds
+        fun List<Track>.synced() = filter { !it.syncedLyrics.isNullOrBlank() }
+        fun List<Track>.timed() = firstOrNull { seconds > 0 && kotlin.math.abs(it.duration - seconds) <= 3 }
+
+        var answered = false
+        var fallback: Track? = null
+        suspend fun step(block: suspend () -> List<Track>): Track? {
+            val found = searchOrNull(block)?.also { answered = true }?.synced().orEmpty()
+            if (fallback == null) fallback = found.firstOrNull()
+            return found.timed()
+        }
+
+        val artists = splitArtists(artist)
+        val mainArtist = artists.firstOrNull() ?: artist
+        val cleanTitle = cleanTrackTitle(title, artists)
+
+        val exact = step { queryLyrics(artist, title, album) }
+        // The exact query is the old behaviour: take its first hit unless a better-timed
+        // one can still be found for a video-style title.
+        if (exact != null) return@runCatchingCancellable Lyrics(exact.syncedLyrics!!)
+        if (fallback != null && cleanTitle == title)
+            return@runCatchingCancellable Lyrics(fallback!!.syncedLyrics!!)
+
+        if (cleanTitle != title || mainArtist != artist)
+            step { queryLyrics(mainArtist, cleanTitle) }
+                ?.let { return@runCatchingCancellable Lyrics(it.syncedLyrics!!) }
+
+        // Title only: keep hits credited to one of our artists.
+        step {
+            queryFreeText(cleanTitle).filter { track ->
+                artists.any { track.artistName.contains(it, ignoreCase = true) }
+            }
+        }?.let { return@runCatchingCancellable Lyrics(it.syncedLyrics!!) }
+
+        fallback?.syncedLyrics?.let(LrcLib::Lyrics)
+            ?: error(if (answered) "No synced lyrics on LrcLib" else "LrcLib unavailable")
+    }
+
+    private val titleNoise = Regex(
+        """\s*[(\[][^)\]]*(official|oficial|video|vídeo|audio|lyric|letra|visuali[sz]er|feat\.?|ft\.|prod\.?|\bhd\b|\b4k\b|\bmv\b|en vivo|live)[^)\]]*[)\]]""",
+        RegexOption.IGNORE_CASE
+    )
+    private val trailingFeat = Regex("""\s+(feat\.?|ft\.|featuring)\s+.*$""", RegexOption.IGNORE_CASE)
+
+    private fun splitArtists(artist: String): List<String> =
+        artist.split(",", "&", " x ", " X ", " y ", " and ")
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+
+    /** "Noriel - De las 2 (Official Video) (feat. Bad Bunny)" becomes "De las 2". */
+    private fun cleanTrackTitle(title: String, artists: List<String>): String {
+        var t = title
+        // "Artist - Title" uploads: drop the artist part when it is one of ours.
+        val dash = t.indexOf(" - ")
+        if (dash > 0 && artists.any { t.substring(0, dash).contains(it, ignoreCase = true) })
+            t = t.substring(dash + 3)
+        t = titleNoise.replace(t, "")
+        t = trailingFeat.replace(t, "")
+        return t.replace(Regex("""\s{2,}"""), " ").trim().ifEmpty { title }
     }
 
     suspend fun lyrics(artist: String, title: String) = runCatchingCancellable {

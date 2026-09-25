@@ -1894,120 +1894,172 @@ fun NewVersionDialog (
         UpdateInstallGuideDialog(context = context, onDismiss = onDismiss)
         return
     }
+    // What's new, in the words of the release notes: each "## Heading" is a highlight and
+    // its first bullet a one-line description. Loaded quietly; a generic line stands in when
+    // offline, so the dialog never waits on the network.
+    var highlights by remember { mutableStateOf<List<Pair<String, String>>>(emptyList()) }
+    LaunchedEffect(updatedVersionName) {
+        highlights = withContext(Dispatchers.IO) { fetchReleaseHighlights() }
+    }
+
     DefaultDialog(
         onDismiss = { onDismiss() },
+        horizontalAlignment = Alignment.Start,
         content = {
-            // Title
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Image(
+                    painter = painterResource(R.drawable.yambo_icon),
+                    contentDescription = null,
+                    colorFilter = ColorFilter.tint(colors.onAccent),
+                    modifier = Modifier
+                        .size(52.dp)
+                        .clip(androidx.compose.foundation.shape.RoundedCornerShape(14.dp))
+                        .background(colors.accent)
+                        .padding(12.dp),
+                )
+                Spacer(modifier = Modifier.width(14.dp))
+                Column {
+                    BasicText(
+                        text = stringResource(R.string.app_update_headline),
+                        style = typo.m.bold.copy(color = colors.text),
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    BasicText(
+                        text = stringResource(R.string.app_update_version_line, updatedVersionName),
+                        style = typo.xs.copy(color = colors.textSecondary),
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
             BasicText(
-                text = stringResource(R.string.update_available),
-                style = typo.s.bold.copy(color = colors.text),
+                text = stringResource(R.string.app_update_whats_new),
+                style = typo.xs.bold.copy(color = colors.textSecondary),
             )
             Spacer(modifier = Modifier.height(10.dp))
-            // Version line
+
+            val shown = highlights.ifEmpty {
+                listOf(
+                    stringResource(R.string.app_update_generic_title) to
+                        stringResource(R.string.app_update_generic_body)
+                )
+            }
+            Column(
+                modifier = Modifier
+                    .heightIn(max = 280.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                shown.forEach { (title, detail) ->
+                    Row(verticalAlignment = Alignment.Top) {
+                        Box(
+                            modifier = Modifier
+                                .padding(top = 6.dp)
+                                .size(7.dp)
+                                .clip(CircleShape)
+                                .background(colors.text)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            BasicText(
+                                text = title,
+                                style = typo.xs.bold.copy(color = colors.text),
+                            )
+                            if (detail.isNotBlank())
+                                BasicText(
+                                    text = detail,
+                                    style = typo.xs.copy(color = colors.textSecondary),
+                                    modifier = Modifier.padding(top = 2.dp),
+                                )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(22.dp))
+
+            // Primary: download through DownloadManager; the installer opens by itself.
             BasicText(
-                text = String.format(
-                    stringResource(R.string.app_update_dialog_new),
-                    updatedVersionName,
+                text = stringResource(R.string.app_update_install_now),
+                style = typo.s.bold.copy(
+                    color = colors.onAccent,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
                 ),
-                style = typo.xs.semiBold.copy(color = colors.text),
-            )
-            Spacer(modifier = Modifier.height(18.dp))
-
-            val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
-
-            // Primary action — direct DownloadManager fetch of the APK from
-            // the GitHub release asset. Progress shows in the system
-            // notification shade; tapping the completed notification opens
-            // the Package Installer. No browser detour.
-            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(androidx.compose.foundation.shape.RoundedCornerShape(14.dp))
+                    .clip(RoundedCornerShape(50))
                     .background(colors.accent)
                     .clickable {
-                        // Show feedback first so the user immediately sees the
-                        // tap registered, even if DownloadManager later fails.
                         it.fast4x.riplay.ui.components.themed.SmartMessage(
                             context.getString(R.string.app_update_download_started),
                             it.fast4x.riplay.enums.PopupType.Info,
                             context = context,
                         )
                         it.fast4x.riplay.utils.downloadUpdateApk(context, updatedVersionName)
-                        // Don't snooze: if the user never installs, the prompt
-                        // must return. Show the install guide instead.
+                        // Don't snooze: if the user never installs, the prompt must return.
                         showInstallGuide = true
                     }
-                    .padding(vertical = 14.dp, horizontal = 16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center,
-            ) {
-                Image(
-                    painter = painterResource(R.drawable.downloaded),
-                    contentDescription = null,
-                    colorFilter = ColorFilter.tint(colors.onAccent),
-                    modifier = Modifier.size(20.dp),
-                )
-                Spacer(modifier = Modifier.width(10.dp))
-                BasicText(
-                    text = stringResource(R.string.app_update_download_now),
-                    style = typo.xs.bold.copy(color = colors.onAccent),
-                )
-            }
+                    .padding(vertical = 15.dp),
+            )
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(4.dp))
 
-            // Secondary — open the GitHub Releases page in the browser. Lets
-            // power users inspect changelog, signatures, or pick a specific
-            // version before downloading.
-            Row(
+            // Snooze: stamps the version as seen and closes.
+            BasicText(
+                text = stringResource(R.string.app_update_later),
+                style = typo.xs.semiBold.copy(
+                    color = colors.textSecondary,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                ),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(androidx.compose.foundation.shape.RoundedCornerShape(14.dp))
-                    .background(colors.background2)
-                    .clickable {
-                        onDismiss()
-                        uriHandler.openUri(
-                            "https://github.com/yammbocom/Yammbo-Music/releases/latest"
-                        )
-                    }
-                    .padding(vertical = 12.dp, horizontal = 16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center,
-            ) {
-                Image(
-                    painter = painterResource(R.drawable.internet),
-                    contentDescription = null,
-                    colorFilter = ColorFilter.tint(colors.text),
-                    modifier = Modifier.size(18.dp),
-                )
-                Spacer(modifier = Modifier.width(10.dp))
-                BasicText(
-                    text = stringResource(R.string.app_update_open_github),
-                    style = typo.xs.semiBold.copy(color = colors.text),
-                )
-            }
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            // Tertiary — snooze: stamps the version as seen and closes.
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(androidx.compose.foundation.shape.RoundedCornerShape(14.dp))
+                    .clip(RoundedCornerShape(50))
                     .clickable { snoozeAndDismiss() }
-                    .padding(vertical = 10.dp, horizontal = 16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center,
-            ) {
-                BasicText(
-                    text = stringResource(R.string.app_update_later),
-                    style = typo.xxs.semiBold.copy(color = colors.textDisabled),
-                )
-            }
+                    .padding(vertical = 12.dp),
+            )
         }
 
     )
 }
+
+/**
+ * Highlights of the latest release, read from its notes on GitHub: every "## Heading" with
+ * the first "- bullet" under it, markdown stripped, at most four. Empty on any failure.
+ */
+private fun fetchReleaseHighlights(): List<Pair<String, String>> = runCatching {
+    val connection = java.net.URL("https://api.github.com/repos/yammbocom/Yammbo-Music/releases/latest")
+        .openConnection() as java.net.HttpURLConnection
+    connection.connectTimeout = 8000
+    connection.readTimeout = 8000
+    connection.setRequestProperty("Accept", "application/vnd.github+json")
+    val body = connection.inputStream.bufferedReader().use { it.readText() }
+        .let { org.json.JSONObject(it).optString("body") }
+    fun clean(text: String) = text.replace(Regex("""[*_`]"""), "").trim()
+
+    val result = mutableListOf<Pair<String, String>>()
+    var heading: String? = null
+    var detail: String? = null
+    fun flush() {
+        heading?.let { result += it to (detail ?: "") }
+        heading = null
+        detail = null
+    }
+    for (raw in body.lines()) {
+        val line = raw.trim()
+        when {
+            line.startsWith("---") -> break // anything after a rule is for developers
+            line.startsWith("#") -> {
+                flush()
+                heading = clean(line.trimStart('#'))
+            }
+            (line.startsWith("- ") || line.startsWith("* ")) && heading != null && detail == null ->
+                detail = clean(line.drop(2))
+        }
+        if (result.size >= 4) break
+    }
+    flush()
+    result.filter { it.first.isNotBlank() }.take(4)
+}.getOrDefault(emptyList())
 
 @Composable
 private fun UpdateInstallGuideDialog(

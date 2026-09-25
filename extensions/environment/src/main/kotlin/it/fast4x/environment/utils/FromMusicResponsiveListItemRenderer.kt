@@ -44,7 +44,7 @@ fun Environment.SongItem.Companion.from(renderer: MusicResponsiveListItemRendere
             ?.text
             ?.runs
             ?.map { Environment.Info(name = it.text, endpoint = it.navigationEndpoint?.endpoint) }
-            ?.filterIsInstance<Environment.Info<NavigationEndpoint.Endpoint.Browse>>()
+            ?.filterIsInstance<Environment.Info<NavigationEndpoint.Endpoint.Browse>>()?.withoutArtistSeparators()
             ?.takeIf(List<Any>::isNotEmpty),
         durationText = renderer
             .fixedColumns

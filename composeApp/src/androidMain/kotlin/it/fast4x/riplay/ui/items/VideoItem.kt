@@ -101,10 +101,9 @@ fun VideoItem(
             BasicText(
                 text = title ?: "",
                 style = typography().xs.semiBold,
+                // Two wrapped lines, no marquee: a marquee on multi-line text starts mid-title.
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier
-                    .applyIf(!disableScrollingText) { basicMarquee(iterations = Int.MAX_VALUE) }
             )
 
             BasicText(

@@ -72,7 +72,7 @@ object ShareImageGenerator {
             val coverBottom = drawCoverArt(canvas, coverBitmap)
             val titleBottom = drawTitle(canvas, title, coverBottom + 92f)
             drawArtist(canvas, artist, titleBottom + 12f)
-            drawWaveform(canvas, CARD_TOP + CARD_HEIGHT - 214f, seed = "$title|$artist".hashCode())
+            drawProgressBar(canvas, CARD_TOP + CARD_HEIGHT - 214f)
             drawTransportControls(canvas, CARD_TOP + CARD_HEIGHT - 100f)
 
             // 3. Yammbo Music branding under the card
@@ -203,34 +203,24 @@ object ShareImageGenerator {
         )
     }
 
-    /**
-     * Decorative waveform in place of a flat progress line: the first third is "played"
-     * in solid white, the rest translucent. Heights are seeded by the track, so the same
-     * song always draws the same shape.
-     */
-    private fun drawWaveform(canvas: Canvas, centerY: Float, seed: Int) {
+    /** Progress line like a real player's: a filled third with a knob. */
+    private fun drawProgressBar(canvas: Canvas, centerY: Float) {
         val left = CARD_LEFT + CARD_INSET
         val right = CARD_LEFT + CARD_WIDTH - CARD_INSET
-        val bars = 46
-        val step = (right - left) / bars
-        val barWidth = step * 0.56f
-        val maxHalf = 28f
-        val minHalf = 5f
-        val random = java.util.Random(seed.toLong())
-        val played = Paint().apply { color = Color.WHITE; isAntiAlias = true }
-        val pending = Paint().apply { color = Color.parseColor("#59FFFFFF"); isAntiAlias = true }
+        val playedTo = left + (right - left) * 0.34f
 
-        for (i in 0 until bars) {
-            // Envelope keeps the edges low and the middle busy, like a real song.
-            val envelope = 0.35f + 0.65f * Math.sin(Math.PI * (i + 0.5) / bars).toFloat()
-            val half = minHalf + (maxHalf - minHalf) * envelope * (0.35f + 0.65f * random.nextFloat())
-            val x = left + i * step + (step - barWidth) / 2f
-            canvas.drawRoundRect(
-                RectF(x, centerY - half, x + barWidth, centerY + half),
-                barWidth / 2f, barWidth / 2f,
-                if (i < bars * 0.34f) played else pending
-            )
-        }
+        canvas.drawRoundRect(
+            RectF(left, centerY - 5f, right, centerY + 5f), 5f, 5f,
+            Paint().apply { color = Color.parseColor("#4DFFFFFF"); isAntiAlias = true }
+        )
+        canvas.drawRoundRect(
+            RectF(left, centerY - 5f, playedTo, centerY + 5f), 5f, 5f,
+            Paint().apply { color = Color.WHITE; isAntiAlias = true }
+        )
+        canvas.drawCircle(playedTo, centerY, 15f, Paint().apply {
+            color = Color.WHITE
+            isAntiAlias = true
+        })
     }
 
     /** Previous / play / next, drawn as paths so no drawable assets are needed. */
@@ -238,18 +228,14 @@ object ShareImageGenerator {
         val cx = IMAGE_WIDTH / 2f
         val white = Paint().apply { color = Color.WHITE; isAntiAlias = true }
 
-        // Play: solid disc with a dark triangle punched in the middle
+        // Solid disc with a pause glyph: the card shows the song as playing right now.
         canvas.drawCircle(cx, centerY, 62f, white)
-        val triangle = android.graphics.Path().apply {
-            moveTo(cx - 20f, centerY - 30f)
-            lineTo(cx + 32f, centerY)
-            lineTo(cx - 20f, centerY + 30f)
-            close()
-        }
-        canvas.drawPath(triangle, Paint().apply {
+        val glyph = Paint().apply {
             color = Color.parseColor("#0D0D0D")
             isAntiAlias = true
-        })
+        }
+        canvas.drawRoundRect(RectF(cx - 22f, centerY - 28f, cx - 8f, centerY + 28f), 4f, 4f, glyph)
+        canvas.drawRoundRect(RectF(cx + 8f, centerY - 28f, cx + 22f, centerY + 28f), 4f, 4f, glyph)
 
         drawSkipIcon(canvas, cx - 170f, centerY, white, forward = false)
         drawSkipIcon(canvas, cx + 170f, centerY, white, forward = true)
@@ -313,7 +299,7 @@ object ShareImageGenerator {
         return Color.rgb(r, g, b)
     }
 
-    private fun loadCoverArt(thumbnailUrl: String?): Bitmap? {
+    internal fun loadCoverArt(thumbnailUrl: String?): Bitmap? {
         if (thumbnailUrl.isNullOrEmpty() || thumbnailUrl == "null") return null
 
         // Try a chain of progressively-lower resolution URLs. Stops at the first one
@@ -520,7 +506,7 @@ object ShareImageGenerator {
         }
     }
 
-    private fun centerCropBitmap(source: Bitmap, targetSize: Int): Bitmap {
+    internal fun centerCropBitmap(source: Bitmap, targetSize: Int): Bitmap {
         val size = minOf(source.width, source.height)
         val x = (source.width - size) / 2
         val y = (source.height - size) / 2
@@ -530,7 +516,7 @@ object ShareImageGenerator {
         return scaled
     }
 
-    private fun saveBitmapAndGetUri(context: Context, bitmap: Bitmap): Uri? {
+    internal fun saveBitmapAndGetUri(context: Context, bitmap: Bitmap): Uri? {
         val cacheDir = File(context.cacheDir, "share_images")
         cacheDir.mkdirs()
         val file = File(cacheDir, "yammbo_share_${System.currentTimeMillis()}.png")

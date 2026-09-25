@@ -41,7 +41,7 @@ fun Environment.SongItem.Companion.from(renderer: PlaylistPanelVideoRenderer): E
             .longBylineText
             ?.splitBySeparator()
             ?.getOrNull(0)
-            ?.map(Environment::Info),
+            ?.filterNot { it.text.isArtistSeparator() }?.map(Environment::Info),
         album = renderer
             .longBylineText
             ?.splitBySeparator()

@@ -1,5 +1,9 @@
 package it.fast4x.riplay.ui.screens.player.online.components.core
 
+import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.requiredSize
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.BoxWithConstraints
 import android.view.View
 import android.view.ViewGroup
 import androidx.compose.foundation.layout.Box
@@ -24,6 +28,15 @@ import it.fast4x.riplay.extensions.preferences.rememberPreference
 import it.fast4x.riplay.utils.isLocal
 import it.fast4x.riplay.utils.isLandscape
 import it.fast4x.riplay.utils.isVideo
+
+/** Zoom that pushes YouTube's own title and "More videos" strips out of the clip. */
+private const val OVERLAY_CROP_SCALE = 1.45f
+
+/**
+ * Page height over width in portrait. Taller than 16:9 (0.5625) so the letterbox bars, where
+ * YouTube draws its strips, are tall enough to hold them once the picture fills the window.
+ */
+private const val PAGE_HEIGHT_RATIO = 1.25f
 
 @Composable
 fun OnlinePlayerView(
@@ -68,15 +81,39 @@ fun OnlinePlayerView(
         }
 
         // YouTube draws its own title, share button and "More videos" strip over the top
-        // and bottom of the picture, and no player parameter removes them. The view is
+        // and bottom of the player, and no player parameter removes them. The view is
         // blown up slightly inside a box that clips, so those strips fall outside it.
-        Box(modifier = if (actAsMini) Modifier else Modifier.clipToBounds()) {
+        //
+        // Portrait: the box is the exact 16:9 window the caller sized. The page is laid out
+        // at 1/1.45 of that width and taller than 16:9, so YouTube letterboxes the picture
+        // and puts its strips on the bars; scaled back up, the picture fills the window edge
+        // to edge and the bars with the strips land outside the clip. (Scaling a view of the
+        // window's own size instead cut a third of the picture's width off.)
+        val fitsWindow = !actAsMini && !isLandscape
+        BoxWithConstraints(
+            modifier = when {
+                actAsMini -> Modifier
+                fitsWindow -> Modifier.fillMaxSize().clipToBounds()
+                else -> Modifier.clipToBounds()
+            },
+            contentAlignment = Alignment.Center
+        ) {
+        val pageWidth = maxWidth / OVERLAY_CROP_SCALE
         AndroidView(
-            modifier = if (actAsMini) Modifier else Modifier.graphicsLayer {
-                // The same factor on both axes: scaling only the height stretched faces.
-                // 1.45 pushes the title strip and the share/YouTube row off the view.
-                scaleX = 1.45f
-                scaleY = 1.45f
+            modifier = when {
+                actAsMini -> Modifier
+                fitsWindow -> Modifier
+                    .requiredSize(pageWidth, pageWidth * PAGE_HEIGHT_RATIO)
+                    .graphicsLayer {
+                        scaleX = OVERLAY_CROP_SCALE
+                        scaleY = OVERLAY_CROP_SCALE
+                    }
+                else -> Modifier.graphicsLayer {
+                    // The same factor on both axes: scaling only the height stretched faces.
+                    // 1.45 pushes the title strip and the share/YouTube row off the view.
+                    scaleX = OVERLAY_CROP_SCALE
+                    scaleY = OVERLAY_CROP_SCALE
+                }
             },
             factory = { onlinePlayerView as View },
             update = {
@@ -92,11 +129,10 @@ fun OnlinePlayerView(
 
                     false -> {
                         it.layoutParams = if (!isLandscape) {
+                            // Sized by requiredSize above; the view just fills it.
                             ViewGroup.LayoutParams(
                                 ViewGroup.LayoutParams.MATCH_PARENT,
-                                if (playerThumbnailSize == PlayerThumbnailSize.Expanded)
-                                    ViewGroup.LayoutParams.WRAP_CONTENT
-                                else playerThumbnailSize.height
+                                ViewGroup.LayoutParams.MATCH_PARENT
                             )
                         } else {
                             ViewGroup.LayoutParams(

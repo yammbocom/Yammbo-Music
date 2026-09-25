@@ -242,6 +242,13 @@ fun Player.shuffleQueue() {
     addMediaItems(mediaItems.shuffled())
 }
 
+/**
+ * Set right before a song/video swap made from inside the open full player, so the
+ * global "new track picked" listener in MainActivity leaves the player sheet open.
+ */
+@Volatile
+var keepPlayerSheetOnNextTransition = false
+
 fun Player.forcePlay(mediaItem: MediaItem, replace: Boolean = false) {
     if (excludeMediaItem(mediaItem, globalContext())) return
 

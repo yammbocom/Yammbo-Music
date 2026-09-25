@@ -7,6 +7,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -92,6 +93,7 @@ import it.fast4x.riplay.ui.styling.align
 import it.fast4x.riplay.ui.styling.color
 import it.fast4x.riplay.ui.styling.px
 import it.fast4x.riplay.ui.styling.secondary
+import it.fast4x.riplay.ui.styling.semiBold
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.combine
@@ -259,40 +261,25 @@ fun SearchOnlineEntity (
                 else R.string.songs),
                 modifier = Modifier.padding(bottom = 12.dp)
             )
-            Column(
-                modifier = Modifier.background(colorPalette().accent.copy(alpha = 0.15f))
+            // Content filter as pills: one tap instead of a menu behind a grey card.
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.padding(bottom = 12.dp)
             ) {
-                Title2Actions(
-                    title = "Filter content type",
-                    onClick1 = {
-                        menuState.display {
-                            Menu {
-                                it.fast4x.riplay.enums.ContentType.entries.forEach {
-                                    MenuEntry(
-                                        icon = it.icon,
-                                        text = it.textName,
-                                        onClick = {
-                                            filterContentType = it
-                                            menuState.hide()
-                                        }
-                                    )
-                                }
-                            }
-                        }
-                    }
-                )
-                BasicText(
-                    text = when (filterContentType) {
-                        ContentType.All -> ContentType.All.textName
-                        ContentType.Official -> ContentType.Official.textName
-                        ContentType.UserGenerated -> ContentType.UserGenerated.textName
-
-                    },
-                    style = typography().xxs.secondary,
-                    modifier = Modifier
-                        .padding(horizontal = 16.dp)
-                        .padding(bottom = 8.dp)
-                )
+                ContentType.entries.forEach { type ->
+                    val selected = type == filterContentType
+                    BasicText(
+                        text = type.textName,
+                        style = typography().xs.semiBold.copy(
+                            color = if (selected) colorPalette().background0 else colorPalette().text
+                        ),
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .background(if (selected) colorPalette().text else colorPalette().background2)
+                            .clickable { filterContentType = type }
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                    )
+                }
             }
 
             ItemsPage(
@@ -365,7 +352,14 @@ fun SearchOnlineEntity (
                                             },
                                             onClick = {
                                                 //binder?.stopRadio()
-                                                binder?.player?.forcePlay(media.asMediaItem, true)
+                                                // Swap in place: keep the full player open.
+                                                val target = media.asMediaItem
+                                                keepPlayerSheetOnNextTransition = true
+                                                binder?.player?.forcePlay(target, true)
+                                                // forcePlay can skip the item (excluded videos, length limit); the
+                                                // listener then never consumes the flag, so drop it here.
+                                                if (binder?.player?.currentMediaItem?.mediaId != target.mediaId)
+                                                    keepPlayerSheetOnNextTransition = false
                                                 //binder?.setupRadio(media.info?.endpoint)
                                                 onDismiss()
                                             }
@@ -397,7 +391,14 @@ fun SearchOnlineEntity (
                                             },
                                             onClick = {
                                                 //binder?.stopRadio()
-                                                binder?.player?.forcePlay(media.asMediaItem, true)
+                                                // Swap in place: keep the full player open.
+                                                val target = media.asMediaItem
+                                                keepPlayerSheetOnNextTransition = true
+                                                binder?.player?.forcePlay(target, true)
+                                                // forcePlay can skip the item (excluded videos, length limit); the
+                                                // listener then never consumes the flag, so drop it here.
+                                                if (binder?.player?.currentMediaItem?.mediaId != target.mediaId)
+                                                    keepPlayerSheetOnNextTransition = false
                                                 //binder?.setupRadio(media.info?.endpoint)
                                                 onDismiss()
                                             }

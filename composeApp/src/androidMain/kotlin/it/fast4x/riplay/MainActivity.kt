@@ -161,6 +161,7 @@ import it.fast4x.riplay.extensions.preferences.contentCountryKey
 import it.fast4x.riplay.extensions.preferences.loadedDataKey
 import it.fast4x.riplay.extensions.preferences.miniPlayerTypeKey
 import it.fast4x.riplay.extensions.preferences.keepPlayerMinimizedKey
+import it.fast4x.riplay.utils.keepPlayerSheetOnNextTransition
 import it.fast4x.riplay.extensions.preferences.expandedplayerKey
 import it.fast4x.riplay.extensions.preferences.showButtonPlayerVideoKey
 import it.fast4x.riplay.extensions.preferences.navigationBarPositionKey
@@ -1604,7 +1605,10 @@ class MainActivity :
                                 //currentSecond.value = 0F
 
                                 if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_PLAYLIST_CHANGED) {
-                                    if (it.mediaMetadata.extras?.getBoolean("isFromPersistentQueue") != true) {
+                                    if (keepPlayerSheetOnNextTransition) {
+                                        // Song/video swap from inside the full player: leave it open.
+                                        keepPlayerSheetOnNextTransition = false
+                                    } else if (it.mediaMetadata.extras?.getBoolean("isFromPersistentQueue") != true) {
                                         if (getKeepPlayerMinimized())
                                             localPlayerSheetState.collapseSoft()
                                         else localPlayerSheetState.expandSoft()
