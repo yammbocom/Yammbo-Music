@@ -1,12 +1,15 @@
 package it.fast4x.riplay.utils
 
 
+import android.content.Context
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.res.stringResource
 import com.yambo.music.R
 import it.fast4x.riplay.enums.Languages
+import it.fast4x.riplay.extensions.preferences.contentCountryKey
 import it.fast4x.riplay.extensions.preferences.otherLanguageAppKey
+import it.fast4x.riplay.extensions.preferences.preferences
 import it.fast4x.riplay.extensions.preferences.rememberPreference
 import me.bush.translator.Language
 import java.util.Locale
@@ -18,6 +21,11 @@ fun getSystemlanguage(): Languages {
         ?: Languages.languageFromcode (languageTag)
         ?: Languages.English
 }
+
+// Content country set in settings (ISO code), or null when following the device locale:
+// null tells the browse requests to keep their original body untouched.
+fun contentCountryCode(context: Context = globalContext()): String? =
+    context.preferences.getString(contentCountryKey, "")?.takeIf { it.isNotEmpty() }
 
 @Composable
 fun languageDestination (

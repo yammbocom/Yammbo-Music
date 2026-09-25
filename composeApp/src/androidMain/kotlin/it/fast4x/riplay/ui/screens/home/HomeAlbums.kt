@@ -422,8 +422,17 @@ fun HomeAlbums(
                             ) {
                                 items(items = itemsOnDisplay, key = Album::id) { album ->
                                     // Logica Item (mantenuta identica per funzionalità)
-                                    var songs = remember { listOf<Song>() }
-                                    Database.asyncQuery { songs = albumSongsList(album.id) }
+                                    // Loaded in an effect into snapshot state: writing a plain
+                                    // var from asyncQuery's thread during composition crashed
+                                    // with "unsupported concurrent change during composition".
+                                    var songs by remember { mutableStateOf(listOf<Song>()) }
+
+                                    LaunchedEffect(album.id) {
+                                        val result = withContext(Dispatchers.IO) {
+                                            Database.albumSongsList(album.id)
+                                        }
+                                        songs = result
+                                    }
 
                                     var showDialogChangeAlbumTitle by remember { mutableStateOf(false) }
                                     var showDialogChangeAlbumAuthors by remember { mutableStateOf(false) }
@@ -532,7 +541,7 @@ fun HomeAlbums(
                                                                         }
                                                                     }
                                                                 } else {
-                                                                    CoroutineScope(Dispatchers.IO).launch {
+                                                                    coroutineScope.launch(Dispatchers.IO) {
                                                                         addToYtPlaylist(
                                                                             playlistPreview.playlist.id,
                                                                             position,
@@ -574,8 +583,15 @@ fun HomeAlbums(
                             ) {
                                 items(items = itemsOnDisplay, key = Album::id) { album ->
                                     // Logica Item (mantenuta identica)
-                                    var songs = remember { listOf<Song>() }
-                                    Database.asyncQuery { songs = albumSongsList(album.id) }
+                                    // Same effect-based load as the list view (see above).
+                                    var songs by remember { mutableStateOf(listOf<Song>()) }
+
+                                    LaunchedEffect(album.id) {
+                                        val result = withContext(Dispatchers.IO) {
+                                            Database.albumSongsList(album.id)
+                                        }
+                                        songs = result
+                                    }
 
                                     var showDialogChangeAlbumTitle by remember { mutableStateOf(false) }
                                     var showDialogChangeAlbumAuthors by remember { mutableStateOf(false) }
@@ -683,7 +699,7 @@ fun HomeAlbums(
                                                                         }
                                                                     }
                                                                 } else {
-                                                                    CoroutineScope(Dispatchers.IO).launch {
+                                                                    coroutineScope.launch(Dispatchers.IO) {
                                                                         addToYtPlaylist(
                                                                             playlistPreview.playlist.id,
                                                                             position,

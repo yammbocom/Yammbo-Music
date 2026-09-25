@@ -47,6 +47,7 @@ import it.fast4x.environment.models.bodies.NextBody
 import it.fast4x.environment.requests.HomePage
 import it.fast4x.environment.requests.chartsPageComplete
 import it.fast4x.environment.requests.discoverPage
+import it.fast4x.riplay.utils.contentCountryCode
 import it.fast4x.environment.requests.relatedPage
 import it.fast4x.riplay.data.Database
 import it.fast4x.riplay.LocalPlayerAwareWindowInsets
@@ -103,6 +104,7 @@ import it.fast4x.riplay.extensions.preferences.quickPicsHomePageKey
 import it.fast4x.riplay.extensions.preferences.showListenerLevelsKey
 import it.fast4x.riplay.utils.HomeDataCache
 import it.fast4x.riplay.utils.isLocal
+import it.fast4x.riplay.utils.isRadio
 import it.fast4x.riplay.utils.resolveFallbackTopSongId
 import it.fast4x.riplay.ui.components.ButtonsRow
 import it.fast4x.riplay.ui.components.themed.IconButton
@@ -198,9 +200,10 @@ fun HomePageExtended(
             refreshScope.launch(Dispatchers.IO) {
                 when (playEventType) {
                     PlayEventsType.MostPlayed -> {
-                        val songs = Database.trending(3).distinctUntilChanged().first()
+                        // More than 3 rows so a listener whose top plays are live stations still gets a song
+                        val songs = Database.trending(10).distinctUntilChanged().first()
                         val song = songs.firstOrNull { item ->
-                            blacklisted.value?.none { bl -> bl.path == item.id } ?: true
+                            !item.isRadio && (blacklisted.value?.none { bl -> bl.path == item.id } ?: true)
                         }
                         val songId = if (song?.isLocal == true) song.mediaId else song?.id
 
@@ -227,11 +230,12 @@ fun HomePageExtended(
                     }
 
                     PlayEventsType.LastPlayed, PlayEventsType.CasualPlayed -> {
-                        val numSongs = if (playEventType == PlayEventsType.LastPlayed) 3 else 50
+                        val numSongs = if (playEventType == PlayEventsType.LastPlayed) 10 else 50
                         val songs = Database.lastPlayed(numSongs).distinctUntilChanged().first()
                         val song = (if (playEventType == PlayEventsType.LastPlayed) songs
                             else songs.shuffled()).firstOrNull { item ->
-                            blacklisted.value?.none { bl -> bl.path == item.id } ?: true
+                            // Never seed (nor "play all") from a live station: it never ends
+                            !item.isRadio && (blacklisted.value?.none { bl -> bl.path == item.id } ?: true)
                         }
                         val songId = if (song?.isLocal == true) song.mediaId else song?.id
                         Timber.d("HomePage Last played song $song relatedPageResult $relatedPageResult songId $songId")
@@ -262,10 +266,20 @@ fun HomePageExtended(
             }
 
             if (showNewAlbums || showNewAlbumsArtists || showMoodsAndGenres) {
-                discoverPageResult = Environment.discoverPage()
+                discoverPageResult = Environment.discoverPage(contentCountryCode())
             }
 
-            homePageResult = EnvironmentExt.getHomePage(setLogin = isYtLoggedIn())
+            // Same retry as the classic Home: an empty first answer must not leave the
+            // page blank until a manual refresh (backoff 500, 1000, 2000 ms).
+            var homeResult = EnvironmentExt.getHomePage(setLogin = isYtLoggedIn())
+            var retry = 0
+            while (homeResult.getOrNull() == null && retry < 3) {
+                delay(500L shl retry)
+                retry++
+                Timber.d("HomePageExtended loadData home empty, retry $retry")
+                homeResult = EnvironmentExt.getHomePage(setLogin = isYtLoggedIn())
+            }
+            homePageResult = homeResult
 
 
         }.onFailure {

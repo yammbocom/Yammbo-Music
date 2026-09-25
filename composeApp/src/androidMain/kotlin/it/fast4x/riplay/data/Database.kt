@@ -922,10 +922,43 @@ interface Database {
     @RewriteQueriesToDropUnusedColumns
     fun favoriteRadios(): Flow<List<Song>>
 
+    /** Stations the listener actually played, most recent first (one row per station, not per play). */
+    @Transaction
+    @Query("SELECT Song.* FROM Event JOIN Song ON Song.id = Event.songId WHERE Song.id LIKE 'radio:%' GROUP BY Song.id ORDER BY MAX(Event.timestamp) DESC LIMIT :limit")
+    @RewriteQueriesToDropUnusedColumns
+    fun recentRadios(limit: Int = 30): Flow<List<Song>>
+
     @Transaction
     @Query("SELECT * FROM Song WHERE mediaId = :mediaId")
     @RewriteQueriesToDropUnusedColumns
     fun songOnDevice(mediaId: String): Flow<Song?>
+
+    /**
+     * The downloaded copy of an online song, read synchronously so the player can swap it in
+     * while it is choosing what to play. Only local rows: an online row never carries a mediaId,
+     * but the filter keeps a stray one from being "substituted" by itself.
+     */
+    @Transaction
+    @Query("SELECT * FROM Song WHERE mediaId = :mediaId AND id LIKE '$LOCAL_KEY_PREFIX%' LIMIT 1")
+    @RewriteQueriesToDropUnusedColumns
+    fun songOnDeviceNow(mediaId: String): Song?
+
+    /** The video id already stored for a local row, so a rescan does not have to reread the file. */
+    @Query("SELECT mediaId FROM Song WHERE id = :id")
+    fun mediaIdOfLocalSong(id: String): String?
+
+    /**
+     * Favorites that have no downloaded copy yet. Local files and stations are left out, and so is
+     * any id already claimed by a local row through its mediaId. Ids that are not YouTube video
+     * ids are filtered by the caller.
+     */
+    @Transaction
+    @Query("SELECT * FROM Song WHERE likedAt IS NOT NULL AND likedAt > 0 AND id NOT LIKE '$LOCAL_KEY_PREFIX%' AND id NOT LIKE 'radio:%' AND id NOT IN (SELECT mediaId FROM Song WHERE mediaId IS NOT NULL AND mediaId != '') ORDER BY likedAt DESC")
+    @RewriteQueriesToDropUnusedColumns
+    fun pendingFavoriteDownloads(): List<Song>
+
+    @Query("SELECT COUNT(*) FROM Song WHERE likedAt IS NOT NULL AND likedAt > 0 AND id NOT LIKE '$LOCAL_KEY_PREFIX%' AND id NOT LIKE 'radio:%' AND id NOT IN (SELECT mediaId FROM Song WHERE mediaId IS NOT NULL AND mediaId != '')")
+    fun pendingFavoriteDownloadsCount(): Flow<Int>
 
     @SuppressWarnings(RoomWarnings.QUERY_MISMATCH)
     @Transaction

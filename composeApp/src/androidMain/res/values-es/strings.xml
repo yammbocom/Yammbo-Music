@@ -778,6 +778,8 @@
     <string name="skip_media_on_error_description">Si ocurre un error, el contenido es cambiado</string>
     <string name="preload_next_song">Precargar la siguiente canción</string>
     <string name="preload_next_song_description">Descarga el principio de la siguiente canción mientras suena la actual, para que el cambio sea instantáneo. Consume más datos y memoria.</string>
+    <string name="preload_on_mobile_data">Precargar también con datos móviles</string>
+    <string name="preload_on_mobile_data_description">Apagado: la siguiente canción solo se precarga con Wi-Fi, para no gastar datos en canciones que quizá saltes.</string>
     <string name="skip_media_on_error_message">Ocurrió un error al reproducir %1$s</string>
     <string name="login_required_to_play_this_media">Es necesario iniciar sesión para reproducir este contenido</string>
     <string name="skip_media_on_notavailable_message">Contenido previo no disponible, saltado al siguiente</string>
@@ -1495,4 +1497,45 @@
     <string name="download_all_with_ytdlnis">Descargar todo con YTDLnis</string>
     <string name="nothing_to_download">Aquí no hay nada que se pueda descargar</string>
     <string name="ytdlnis_not_installed">YTDLnis no está instalado</string>
+    <string name="radio_cannot_be_queued">Las emisoras no se pueden añadir a la cola de canciones. Tócala para escucharla.</string>
+    <string name="android_auto_radio">Radio</string>
+    <string name="content_country">País del contenido</string>
+    <string name="content_country_device">País del dispositivo</string>
+    <string name="content_country_description">País que YouTube Music usa para elegir lo que te muestra (inicio, novedades, estados de ánimo)</string>
+    <string name="data_saver">Ahorro de datos</string>
+    <string name="play_local_copy">Reproducir la copia descargada</string>
+    <string name="play_local_copy_description">Si una canción está descargada en el móvil, suena desde el archivo y no gasta datos.</string>
+    <string name="auto_download_favorites">Descargar favoritas automáticamente con Wi-Fi</string>
+    <string name="auto_download_favorites_description">Cuando tengas Wi-Fi te avisaremos de las favoritas que aún no están descargadas; con un toque se envían a YTDLnis y se descargan en segundo plano. Android no permite hacerlo sin ese toque.</string>
+    <string name="auto_download_install_ytdlnis">Las descargas pasan por YTDLnis. Toca para abrir su página e instalarlo.</string>
+    <string name="auto_download_now">Descargar favoritas pendientes ahora (%1$d)</string>
+    <string name="auto_download_needs_wifi">Solo con Wi-Fi</string>
+    <string name="auto_download_nothing_pending">No hay favoritas pendientes de descargar</string>
+    <string name="auto_download_channel_name">Descargas</string>
+    <string name="auto_download_notification_title">Favoritas listas para descargar</string>
+    <plurals name="auto_download_notification_text">
+        <item quantity="one">%d canción sin descargar. Toca para descargarla con Wi-Fi.</item>
+        <item quantity="other">%d canciones sin descargar. Toca para descargarlas con Wi-Fi.</item>
+    </plurals>
+    <string name="auto_download_progress">Enviando a YTDLnis: %1$d de %2$d</string>
+    <string name="auto_download_preparing">Buscando favoritas pendientes</string>
+    <plurals name="auto_download_done">
+        <item quantity="one">%d canción enviada a YTDLnis</item>
+        <item quantity="other">%d canciones enviadas a YTDLnis</item>
+    </plurals>
+    <string name="auto_download_stopped_metered">Envío detenido: ya no estás con Wi-Fi</string>
+    <plurals name="auto_download_given_up">
+        <item quantity="one">%d no se pudo descargar</item>
+        <item quantity="other">%d no se pudieron descargar</item>
+    </plurals>
+    <string name="auto_download_no_notification_permission">Sin permiso de notificaciones no podremos avisarte; usa el botón «Descargar favoritas pendientes ahora» en Ajustes › Datos.</string>
+    <string name="data_usage_title">Consumo de datos de la app</string>
+    <string name="data_usage_loading">Calculando</string>
+    <string name="data_usage_since_boot">Desde que se encendió el teléfono (datos móviles y Wi-Fi)</string>
+    <string name="data_usage_mobile_today">Datos móviles hoy</string>
+    <string name="data_usage_mobile_7_days">Datos móviles, últimos 7 días</string>
+    <string name="data_usage_mobile_30_days">Datos móviles, últimos 30 días</string>
+    <string name="data_usage_wifi_30_days">Wi-Fi, últimos 30 días</string>
+    <string name="data_usage_note">Las canciones de YouTube gastan unos 2,5 MB por minuto; las descargadas, nada.</string>
+    <string name="live_radio_low_data">Bajo consumo</string>
 </resources>

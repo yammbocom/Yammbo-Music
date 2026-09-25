@@ -37,6 +37,8 @@ const val visualizerEnabledKey = "visualizerEnabled"
 const val thumbnailTapEnabledKey = "thumbnailTapEnabled"
 const val wavedPlayerTimelineKey = "wavedPlayerTimeline"
 const val languageAppKey = "languageApp"
+// ISO country code sent as `gl` in browse requests; "" = follow the device locale.
+const val contentCountryKey = "contentCountry"
 const val otherLanguageAppKey = "otherLanguageApp"
 const val indexNavigationTabKey = "indexNavigationTab"
 const val effectRotationKey = "effectRotation"
@@ -70,6 +72,13 @@ const val reorderInQueueEnabledKey = "reorderInQueueEnabled"
 const val skipSilenceKey = "skipSilence"
 const val skipMediaOnErrorKey = "skipMediaOnError"
 const val preloadNextSongKey = "preloadNextSong"
+const val preloadOnMobileDataKey = "preloadOnMobileData"
+// Plays the file YTDLnis already downloaded instead of streaming the same song again.
+const val playLocalCopyKey = "playLocalCopy"
+// Periodically offers to send not-yet-downloaded favorites to YTDLnis while on Wi-Fi.
+const val autoDownloadFavoritesKey = "autoDownloadFavorites"
+// JSON map videoId -> epoch ms of the last time it was handed to YTDLnis automatically.
+const val autoDownloadSentKey = "autoDownloadSent"
 const val volumeNormalizationKey = "volumeNormalization"
 const val persistentQueueKey = "persistentQueue"
 const val resumePlaybackOnStartKey = "resumePlaybackOnStart"

@@ -25,6 +25,7 @@ import it.fast4x.riplay.utils.globalContext
 import it.fast4x.riplay.utils.isAtLeastAndroid10
 import it.fast4x.riplay.utils.isAtLeastAndroid11
 import it.fast4x.riplay.utils.isAtLeastAndroid13
+import it.fast4x.riplay.utils.readYouTubeIdFromFile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -47,6 +48,7 @@ import it.fast4x.riplay.data.models.SongAlbumMap
 import it.fast4x.riplay.data.models.SongArtistMap
 import it.fast4x.riplay.data.models.SongEntity
 import it.fast4x.riplay.utils.LOCAL_KEY_PREFIX
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
@@ -81,6 +83,15 @@ class OnDeviceViewModel(application: Application) : AndroidViewModel(application
 
         private val contentResolver: ContentResolver = context.contentResolver
 
+        // The MediaStore scans run in viewModelScope coroutines, where a try around
+        // launch{} catches nothing: a failing query or cursor read (revoked permission,
+        // missing column, provider error) crashed the whole app. Log it instead
+        // (upstream fixes 7c1ea18a9, 08e0221fa #224, cc06766c6). Declared before init{},
+        // which already starts a scan.
+        private val scanErrorHandler = CoroutineExceptionHandler { _, e ->
+            Timber.e("OnDeviceViewModel scan error ${e.stackTraceToString()}")
+        }
+
         private val contentObserver = object : ContentObserver(null) {
             override fun onChange(selfChange: Boolean, uri: Uri?) {
                 // Called when change some data in device storage, example of uri. Must be checked if exists to understand if removed or added
@@ -110,23 +121,30 @@ class OnDeviceViewModel(application: Application) : AndroidViewModel(application
             // Querying MediaStore without the audio permission throws, and it threw during
             // startup, so the app died before it could ask for anything. Check first and
             // tell the user what is missing instead (upstream fix 97adb5ac5, issue #185).
-            val hasPermission = ContextCompat.checkSelfPermission(
-                appContext(),
-                if (isAtLeastAndroid13) Manifest.permission.READ_MEDIA_AUDIO
-                else Manifest.permission.READ_EXTERNAL_STORAGE
-            ) == PackageManager.PERMISSION_GRANTED
+            // Also reached from the ContentObserver callback (not the main thread), so
+            // the permission check and the message must not take the app down either.
+            try {
+                val hasPermission = ContextCompat.checkSelfPermission(
+                    appContext(),
+                    if (isAtLeastAndroid13) Manifest.permission.READ_MEDIA_AUDIO
+                    else Manifest.permission.READ_EXTERNAL_STORAGE
+                ) == PackageManager.PERMISSION_GRANTED
 
-            if (!hasPermission) {
-                SmartMessage(
-                    appContext().resources.getString(R.string.media_permission_required_please_grant),
-                    PopupType.Error,
-                    durationLong = true,
-                    context = appContext()
-                )
+                if (!hasPermission) {
+                    SmartMessage(
+                        appContext().resources.getString(R.string.media_permission_required_please_grant),
+                        PopupType.Error,
+                        durationLong = true,
+                        context = appContext()
+                    )
+                    return
+                }
+            } catch (e: Exception) {
+                Timber.e("OnDeviceViewModel loadAudioFiles error ${e.message}")
                 return
             }
 
-            viewModelScope.launch {
+            viewModelScope.launch(scanErrorHandler) {
                 withContext(Dispatchers.IO) {
                     val collection = if (isAtLeastAndroid10) {
                         MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL)
@@ -267,9 +285,22 @@ class OnDeviceViewModel(application: Application) : AndroidViewModel(application
                                         duration.milliseconds.toComponents { minutes, seconds, _ ->
                                             "$minutes:${seconds.toString().padStart(2, '0')}"
                                         }
+                                    // YTDLnis leaves the video id out of the file name but writes
+                                    // the source link into the tags; that link is what lets the
+                                    // player swap an online song for this file. Reading tags costs
+                                    // file I/O, so an id found on a previous scan is reused.
+                                    val resolvedMediaId = mediaId?.takeIf { it.isNotEmpty() }
+                                        ?: if (relativePath?.contains("YTDLnis", ignoreCase = true) == true) {
+                                            Database.mediaIdOfLocalSong("$LOCAL_KEY_PREFIX$id")
+                                                ?.takeIf { it.isNotEmpty() }
+                                                ?: readYouTubeIdFromFile(
+                                                    context,
+                                                    ContentUris.withAppendedId(collection, id)
+                                                )
+                                        } else null
                                     val song = Song(
                                         id = "$LOCAL_KEY_PREFIX$id",
-                                        mediaId = mediaId,
+                                        mediaId = resolvedMediaId ?: mediaId,
                                         title = trackName ?: name,
                                         artistsText = artist,
                                         durationText = durationText,
@@ -346,7 +377,7 @@ class OnDeviceViewModel(application: Application) : AndroidViewModel(application
     ) {
         var version: String? = null
 
-        viewModelScope.launch {
+        viewModelScope.launch(scanErrorHandler) {
             while (currentCoroutineContext().isActive) {
                 val newVersion = MediaStore.getVersion(context)
                 if (version != newVersion) {

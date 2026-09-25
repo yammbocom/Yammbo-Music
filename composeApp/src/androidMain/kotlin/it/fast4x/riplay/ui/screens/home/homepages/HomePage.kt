@@ -55,6 +55,7 @@ import it.fast4x.environment.EnvironmentExt
 import it.fast4x.environment.models.NavigationEndpoint
 import it.fast4x.environment.models.bodies.NextBody
 import it.fast4x.environment.requests.discoverPage
+import it.fast4x.riplay.utils.contentCountryCode
 import it.fast4x.environment.requests.relatedPage
 import it.fast4x.riplay.data.Database
 import it.fast4x.riplay.LocalPlayerAwareWindowInsets
@@ -99,6 +100,7 @@ import it.fast4x.riplay.extensions.preferences.showListenerLevelsKey
 import it.fast4x.riplay.extensions.rewind.HomepageRewind
 import it.fast4x.riplay.ui.components.themed.ChipItemColored
 import it.fast4x.riplay.utils.isLocal
+import it.fast4x.riplay.utils.isRadio
 import it.fast4x.riplay.ui.components.themed.Loader
 import it.fast4x.riplay.ui.components.themed.Menu
 import it.fast4x.riplay.ui.components.themed.MenuEntry
@@ -187,14 +189,28 @@ fun HomePage(
             refreshScope.launch(Dispatchers.IO) {
 
                 if (homePage == null) {
-                    val result = EnvironmentExt.getHomePage(setLogin = isYtLoggedIn()).getOrNull()
-                    homePage = result
-                    HomeDataCache.homePage = result
+                    // The first request right after a cold start (or a network change) often
+                    // comes back empty and left the Home blank until a manual refresh: retry
+                    // up to 3 times with a growing backoff (500, 1000, 2000 ms).
+                    var result = EnvironmentExt.getHomePage(setLogin = isYtLoggedIn()).getOrNull()
+                    var retry = 0
+                    while (result == null && retry < 3) {
+                        delay(500L shl retry)
+                        retry++
+                        Timber.d("HomePage loadData home empty, retry $retry")
+                        result = EnvironmentExt.getHomePage(setLogin = isYtLoggedIn()).getOrNull()
+                    }
+                    // A pull to refresh started while this was retrying runs its own load; an
+                    // older one that finally gave up must not blank the page the newer one filled.
+                    if (result != null || homePage == null) {
+                        homePage = result
+                        HomeDataCache.homePage = result
+                    }
                 }
 
                 if (showNewAlbums || showNewAlbumsArtists || showMoodsAndGenres) {
                     if (discoverPage == null) {
-                        val result = Environment.discoverPage().getOrNull()
+                        val result = Environment.discoverPage(contentCountryCode()).getOrNull()
                         discoverPage = result
                         HomeDataCache.discoverPage = result
                     }
@@ -203,14 +219,16 @@ fun HomePage(
                 when (playEventType) {
                     PlayEventsType.MostPlayed -> {
                         val thirtyDaysMs = 30L * 24L * 60L * 60L * 1000L
+                        // More than 3 rows: a listener whose top plays are live stations must still get
+                        // a song to seed from (a station is not a YouTube video, nor something to "play all").
                         val songs = Database.trending(
-                            limit = 3,
+                            limit = 10,
                             period = thirtyDaysMs
                         ).distinctUntilChanged().first()
                         val song = songs.firstOrNull { item ->
                             // Treat blacklist=null (Flow still loading) as "no entries"
                             // so we don't reject every candidate during the DB race.
-                            blacklisted.value?.none { bl -> bl.path == item.id } ?: true
+                            !item.isRadio && (blacklisted.value?.none { bl -> bl.path == item.id } ?: true)
                         }
                         val songId = if (song?.isLocal == true) song.mediaId else song?.id
 
@@ -259,11 +277,12 @@ fun HomePage(
                     }
 
                     PlayEventsType.LastPlayed, PlayEventsType.CasualPlayed -> {
-                        val numSongs = if (playEventType == PlayEventsType.LastPlayed) 3 else 50
+                        val numSongs = if (playEventType == PlayEventsType.LastPlayed) 10 else 50
                         val songs = Database.lastPlayed(numSongs).distinctUntilChanged().first()
                         val song = (if (playEventType == PlayEventsType.LastPlayed) songs
                         else songs.shuffled()).firstOrNull { item ->
-                            blacklisted.value?.none { bl -> bl.path == item.id } ?: true
+                            // Never seed (nor "play all") from a live station: it never ends
+                            !item.isRadio && (blacklisted.value?.none { bl -> bl.path == item.id } ?: true)
                         }
                         val songId = if (song?.isLocal == true) song.mediaId else song?.id
 
@@ -339,13 +358,15 @@ fun HomePage(
 
     LaunchedEffect(Unit, playEventType, selectedCountryCode) {
 
-        val countryChanged = HomeDataCache.lastCountryCode != selectedCountryCode.name
+        // The charts country and the content country (Settings) both shape the home feed
+        val countryKey = selectedCountryCode.name + "|" + (contentCountryCode() ?: "")
+        val countryChanged = HomeDataCache.lastCountryCode != countryKey
         val playEventChanged = HomeDataCache.lastPlayEventType != playEventType
 
         if (countryChanged) {
             HomeDataCache.homePage = null
             HomeDataCache.discoverPage = null
-            HomeDataCache.lastCountryCode = selectedCountryCode.name
+            HomeDataCache.lastCountryCode = countryKey
 
             homePage = null
             discoverPage = null

@@ -1,6 +1,7 @@
 package it.fast4x.riplay.service
 
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import android.support.v4.media.session.MediaSessionCompat
 import android.view.KeyEvent
@@ -9,7 +10,6 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.SessionCommand
 import it.fast4x.riplay.data.models.Song
 import it.fast4x.riplay.utils.asMediaItem
-import it.fast4x.riplay.utils.isLocal
 import it.fast4x.riplay.utils.forcePlayAtIndex
 import it.fast4x.riplay.utils.playNext
 import it.fast4x.riplay.utils.playPrevious
@@ -113,6 +113,20 @@ class PlayerMediaSessionCallback (
 
                     }
 
+                // The station id is a stream url with slashes: take everything after the prefix.
+                // The queue is the station list itself, so next/previous in the car switch station.
+                PlayerMediaBrowserService.MediaId.RADIO -> data
+                    .drop(1)
+                    .joinToString("/")
+                    .takeIf { it.isNotEmpty() }
+                    ?.let { stationId ->
+                        index = PlayerMediaBrowserService.lastRadios.indexOfFirst { it.id == stationId }
+
+                        if (index < 0) return@launch // index not found
+
+                        PlayerMediaBrowserService.lastRadios
+                    }
+
                 // Maybe it needed in the future
                 /*
                 PlayerMediaBrowserService.MediaId.shuffle -> lastSongs.shuffled()
@@ -169,47 +183,51 @@ class PlayerMediaSessionCallback (
 
     }
 
+    // getParcelableExtra(String) is deprecated on API 33+, where the typed overload is used instead
+    @Suppress("DEPRECATION")
     override fun onMediaButtonEvent(mediaButtonEvent: Intent?): Boolean {
         mediaButtonEvent?.let {
             if (it.action == Intent.ACTION_MEDIA_BUTTON) {
-                if (it.extras?.getBoolean(Intent.EXTRA_KEY_EVENT) == true) {
-                    val keyEvent = it.extras?.getParcelable<KeyEvent>(Intent.EXTRA_KEY_EVENT)
-                    when(keyEvent?.keyCode) {
-                        KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> {
-                            val isOnline = binder.player.currentMediaItem?.isLocal != true
-                            val isPlaying = if (isOnline) binder.onlinePlayerPlayingState else binder.player.isPlaying
-                            Timber.d("MediaSessionCallback PLAY_PAUSE: isOnline=$isOnline isPlaying=$isPlaying")
-                            if (isPlaying) onPause() else onPlay()
+                // EXTRA_KEY_EVENT is a Parcelable KeyEvent: reading it as a boolean was always false,
+                // so none of this ran and Bluetooth / wired / car buttons fell to the default handling.
+                val keyEvent: KeyEvent? =
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
+                        it.getParcelableExtra(Intent.EXTRA_KEY_EVENT, KeyEvent::class.java)
+                    else
+                        it.getParcelableExtra<KeyEvent>(Intent.EXTRA_KEY_EVENT)
 
-                            return true
-                        }
-                        KeyEvent.KEYCODE_MEDIA_NEXT -> {
-                            onSkipToNext()
-                            return true
-                        }
-                        KeyEvent.KEYCODE_MEDIA_PREVIOUS -> {
-                            onSkipToPrevious()
-                            return true
-                        }
-                        KeyEvent.KEYCODE_MEDIA_STOP -> {
-                            onStop()
-                            return true
-                        }
-                        KeyEvent.KEYCODE_MEDIA_PLAY -> {
-                            onPlay()
-                            return true
-                        }
-                        KeyEvent.KEYCODE_MEDIA_PAUSE -> {
-                            onPause()
-                            return true
-                        }
-                    }
+                // PLAY_PAUSE and HEADSETHOOK (and any other key) are left to the framework: it owns
+                // the single / double / triple click of one-button headsets (double = next, triple =
+                // previous) and picks play or pause from the session state, which already reflects
+                // whichever engine is sounding. Handling PLAY_PAUSE here lost the double click.
+                if (keyEvent == null || keyEvent.keyCode !in handledKeyCodes) return false
+
+                // Act once per press: the ACTION_UP and the auto-repeats of a key we handle are
+                // consumed, otherwise the framework would fire the same command a second time.
+                if (keyEvent.action != KeyEvent.ACTION_DOWN || keyEvent.repeatCount != 0) return true
+
+                when(keyEvent.keyCode) {
+                    KeyEvent.KEYCODE_MEDIA_NEXT -> onSkipToNext()
+                    KeyEvent.KEYCODE_MEDIA_PREVIOUS -> onSkipToPrevious()
+                    KeyEvent.KEYCODE_MEDIA_STOP -> onStop()
+                    KeyEvent.KEYCODE_MEDIA_PLAY -> onPlay()
+                    KeyEvent.KEYCODE_MEDIA_PAUSE -> onPause()
                 }
+                return true
             }
         }
-        //return super.onMediaButtonEvent(mediaButtonEvent)
+        // false hands the event to MediaSession's default handling: MediaSessionCompat's API 21
+        // callback returns `result || super.onMediaButtonEvent(...)`
         return false
     }
+
+    private val handledKeyCodes = setOf(
+        KeyEvent.KEYCODE_MEDIA_NEXT,
+        KeyEvent.KEYCODE_MEDIA_PREVIOUS,
+        KeyEvent.KEYCODE_MEDIA_STOP,
+        KeyEvent.KEYCODE_MEDIA_PLAY,
+        KeyEvent.KEYCODE_MEDIA_PAUSE
+    )
 
 }
 

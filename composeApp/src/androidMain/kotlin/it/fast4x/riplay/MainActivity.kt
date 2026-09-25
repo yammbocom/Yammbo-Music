@@ -155,6 +155,7 @@ import it.fast4x.riplay.extensions.preferences.isEnabledFullscreenKey
 import it.fast4x.riplay.extensions.preferences.isKeepScreenOnEnabledKey
 import it.fast4x.riplay.extensions.preferences.isProxyEnabledKey
 import it.fast4x.riplay.extensions.preferences.languageAppKey
+import it.fast4x.riplay.extensions.preferences.contentCountryKey
 import it.fast4x.riplay.extensions.preferences.loadedDataKey
 import it.fast4x.riplay.extensions.preferences.miniPlayerTypeKey
 import it.fast4x.riplay.extensions.preferences.keepPlayerMinimizedKey
@@ -514,6 +515,10 @@ class MainActivity :
                 android.content.pm.PackageManager.DONT_KILL_APP
             )
         }
+
+        // The favorites auto-download reminder lives in WorkManager, which survives updates and
+        // data restores out of step with the preference; line them up on every launch.
+        it.fast4x.riplay.extensions.scheduled.syncAutoDownloadFavoritesSchedule(applicationContext)
 
 //        if (BuildConfig.DEBUG) {
 //            StrictMode.setThreadPolicy(
@@ -908,13 +913,18 @@ class MainActivity :
             val languageTag = locale.toLanguageTag().replace("-Hant", "")
             val languageApp =
                 globalContext().preferences.getEnum(languageAppKey, getSystemlanguage())
+            // Content country chosen in settings; empty keeps the device locale country,
+            // which is what every request used before the setting existed.
+            val contentCountry =
+                globalContext().preferences.getString(contentCountryKey, "").orEmpty()
             LocalePreferences.preference =
                 LocalePreferenceItem(
                     hl = languageApp.code.takeIf { it != Languages.System.code }
                         ?: locale.language.takeIf { it != Languages.System.code }
                         ?: languageTag.takeIf { it != Languages.System.code }
                         ?: "en",
-                    gl = locale.country
+                    gl = contentCountry.takeIf { it.isNotEmpty() }
+                        ?: locale.country
                         ?: "US"
                 )
             Environment.locale = EnvironmentLocale(

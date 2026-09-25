@@ -100,6 +100,9 @@ fun LiveRadio() {
     // Worldwide by default: the country picker is right there for narrowing it down
     var countryCode by rememberSaveable { mutableStateOf("") }
     var order by rememberSaveable { mutableStateOf(StationOrder.Popular) }
+    // Low data: only stations streaming at 64 kbps or less, filtered over what is already loaded
+    // (the directory has no bitrate range filter). A station at 64 kbps spends about 30 MB an hour.
+    var lowData by rememberSaveable { mutableStateOf(false) }
 
     // Debounced search: querying on every keystroke hammers the directory for nothing.
     LaunchedEffect(searchInput) {
@@ -157,6 +160,7 @@ fun LiveRadio() {
     var showOrderPicker by remember { mutableStateOf(false) }
 
     val nowPlayingId = rememberNowPlayingMediaId()
+    val shownStations = if (lowData) stations.filter { it.bitrate in 1..64 } else stations
     val hasFilters = search.isNotBlank() || genre.isNotBlank() || countryCode.isNotBlank()
     val allCountriesLabel = stringResource(R.string.live_radio_all_countries)
 
@@ -214,6 +218,11 @@ fun LiveRadio() {
                         trailingIcon = R.drawable.chevron_down,
                         onClick = { showOrderPicker = true }
                     )
+                    FilterPill(
+                        text = stringResource(R.string.live_radio_low_data),
+                        selected = lowData,
+                        onClick = { lowData = !lowData }
+                    )
                     if (hasFilters) {
                         FilterPill(
                             text = stringResource(R.string.live_radio_clear_filters),
@@ -252,7 +261,7 @@ fun LiveRadio() {
                 }
             }
 
-            items(stations, key = { it.stationuuid }) { station ->
+            items(shownStations, key = { it.stationuuid }) { station ->
                 RadioStationRow(
                     station = station,
                     isPlaying = nowPlayingId?.let(::radioStreamUrlOf) == station.streamUrl,
@@ -281,7 +290,8 @@ fun LiveRadio() {
                                 onClick = { loadMoreTick++ }
                             )
                         }
-                        stations.isEmpty() -> BasicText(
+                        // With low data on, an empty page may still have matches further down the list
+                        shownStations.isEmpty() && !(lowData && canLoadMore) -> BasicText(
                             text = stringResource(R.string.live_radio_empty),
                             style = typography().xs.secondary.copy(textAlign = TextAlign.Center),
                             modifier = Modifier.padding(horizontal = 32.dp)

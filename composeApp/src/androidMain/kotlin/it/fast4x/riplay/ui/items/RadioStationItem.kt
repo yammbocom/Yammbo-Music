@@ -164,7 +164,11 @@ fun RadioStationCard(
             modifier = Modifier.padding(top = 6.dp)
         )
         BasicText(
-            text = station.country.ifBlank { station.tagList.firstOrNull() ?: "" },
+            // The bitrate is what a station costs in data (128 kbps is about 58 MB an hour)
+            text = listOf(
+                station.country.ifBlank { station.tagList.firstOrNull() ?: "" },
+                if (station.bitrate > 0) "${station.bitrate} kbps" else ""
+            ).filter { it.isNotBlank() }.joinToString(" · "),
             style = typography().xxs.secondary,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,

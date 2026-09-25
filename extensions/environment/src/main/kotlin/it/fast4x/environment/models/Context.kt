@@ -58,6 +58,12 @@ data class Context(
                 onBehalfOfUser = dataSyncId
             ),
         )
+
+        // Sends both language and content country (hl + gl) for browse requests.
+        fun setLang(
+            language: String?,
+            country: String?,
+        ) = this.copy(hl = language, gl = country)
     }
 
     @Serializable

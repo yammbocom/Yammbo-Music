@@ -162,6 +162,36 @@ val Player.shouldBePlaying: Boolean
 
 fun Player.removeMediaItems(range: IntRange) = removeMediaItems(range.first, range.last + 1)
 
+/**
+ * Drops every live station from the timeline except the current item. A station never ends, so one
+ * left behind in a song queue would become "the next song" and the listener would be stuck on it.
+ */
+fun Player.removeRadioStationsExceptCurrent() {
+    val current = currentMediaItemIndex
+    // From the end, so the indices still to visit do not shift
+    for (i in mediaItemCount - 1 downTo 0) {
+        if (i != current && getMediaItemAt(i).isRadio) removeMediaItem(i)
+    }
+}
+
+/**
+ * What may be added to the queue: anything when a station is playing (or nothing is), songs only
+ * when a song is playing. Null, after telling the listener, when only stations were being added.
+ */
+private fun Player.queueableItems(mediaItems: List<MediaItem>): List<MediaItem>? {
+    if (currentMediaItem?.isRadio != false) return mediaItems
+    val songs = mediaItems.filterNot { it.isRadio }
+    if (songs.isEmpty() && mediaItems.isNotEmpty()) {
+        SmartMessage(
+            globalContext().resources.getString(R.string.radio_cannot_be_queued),
+            type = PopupType.Warning,
+            context = globalContext()
+        )
+        return null
+    }
+    return songs
+}
+
 fun Player.seamlessPlay(mediaItem: MediaItem) {
     if (mediaItem.mediaId == currentMediaItem?.mediaId) {
         if (currentMediaItemIndex > 0) removeMediaItems(0 until currentMediaItemIndex)
@@ -190,10 +220,13 @@ fun Player.shuffleQueue() {
 fun Player.forcePlay(mediaItem: MediaItem, replace: Boolean = false) {
     if (excludeMediaItem(mediaItem, globalContext())) return
 
-    if (!replace)
+    // A station never replaces a song in place: that would leave it inside the song queue
+    if (!replace || mediaItem.isRadio)
         setMediaItem(mediaItem, true)
-    else
+    else {
         replaceMediaItem(currentMediaItemIndex, mediaItem)
+        removeRadioStationsExceptCurrent()
+    }
 
     restoreGlobalVolume()
     playWhenReady = true
@@ -218,11 +251,15 @@ fun Player.forcePlayAtIndex(mediaItems: List<MediaItem>, mediaItemIndex: Int) {
     if (mediaItems.isEmpty()) return
     val safeIndex = mediaItemIndex.coerceIn(0, mediaItems.size - 1)
     //val filteredMediaItems = excludeMediaItems(mediaItems, globalContext())
-    val filteredMediaItems = mediaItems
+    // Songs and stations never share a queue: after a song a station would never end and trap the
+    // listener, and a tapped station gets only stations around it so next/previous switch station.
+    val target = mediaItems[safeIndex]
+    val filteredMediaItems = mediaItems.filter { it.isRadio == target.isRadio }
+    val targetIndex = filteredMediaItems.indexOfFirst { it === target }.coerceAtLeast(0)
 
     try { stop() } catch (_: Throwable) {}
     clearMediaItems()
-    setMediaItems(filteredMediaItems, safeIndex, C.TIME_UNSET)
+    setMediaItems(filteredMediaItems, targetIndex, C.TIME_UNSET)
 
     restoreGlobalVolume()
     playWhenReady = true
@@ -237,13 +274,30 @@ fun Player.forceSeekToPrevious() {
     val prevIndex = previousMediaItemIndex
     if (prevIndex != C.INDEX_UNSET) {
         seekToDefaultPosition(prevIndex)
+    } else if (currentMediaItem?.isRadio == true) {
+        // Stations cycle: previous on the first one goes to the last station, never back to the
+        // start of the same live stream
+        lastRadioIndex()?.let { seekToDefaultPosition(it) }
     }
     //seekToPrevious()
 }
 
 fun Player.forceSeekToNext() {
+    // Stations cycle: next on the last one goes to the first station. Every next button (player,
+    // mini player, notification, car) ends up here or in handlePlayNext, which does the same
+    if (currentMediaItem?.isRadio == true && !hasNextMediaItem()) {
+        firstRadioIndex()?.let { seekToDefaultPosition(it) }
+        return
+    }
     seekToNext()
 }
+
+/** First / last station of the queue other than the current one, null when there is none. */
+private fun Player.firstRadioIndex(): Int? =
+    (0 until mediaItemCount).firstOrNull { it != currentMediaItemIndex && getMediaItemAt(it).isRadio }
+
+private fun Player.lastRadioIndex(): Int? =
+    (mediaItemCount - 1 downTo 0).firstOrNull { it != currentMediaItemIndex && getMediaItemAt(it).isRadio }
 
 fun Player.playNext() {
     forceSeekToNext()
@@ -263,6 +317,7 @@ fun Player.playPrevious() {
 
 @UnstableApi
 fun Player.addNext(mediaItem: MediaItem, context: Context? = null, queue: Queues) {
+    if (queueableItems(listOf(mediaItem)).isNullOrEmpty()) return
     if (context != null && excludeMediaItem(mediaItem, context)) return
 
     val itemIndex = findMediaItemIndexById(mediaItem.mediaId)
@@ -279,8 +334,9 @@ fun Player.addNext(mediaItem: MediaItem, context: Context? = null, queue: Queues
 
 @UnstableApi
 fun Player.addNext(mediaItems: List<MediaItem>, context: Context? = null, queue: Queues) {
-    val filteredMediaItems = if (context != null) excludeMediaItems(mediaItems, context)
-    else mediaItems
+    val queueableMediaItems = queueableItems(mediaItems) ?: return
+    val filteredMediaItems = if (context != null) excludeMediaItems(queueableMediaItems, context)
+    else queueableMediaItems
 
     filteredMediaItems.forEach { mediaItem ->
         val itemIndex = findMediaItemIndexById(mediaItem.mediaId)
@@ -298,6 +354,7 @@ fun Player.addNext(mediaItems: List<MediaItem>, context: Context? = null, queue:
 
 
 fun Player.enqueue(mediaItem: MediaItem, context: Context? = null, queue: Queues) {
+    if (queueableItems(listOf(mediaItem)).isNullOrEmpty()) return
      if (context != null && excludeMediaItem(mediaItem, context)) return
 
     if (!canAddedToQueue(mediaItem, queue)) return
@@ -317,8 +374,9 @@ fun Player.enqueue(
     context: Context? = null,
     //queue: Queues
 ) {
-    val filteredMediaItems = if (context != null) excludeMediaItems(mediaItems, context)
-    else mediaItems
+    val queueableMediaItems = queueableItems(mediaItems) ?: return
+    val filteredMediaItems = if (context != null) excludeMediaItems(queueableMediaItems, context)
+    else queueableMediaItems
 
     addMediaItems(mediaItemCount, filteredMediaItems)
     SmartMessage(globalContext().resources.getString(R.string.done), context = globalContext())
@@ -573,8 +631,14 @@ fun Player.saveMasterQueue(currentOnlineSecond: Int) {
     if (!isPersistentQueueEnabled()) return
 
     CoroutineScope(Dispatchers.Main).launch {
-        val mediaItems = currentTimeline.mediaItems
-        val mediaItemIndex = currentMediaItemIndex
+        val timelineItems = currentTimeline.mediaItems
+        val currentIndex = currentMediaItemIndex
+        // Persist one kind only, the one playing (stations with a station, songs with a song), so a
+        // restored queue can never put a never-ending station behind a song.
+        val currentIsRadio = timelineItems.getOrNull(currentIndex)?.isRadio == true
+        val keptIndices = timelineItems.indices.filter { timelineItems[it].isRadio == currentIsRadio }
+        val mediaItems = keptIndices.map { timelineItems[it] }
+        val mediaItemIndex = keptIndices.indexOf(currentIndex)
         val mediaItemPosition = if (currentMediaItem?.isLocal == true) currentPosition else currentOnlineSecond * 1000L
 
         Timber.d("SaveMasterQueue savePersistentQueue mediaItems ${mediaItems.size} mediaItemIndex $mediaItemIndex mediaItemPosition $mediaItemPosition")

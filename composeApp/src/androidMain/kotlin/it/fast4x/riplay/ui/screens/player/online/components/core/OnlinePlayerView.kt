@@ -3,7 +3,12 @@ package it.fast4x.riplay.ui.screens.player.online.components.core
 import android.view.View
 import android.view.ViewGroup
 import androidx.compose.foundation.layout.Box
+import android.webkit.WebView
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
@@ -36,6 +41,32 @@ fun OnlinePlayerView(
     )
 
     if (mediaItem.isVideo) {
+        // The page keeps the embed at 1x1 unless a video is on screen, so YouTube streams its
+        // lowest picture (see the audio-only rule in ayp_youtube_player.html). With the app in
+        // the background nobody sees it either, so a stopped activity counts as off screen.
+        val lifecycleOwner = LocalLifecycleOwner.current
+        DisposableEffect(onlinePlayerView, lifecycleOwner) {
+            var shown = false
+            fun setShown(on: Boolean) {
+                if (on == shown) return
+                shown = on
+                if (on) OnlineVideoOnScreen.show(onlinePlayerView) else OnlineVideoOnScreen.hide(onlinePlayerView)
+            }
+            val observer = LifecycleEventObserver { _, event ->
+                when (event) {
+                    Lifecycle.Event.ON_START -> setShown(true)
+                    Lifecycle.Event.ON_STOP -> setShown(false)
+                    else -> {}
+                }
+            }
+            setShown(lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED))
+            lifecycleOwner.lifecycle.addObserver(observer)
+            onDispose {
+                lifecycleOwner.lifecycle.removeObserver(observer)
+                setShown(false)
+            }
+        }
+
         // YouTube draws its own title, share button and "More videos" strip over the top
         // and bottom of the picture, and no player parameter removes them. The view is
         // blown up slightly inside a box that clips, so those strips fall outside it.
@@ -82,5 +113,40 @@ fun OnlinePlayerView(
     } else {
         LocalView.current.keepScreenOn = enableKeepScreenOn
         onlinePlayerView?.keepScreenOn = enableKeepScreenOn
+    }
+}
+
+/**
+ * Whether a video is on screen, and telling the player page so. Counted, not a flag: the full
+ * player and the mini player can overlap for a frame while one of them leaves.
+ */
+object OnlineVideoOnScreen {
+    private var visible = 0
+
+    fun show(view: View?) {
+        visible++
+        apply(view)
+    }
+
+    fun hide(view: View?) {
+        visible = (visible - 1).coerceAtLeast(0)
+        apply(view)
+    }
+
+    /**
+     * The page starts audio only on every load, and a call made before it loads is lost, so the
+     * service repeats this from onReady. Main thread only, like evaluateJavascript itself.
+     */
+    fun apply(view: View?) {
+        runCatching { findWebView(view)?.evaluateJavascript("setAudioOnly(${visible == 0})", null) }
+    }
+
+    private fun findWebView(view: View?): WebView? {
+        if (view is WebView) return view
+        if (view !is ViewGroup) return null
+        for (index in 0 until view.childCount) {
+            findWebView(view.getChildAt(index))?.let { return it }
+        }
+        return null
     }
 }

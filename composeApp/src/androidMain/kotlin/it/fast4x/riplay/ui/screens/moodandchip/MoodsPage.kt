@@ -33,6 +33,7 @@ import com.valentinilk.shimmer.shimmer
 import it.fast4x.riplay.extensions.persist.persist
 import it.fast4x.environment.Environment
 import it.fast4x.environment.requests.discoverPage
+import it.fast4x.riplay.utils.contentCountryCode
 import it.fast4x.riplay.LocalPlayerAwareWindowInsets
 import com.yambo.music.R
 import it.fast4x.riplay.enums.NavRoutes
@@ -61,7 +62,7 @@ fun MoodsPage(
 
     var discoverPage by persist<Result<Environment.DiscoverPage>>("home/discoveryMoods")
     LaunchedEffect(Unit) {
-        discoverPage = Environment.discoverPage()
+        discoverPage = Environment.discoverPage(contentCountryCode())
     }
     val thumbnailSizeDp = Dimensions.thumbnails.album + 24.dp
 

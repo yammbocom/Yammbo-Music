@@ -177,6 +177,10 @@ import it.fast4x.riplay.extensions.preferences.playbackPitchKey
 import it.fast4x.riplay.extensions.preferences.playbackSpeedKey
 import it.fast4x.riplay.extensions.preferences.preferences
 import it.fast4x.riplay.extensions.preferences.preloadNextSongKey
+import it.fast4x.riplay.extensions.preferences.preloadOnMobileDataKey
+import it.fast4x.riplay.extensions.preferences.playLocalCopyKey
+import it.fast4x.riplay.utils.isConnectionMetered
+import it.fast4x.riplay.ui.screens.player.online.components.core.OnlineVideoOnScreen
 import it.fast4x.riplay.extensions.preferences.putEnum
 import it.fast4x.riplay.extensions.preferences.queueLoopTypeKey
 import it.fast4x.riplay.extensions.preferences.resumeOrPausePlaybackWhenDeviceKey
@@ -247,8 +251,10 @@ import it.fast4x.riplay.utils.GlobalVolume
 import it.fast4x.riplay.utils.isLocal
 import it.fast4x.riplay.utils.isRadio
 import it.fast4x.riplay.utils.isRadioId
+import it.fast4x.riplay.utils.removeRadioStationsExceptCurrent
 import it.fast4x.riplay.utils.usesLocalPlayer
 import it.fast4x.riplay.utils.isVideo
+import it.fast4x.riplay.utils.playbackUriOf
 import it.fast4x.riplay.utils.mediaItems
 import it.fast4x.riplay.utils.playAtIndex
 import it.fast4x.riplay.utils.playNext
@@ -269,6 +275,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.cancellable
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
@@ -402,6 +409,16 @@ class PlayerService : Service(),
     private var onlineListenedDurationMs = 0L
     private var lastOnlineMediaId: String? = null
 
+    // Kind of the item before the current transition (null until the first one): tells a song that
+    // ended into a leftover station apart from a station switch.
+    private var previousItemWasRadio: Boolean? = null
+
+    // The YouTube id whose downloaded copy is being swapped in, so that swap is not counted as a new song
+    private var localCopySwapFor: String? = null
+
+    private fun localCopyMediaIdOf(item: MediaItem): String? =
+        if (item.isLocal) runBlocking(Dispatchers.IO) { runCatching { Database.mediaIdOfLocalSong(item.mediaId) }.getOrNull() } else null
+
     // Song-switch instrumentation for the online (WebView) player.
     //
     // A switch is not one wait but two, and they have different cures: the embedded
@@ -460,6 +477,11 @@ class PlayerService : Service(),
     private var autoRadioAttemptId: String? = null
     private var autoRadioAttempts = 0
     private val maxAutoRadioAttempts = 3
+    // StateFlow instead of Compose state: the flag is written from service
+    // coroutines while the queue UI reads it, and a snapshot-state write
+    // there crashed with "concurrent change during composition".
+    private val _isLoadingRadio = MutableStateFlow(false)
+    val isLoadingRadio: StateFlow<Boolean> = _isLoadingRadio.asStateFlow()
 
     /**
      * end online configuration
@@ -803,16 +825,25 @@ class PlayerService : Service(),
 
         //startForeground(NOTIFICATION_ID,notification())
 
-        ServiceCompat.startForeground(
-            this,
-            NOTIFICATION_ID,
-            notification,
-            if (isAtLeastAndroid11) {
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
-            } else {
-                0
-            }
-        )
+        try {
+            ServiceCompat.startForeground(
+                this,
+                NOTIFICATION_ID,
+                notification,
+                if (isAtLeastAndroid11) {
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+                } else {
+                    0
+                }
+            )
+        } catch (e: Exception) {
+            // Android 12+ throws ForegroundServiceStartNotAllowedException when this runs from the
+            // background (some OEMs refuse in other ways too). Swallowing it is not enough: a service
+            // that never reaches the foreground is killed by the system anyway, so stop it cleanly.
+            // Only here, when the start really failed: the many successful calls change nothing.
+            Timber.e(e, "PlayerService startForeground failed, stopping the service")
+            stopSelf()
+        }
 
     }
 
@@ -1526,6 +1557,11 @@ class PlayerService : Service(),
                         youTubePlayer.pause()
                         return
                     }
+
+                    // Every page load starts audio only (1x1 embed, lowest picture). If a video is
+                    // on screen right now, the call the screen made may have hit the page before it
+                    // loaded, so the current state is sent again now that the page is there.
+                    onlinePlayerView.post { OnlineVideoOnScreen.apply(onlinePlayerView) }
 
                     _internalOnlinePlayer.value = youTubePlayer
 
@@ -2241,6 +2277,38 @@ class PlayerService : Service(),
 
         if (mediaItem == null) return
 
+        // Songs and stations never share a queue; this is the net for whatever still slips through.
+        // A live station never ends, so reaching one after a song would leave the listener stuck.
+        // Timeline changes are posted: changing it inside its own callback re-enters the listeners.
+        if (!mediaItem.isRadio) {
+            previousItemWasRadio = false
+            coroutineScope.launch(Dispatchers.Main) { player.removeRadioStationsExceptCurrent() }
+        } else if (previousItemWasRadio == false && reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) {
+            // A device file ended into a station: go on with the next song, or stop if there is none
+            Timber.d("PlayerService onMediaItemTransition skipping station ${mediaItem.mediaId} reached after a song")
+            coroutineScope.launch(Dispatchers.Main) {
+                val current = player.currentMediaItemIndex
+                val nextSongIndex = (current + 1 until player.mediaItemCount)
+                    .firstOrNull { !player.getMediaItemAt(it).isRadio }
+                if (nextSongIndex != null) {
+                    player.seekToDefaultPosition(nextSongIndex)
+                } else {
+                    // Park on the song that just ended, paused; its transition strips the stations.
+                    // Removing the station instead would make the timeline jump to its first item
+                    // and start that song on its own.
+                    player.pause()
+                    // Otherwise the transition back looks like the same song reloading and is
+                    // treated as an error skip, which starts the song again
+                    lastOnlineMediaId = null
+                    val endedSongIndex = player.previousMediaItemIndex
+                    if (endedSongIndex != C.INDEX_UNSET) player.seekToDefaultPosition(endedSongIndex)
+                }
+            }
+            return
+        } else {
+            previousItemWasRadio = true
+        }
+
         // The position a pending network resume was armed with belongs to the song that
         // just ended, so it goes; the arming itself stays. This is the case the 26 Aug
         // 01:06 log caught: the connection was already gone when the queue advanced, so
@@ -2256,7 +2324,9 @@ class PlayerService : Service(),
         preloadedOnlineMediaId = null
 
         // Track song change for interstitial ads
-        it.fast4x.riplay.extensions.ads.YammboAdManager.onSongChanged(this@PlayerService)
+        // A downloaded copy swapped in for the song just counted is the same song, not another one
+        if (localCopySwapFor != null && localCopySwapFor == localCopyMediaIdOf(mediaItem)) localCopySwapFor = null
+        else it.fast4x.riplay.extensions.ads.YammboAdManager.onSongChanged(this@PlayerService)
 
         currentSecond.value = 0F
         // Reset duration too: keeping the previous song's duration while the
@@ -2272,7 +2342,10 @@ class PlayerService : Service(),
 
         val newMediaId = mediaItem.mediaId
 
-        if (lastOnlineMediaId == newMediaId) {
+        // Repeat-one comes back to the same item on purpose: that is a legitimate transition,
+        // not the stuck-player symptom this guards against, and skipping it jumped to the next
+        // song every time a local file or a swapped-in copy was repeated.
+        if (lastOnlineMediaId == newMediaId && reason != Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT) {
             Timber.d("PlayerService: Transition ignored, same MediaID ($newMediaId) skipped")
 
             handlePlayNext(dueToError = true)
@@ -2317,6 +2390,59 @@ class PlayerService : Service(),
             //player.playNext()
             SmartMessage(getString(R.string.warning_skipped_blacklisted_song), context = this@PlayerService)
             return
+        }
+
+        // A song already downloaded through YTDLnis plays from the file instead of the embed,
+        // which is the only way to listen to it again without paying the data a second time.
+        // Not while casting: the TV cannot reach a file on the phone, so it would go silent.
+        // Not for a video either: the user picked it to watch it, and the file is only the sound.
+        if (!mediaItem.usesLocalPlayer && !mediaItem.isVideo && !isCasting && !GlobalSharedData.riTuneCastActive
+            && preferences.getBoolean(playLocalCopyKey, true)
+        ) {
+            val localCopy = runBlocking(Dispatchers.IO) {
+                val copy = runCatching { Database.songOnDeviceNow(mediaItem.mediaId) }.getOrNull()
+                    ?: return@runBlocking null
+                // The row outlives the file: deleted, moved or on a card that is no longer
+                // mounted. Swapping to it would leave the song silent, so it streams instead.
+                val opens = runCatching {
+                    contentResolver.openFileDescriptor(playbackUriOf(copy.id), "r")?.use { true }
+                }.getOrNull() == true
+                if (!opens) {
+                    Timber.d("PlayerService local copy ${copy.id} for ${mediaItem.mediaId} does not open, streaming")
+                    return@runBlocking null
+                }
+                // The heart belongs to the online row; without this the favourite shows as not
+                // liked for as long as the copy plays.
+                val onlineLikedAt = runCatching { Database.getLikedAt(mediaItem.mediaId) }.getOrNull()
+                if (onlineLikedAt != null && onlineLikedAt > 0 && (copy.likedAt == null || copy.likedAt == 0L)) {
+                    runCatching { Database.like(copy.id, onlineLikedAt) }
+                    copy.copy(likedAt = onlineLikedAt)
+                } else copy
+            }
+            if (localCopy != null) {
+                val videoId = mediaItem.mediaId
+                Timber.d("PlayerService playing local copy ${localCopy.id} for $videoId")
+                // Posted, like the station guard above: changing the timeline inside its own
+                // callback re-enters the listeners.
+                coroutineScope.launch(Dispatchers.Main) {
+                    val index = player.currentMediaItemIndex
+                    // The listener may have moved on while this was waiting to run.
+                    if (player.currentMediaItem?.mediaId != videoId) return@launch
+                    // The embed may still be sounding the previous song; nothing will stop it
+                    // otherwise, because the transition for the file skips the online branch.
+                    _internalOnlinePlayer.value?.pause()
+                    val playWhenReady = player.playWhenReady
+                    localCopySwapFor = videoId
+                    player.replaceMediaItem(index, localCopy.asMediaItem)
+                    // The online item may already have failed in this player, which parks it in
+                    // IDLE, and Media3 does not prepare again by itself. prepare() is a no-op
+                    // when it is not idle, so it goes unconditionally rather than on a state
+                    // read that can race the failure.
+                    player.prepare()
+                    player.playWhenReady = playWhenReady
+                }
+                return
+            }
         }
 
         mediaItem.let {
@@ -3171,12 +3297,26 @@ class PlayerService : Service(),
                 // The queue may have moved on, or playback stopped, while we waited.
                 if (localMediaItem?.mediaId != playingMediaId) return@withContext
                 if (_internalOnlinePlayerState.value != PlayerConstants.PlayerState.PLAYING) return@withContext
+                // On a metered connection a preload is paid for even when the listener skips or
+                // changes the queue before it plays, so by default it only happens on Wi-Fi.
+                // Checked here, not when scheduling: the network can change in those 20 s.
+                if (!preferences.getBoolean(preloadOnMobileDataKey, false) && isConnectionMetered())
+                    return@withContext
 
                 val nextIndex = player.nextMediaItemIndex
                 if (nextIndex == C.INDEX_UNSET) return@withContext
                 val next = runCatching { player.getMediaItemAt(nextIndex) }.getOrNull() ?: return@withContext
                 if (next.usesLocalPlayer) return@withContext
                 if (preloadedOnlineMediaId == next.mediaId) return@withContext
+                // A song with a downloaded copy will be swapped for the file when it comes up,
+                // so preloading it in the embed would only spend data on audio nobody hears.
+                if (preferences.getBoolean(playLocalCopyKey, true)) {
+                    val hasLocalCopy = withContext(Dispatchers.IO) {
+                        runCatching { Database.songOnDeviceNow(next.mediaId) != null }.getOrDefault(false)
+                    }
+                    if (hasLocalCopy) return@withContext
+                    if (localMediaItem?.mediaId != playingMediaId) return@withContext
+                }
                 // The id is about to be pasted into a JavaScript string literal. Video ids
                 // are [A-Za-z0-9_-]{11}; anything else is either not a video or something
                 // that would break out of the quotes, and neither is worth preloading.
@@ -3247,9 +3387,30 @@ class PlayerService : Service(),
         )
     }
 
+    /**
+     * What the session tells Bluetooth, the car and the lock screen. A headset's single play/pause
+     * button is resolved by the system from this state (play if not PLAYING, pause if PLAYING), so it
+     * must follow what the listener asked for, not the engine's last event: the embed reports its
+     * PAUSED late (much later with the screen off) and reports BUFFERING while loading, and either one
+     * turned the next press into the opposite command — the "play needs several presses" bug. Online,
+     * onlinePlaybackIntended is that request (set by the play/pause handlers, kept through buffering,
+     * cleared by PAUSED/ENDED). Locally, playWhenReady while there is something to play, so a station
+     * that is buffering still counts as playing.
+     */
+    private fun sessionShowsPlaying(): Boolean =
+        if (player.currentMediaItem?.usesLocalPlayer == true)
+            player.playWhenReady && player.playbackState != Player.STATE_IDLE && player.playbackState != Player.STATE_ENDED
+        else
+            onlinePlaybackIntended || _internalOnlinePlayerState.value == PlayerConstants.PlayerState.PLAYING
+
     private fun updateUnifiedMediasession() {
 
         val currentMediaItem = binder.player.currentMediaItem
+
+        val rawDuration = if (currentMediaItem?.usesLocalPlayer == false) (currentDuration.value * 1000).toLong() else player.duration
+        // -1 is "unknown" for the session: a live station has no length, and C.TIME_UNSET (a huge
+        // negative number) made car and Bluetooth displays show a garbage duration
+        val sessionDuration = if (currentMediaItem?.isRadio == true || rawDuration < 0) -1L else rawDuration
 
         unifiedMediaSession.setMetadata(
             MediaMetadataCompat.Builder()
@@ -3273,7 +3434,7 @@ class PlayerService : Service(),
                     MediaMetadataCompat.METADATA_KEY_ALBUM,
                     currentMediaItem?.mediaMetadata?.albumTitle.toString()
                 )
-                .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, if (currentMediaItem?.usesLocalPlayer == false) (currentDuration.value * 1000).toLong() else player.duration)
+                .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, sessionDuration)
                 .build()
         )
 
@@ -3333,8 +3494,7 @@ class PlayerService : Service(),
                         else MediaSessionCompat.QueueItem.UNKNOWN_ID.toLong()
                     )
                     setState(
-                        if (_internalOnlinePlayerState.value == PlayerConstants.PlayerState.PLAYING || player.isPlaying)
-                            PlaybackStateCompat.STATE_PLAYING else PlaybackStateCompat.STATE_PAUSED,
+                        if (sessionShowsPlaying()) PlaybackStateCompat.STATE_PLAYING else PlaybackStateCompat.STATE_PAUSED,
                         if(player.currentMediaItem?.usesLocalPlayer == false) (currentSecond.value * 1000).toLong() else player.currentPosition,
                         1f
                     )
@@ -4312,8 +4472,8 @@ class PlayerService : Service(),
 
         private var radioJob: Job? = null
 
-        var isLoadingRadio by mutableStateOf(false)
-            private set
+        val isLoadingRadio: StateFlow<Boolean>
+            get() = this@PlayerService.isLoadingRadio
 
 //        fun setBitmapListener(listener: ((Bitmap?) -> Unit)?) {
 //            bitmapProvider?.listener = listener
@@ -4391,7 +4551,7 @@ class PlayerService : Service(),
                 binder,
                 coroutineScope
             ).let {
-                isLoadingRadio = true
+                _isLoadingRadio.value = true
                 val generation = ++this@PlayerService.radioGeneration
                 radioJob = coroutineScope.launch(Dispatchers.Main) {
 
@@ -4417,27 +4577,27 @@ class PlayerService : Service(),
                             player.forcePlayFromBeginning(songs)
                         }
                         radio = it
-                        isLoadingRadio = false
+                        _isLoadingRadio.value = false
                         onDone()
                     } catch (e: CancellationException) {
                         // Only clear the flag if no newer radio load started
                         // since (a cancelled stale job must not mark the
                         // in-flight one as done).
-                        if (generation == this@PlayerService.radioGeneration) isLoadingRadio = false
+                        if (generation == this@PlayerService.radioGeneration) _isLoadingRadio.value = false
                         throw e
                     } catch (e: Throwable) {
                         // A failed radio (network, parsing) must not leave
                         // isLoadingRadio stuck true, which would block every
                         // future radio attempt.
                         Timber.e("PlayerService startRadio failed ${e.stackTraceToString()}")
-                        if (generation == this@PlayerService.radioGeneration) isLoadingRadio = false
+                        if (generation == this@PlayerService.radioGeneration) _isLoadingRadio.value = false
                     }
                 }
             }
         }
 
         fun stopRadio() {
-            isLoadingRadio = false
+            _isLoadingRadio.value = false
             radioJob?.cancel()
             radio = null
         }
@@ -4558,6 +4718,10 @@ class PlayerService : Service(),
                                 val ytPlayer = _internalOnlinePlayer.value
                                 val currentMediaId = it.player.currentMediaItem?.mediaId
                                 if (ytPlayer != null) {
+                                    // Published before the embed answers, so a second press on a
+                                    // headset already reads "playing" (see sessionShowsPlaying)
+                                    onlinePlaybackIntended = true
+                                    updateUnifiedNotification()
                                     ytPlayer.play()
                                     it.player.playWhenReady = true
                                     Timber.d("PlayerService onPlayClick: YouTube player.play() called")
@@ -4604,6 +4768,11 @@ class PlayerService : Service(),
                         it.player.pause()
                         if (!GlobalSharedData.riTuneCastActive) {
                             _internalOnlinePlayer.value?.pause()
+                            // Same as play: the session must say "paused" now, not when the embed
+                            // gets round to reporting it, or the next headset press pauses again
+                            onlinePlaybackIntended = false
+                            resumeOnlineWhenNetworkReturns = false
+                            updateUnifiedNotification()
                         } else {
                             coroutineScope.launch {
                                 riTuneClient.sendCommand(
@@ -4741,11 +4910,17 @@ class PlayerService : Service(),
         coroutineScope.launch {
             withContext(Dispatchers.Main) {
                 val endedMediaId = player.currentMediaItem?.mediaId
+                if (player.currentMediaItem?.isRadio == false) {
+                    // A song never goes on into a leftover station (it would never end), and with
+                    // them gone the end of the queue is seen as such, so the similar songs still load.
+                    // Stations need nothing here: playNext cycles them.
+                    player.removeRadioStationsExceptCurrent()
+                }
                 if (!player.hasNextMediaItem()
                     && player.repeatMode == Player.REPEAT_MODE_OFF
                     && player.currentMediaItem?.usesLocalPlayer == false
                     && preferences.getBoolean(autoLoadSongsInQueueKey, true)
-                    && !binder.isLoadingRadio
+                    && !_isLoadingRadio.value
                 ) {
                     // End of queue (album/playlist finished, or user skipped
                     // past the last item) with repeat off: continue with

@@ -14,13 +14,17 @@ import it.fast4x.environment.models.oddElements
 import it.fast4x.environment.models.splitBySeparator
 import java.util.Locale
 
-suspend fun Environment.discoverPage() = runCatching {
+// country: the "content country" chosen in settings, sent as `gl` next to `hl` so the explore
+// page (new releases, moods) follows it. Null keeps the request exactly as before the setting.
+suspend fun Environment.discoverPage(country: String? = null) = runCatching {
 
     val response = client.post(_3djbhqyLpE) {
         setBody(
             BrowseBodyWithLocale(
                 context = DefaultWeb.copy(
-                    client = DefaultWeb.client.copy(hl = Locale.getDefault().language)
+                    client = if (country.isNullOrEmpty())
+                        DefaultWeb.client.copy(hl = Locale.getDefault().language)
+                    else DefaultWeb.client.setLang(Locale.getDefault().language, country)
                 ),
                 browseId = "FEmusic_explore"
             )
@@ -40,7 +44,7 @@ suspend fun Environment.discoverPage() = runCatching {
     // page returns about 150 for the same day, which is what gives one-album-per-artist enough
     // material to fill the row with everyone else. Only replaces the shelf when it actually came
     // back with albums: an empty page must not empty the section.
-    val pageAlbums = runCatching { discoverPageNewAlbumsComplete().getOrNull()?.newReleaseAlbums }
+    val pageAlbums = runCatching { discoverPageNewAlbumsComplete(country).getOrNull()?.newReleaseAlbums }
         .getOrNull().orEmpty()
 
     val pool = pageAlbums.ifEmpty { shelfAlbums }
@@ -114,9 +118,18 @@ suspend fun Environment.discoverPageNewAlbums() = runCatching {
     )
 }
 
-suspend fun Environment.discoverPageNewAlbumsComplete() = runCatching {
+suspend fun Environment.discoverPageNewAlbumsComplete(country: String? = null) = runCatching {
     val response = client.post(_3djbhqyLpE) {
-        setBody(BrowseBodyWithLocale(browseId = "FEmusic_new_releases_albums"))
+        setBody(
+            if (country.isNullOrEmpty()) BrowseBodyWithLocale(browseId = "FEmusic_new_releases_albums")
+            // Same content country as discoverPage(), which merges this page into its shelf.
+            else BrowseBodyWithLocale(
+                context = Context.DefaultWebWithLocale.copy(
+                    client = Context.DefaultWebWithLocale.client.copy(gl = country)
+                ),
+                browseId = "FEmusic_new_releases_albums"
+            )
+        )
         mask("contents")
     }.body<BrowseResponse>()
 

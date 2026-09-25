@@ -71,6 +71,8 @@ import it.fast4x.riplay.utils.appContext
 import it.fast4x.riplay.commonutils.cleanPrefix
 import it.fast4x.riplay.utils.colorPalette
 import it.fast4x.riplay.utils.isRadio
+import it.fast4x.riplay.utils.forceSeekToNext
+import it.fast4x.riplay.utils.forceSeekToPrevious
 import it.fast4x.riplay.enums.BackgroundProgress
 import it.fast4x.riplay.enums.MiniPlayerType
 import it.fast4x.riplay.enums.NavRoutes
@@ -241,8 +243,8 @@ fun LocalMiniPlayer(
 
     val dismissState = rememberSwipeToDismissBoxState(
         confirmValueChange = { value ->
-            if (value == SwipeToDismissBoxValue.StartToEnd) if (miniPlayerType == MiniPlayerType.Essential) {updateLike = true;hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)} else {binder.player.seekToPrevious();hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)}
-            else if (value == SwipeToDismissBoxValue.EndToStart) {binder.player.seekToNext();hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)}
+            if (value == SwipeToDismissBoxValue.StartToEnd) if (miniPlayerType == MiniPlayerType.Essential) {updateLike = true;hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)} else {if (binder.player.currentMediaItem?.isRadio == true) binder.player.forceSeekToPrevious() else binder.player.seekToPrevious();hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)}
+            else if (value == SwipeToDismissBoxValue.EndToStart) {if (binder.player.currentMediaItem?.isRadio == true) binder.player.forceSeekToNext() else binder.player.seekToNext();hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)}
             return@rememberSwipeToDismissBoxState false
         }
     )

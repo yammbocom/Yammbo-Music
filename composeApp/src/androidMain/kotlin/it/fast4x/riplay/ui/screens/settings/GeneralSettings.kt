@@ -116,6 +116,7 @@ import it.fast4x.riplay.extensions.preferences.resumePlaybackOnStartKey
 import it.fast4x.riplay.ui.styling.semiBold
 import it.fast4x.riplay.extensions.preferences.shakeEventEnabledKey
 import it.fast4x.riplay.extensions.preferences.preloadNextSongKey
+import it.fast4x.riplay.extensions.preferences.preloadOnMobileDataKey
 import it.fast4x.riplay.extensions.preferences.skipMediaOnErrorKey
 import it.fast4x.riplay.extensions.preferences.skipSilenceKey
 import it.fast4x.riplay.extensions.preferences.volumeNormalizationKey
@@ -132,6 +133,11 @@ import it.fast4x.riplay.extensions.preferences.bassboostLevelKey
 import it.fast4x.riplay.extensions.preferences.customDnsOverHttpsServerKey
 import it.fast4x.riplay.extensions.preferences.dnsOverHttpsTypeKey
 import it.fast4x.riplay.utils.getSystemlanguage
+import it.fast4x.riplay.enums.Countries
+import it.fast4x.riplay.extensions.preferences.contentCountryKey
+import it.fast4x.environment.Environment
+import it.fast4x.environment.utils.LocalePreferences
+import java.util.Locale
 import it.fast4x.riplay.extensions.preferences.handleAudioFocusEnabledKey
 import it.fast4x.riplay.extensions.preferences.isConnectionMeteredEnabledKey
 import it.fast4x.riplay.utils.isIgnoringBatteryOptimizations
@@ -198,6 +204,8 @@ fun GeneralSettings(
 
     val systemLocale = LocaleListCompat.getDefault().get(0).toString()
     var languageApp  by rememberPreference(languageAppKey, getSystemlanguage())
+    // "" = device country (the behaviour before this setting existed)
+    var contentCountry by rememberPreference(contentCountryKey, "")
 
     var restartService by rememberSaveable { mutableStateOf(false) }
     var restartActivity by rememberSaveable { mutableStateOf(false) }
@@ -252,6 +260,7 @@ fun GeneralSettings(
     // Off by default: it runs a second YouTube embed, which is memory the phone may not
     // have going spare. Read from the service on every song, so no restart is needed.
     var preloadNextSong by rememberPreference(preloadNextSongKey, true)
+    var preloadOnMobileData by rememberPreference(preloadOnMobileDataKey, false)
     var volumeNormalization by rememberPreference(volumeNormalizationKey, true)
     var isConnectionMeteredEnabled by rememberPreference(isConnectionMeteredEnabledKey, true)
 
@@ -585,6 +594,37 @@ fun GeneralSettings(
                                 languageDestinationName(it)
                             }
                         )
+                }
+
+                settingsItem {
+                    if (search.input.isBlank() || stringResource(R.string.content_country).contains(
+                            search.input,
+                            true
+                        )
+                    ) {
+                        // ZZ ("Global") is only meaningful for charts: YouTube does not accept it as gl.
+                        ValueSelectorSettingsEntry(
+                            offline = false,
+                            title = stringResource(R.string.content_country),
+                            selectedValue = contentCountry,
+                            values = listOf("") + Countries.entries
+                                .filter { it != Countries.ZZ }
+                                .map { it.name },
+                            onValueSelected = {
+                                contentCountry = it
+                                // MainActivity only builds the request locale at startup:
+                                // apply the new gl now so later requests already use it.
+                                val gl = it.ifEmpty { Locale.getDefault().country }
+                                LocalePreferences.preference?.gl = gl
+                                Environment.locale = Environment.locale.copy(gl = gl)
+                            },
+                            valueText = {
+                                if (it.isEmpty()) stringResource(R.string.content_country_device)
+                                else runCatching { Countries.valueOf(it).countryName }.getOrDefault(it)
+                            }
+                        )
+                        SettingsDescription(text = stringResource(R.string.content_country_description))
+                    }
                 }
 
                 settingsItem(
@@ -1349,6 +1389,18 @@ fun GeneralSettings(
                                 preloadNextSong = it
                             }
                         )
+                        if (preloadNextSong) {
+                            SwitchSettingEntry(
+                                online = true,
+                                offline = false,
+                                title = stringResource(R.string.preload_on_mobile_data),
+                                text = stringResource(R.string.preload_on_mobile_data_description),
+                                isChecked = preloadOnMobileData,
+                                onCheckedChange = {
+                                    preloadOnMobileData = it
+                                }
+                            )
+                        }
                     }
 
                     if (search.input.isBlank() || stringResource(R.string.skip_silence).contains(

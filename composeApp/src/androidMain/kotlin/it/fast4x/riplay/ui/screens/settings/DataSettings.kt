@@ -1,7 +1,11 @@
 package it.fast4x.riplay.ui.screens.settings
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.content.ActivityNotFoundException
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.text.format.Formatter
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -9,7 +13,9 @@ import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -25,11 +31,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -37,6 +45,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.media3.common.util.UnstableApi
 import coil.Coil
@@ -59,6 +68,24 @@ import it.fast4x.riplay.extensions.preferences.coilCustomDiskCacheKey
 import it.fast4x.riplay.extensions.preferences.coilDiskCacheMaxSizeKey
 import it.fast4x.riplay.extensions.preferences.pauseSearchHistoryKey
 import it.fast4x.riplay.extensions.preferences.rememberPreference
+import it.fast4x.riplay.extensions.preferences.autoDownloadFavoritesKey
+import it.fast4x.riplay.extensions.preferences.playLocalCopyKey
+import it.fast4x.riplay.extensions.ads.PremiumFeature
+import it.fast4x.riplay.extensions.ads.PremiumGuard
+import it.fast4x.riplay.extensions.fastshare.AutoDownloadActivity
+import it.fast4x.riplay.extensions.fastshare.isYtdlnisInstalled
+import it.fast4x.riplay.extensions.fastshare.openYtdlnisInstallPage
+import it.fast4x.riplay.extensions.fastshare.pendingFavoritesToSend
+import it.fast4x.riplay.extensions.fastshare.favoritesGivenUpCount
+import androidx.core.content.ContextCompat
+import it.fast4x.riplay.extensions.scheduled.cancelAutoDownloadFavorites
+import it.fast4x.riplay.extensions.scheduled.scheduleAutoDownloadFavorites
+import it.fast4x.riplay.utils.AppDataUsage
+import it.fast4x.riplay.utils.formatDataAmount
+import it.fast4x.riplay.utils.isConnectionMetered
+import it.fast4x.riplay.utils.readAppDataUsage
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.distinctUntilChanged
 import it.fast4x.riplay.utils.colorPalette
 import it.fast4x.riplay.enums.PopupType
@@ -211,6 +238,48 @@ fun DataSettings() {
 
     var restartService by rememberSaveable { mutableStateOf(false) }
 
+    // Data saver: read by the player on every song, so no restart is needed.
+    var playLocalCopy by rememberPreference(playLocalCopyKey, true)
+    var autoDownloadFavorites by rememberPreference(autoDownloadFavoritesKey, false)
+    var ytdlnisInstalled by remember { mutableStateOf(isYtdlnisInstalled(context)) }
+    var onUnmeteredNetwork by remember { mutableStateOf(!context.isConnectionMetered()) }
+    var resumeTick by remember { mutableIntStateOf(0) }
+    // YTDLnis may have been installed, or the network changed, while the screen was away.
+    LifecycleResumeEffect(Unit) {
+        ytdlnisInstalled = isYtdlnisInstalled(context)
+        onUnmeteredNetwork = !context.isConnectionMetered()
+        resumeTick++
+        onPauseOrDispose { }
+    }
+    // The query only tells when the favorites or the downloads change; the number shown also
+    // leaves out songs handed to YTDLnis in the last days and ids that are not videos.
+    val pendingFavoritesChanged by remember {
+        Database.pendingFavoriteDownloadsCount().distinctUntilChanged()
+    }.collectAsState(initial = 0)
+    var pendingToSend by remember { mutableIntStateOf(0) }
+    var givenUpFavorites by remember { mutableIntStateOf(0) }
+    LaunchedEffect(pendingFavoritesChanged, resumeTick) {
+        pendingToSend = withContext(Dispatchers.IO) { pendingFavoritesToSend(context).size }
+        givenUpFavorites = withContext(Dispatchers.IO) { favoritesGivenUpCount(context) }
+    }
+    // The reminder is a notification; without the permission the switch still works, but only
+    // through the button below, and the user has to know that.
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (!granted) SmartMessage(
+            context.getString(R.string.auto_download_no_notification_permission),
+            type = PopupType.Warning,
+            durationLong = true,
+            context = context
+        )
+    }
+
+    var dataUsage by remember { mutableStateOf<AppDataUsage?>(null) }
+    LaunchedEffect(Unit) {
+        dataUsage = withContext(Dispatchers.IO) { readAppDataUsage(context) }
+    }
+
     Column(
         modifier = Modifier
             .background(colorPalette().background0)
@@ -305,6 +374,94 @@ fun DataSettings() {
             Spacer(modifier = Modifier.height(12.dp))
         }
 
+        SettingsCard(title = stringResource(R.string.data_saver)) {
+            SwitchSettingEntry(
+                title = stringResource(R.string.play_local_copy),
+                text = stringResource(R.string.play_local_copy_description),
+                isChecked = playLocalCopy,
+                onCheckedChange = { playLocalCopy = it }
+            )
+
+            SwitchSettingEntry(
+                title = stringResource(R.string.auto_download_favorites),
+                text = stringResource(R.string.auto_download_favorites_description),
+                isChecked = autoDownloadFavorites && ytdlnisInstalled,
+                isEnabled = ytdlnisInstalled,
+                modifier = Modifier.alpha(if (ytdlnisInstalled) 1f else 0.5f),
+                onCheckedChange = { enabled ->
+                    if (!enabled) {
+                        autoDownloadFavorites = false
+                        cancelAutoDownloadFavorites(context)
+                    } else if (PremiumGuard.checkFeature(context, PremiumFeature.Download)) {
+                        // Same gate as the download button: it shows the subscription message itself.
+                        autoDownloadFavorites = true
+                        scheduleAutoDownloadFavorites(context)
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS)
+                            != PackageManager.PERMISSION_GRANTED
+                        ) notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    }
+                }
+            )
+            if (!ytdlnisInstalled) {
+                SettingsEntry(
+                    title = stringResource(R.string.ytdlnis_not_installed),
+                    text = stringResource(R.string.auto_download_install_ytdlnis),
+                    onClick = { openYtdlnisInstallPage(context) }
+                )
+            }
+
+            SettingsEntry(
+                title = stringResource(R.string.auto_download_now, pendingToSend),
+                text = listOf(
+                    when {
+                        !onUnmeteredNetwork -> stringResource(R.string.auto_download_needs_wifi)
+                        pendingToSend == 0 -> stringResource(R.string.auto_download_nothing_pending)
+                        else -> ""
+                    },
+                    // Left out after repeated sends; saying so keeps the count above from looking wrong.
+                    if (givenUpFavorites > 0) context.resources.getQuantityString(
+                        R.plurals.auto_download_given_up, givenUpFavorites, givenUpFavorites
+                    ) else ""
+                ).filter { it.isNotEmpty() }.joinToString("\n"),
+                isEnabled = ytdlnisInstalled && onUnmeteredNetwork && pendingToSend > 0,
+                modifier = Modifier.alpha(
+                    if (ytdlnisInstalled && onUnmeteredNetwork && pendingToSend > 0) 1f else 0.5f
+                ),
+                onClick = {
+                    context.startActivity(Intent(context, AutoDownloadActivity::class.java))
+                }
+            )
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        SettingsCard(title = stringResource(R.string.data_usage_title)) {
+            val usage = dataUsage
+            when {
+                usage == null -> DataUsageRow(stringResource(R.string.data_usage_loading), "")
+                usage.sinceBoot != null -> DataUsageRow(
+                    stringResource(R.string.data_usage_since_boot),
+                    formatDataAmount(usage.sinceBoot)
+                )
+                else -> {
+                    DataUsageRow(stringResource(R.string.data_usage_mobile_today), formatDataAmount(usage.mobileToday))
+                    DataUsageRow(stringResource(R.string.data_usage_mobile_7_days), formatDataAmount(usage.mobileLast7Days))
+                    DataUsageRow(stringResource(R.string.data_usage_mobile_30_days), formatDataAmount(usage.mobileLast30Days))
+                    DataUsageRow(stringResource(R.string.data_usage_wifi_30_days), formatDataAmount(usage.wifiLast30Days))
+                }
+            }
+            BasicText(
+                text = stringResource(R.string.data_usage_note),
+                style = it.fast4x.riplay.utils.typography().xxs.copy(
+                    color = colorPalette().textSecondary
+                ),
+                modifier = Modifier.padding(top = 8.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
         SettingsCard(title = stringResource(R.string.title_backup_and_restore)) {
             SettingsEntry(
                 isEnabled = backupUiState is BackupUiState.Idle,
@@ -385,5 +542,30 @@ fun DataSettings() {
 //        )
 
         Spacer(modifier = Modifier.height(Dimensions.bottomSpacer))
+    }
+}
+
+@Composable
+private fun DataUsageRow(label: String, value: String) {
+    Row(
+        horizontalArrangement = Arrangement.SpaceBetween,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 4.dp, vertical = 6.dp)
+    ) {
+        BasicText(
+            text = label,
+            style = it.fast4x.riplay.utils.typography().xs.copy(color = colorPalette().text),
+            modifier = Modifier
+                .weight(1f)
+                .padding(end = 12.dp)
+        )
+        BasicText(
+            text = value,
+            style = it.fast4x.riplay.utils.typography().xs.copy(
+                color = colorPalette().text,
+                fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold
+            )
+        )
     }
 }

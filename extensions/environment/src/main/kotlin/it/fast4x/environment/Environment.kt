@@ -193,25 +193,37 @@ object Environment {
 
     var client = buildClient()
 
+    // The app assigns these on every recomposition: rebuilding the client for an unchanged value
+    // cancelled the requests in flight and left the home page half empty. Whether a rebuild is due
+    // is decided on everything buildClient() reads, not just the field being assigned: the proxy comes
+    // from ProxyPreferences, which can be loaded after the client was first built, and comparing only
+    // the DNS value (null == null by default) would then never pick it up.
     var dnsToUse: String? = null
         set(value) {
             field = value
-            client.close()
-            client = buildClient()
+            rebuildClientIfConfigChanged()
         }
     var customDnsToUse: String? = null
         set(value) {
             field = value
-            client.close()
-            client = buildClient()
+            rebuildClientIfConfigChanged()
         }
 
     var proxy: Proxy? = null
         set(value) {
             field = value
-            client.close()
-            client = buildClient()
+            rebuildClientIfConfigChanged()
         }
+
+    private var clientConfig: List<Any?>? = null
+
+    private fun rebuildClientIfConfigChanged() {
+        val config = listOf(dnsToUse, customDnsToUse, proxy, ProxyPreferences.preference)
+        if (config == clientConfig) return
+        clientConfig = config
+        client.close()
+        client = buildClient()
+    }
 
 //    var locale = EnvironmentLocale(
 //        gl = Locale.getDefault().country,

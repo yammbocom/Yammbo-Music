@@ -22,6 +22,18 @@
             width: 100%;
             height: 100%;
         }
+
+        /* Audio only (the default): nobody sees the picture, and YouTube sizes the video
+           stream to the player, device pixel ratio included. Measured with a phone profile
+           (412 dp wide, DPR 2.75): a 412x232 player pulls 720p, 31 MB per 75 s of a music
+           video; a 1x1 player gets YouTube's floor, 360p, 7 MB. The audio track is Opus
+           251 at every size, so this costs no sound quality. setPlaybackQuality and vq are
+           ignored by YouTube (same bytes, same format), size is the only lever. Resizing is
+           plain CSS: the iframes are never moved in the DOM, which would reload them. */
+        body.audio-only .ytSlot {
+            width: 1px;
+            height: 1px;
+        }
     </style>
 
   <head>
@@ -49,7 +61,7 @@
     <script defer src="https://www.youtube.com/iframe_api"></script>
   </head>
 
-  <body>
+  <body class="audio-only">
     <div class="ytSlot" id="ytSlot0"><div id="youTubePlayerDOM"></div></div>
     <div class="ytSlot" id="ytSlot1"><div id="youTubePlayerDOM_standby"></div></div>
   </body>
@@ -99,6 +111,11 @@
 
     var timerId;
     var captionIntervalId = null;
+
+    // Called by the app when the video is actually on screen (true = hide it again).
+    function setAudioOnly(audioOnly) {
+      document.body.classList.toggle('audio-only', !!audioOnly);
+    }
 
     function activePlayer() {
       return players[activeIndex];

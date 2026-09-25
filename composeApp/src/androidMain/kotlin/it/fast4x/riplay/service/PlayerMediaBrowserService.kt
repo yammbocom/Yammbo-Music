@@ -64,6 +64,7 @@ import it.fast4x.riplay.utils.asMediaItem
 import it.fast4x.riplay.utils.asSong
 import it.fast4x.riplay.utils.getTitleMonthlyPlaylist
 import it.fast4x.riplay.utils.intent
+import it.fast4x.riplay.utils.isRadio
 import it.fast4x.riplay.utils.showFavoritesPlaylistsAA
 import it.fast4x.riplay.utils.showGridAA
 import it.fast4x.riplay.utils.showInLibraryAA
@@ -86,6 +87,7 @@ class PlayerMediaBrowserService : MediaBrowserServiceCompat(),
     companion object {
         var lastSongs = emptyList<Song>()
         var searchedSongs = emptyList<Song>()
+        var lastRadios = emptyList<Song>()
     }
 
     //val context = (this as Context)
@@ -297,7 +299,8 @@ class PlayerMediaBrowserService : MediaBrowserServiceCompat(),
                         songsBrowserMediaItem,
                         artistsFavoritesBrowserMediaItem,
                         albumsFavoritesBrowserMediaItem,
-                        playlistsBrowserMediaItem
+                        playlistsBrowserMediaItem,
+                        radioBrowserMediaItem
                     )
 
                     MediaId.SONGS -> {
@@ -320,6 +323,8 @@ class PlayerMediaBrowserService : MediaBrowserServiceCompat(),
                         Database
                             .songsOnDevice()
                             .first()
+                            // Capped like SONGS: an unbounded list overruns the binder transaction limit
+                            .take(500)
                             .also { lastSongs = it }
                             .map { it.asBrowserMediaItem }
                             .toMutableList()
@@ -333,6 +338,7 @@ class PlayerMediaBrowserService : MediaBrowserServiceCompat(),
                             .songsFavorites(songsSortBy, songSortOrder)
                             //.favorites()
                             .first()
+                            .take(500)
                             .also { lastSongs = it.map { it.song }}
                             .map { it.song.asBrowserMediaItem }
                             .toMutableList()
@@ -344,8 +350,21 @@ class PlayerMediaBrowserService : MediaBrowserServiceCompat(),
 
                         Database.trending(maxTopSongs)
                             .first()
+                            // A live station never ends: it must not be queued among songs
+                            .filterNot { it.isRadio }
                             .also { lastSongs = it }
                             .map { it.asBrowserMediaItem }.toMutableList()
+                    }
+
+                    MediaId.RADIO -> {
+                        // Hearted stations first, then the ones played lately, one entry per station.
+                        // Kept apart from lastSongs so the car queue holds stations only and
+                        // next/previous switch station instead of mixing them with songs.
+                        (Database.favoriteRadios().first() + Database.recentRadios(30).first())
+                            .distinctBy { it.id }
+                            .also { lastRadios = it }
+                            .map { it.asRadioBrowserMediaItem }
+                            .toMutableList()
                     }
 
                     MediaId.PLAYLISTS -> {
@@ -376,6 +395,7 @@ class PlayerMediaBrowserService : MediaBrowserServiceCompat(),
                                 //.playlistWithSongs(id.toLong())
                                 .first()
                                 //?.songs
+                                .take(500)
                                 .also { lastSongs = it.map { it.song } }
                                 .map { it.song.asBrowserMediaItem }
                                 .toMutableList()
@@ -803,6 +823,8 @@ class PlayerMediaBrowserService : MediaBrowserServiceCompat(),
 
                         Database.trending(maxTopSongs)
                             .first()
+                            // A live station never ends: it must not be queued among songs
+                            .filterNot { it.isRadio }
                             .also { lastSongs = it }
                             .map { it.asBrowserMediaItem }.toMutableList()
                     }
@@ -839,6 +861,19 @@ class PlayerMediaBrowserService : MediaBrowserServiceCompat(),
                 .setTitle(title.removePrefix())
                 .setSubtitle(artistsText)
                 .setIconUri(thumbnailUrl?.toUri())
+                .build(),
+            MediaItem.FLAG_PLAYABLE
+        )
+
+    // A station id carries its stream url (slashes included), so it gets its own prefix and
+    // onPlayFromMediaId reads everything after it instead of splitting on '/'.
+    private val Song.asRadioBrowserMediaItem
+        inline get() = MediaItem(
+            MediaDescriptionCompat.Builder()
+                .setMediaId(MediaId.forRadio(id))
+                .setTitle(title.removePrefix())
+                .setSubtitle(artistsText)
+                .setIconUri(thumbnailUrl?.toUri() ?: uriFor(R.drawable.radio))
                 .build(),
             MediaItem.FLAG_PLAYABLE
         )
@@ -980,6 +1015,16 @@ class PlayerMediaBrowserService : MediaBrowserServiceCompat(),
                 .setMediaId(MediaId.SONGS)
                 .setTitle((this as Context).resources.getString(R.string.songs))
                 .setIconUri(uriFor(R.drawable.musical_notes))
+                .build(),
+            MediaItem.FLAG_BROWSABLE
+        )
+
+    private val radioBrowserMediaItem
+        inline get() = MediaItem(
+            MediaDescriptionCompat.Builder()
+                .setMediaId(MediaId.RADIO)
+                .setTitle((this as Context).resources.getString(R.string.android_auto_radio))
+                .setIconUri(uriFor(R.drawable.radio))
                 .build(),
             MediaItem.FLAG_BROWSABLE
         )
@@ -1174,7 +1219,10 @@ class PlayerMediaBrowserService : MediaBrowserServiceCompat(),
         const val SONGS_ONDEVICE = "ondevice"
         const val SONGS_TOP = "top"
 
+        const val RADIO = "radio"
+
         fun forSong(id: String) = "$SONGS/$id"
+        fun forRadio(id: String) = "$RADIO/$id"
         fun forPlaylist(id: Long) = "$PLAYLISTS/$id"
         fun forPlaylistOnDevice(folder: String) = "$PLAYLISTS_ONDEVICE/$folder"
         fun forAlbumFavorites(id: String) = "$ALBUMS_FAVORITES/$id"

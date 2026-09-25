@@ -267,6 +267,10 @@ fun Queue(
         }
     }
 
+    // Collected as a flow: the service flips this flag from its own
+    // coroutines, which as Compose state crashed during composition.
+    val isLoadingRadio by binder.isLoadingRadio.collectAsStateWithLifecycle()
+
     val queueslist by Database.queues().collectAsState( emptyList())
     val selectedQueue = Database.selectedQueueFlow().collectAsState( defaultQueue()).let {
         if (it.value == null) defaultQueue() else it.value
@@ -914,7 +918,7 @@ fun Queue(
         }
 
         item {
-            if (binder.isLoadingRadio) {
+            if (isLoadingRadio) {
                 Column(
                     modifier = Modifier
                         .shimmer()

@@ -867,6 +867,8 @@
     <string name="skip_media_on_error_description">If an error occurs, the media is changed</string>
     <string name="preload_next_song">Preload the next song</string>
     <string name="preload_next_song_description">Buffers the start of the next song while the current one plays, so the change is instant. Uses more data and memory.</string>
+    <string name="preload_on_mobile_data">Preload on mobile data too</string>
+    <string name="preload_on_mobile_data_description">Off: the next song is only preloaded on Wi-Fi, so no data is spent on songs you may skip.</string>
     <string name="skip_media_on_error_message">The media %1$s went wrong</string>
     <string name="login_required_to_play_this_media">Login required to play this media</string>
     <string name="skip_media_on_notavailable_message">Previous media is not available, skipped to next</string>
@@ -1493,4 +1495,45 @@
     <string name="download_all_with_ytdlnis">Download all with YTDLnis</string>
     <string name="nothing_to_download">Nothing here can be downloaded</string>
     <string name="ytdlnis_not_installed">YTDLnis is not installed</string>
+    <string name="radio_cannot_be_queued">Stations can\'t be added to the song queue. Tap the station to listen to it.</string>
+    <string name="android_auto_radio">Radio</string>
+    <string name="content_country">Content country</string>
+    <string name="content_country_device">Device country</string>
+    <string name="content_country_description">Country YouTube Music uses to pick what it shows you (home, new releases, moods)</string>
+    <string name="data_saver">Data saver</string>
+    <string name="play_local_copy">Play the downloaded copy</string>
+    <string name="play_local_copy_description">If a song is downloaded on the phone, it plays from the file and uses no data.</string>
+    <string name="auto_download_favorites">Download favorites automatically on Wi-Fi</string>
+    <string name="auto_download_favorites_description">On Wi-Fi we will let you know about favorites that are not downloaded yet; one tap sends them to YTDLnis and they download in the background. Android does not allow doing it without that tap.</string>
+    <string name="auto_download_install_ytdlnis">Downloads go through YTDLnis. Tap to open its page and install it.</string>
+    <string name="auto_download_now">Download pending favorites now (%1$d)</string>
+    <string name="auto_download_needs_wifi">Only on Wi-Fi</string>
+    <string name="auto_download_nothing_pending">No favorites waiting to be downloaded</string>
+    <string name="auto_download_channel_name">Downloads</string>
+    <string name="auto_download_notification_title">Favorites ready to download</string>
+    <plurals name="auto_download_notification_text">
+        <item quantity="one">%d song not downloaded yet. Tap to download it on Wi-Fi.</item>
+        <item quantity="other">%d songs not downloaded yet. Tap to download them on Wi-Fi.</item>
+    </plurals>
+    <string name="auto_download_progress">Sending to YTDLnis: %1$d of %2$d</string>
+    <string name="auto_download_preparing">Looking for pending favorites</string>
+    <plurals name="auto_download_done">
+        <item quantity="one">%d song sent to YTDLnis</item>
+        <item quantity="other">%d songs sent to YTDLnis</item>
+    </plurals>
+    <string name="auto_download_stopped_metered">Stopped: you are no longer on Wi-Fi</string>
+    <plurals name="auto_download_given_up">
+        <item quantity="one">%d could not be downloaded</item>
+        <item quantity="other">%d could not be downloaded</item>
+    </plurals>
+    <string name="auto_download_no_notification_permission">Without notification permission we cannot let you know; use the "Download pending favorites now" button in Settings › Data.</string>
+    <string name="data_usage_title">App data usage</string>
+    <string name="data_usage_loading">Calculating</string>
+    <string name="data_usage_since_boot">Since the phone was turned on (mobile data and Wi-Fi)</string>
+    <string name="data_usage_mobile_today">Mobile data today</string>
+    <string name="data_usage_mobile_7_days">Mobile data, last 7 days</string>
+    <string name="data_usage_mobile_30_days">Mobile data, last 30 days</string>
+    <string name="data_usage_wifi_30_days">Wi-Fi, last 30 days</string>
+    <string name="data_usage_note">YouTube songs use about 2.5 MB per minute; downloaded ones, nothing.</string>
+    <string name="live_radio_low_data">Low data</string>
 </resources>
