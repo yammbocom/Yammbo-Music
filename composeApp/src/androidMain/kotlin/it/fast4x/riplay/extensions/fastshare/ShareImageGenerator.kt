@@ -3,8 +3,11 @@ package it.fast4x.riplay.extensions.fastshare
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.BlurMaskFilter
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.ColorMatrix
+import android.graphics.ColorMatrixColorFilter
 import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.RectF
@@ -13,6 +16,7 @@ import android.graphics.Typeface
 import android.net.Uri
 import androidx.core.content.FileProvider
 import androidx.palette.graphics.Palette
+import com.yambo.music.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -28,9 +32,11 @@ object ShareImageGenerator {
        decorative transport row. Everything is derived from the artwork, so no
        per-song colour decisions are needed and it stays inside the black/white brand. */
     private const val CARD_LEFT = 110f
-    private const val CARD_TOP = 340f
+    // Instagram lays its own UI over the top ~220 px (progress bars, avatar) and the
+    // bottom ~250 px (reply bar), so everything that matters sits between the two.
+    private const val CARD_TOP = 320f
     private const val CARD_WIDTH = 860f
-    private const val CARD_HEIGHT = 1260f
+    private const val CARD_HEIGHT = 1240f
     private const val CARD_RADIUS = 56f
     private const val CARD_INSET = 60f
     private const val COVER_SIZE = 740
@@ -58,14 +64,16 @@ object ShareImageGenerator {
 
             // 1. Full-bleed blurred artwork (falls back to a palette gradient)
             drawBlurredBackdrop(canvas, coverBitmap, palette)
+            drawHeaderLabel(canvas, context.getString(R.string.share_story_now_playing))
 
             // 2. The floating glass panel and everything inside it
             drawGlassCard(canvas)
+            drawCoverGlow(canvas, palette)
             val coverBottom = drawCoverArt(canvas, coverBitmap)
             val titleBottom = drawTitle(canvas, title, coverBottom + 92f)
             drawArtist(canvas, artist, titleBottom + 12f)
-            drawProgressBar(canvas, CARD_TOP + CARD_HEIGHT - 250f)
-            drawTransportControls(canvas, CARD_TOP + CARD_HEIGHT - 130f)
+            drawWaveform(canvas, CARD_TOP + CARD_HEIGHT - 214f, seed = "$title|$artist".hashCode())
+            drawTransportControls(canvas, CARD_TOP + CARD_HEIGHT - 100f)
 
             // 3. Yammbo Music branding under the card
             drawBranding(context, canvas)
@@ -104,16 +112,39 @@ object ShareImageGenerator {
 
         // Blur by collapsing to a few dozen pixels and letting the bilinear filter
         // smear it back up. The small size keeps the 9:16 ratio, so no distortion.
+        // Going up in two steps smooths out the blocky diamonds a single 30x bilinear
+        // stretch leaves behind.
         val tiny = Bitmap.createScaledBitmap(cropped, 36, 64, true)
+        val mid = Bitmap.createScaledBitmap(tiny, 180, 320, true)
         val dest = RectF(0f, 0f, IMAGE_WIDTH.toFloat(), IMAGE_HEIGHT.toFloat())
-        val smoothPaint = Paint().apply { isFilterBitmap = true; isAntiAlias = true }
+        val smoothPaint = Paint().apply {
+            isFilterBitmap = true
+            isAntiAlias = true
+            // A touch more saturation: the blur and the veil wash the colours out.
+            colorFilter = ColorMatrixColorFilter(ColorMatrix().apply { setSaturation(1.35f) })
+        }
 
-        canvas.drawBitmap(tiny, null, dest, smoothPaint)
+        canvas.drawBitmap(mid, null, dest, smoothPaint)
+        mid.recycle()
         tiny.recycle()
         if (cropped != cover) cropped.recycle()
 
-        // Darkening veil — without it white glass on a light cover is unreadable.
-        canvas.drawRect(dest, Paint().apply { color = Color.parseColor("#A6000000") })
+        // Darkening veil — without it white glass on a light cover is unreadable. Lighter
+        // in the middle so the artwork's colour still carries the frame, heavier at the
+        // edges where Instagram draws its own white UI.
+        canvas.drawRect(dest, Paint().apply {
+            shader = LinearGradient(
+                0f, 0f, 0f, IMAGE_HEIGHT.toFloat(),
+                intArrayOf(
+                    Color.parseColor("#B3000000"),
+                    Color.parseColor("#66000000"),
+                    Color.parseColor("#66000000"),
+                    Color.parseColor("#CC000000")
+                ),
+                floatArrayOf(0f, 0.3f, 0.65f, 1f),
+                Shader.TileMode.CLAMP
+            )
+        })
     }
 
     /** The translucent panel: soft shadow, low-alpha white fill, hairline border. */
@@ -137,24 +168,69 @@ object ShareImageGenerator {
         })
     }
 
-    /** Decorative progress line — a filled third with a knob, like a player at rest. */
-    private fun drawProgressBar(canvas: Canvas, centerY: Float) {
+    /** Small letter-spaced caption above the card, so the story reads at a glance. */
+    private fun drawHeaderLabel(canvas: Canvas, label: String) {
+        val paint = Paint().apply {
+            color = Color.parseColor("#D9FFFFFF")
+            textSize = 30f
+            letterSpacing = 0.28f
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            isAntiAlias = true
+            textAlign = Paint.Align.CENTER
+        }
+        canvas.drawText(label.uppercase(), IMAGE_WIDTH / 2f, CARD_TOP - 44f, paint)
+    }
+
+    /**
+     * Soft halo in the cover's own colour behind the artwork, so every story picks up the
+     * song's palette. Monochrome covers fall back to a white glow.
+     */
+    private fun drawCoverGlow(canvas: Canvas, palette: Palette?) {
+        val base = palette?.let {
+            it.getVibrantColor(it.getLightVibrantColor(it.getDominantColor(Color.WHITE)))
+        } ?: Color.WHITE
+        val glow = Color.argb(150, Color.red(base), Color.green(base), Color.blue(base))
+        val left = CARD_LEFT + CARD_INSET
+        val top = CARD_TOP + CARD_INSET
+        canvas.drawRoundRect(
+            RectF(left + 40f, top + 70f, left + COVER_SIZE - 40f, top + COVER_SIZE + 30f),
+            COVER_RADIUS, COVER_RADIUS,
+            Paint().apply {
+                color = glow
+                isAntiAlias = true
+                maskFilter = BlurMaskFilter(90f, BlurMaskFilter.Blur.NORMAL)
+            }
+        )
+    }
+
+    /**
+     * Decorative waveform in place of a flat progress line: the first third is "played"
+     * in solid white, the rest translucent. Heights are seeded by the track, so the same
+     * song always draws the same shape.
+     */
+    private fun drawWaveform(canvas: Canvas, centerY: Float, seed: Int) {
         val left = CARD_LEFT + CARD_INSET
         val right = CARD_LEFT + CARD_WIDTH - CARD_INSET
-        val playedTo = left + (right - left) * 0.34f
+        val bars = 46
+        val step = (right - left) / bars
+        val barWidth = step * 0.56f
+        val maxHalf = 28f
+        val minHalf = 5f
+        val random = java.util.Random(seed.toLong())
+        val played = Paint().apply { color = Color.WHITE; isAntiAlias = true }
+        val pending = Paint().apply { color = Color.parseColor("#59FFFFFF"); isAntiAlias = true }
 
-        canvas.drawRoundRect(
-            RectF(left, centerY - 4f, right, centerY + 4f), 4f, 4f,
-            Paint().apply { color = Color.parseColor("#4DFFFFFF"); isAntiAlias = true }
-        )
-        canvas.drawRoundRect(
-            RectF(left, centerY - 4f, playedTo, centerY + 4f), 4f, 4f,
-            Paint().apply { color = Color.WHITE; isAntiAlias = true }
-        )
-        canvas.drawCircle(playedTo, centerY, 16f, Paint().apply {
-            color = Color.WHITE
-            isAntiAlias = true
-        })
+        for (i in 0 until bars) {
+            // Envelope keeps the edges low and the middle busy, like a real song.
+            val envelope = 0.35f + 0.65f * Math.sin(Math.PI * (i + 0.5) / bars).toFloat()
+            val half = minHalf + (maxHalf - minHalf) * envelope * (0.35f + 0.65f * random.nextFloat())
+            val x = left + i * step + (step - barWidth) / 2f
+            canvas.drawRoundRect(
+                RectF(x, centerY - half, x + barWidth, centerY + half),
+                barWidth / 2f, barWidth / 2f,
+                if (i < bars * 0.34f) played else pending
+            )
+        }
     }
 
     /** Previous / play / next, drawn as paths so no drawable assets are needed. */
@@ -398,7 +474,8 @@ object ShareImageGenerator {
     }
 
     private fun drawBranding(context: Context, canvas: Canvas) {
-        val bottomY = IMAGE_HEIGHT - 170f
+        // Above Instagram's reply bar, which covers the bottom ~250 px for viewers.
+        val bottomY = CARD_TOP + CARD_HEIGHT + 100f
 
         // Load Yammbo icon from resources
         try {

@@ -40,6 +40,7 @@ import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -84,6 +85,7 @@ import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.coerceIn
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.core.content.ContextCompat
 import androidx.core.content.edit
 import androidx.core.net.toUri
@@ -159,6 +161,8 @@ import it.fast4x.riplay.extensions.preferences.contentCountryKey
 import it.fast4x.riplay.extensions.preferences.loadedDataKey
 import it.fast4x.riplay.extensions.preferences.miniPlayerTypeKey
 import it.fast4x.riplay.extensions.preferences.keepPlayerMinimizedKey
+import it.fast4x.riplay.extensions.preferences.expandedplayerKey
+import it.fast4x.riplay.extensions.preferences.showButtonPlayerVideoKey
 import it.fast4x.riplay.extensions.preferences.navigationBarPositionKey
 import it.fast4x.riplay.extensions.preferences.navigationBarTypeKey
 import it.fast4x.riplay.extensions.preferences.parentalControlEnabledKey
@@ -500,6 +504,19 @@ class MainActivity :
             if (!preferences.getBoolean(migrationKey, false)) {
                 preferences.edit()
                     .putBoolean(keepPlayerMinimizedKey, true)
+                    .putBoolean(migrationKey, true)
+                    .apply()
+            }
+        }
+
+        // One-shot migration (0.7.147): compact player and the video button become the
+        // defaults for everyone, including upgraders who had the old values stored.
+        runCatching {
+            val migrationKey = "player_layout_default_migration_v147"
+            if (!preferences.getBoolean(migrationKey, false)) {
+                preferences.edit()
+                    .putBoolean(expandedplayerKey, false)
+                    .putBoolean(showButtonPlayerVideoKey, true)
                     .putBoolean(migrationKey, true)
                     .apply()
             }
@@ -1453,7 +1470,12 @@ class MainActivity :
                                     dragHandle = { SheetDragHandle() },
                                     shape = SheetShape
                                 ) {
-                                    menuState.content()
+                                    // Capped below the top of the screen so every entry stays
+                                    // within thumb reach; longer menus scroll inside the cap.
+                                    val sheetMaxHeight = LocalConfiguration.current.screenHeightDp.dp * 0.68f
+                                    Box(modifier = Modifier.heightIn(max = sheetMaxHeight)) {
+                                        menuState.content()
+                                    }
                                 }
                                 // Detached content (the share sheet opened from a menu) opens its
                                 // own window, so it is composed here after the menu sheet closes.

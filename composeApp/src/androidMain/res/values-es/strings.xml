@@ -1430,6 +1430,10 @@
     <string name="logout_confirmation">¿Estás seguro de que quieres cerrar sesión?</string>
     <!-- Share sheet -->
     <string name="share_sheet_title">Compartir</string>
+    <string name="queue_up_next">A continuación</string>
+    <string name="share_story_now_playing">Escuchando ahora</string>
+    <string name="player_switch_to_video">Ver el vídeo</string>
+    <string name="player_switch_to_song">Volver a la canción</string>
     <string name="share_section_label">Compartir en</string>
     <string name="share_generating_image">Generando imagen…</string>
     <string name="share_with_other_apps">Compartir con otras apps</string>

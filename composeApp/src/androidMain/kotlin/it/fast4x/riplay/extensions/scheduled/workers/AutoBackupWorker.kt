@@ -222,7 +222,7 @@ class AutoBackupWorker(context: Context, params: WorkerParameters) : CoroutineWo
             val showButtonPlayerStartradio = context.preferences.getBoolean(showButtonPlayerStartRadioKey, true)
             val showButtonPlayerSystemEqualizer = context.preferences.getBoolean(showButtonPlayerSystemEqualizerKey, true)
             val showButtonPlayerDiscover = context.preferences.getBoolean(showButtonPlayerDiscoverKey, true)
-            val showButtonPlayerVideo = context.preferences.getBoolean(showButtonPlayerVideoKey, false)
+            val showButtonPlayerVideo = context.preferences.getBoolean(showButtonPlayerVideoKey, true)
             val showBackgroundLyrics = context.preferences.getBoolean(showBackgroundLyricsKey, false)
             val showTotalTimeQueue = context.preferences.getBoolean(showTotalTimeQueueKey, true)
             val backgroundProgress = context.preferences.getEnum(backgroundProgressKey, BackgroundProgress.MiniPlayer)

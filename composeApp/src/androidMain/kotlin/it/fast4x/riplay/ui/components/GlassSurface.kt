@@ -37,7 +37,9 @@ fun Modifier.glassSurface(
     shape: Shape = RoundedCornerShape(24.dp),
     alpha: Float = 0.82f,
     elevation: Dp = 10.dp,
-    borderAlpha: Float = 0.22f
+    borderAlpha: Float = 0.22f,
+    // Overrides the palette surface (background1) when a panel needs its own fill.
+    fill: Color? = null
 ): Modifier {
     val colors = colorPalette()
 
@@ -72,7 +74,7 @@ fun Modifier.glassSurface(
     return this
         .shadow(elevation = effectiveElevation, shape = shape, clip = false)
         .clip(shape)
-        .background(colors.background1.copy(alpha = effectiveAlpha))
+        .background((fill ?: colors.background1).copy(alpha = effectiveAlpha))
         .background(
             Brush.verticalGradient(
                 colors = listOf(sheen, Color.Transparent)

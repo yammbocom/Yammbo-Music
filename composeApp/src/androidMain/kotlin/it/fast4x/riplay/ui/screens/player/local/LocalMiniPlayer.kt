@@ -367,20 +367,46 @@ fun LocalMiniPlayer(
                 // square-cornered block is glaringly obvious, especially in the light theme.
                 // Opaque (alpha = 1): at 0.82 the list behind showed through and its text
                 // overlapped the title. Border, sheen and shadow stay.
-                .glassSurface(shape = RoundedCornerShape(22.dp), alpha = 1f, elevation = 12.dp)
+                .glassSurface(
+                    shape = RoundedCornerShape(22.dp),
+                    alpha = 1f,
+                    elevation = 12.dp,
+                    // White card in the light theme: the palette's F5F5F5 read as a grey slab
+                    // over the white page. Dark keeps its own surface.
+                    fill = if (colorPalette().isDark) null else Color.White
+                )
                 .clip(RoundedCornerShape(22.dp))
                 .fillMaxWidth()
                 .drawBehind {
                     if (backgroundProgress == BackgroundProgress.Both || backgroundProgress == BackgroundProgress.MiniPlayer) {
-                        drawRect(
-                            color = colorPalette.favoritesOverlay,
-                            topLeft = Offset.Zero,
-                            size = Size(
-                                width = positionAndDuration.first.toFloat() /
-                                        positionAndDuration.second.absoluteValue * size.width,
-                                height = size.maxDimension
+                        val fraction = (positionAndDuration.first.toFloat() /
+                                positionAndDuration.second.absoluteValue)
+                            .takeUnless { it.isNaN() }?.coerceIn(0f, 1f) ?: 0f
+                        if (colorPalette.isDark) {
+                            drawRect(
+                                color = colorPalette.favoritesOverlay,
+                                topLeft = Offset.Zero,
+                                size = Size(
+                                    width = fraction * size.width,
+                                    height = size.maxDimension
+                                )
                             )
-                        )
+                        } else {
+                            // Light theme: the 40 % black fill turned the white card grey as the
+                            // song went on. A faint wash plus a hairline along the bottom edge
+                            // keeps the progress readable and the card clean.
+                            val barHeight = 2.5.dp.toPx()
+                            drawRect(
+                                color = Color.Black.copy(alpha = 0.05f),
+                                topLeft = Offset.Zero,
+                                size = Size(width = fraction * size.width, height = size.height)
+                            )
+                            drawRect(
+                                color = Color.Black,
+                                topLeft = Offset(0f, size.height - barHeight),
+                                size = Size(width = fraction * size.width, height = barHeight)
+                            )
+                        }
                     }
                 }
         ) {
@@ -486,13 +512,13 @@ fun LocalMiniPlayer(
                                 }
                                 if (effectRotationEnabled) isRotated = !isRotated
                             }
-                            .background(colorPalette().background2)
+                            .background(if (colorPalette().isDark) colorPalette().background2 else colorPalette().text)
                             .size(42.dp)
                     ) {
                         Image(
                             painter = painterResource(if (shouldBePlaying) R.drawable.pause else R.drawable.play),
                             contentDescription = null,
-                            colorFilter = ColorFilter.tint(colorPalette().iconButtonPlayer),
+                            colorFilter = ColorFilter.tint(if (colorPalette().isDark) colorPalette().iconButtonPlayer else colorPalette().background0),
                             modifier = Modifier
                                 .rotate(rotationAngle)
                                 .align(Alignment.Center)

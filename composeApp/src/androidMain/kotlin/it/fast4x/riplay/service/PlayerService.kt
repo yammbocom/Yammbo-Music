@@ -2733,7 +2733,7 @@ class PlayerService : Service(),
         }
 
         unifiedMediaSession.setQueue(queueItems)
-        unifiedMediaSession.setQueueTitle("Playback Queue")
+        unifiedMediaSession.setQueueTitle(getString(R.string.queue_up_next))
     }
 
     private fun maybeRecoverPlaybackError() {
@@ -3553,6 +3553,9 @@ class PlayerService : Service(),
                     PlaybackStateCompat.ACTION_STOP or
                     PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS or
                     PlaybackStateCompat.ACTION_SKIP_TO_NEXT or
+                    // Without it watches and car screens treat the published queue as
+                    // read-only and hide the "up next" list entirely.
+                    PlaybackStateCompat.ACTION_SKIP_TO_QUEUE_ITEM or
                     PlaybackStateCompat.ACTION_SEEK_TO
 
         val notificationPlayerFirstIcon = preferences.getEnum(notificationPlayerFirstIconKey, NotificationButtons.Shuffle)

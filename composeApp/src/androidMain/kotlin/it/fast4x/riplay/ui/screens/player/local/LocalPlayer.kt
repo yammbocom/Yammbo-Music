@@ -345,6 +345,7 @@ import it.fast4x.riplay.utils.applyIf
 import it.fast4x.riplay.utils.conditional
 import it.fast4x.riplay.utils.isLocal
 import it.fast4x.riplay.utils.isRadio
+import it.fast4x.riplay.utils.isVideo
 import it.fast4x.riplay.utils.saturate
 
 @ExperimentalPermissionsApi
@@ -667,7 +668,7 @@ fun LocalPlayer(
         showButtonPlayerSystemEqualizerKey,
         false
     )
-    val showButtonPlayerVideo by rememberPreference(showButtonPlayerVideoKey, false)
+    val showButtonPlayerVideo by rememberPreference(showButtonPlayerVideoKey, true)
 
     val showTotalTimeQueue by rememberPreference(showTotalTimeQueueKey, true)
     val backgroundProgress by rememberPreference(
@@ -1728,9 +1729,10 @@ fun LocalPlayer(
                             .requiredHeight(32.dp)
                             .fillMaxWidth()
                     ) {
-                        if (showButtonPlayerVideo)
+                        // A station has no video counterpart to search for.
+                        if (showButtonPlayerVideo && !mediaItem.isRadio)
                             IconButton(
-                                icon = R.drawable.left_and_right_arrows,
+                                icon = if (mediaItem.isVideo) R.drawable.musical_note else R.drawable.video_play,
                                 color = colorPalette().accent,
                                 enabled = true,
                                 onClick = {

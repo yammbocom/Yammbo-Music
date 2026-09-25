@@ -700,7 +700,7 @@ fun OnlinePlayer(
         showButtonPlayerSystemEqualizerKey,
         false
     )
-    val showButtonPlayerVideo by rememberObservedPreference(showButtonPlayerVideoKey, false)
+    val showButtonPlayerVideo by rememberObservedPreference(showButtonPlayerVideoKey, true)
 
     val showTotalTimeQueue by rememberObservedPreference(showTotalTimeQueueKey, true)
     val backgroundProgress by rememberObservedPreference(
@@ -1467,8 +1467,8 @@ fun OnlinePlayer(
                             .align(Alignment.Center))
                         if (showButtonPlayerVideo)
                             Image(
-                                painter = painterResource(R.drawable.left_and_right_arrows),
-                                contentDescription = null,
+                                painter = painterResource(if (mediaItem.isVideo) R.drawable.musical_note else R.drawable.video_play),
+                                contentDescription = stringResource(if (mediaItem.isVideo) R.string.player_switch_to_song else R.string.player_switch_to_video),
                                 colorFilter = ColorFilter.tint(if (playerBackgroundColors == PlayerBackgroundColors.MidnightOdyssey) dynamicColorPalette.background2 else colorPalette().collapsedPlayerProgressBar),
                                 modifier = Modifier
                                     .align(Alignment.TopStart)
@@ -1891,7 +1891,7 @@ fun OnlinePlayer(
                         ) {
                             if (showButtonPlayerVideo)
                                 IconButton(
-                                    icon = R.drawable.left_and_right_arrows,
+                                    icon = if (mediaItem.isVideo) R.drawable.musical_note else R.drawable.video_play,
                                     color = colorPalette().accent,
                                     enabled = true,
                                     onClick = {

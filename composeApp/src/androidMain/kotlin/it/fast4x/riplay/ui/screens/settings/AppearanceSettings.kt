@@ -258,8 +258,8 @@ fun DefaultAppearanceSettings() {
     showButtonPlayerSystemEqualizer = false
     var showButtonPlayerDiscover by rememberPreference(showButtonPlayerDiscoverKey, false)
     showButtonPlayerDiscover = false
-    var showButtonPlayerVideo by rememberPreference(showButtonPlayerVideoKey, false)
-    showButtonPlayerVideo = false
+    var showButtonPlayerVideo by rememberPreference(showButtonPlayerVideoKey, true)
+    showButtonPlayerVideo = true
     var navigationBarPosition by rememberPreference(
         navigationBarPositionKey,
         NavigationBarPosition.Bottom
@@ -444,7 +444,7 @@ fun AppearanceSettings(
         false
     )
     var showButtonPlayerDiscover by rememberPreference(showButtonPlayerDiscoverKey, false)
-    var showButtonPlayerVideo by rememberPreference(showButtonPlayerVideoKey, false)
+    var showButtonPlayerVideo by rememberPreference(showButtonPlayerVideoKey, true)
 
     val navigationBarPosition by rememberPreference(
         navigationBarPositionKey,
@@ -1021,7 +1021,7 @@ fun AppearanceSettings(
                     ///////ACTION BAR BUTTONS////////////////
                     transparentBackgroundActionBarPlayer = true
                     actionspacedevenly = true
-                    showButtonPlayerVideo = false
+                    showButtonPlayerVideo = true
                     showButtonPlayerDiscover = false
                     //showButtonPlayerDownload = false
                     showButtonPlayerAddToPlaylist = true
@@ -1068,7 +1068,7 @@ fun AppearanceSettings(
                     ///////ACTION BAR BUTTONS////////////////
                     transparentBackgroundActionBarPlayer = true
                     actionspacedevenly = true
-                    showButtonPlayerVideo = false
+                    showButtonPlayerVideo = true
                     showButtonPlayerDiscover = false
                     //showButtonPlayerDownload = false
                     showButtonPlayerAddToPlaylist = true
@@ -1111,7 +1111,7 @@ fun AppearanceSettings(
                     ///////ACTION BAR BUTTONS////////////////
                     transparentBackgroundActionBarPlayer = true
                     actionspacedevenly = true
-                    showButtonPlayerVideo = false
+                    showButtonPlayerVideo = true
                     showButtonPlayerDiscover = false
                     //showButtonPlayerDownload = false
                     showButtonPlayerAddToPlaylist = false
@@ -1158,7 +1158,7 @@ fun AppearanceSettings(
                     ///////ACTION BAR BUTTONS////////////////
                     transparentBackgroundActionBarPlayer = true
                     actionspacedevenly = true
-                    showButtonPlayerVideo = false
+                    showButtonPlayerVideo = true
                     showButtonPlayerDiscover = false
                     //showButtonPlayerDownload = false
                     showButtonPlayerAddToPlaylist = false
@@ -1206,7 +1206,7 @@ fun AppearanceSettings(
                     ///////ACTION BAR BUTTONS////////////////
                     transparentBackgroundActionBarPlayer = true
                     actionspacedevenly = true
-                    showButtonPlayerVideo = false
+                    showButtonPlayerVideo = true
                     showButtonPlayerDiscover = false
                     //showButtonPlayerDownload = true
                     showButtonPlayerAddToPlaylist = false
@@ -1248,7 +1248,7 @@ fun AppearanceSettings(
                     ///////ACTION BAR BUTTONS////////////////
                     transparentBackgroundActionBarPlayer = true
                     actionspacedevenly = true
-                    showButtonPlayerVideo = false
+                    showButtonPlayerVideo = true
                     showButtonPlayerDiscover = false
                     //showButtonPlayerDownload = false
                     showButtonPlayerAddToPlaylist = false
