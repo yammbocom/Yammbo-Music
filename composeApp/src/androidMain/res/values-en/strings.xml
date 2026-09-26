@@ -1393,6 +1393,11 @@
     <string name="app_update_generic_title">Improvements and fixes</string>
     <string name="app_update_generic_body">The app runs smoother and more reliably.</string>
     <string name="app_update_install_now">Update now</string>
+    <string name="app_update_keeps_going">You can close this: the installer opens when it finishes.</string>
+    <string name="app_update_install">Install</string>
+    <string name="app_update_failed">The update could not be downloaded. Check your connection and try again.</string>
+    <string name="app_update_retry">Try again</string>
+    <string name="app_update_open_browser">Download in the browser</string>
     <string name="share_preview_title">Preview</string>
     <string name="share_preview_action">Preview</string>
     <string name="share_change_lines">Change lines</string>

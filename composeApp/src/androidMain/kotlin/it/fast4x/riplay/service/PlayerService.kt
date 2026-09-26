@@ -144,9 +144,10 @@ import it.fast4x.riplay.extensions.ads.YammboAdManager
 import it.fast4x.riplay.extensions.audiovolume.AudioVolumeObserver
 import it.fast4x.riplay.extensions.audiovolume.OnAudioVolumeChangedListener
 import it.fast4x.riplay.extensions.discord.DiscordPresenceManager
+import it.fast4x.riplay.extensions.yammboapi.AppEvents
 import it.fast4x.riplay.extensions.yammboapi.PlayReportRequest
-import it.fast4x.riplay.extensions.yammboapi.YammboApiService
-import it.fast4x.riplay.extensions.yammboapi.YammboAuthManager
+import it.fast4x.riplay.utils.RADIO_HLS_MARKER
+import it.fast4x.riplay.utils.RADIO_KEY_PREFIX
 import it.fast4x.riplay.extensions.discord.updateDiscordPresenceWithOfflinePlayer
 import it.fast4x.riplay.extensions.discord.updateDiscordPresenceWithOnlinePlayer
 import it.fast4x.riplay.extensions.history.updateOnlineHistory
@@ -466,6 +467,25 @@ class PlayerService : Service(),
     private var localListenedDurationMs = 0L
     private var localTrackedMediaId: String? = null
 
+    // One server report per listen, whatever plays it. The online path used to report on every
+    // pause or rebuffer, so one song arrived as several short plays; radio and device files were
+    // never reported at all. Accumulated by trackListenTick(), sent by flushListen().
+    private var listenMediaId: String? = null
+    private var listenSongKey: String? = null
+    private var listenWasPlaying = false
+    private var listenMs = 0L
+    private var listenTitle: String? = null
+    private var listenArtist: String? = null
+    private var listenDurationMs: Long? = null
+    private var listenIsVideo = false
+    private var listenLastPositionMs = 0L
+    private var lastReportedPlaybackError: String? = null
+
+    // The Media3 player may only be read on the main thread; the position observer copies these
+    // for the tracking loop, which runs on IO.
+    @Volatile private var localPlayerPositionMs = 0L
+    @Volatile private var localPlayerDurationMs = 0L
+
     private var lastPlayNextTime = 0L
     private var debounceDelayMs = 2000L
     private var consecutiveErrorSkips = 0
@@ -747,6 +767,9 @@ class PlayerService : Service(),
                     localTrackedMediaId = currentLocalId
                     if (isPlayingNow) localListenedDurationMs += 1000
                 }
+
+                runCatching { trackListenTick() }
+                    .onFailure { Timber.e("PlayerService trackListenTick ${it.message}") }
 
                 if (localMediaItem?.usesLocalPlayer == false) {
                     if (_internalOnlinePlayerState.value == PlayerConstants.PlayerState.PLAYING) {
@@ -1891,6 +1914,19 @@ class PlayerService : Service(),
                     }
 
                     Timber.e("PlayerService: onError $error")
+                    // Not INVALID_PARAMETER: one arrives after every player initialisation.
+                    // Once per song and error, since the recovery below can hit it again.
+                    localMediaItem?.let { item ->
+                        val key = "${item.mediaId}:$error"
+                        if (error != PlayerConstants.PlayerError.INVALID_PARAMETER_IN_REQUEST && key != lastReportedPlaybackError) {
+                            lastReportedPlaybackError = key
+                            AppEvents.log(
+                                AppEvents.PLAYBACK_ERROR,
+                                detail = "online:$error:${item.mediaMetadata.title ?: ""}",
+                                videoId = item.mediaId,
+                            )
+                        }
+                    }
                     val errorString = when (error) {
                         PlayerConstants.PlayerError.VIDEO_NOT_PLAYABLE_IN_EMBEDDED_PLAYER -> "Content not playable, recovery in progress, try to click play but if the error persists try to log in"
                         PlayerConstants.PlayerError.VIDEO_NOT_FOUND -> "Content not found, perhaps no longer available"
@@ -2145,6 +2181,7 @@ class PlayerService : Service(),
             localListenedDurationMs = 0L
             localTrackedMediaId = null
         }
+        runCatching { flushListen() }
 
         coroutineScope.launch {
             withContext(Dispatchers.Main) {
@@ -2352,6 +2389,14 @@ class PlayerService : Service(),
             "PlayerService onPlayerError code=${error.errorCode} name=${error.errorCodeName} " +
                 "mediaId=${mi?.mediaId} uri=${mi?.localConfiguration?.uri} msg=${error.message}"
         )
+        mi?.let {
+            val kind = if (it.isRadio) "radio" else "local"
+            AppEvents.log(
+                AppEvents.PLAYBACK_ERROR,
+                detail = "$kind:${error.errorCodeName}:${it.mediaMetadata.title ?: ""}",
+                videoId = statsIdOf(it.mediaId),
+            )
+        }
     }
 
     @kotlin.OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
@@ -4290,8 +4335,6 @@ class PlayerService : Service(),
                         Timber.e("PlayerService incrementOnlineListenedPlaytimeMs SQLException ${e.stackTraceToString()}")
                     }
                 }
-
-                reportPlayToServer(mediaId)
             }
 
         }
@@ -4299,39 +4342,105 @@ class PlayerService : Service(),
     }
 
     /**
-     * Mirror a finished listen to the backend so it reaches the admin panel.
-     *
-     * Called from the same branch that writes the local Event, so the two agree on
-     * what counts as a listen and the user's "pause listening history" setting —
-     * checked by the caller — silences both together.
-     *
-     * Deliberately fire and forget on the service's IO scope: reporting is never
-     * worth delaying the next track for, and reportPlay already swallows failures.
+     * One second of the listen tracker, from the tracking loop. Adds to the current listen while
+     * something plays, and closes it (flushListen) when the item changes or the same one starts
+     * over, so pauses and rebuffers no longer split a song into several plays.
      */
-    private fun reportPlayToServer(mediaId: String) {
-        val song = currentSong.value ?: return
+    private fun trackListenTick() {
+        val item = localMediaItem
+        val id = item?.mediaId?.takeIf { it.isNotBlank() }
+        val usesLocal = item?.usesLocalPlayer == true
+        val playing = if (usesLocal) isPlayingNow
+            else _internalOnlinePlayerState.value == PlayerConstants.PlayerState.PLAYING
+        val positionMs = if (usesLocal) localPlayerPositionMs else (currentSecond.value * 1000f).toLong()
 
-        coroutineScope.launch {
-            runCatching {
-                YammboApiService.reportPlay(
-                    PlayReportRequest(
-                        videoId = mediaId,
-                        title = song.title,
-                        artist = song.artistsText,
-                        // currentDuration is seconds — it is compared against
-                        // currentSecond elsewhere — and the field is milliseconds.
-                        durationMs = currentDuration.value.takeIf { it > 0 }
-                            ?.let { (it * 1000f).toInt() },
-                        playedMs = onlineListenedDurationMs.toInt(),
-                        source = "online",
-                        appVersion = BuildConfig.VERSION_NAME,
-                        androidSdk = Build.VERSION.SDK_INT,
-                        deviceModel = Build.MODEL,
-                    ),
-                    token = YammboAuthManager(this@PlayerService).getAccessToken(),
-                )
-            }
+        // Back at the start after being well into it: repeat-one, or picked again. A new listen.
+        // Only while it kept playing from one second to the next: a player being rebuilt (after
+        // a network outage, or between two device files) reads zero for a moment in between.
+        val restarted = playing && listenWasPlaying && id != null && id == listenMediaId &&
+                positionMs in 0 until 5_000 && listenLastPositionMs > 30_000
+        // A downloaded copy handed back to its online video (casting starts mid-song), or the
+        // other way round, is the same song carrying on: keep counting under the new id.
+        val songKey = item?.let { it.youTubeVideoId ?: it.mediaId }
+        if (id != listenMediaId && id != null && songKey != null && songKey == listenSongKey) {
+            listenMediaId = id
         }
+        if (id != listenMediaId || restarted) {
+            flushListen()
+            listenMediaId = id
+            listenSongKey = songKey
+            listenTitle = null
+            listenArtist = null
+            listenDurationMs = null
+        }
+        listenWasPlaying = playing
+        if (item == null || id == null) return
+
+        if (playing) {
+            listenLastPositionMs = positionMs
+            listenMs += 1000
+        }
+        // Metadata can fill in after the item starts, so keep the freshest.
+        item.mediaMetadata.title?.toString()?.takeIf { it.isNotBlank() }?.let { listenTitle = it }
+        item.mediaMetadata.artist?.toString()?.takeIf { it.isNotBlank() }?.let { listenArtist = it }
+        listenIsVideo = item.isVideo
+        val durationMs = when {
+            item.isRadio -> 0L
+            usesLocal -> localPlayerDurationMs
+            // currentDuration is in seconds.
+            else -> (currentDuration.value * 1000f).toLong()
+        }
+        if (durationMs > 0) listenDurationMs = durationMs
+    }
+
+    /**
+     * Report the listen being tracked, once, if it was long enough to count — the same
+     * threshold and "pause listening history" setting as the local history.
+     *
+     * Fire and forget on the service's scope: reporting is never worth delaying the next track
+     * for, and reportPlay already swallows failures.
+     */
+    private fun flushListen() {
+        val mediaId = listenMediaId ?: return
+        val playedMs = listenMs
+        listenMs = 0L
+        listenLastPositionMs = 0L
+        if (preferences.getBoolean(pauseListenHistoryKey, false)) return
+        val minTimeForEvent = preferences.getEnum(exoPlayerMinTimeForEventKey, MinTimeForEvent.`20s`)
+        if (playedMs < minTimeForEvent.ms) return
+
+        val source = when {
+            mediaId.isRadioId -> "radio"
+            mediaId.startsWith(LOCAL_KEY_PREFIX) -> "local"
+            else -> "online"
+        }
+        val request = PlayReportRequest(
+            videoId = statsIdOf(mediaId),
+            title = listenTitle?.take(191),
+            artist = listenArtist?.take(191),
+            durationMs = listenDurationMs?.takeIf { source != "radio" }?.toInt(),
+            playedMs = playedMs.toInt(),
+            source = source,
+            appVersion = BuildConfig.VERSION_NAME,
+            androidSdk = Build.VERSION.SDK_INT,
+            deviceModel = Build.MODEL,
+        )
+        if (listenIsVideo && source == "online") AppEvents.log(AppEvents.VIDEO_PLAY, videoId = mediaId)
+        // Not on the service's scope: the last listen is flushed from onDestroy, which cancels it.
+        AppEvents.reportPlay(request)
+    }
+
+    /**
+     * The id a play is filed under on the server, which takes at most 24 characters. YouTube ids
+     * and device files fit as they are; a station's id is its stream url, so it becomes a short
+     * stable hash of it (same station, same id).
+     */
+    private fun statsIdOf(mediaId: String): String {
+        if (!mediaId.isRadioId && mediaId.length <= 24) return mediaId
+        val key = mediaId.removePrefix(RADIO_KEY_PREFIX).removeSuffix(RADIO_HLS_MARKER)
+        val digest = java.security.MessageDigest.getInstance("SHA-1").digest(key.toByteArray())
+        val hex = digest.joinToString("") { "%02x".format(it) }
+        return (if (mediaId.isRadioId) "radio-" else "local-") + hex.take(18)
     }
 
     // Mirrors incrementOnlineListenedPlaytimeMs() but for LOCAL songs, using the
@@ -4382,6 +4491,11 @@ class PlayerService : Service(),
 
                 withContext(Dispatchers.Main) {
 
+
+                    if (player.currentMediaItem?.usesLocalPlayer == true) {
+                        localPlayerPositionMs = player.currentPosition
+                        localPlayerDurationMs = player.duration.takeIf { it > 0 && it != C.TIME_UNSET } ?: 0L
+                    }
 
                     statePersistence.saveState(
                         mediaId = player.currentMediaItem?.mediaId ?: "",

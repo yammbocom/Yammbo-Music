@@ -168,14 +168,22 @@
                 <data android:scheme="vnd.youtube.launch" />
             </intent-filter>
 
-            <!-- Yammbo TV pairing deep link: open app when user scans the QR from TV -->
-            <intent-filter android:autoVerify="false">
+            <!-- Our own links open here instead of the browser (App Links, verified by
+                 https://music.yammbo.com/.well-known/assetlinks.json): shared songs, albums,
+                 artists, playlists and podcasts, the emails (/open/...), and the TV pairing QR. -->
+            <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="https" />
                 <data android:host="music.yammbo.com" />
                 <data android:pathPrefix="/tv-link" />
+                <data android:pathPrefix="/track/" />
+                <data android:pathPrefix="/album/" />
+                <data android:pathPrefix="/artist/" />
+                <data android:pathPrefix="/playlist/" />
+                <data android:pathPrefix="/podcast/" />
+                <data android:pathPrefix="/open" />
             </intent-filter>
 
             <!-- Share filter -->

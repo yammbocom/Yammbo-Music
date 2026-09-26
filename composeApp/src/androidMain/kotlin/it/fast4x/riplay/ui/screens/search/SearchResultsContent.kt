@@ -94,6 +94,10 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.ExperimentalSerializationApi
+import it.fast4x.riplay.extensions.yammboapi.AppEvents
+
+// Searches already reported as empty in this run of the app.
+private val reportedEmptySearches = java.util.Collections.synchronizedSet(HashSet<String>())
 
 @ExperimentalSerializationApi
 @ExperimentalMaterialApi
@@ -215,6 +219,12 @@ fun SearchResultsContent(
                     }
                 },
                 emptyItemsText = emptyItemsText,
+                // Songs is the tab every search opens on, so its answer is what the user got.
+                // Once per query and run: coming back to the same results must not count again.
+                onEmpty = {
+                    if (reportedEmptySearches.add(query.trim().lowercase()))
+                        AppEvents.log(AppEvents.SEARCH_EMPTY, detail = query)
+                },
                 headerContent = headerContent,
                 itemContent = { song ->
                     //Log.d("mediaItem",song.toString())

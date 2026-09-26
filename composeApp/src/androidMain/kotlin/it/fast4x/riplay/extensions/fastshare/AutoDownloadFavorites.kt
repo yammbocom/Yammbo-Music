@@ -1,5 +1,6 @@
 package it.fast4x.riplay.extensions.fastshare
 
+import it.fast4x.riplay.extensions.yammboapi.AppEvents
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
@@ -63,6 +64,7 @@ fun sendToYtdlnisInBackground(context: Context, videoId: String): Boolean {
     }
     return try {
         context.startActivity(intent)
+        AppEvents.log(AppEvents.AUTO_DOWNLOAD, videoId = videoId)
         true
     } catch (e: ActivityNotFoundException) {
         false

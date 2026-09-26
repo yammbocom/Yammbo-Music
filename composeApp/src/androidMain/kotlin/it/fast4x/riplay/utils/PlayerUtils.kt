@@ -267,6 +267,9 @@ fun Player.forcePlay(mediaItem: MediaItem, replace: Boolean = false) {
 }
 
 fun Player.playAtIndex(mediaItemIndex: Int) {
+    // Callers such as the cover pager can lag behind a queue that just shrank; an index past
+    // the end crashed the app inside the timeline.
+    if (mediaItemIndex !in 0 until mediaItemCount) return
     if (excludeMediaItem(getMediaItemAt(mediaItemIndex), globalContext())) return
 
     seekToDefaultPosition(mediaItemIndex)

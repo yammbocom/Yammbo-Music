@@ -3337,7 +3337,8 @@ fun OnlinePlayer(
                                             snapshotFlow { pagerState.settledPage }.distinctUntilChanged()
                                                 .collect { page ->
                                                     if (previousPage != page) {
-                                                        if (page != binder.player.currentMediaItemIndex) {
+                                                        // A page past the end is a stale pager, not a skip.
+                                                        if (page != binder.player.currentMediaItemIndex && page < binder.player.mediaItemCount) {
                                                             val ctx = it.fast4x.riplay.utils.globalContext()
                                                             if (YammboAdManager.canSkip(ctx)) {
                                                                 YammboAdManager.recordSkip()

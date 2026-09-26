@@ -130,6 +130,31 @@ object YammboApiService {
         }.body<PlayReportResponse>()
     }.onFailure { Timber.e("YammboApi reportPlay error: ${it.message}") }
 
+    /** What a link shared from the website (music.yammbo.com/track/{number}/…) points at. */
+    suspend fun resolveWebTrack(id: String): WebTrackLink? = runCatching {
+        client.get("$SUPPORT_BASE/app-links/track/$id") {
+            header("Accept", "application/json")
+        }.body<WebTrackLink>()
+    }.onFailure { Timber.e("YammboApi resolveWebTrack error: ${it.message}") }
+        .getOrNull()?.takeIf { it.found }
+
+    /**
+     * Send a batch of app events. False only when it is worth trying again later (no network,
+     * a 5xx); a 4xx means the batch itself is wrong, so it is dropped rather than retried.
+     */
+    suspend fun reportEvents(request: AppEventsRequest, token: String?): Boolean = runCatching {
+        val response = client.post("$SUPPORT_BASE/app-events") {
+            contentType(ContentType.Application.Json)
+            header("Accept", "application/json")
+            if (!token.isNullOrBlank()) header("Authorization", "Bearer $token")
+            setBody(request)
+        }
+        if (response.status.value in 400..499) {
+            Timber.e("YammboApi reportEvents rejected: ${response.status.value}")
+        }
+        response.status.value < 500
+    }.onFailure { Timber.e("YammboApi reportEvents error: ${it.message}") }.getOrDefault(false)
+
     // TV Link (QR device pairing)
     private const val TV_LINK_BASE = "https://music.yammbo.com/api/v1/tv-link"
 

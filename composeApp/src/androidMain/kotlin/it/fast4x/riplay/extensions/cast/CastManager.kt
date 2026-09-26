@@ -1,5 +1,6 @@
 package it.fast4x.riplay.extensions.cast
 
+import it.fast4x.riplay.extensions.yammboapi.AppEvents
 import android.content.Context
 import androidx.media3.common.MediaItem
 import com.google.android.gms.cast.MediaInfo
@@ -143,7 +144,14 @@ object CastManager {
         get() = castContext?.castState ?: CastState.NO_DEVICES_AVAILABLE
 
     private val listener = object : SessionManagerListener<CastSession> {
-        override fun onSessionStarted(s: CastSession, sessionId: String) = attach(s)
+        override fun onSessionStarted(s: CastSession, sessionId: String) {
+            // Only a fresh start counts as use: resumes are the same session coming back.
+            AppEvents.log(
+                AppEvents.CAST_START,
+                detail = runCatching { s.castDevice?.modelName }.getOrNull(),
+            )
+            attach(s)
+        }
         override fun onSessionResumed(s: CastSession, wasSuspended: Boolean) = attach(s)
         override fun onSessionEnded(s: CastSession, error: Int) = detach()
         override fun onSessionSuspended(s: CastSession, reason: Int) = detach()

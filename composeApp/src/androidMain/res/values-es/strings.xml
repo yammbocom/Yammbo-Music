@@ -1437,6 +1437,11 @@
     <string name="app_update_generic_title">Mejoras y correcciones</string>
     <string name="app_update_generic_body">La app va más fluida y estable.</string>
     <string name="app_update_install_now">Actualizar ahora</string>
+    <string name="app_update_keeps_going">Puedes cerrar esto: el instalador se abrirá al terminar.</string>
+    <string name="app_update_install">Instalar</string>
+    <string name="app_update_failed">No se pudo descargar la actualización. Revisa tu conexión e inténtalo otra vez.</string>
+    <string name="app_update_retry">Reintentar</string>
+    <string name="app_update_open_browser">Descargar desde el navegador</string>
     <string name="share_preview_title">Vista previa</string>
     <string name="share_preview_action">Vista previa</string>
     <string name="share_change_lines">Cambiar líneas</string>

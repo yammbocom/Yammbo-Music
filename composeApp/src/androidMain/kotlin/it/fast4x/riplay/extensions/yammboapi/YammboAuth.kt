@@ -176,3 +176,29 @@ data class PlayReportResponse(
     val success: Boolean = false,
     val logged: Boolean = false
 )
+
+// A website catalogue track behind a shared link -> GET /api/v1/app-links/track/{id}
+@Serializable
+data class WebTrackLink(
+    val found: Boolean = false,
+    @SerialName("video_id") val videoId: String? = null,
+    val title: String? = null,
+    val artist: String? = null
+)
+
+// Feature use, empty searches and playback errors -> POST /api/v1/app-events.
+// The server keeps a closed list of names (AppEventController::EVENTS); anything else is a 422.
+@Serializable
+data class AppEventItem(
+    val name: String,
+    val detail: String? = null,
+    @SerialName("video_id") val videoId: String? = null,
+    // Epoch ms on the phone, so events that waited for a connection keep their time.
+    val at: Long? = null
+)
+
+@Serializable
+data class AppEventsRequest(
+    val events: List<AppEventItem>,
+    @SerialName("app_version") val appVersion: String? = null
+)

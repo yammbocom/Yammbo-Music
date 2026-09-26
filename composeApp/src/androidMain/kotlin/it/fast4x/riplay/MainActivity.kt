@@ -98,6 +98,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.lifecycleScope
+import it.fast4x.riplay.extensions.ads.PremiumGuard
 import it.fast4x.riplay.extensions.ads.promo.YamboPromoManager
 import it.fast4x.riplay.extensions.ads.promo.YamboPromoPopup
 import androidx.media3.common.MediaItem
@@ -115,8 +116,11 @@ import com.valentinilk.shimmer.LocalShimmerTheme
 import com.valentinilk.shimmer.defaultShimmerTheme
 import it.fast4x.environment.Environment
 import it.fast4x.environment.models.bodies.BrowseBody
+import it.fast4x.environment.models.bodies.SearchBody
 import it.fast4x.environment.requests.playlistPage
+import it.fast4x.environment.requests.searchPage
 import it.fast4x.environment.requests.song
+import it.fast4x.environment.utils.from
 import it.fast4x.environment.utils.EnvironmentLocale
 import it.fast4x.environment.utils.LocalePreferenceItem
 import it.fast4x.environment.utils.LocalePreferences
@@ -164,6 +168,16 @@ import it.fast4x.riplay.extensions.preferences.keepPlayerMinimizedKey
 import it.fast4x.riplay.utils.keepPlayerSheetOnNextTransition
 import it.fast4x.riplay.extensions.preferences.expandedplayerKey
 import it.fast4x.riplay.extensions.preferences.showButtonPlayerVideoKey
+import it.fast4x.riplay.extensions.preferences.preloadNextSongKey
+import it.fast4x.riplay.extensions.preferences.preloadOnMobileDataKey
+import it.fast4x.riplay.extensions.preferences.playLocalCopyKey
+import it.fast4x.riplay.extensions.preferences.autoDownloadFavoritesKey
+import it.fast4x.riplay.extensions.preferences.castShowVideoKey
+import it.fast4x.riplay.extensions.yammboapi.AppEvents
+import it.fast4x.riplay.extensions.yammboapi.YammboApiService
+import it.fast4x.riplay.utils.isConnectionMetered
+import it.fast4x.riplay.utils.UpdateDownloader
+import androidx.lifecycle.repeatOnLifecycle
 import it.fast4x.riplay.extensions.preferences.navigationBarPositionKey
 import it.fast4x.riplay.extensions.preferences.navigationBarTypeKey
 import it.fast4x.riplay.extensions.preferences.parentalControlEnabledKey
@@ -520,6 +534,37 @@ class MainActivity :
                     .putBoolean(showButtonPlayerVideoKey, true)
                     .putBoolean(migrationKey, true)
                     .apply()
+            }
+        }
+
+        // Once a day, which of the data-related settings this person runs with, for the stats
+        // page (how many use the data saver, preload on mobile data, automatic downloads).
+        runCatching {
+            val today = java.time.LocalDate.now().toString()
+            val sentKey = "settings_snapshot_day"
+            if (preferences.getString(sentKey, null) != today) {
+                fun on(key: String, default: Boolean) = if (preferences.getBoolean(key, default)) 1 else 0
+                val detail = listOf(
+                    "preload=${on(preloadNextSongKey, true)}",
+                    "preload_mobile=${on(preloadOnMobileDataKey, false)}",
+                    "local_copy=${on(playLocalCopyKey, true)}",
+                    "auto_download=${on(autoDownloadFavoritesKey, false)}",
+                    "video_button=${on(showButtonPlayerVideoKey, true)}",
+                    "cast_video=${on(castShowVideoKey, false)}",
+                    "metered=${if (isConnectionMetered()) 1 else 0}",
+                ).joinToString(",")
+                AppEvents.log(AppEvents.SETTINGS, detail = detail)
+                preferences.edit().putString(sentKey, today).apply()
+            }
+        }
+
+        // A finished update download opens the installer from here, while the app is on screen:
+        // straight away if it is, or as soon as the user comes back to it.
+        lifecycleScope.launch {
+            repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.RESUMED) {
+                UpdateDownloader.state.collect { state ->
+                    if (state is UpdateDownloader.State.Ready) UpdateDownloader.installIfReady(this@MainActivity)
+                }
             }
         }
 
@@ -1650,6 +1695,100 @@ class MainActivity :
                     context = this@MainActivity
                 )
 
+                val playSong: suspend (Environment.SongItem) -> Unit = { song ->
+                    val binder = snapshotFlow { binder }.filterNotNull().first()
+                    withContext(Dispatchers.Main) {
+                        // Only explicit songs are held back, and only with parental control
+                        // on: this used to refuse every explicit song, control on or off.
+                        if (!(song.explicit && preferences.getBoolean(parentalControlEnabledKey, false)))
+                            binder.player.forcePlay(song.asMediaItem)
+                        else
+                            SmartMessage(
+                                "Parental control is enabled",
+                                PopupType.Warning,
+                                context = this@MainActivity
+                            )
+                    }
+                }
+                // False when YouTube does not know the id, so the caller can fall back.
+                val playVideoId: suspend (String) -> Boolean = { videoId ->
+                    Environment.song(videoId)?.getOrNull()?.let { playSong(it); true } ?: false
+                }
+                val searchFor: (String?) -> Unit = { text ->
+                    text?.trim()?.takeIf { it.isNotEmpty() }?.let {
+                        navController.navigate(route = "${NavRoutes.search.name}?text=${URLEncoder.encode(it, "UTF-8")}")
+                    }
+                }
+                // Plays the first song the search finds; shows the results when it finds none.
+                val searchAndPlay: suspend (String?) -> Unit = { text ->
+                    text?.trim()?.takeIf { it.isNotEmpty() }?.let { query ->
+                        val song = Environment.searchPage(
+                            body = SearchBody(query = query, params = Environment.SearchFilter.Song.value),
+                            fromMusicShelfRendererContent = Environment.SongItem.Companion::from
+                        )?.getOrNull()?.items?.firstOrNull()
+                        if (song != null) playSong(song) else searchFor(query)
+                    }
+                }
+                val openAlbumOfPlaylist: suspend (String) -> Unit = { playlistId ->
+                    Environment.playlistPage(BrowseBody(browseId = "VL$playlistId"))
+                        ?.getOrNull()?.songsPage?.items?.firstOrNull()?.album?.endpoint?.browseId
+                        ?.let { navController.navigate(route = "${NavRoutes.album.name}/$it") }
+                }
+
+                // Links to our own site: shared songs, albums, artists, playlists and podcasts,
+                // and the emails. With the app installed Android opens them here (App Links,
+                // verified by /.well-known/assetlinks.json). Ids are YouTube's, as the app shares
+                // them; links shared from the website carry catalogue numbers, which the server
+                // turns into the video (or the title and artist to search and play). Anything
+                // unresolved falls back to searching the name in the slug.
+                if (uri.host == "music.yammbo.com") {
+                    val segments = uri.pathSegments
+                    val id = segments.getOrNull(1)
+                    val slugText = segments.getOrNull(2)?.replace('-', ' ')
+                    lifecycleScope.launch(Dispatchers.Main) {
+                        runCatching {
+                            when (segments.firstOrNull()) {
+                                "track" -> when {
+                                    id == null -> {}
+                                    id.all { it.isDigit() } -> {
+                                        val web = YammboApiService.resolveWebTrack(id)
+                                        if (web?.videoId?.let { playVideoId(it) } != true)
+                                            searchAndPlay(
+                                                web?.let { listOfNotNull(it.title, it.artist).joinToString(" ") }
+                                                    ?.takeIf { it.isNotBlank() } ?: slugText
+                                            )
+                                    }
+                                    Regex("^[A-Za-z0-9_-]{11}$").matches(id) ->
+                                        if (!playVideoId(id)) searchAndPlay(slugText)
+                                    else -> searchAndPlay(slugText)
+                                }
+                                "album" -> when {
+                                    id?.startsWith("MPRE") == true -> navController.navigate(route = "${NavRoutes.album.name}/$id")
+                                    id?.startsWith("OLAK5uy_") == true -> openAlbumOfPlaylist(id)
+                                    else -> searchFor(slugText)
+                                }
+                                "artist" ->
+                                    if (id?.startsWith("UC") == true) navController.navigate(route = "${NavRoutes.artist.name}/$id")
+                                    else searchFor(slugText)
+                                "playlist" -> when {
+                                    id == null -> {}
+                                    id.startsWith("MPSP") -> navController.navigate(route = "${NavRoutes.podcast.name}/$id")
+                                    id.startsWith("OLAK5uy_") -> openAlbumOfPlaylist(id)
+                                    id.all { it.isDigit() } -> searchFor(slugText)
+                                    else -> navController.navigate(route = "${NavRoutes.playlist.name}/${if (id.startsWith("VL")) id else "VL$id"}")
+                                }
+                                "podcast" -> id?.let { navController.navigate(route = "${NavRoutes.podcast.name}/$it") }
+                                "open" -> if (id == "premium") PremiumGuard.openPricing(this@MainActivity)
+                                // "tv-link" is handled by handleTvLinkDeepLink; "open/…" otherwise
+                                // just brings the app up.
+                                else -> {}
+                            }
+                        }.onFailure { Timber.e("MainActivity yammbo link $uri failed: ${it.message}") }
+                    }
+                    intentUriData = null
+                    return@LaunchedEffect
+                }
+
                 lifecycleScope.launch(Dispatchers.Main) {
                     when (val path = uri.pathSegments.firstOrNull()) {
                         "playlist" -> uri.getQueryParameter("list")?.let { playlistId ->
@@ -1702,26 +1841,7 @@ class MainActivity :
                             }
 
                             else -> null
-                        }?.let { videoId ->
-                            Environment.song(videoId)?.getOrNull()?.let { song ->
-                                val binder = snapshotFlow { binder }.filterNotNull().first()
-                                withContext(Dispatchers.Main) {
-                                    if (!song.explicit && !preferences.getBoolean(
-                                            parentalControlEnabledKey,
-                                            false
-                                        )
-                                    )
-                                        binder.player.forcePlay(song.asMediaItem)
-                                        //fastPlay(song.asMediaItem, binder)
-                                    else
-                                        SmartMessage(
-                                            "Parental control is enabled",
-                                            PopupType.Warning,
-                                            context = this@MainActivity
-                                        )
-                                }
-                            }
-                        }
+                        }?.let { videoId -> playVideoId(videoId) }
                     }
                 }
                 intentUriData = null

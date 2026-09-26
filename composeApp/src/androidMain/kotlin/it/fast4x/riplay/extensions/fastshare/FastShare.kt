@@ -1,5 +1,6 @@
 package it.fast4x.riplay.extensions.fastshare
 
+import it.fast4x.riplay.extensions.yammboapi.AppEvents
 import androidx.compose.foundation.layout.Box
 import android.content.ActivityNotFoundException
 import it.fast4x.riplay.utils.isLocal
@@ -197,6 +198,7 @@ fun FastShare(
         val shareToApp = { packageName: String? ->
             if (!isGeneratingImage) {
                 isGeneratingImage = true
+                AppEvents.log(AppEvents.SHARE_SONG, detail = packageName ?: "chooser")
                 scope.launch {
                     val imageUri = storyUri ?: ShareImageGenerator.generateShareImage(
                         context, shareTitle, shareArtist, thumbnailUrl, urlToShare
@@ -537,6 +539,7 @@ internal fun shareUrlToDownloader(
     }
     try {
         context.startActivity(intent)
+        AppEvents.log(AppEvents.DOWNLOAD_SEND, detail = app.packageName)
     } catch (e: ActivityNotFoundException) {
         onAppMissing()
     }

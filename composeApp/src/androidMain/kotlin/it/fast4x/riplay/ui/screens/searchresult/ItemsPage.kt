@@ -55,13 +55,20 @@ inline fun <T : Environment.Item> ItemsPage(
     continuationPlaceholderCount: Int = 3,
     emptyItemsText: String = "No items found",
     noinline itemsPageProvider: (suspend (String?) -> Result<Environment.ItemsPage<T>?>?)? = null,
-    filterContentType: ContentType = ContentType.UserGenerated
+    filterContentType: ContentType = ContentType.UserGenerated,
+    // Called when the source answered with nothing at all (not when it failed to answer).
+    noinline onEmpty: (() -> Unit)? = null
 ) {
     val updatedItemsPageProvider by rememberUpdatedState(itemsPageProvider)
 
     val lazyListState = rememberLazyListState()
 
     var itemsPage by persist<Environment.ItemsPage<T>?>(tag)
+
+    if (onEmpty != null) {
+        val isEmpty = itemsPage != null && itemsPage?.items.isNullOrEmpty() && itemsPage?.continuation == null
+        LaunchedEffect(tag, isEmpty) { if (isEmpty) onEmpty() }
+    }
 
     // Keep each fresh result set pinned to the top. Tabs whose header renders nothing leave a
     // 0-height "header" item, so the list can anchor to the bottom "loading" row and the first

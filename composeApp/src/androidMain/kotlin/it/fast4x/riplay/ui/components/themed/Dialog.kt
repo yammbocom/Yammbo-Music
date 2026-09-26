@@ -1,5 +1,6 @@
 package it.fast4x.riplay.ui.components.themed
 
+import it.fast4x.riplay.utils.UpdateDownloader
 import androidx.compose.animation.core.EaseInOut
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -1889,11 +1890,7 @@ fun NewVersionDialog (
         setDismissedVersion(updatedVersionCode)
         onDismiss()
     }
-    var showInstallGuide by remember { mutableStateOf(false) }
-    if (showInstallGuide) {
-        UpdateInstallGuideDialog(context = context, onDismiss = onDismiss)
-        return
-    }
+    val downloadState by UpdateDownloader.state.collectAsState()
     // What's new, in the words of the release notes: each "## Heading" is a highlight and
     // its first bullet a one-line description. Loaded quietly; a generic line stands in when
     // offline, so the dialog never waits on the network.
@@ -1978,29 +1975,110 @@ fun NewVersionDialog (
 
             Spacer(modifier = Modifier.height(22.dp))
 
-            // Primary: download through DownloadManager; the installer opens by itself.
-            BasicText(
-                text = stringResource(R.string.app_update_install_now),
-                style = typo.s.bold.copy(
-                    color = colors.onAccent,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(50))
-                    .background(colors.accent)
-                    .clickable {
-                        it.fast4x.riplay.ui.components.themed.SmartMessage(
-                            context.getString(R.string.app_update_download_started),
-                            it.fast4x.riplay.enums.PopupType.Info,
-                            context = context,
-                        )
-                        it.fast4x.riplay.utils.downloadUpdateApk(context, updatedVersionName)
-                        // Don't snooze: if the user never installs, the prompt must return.
-                        showInstallGuide = true
-                    }
-                    .padding(vertical = 15.dp),
+            // Primary: download here, with the progress in the dialog; the installer opens by
+            // itself when it is done. Never snoozes: if the user never installs, the prompt returns.
+            val updater = UpdateDownloader
+            val thisVersion = updatedVersionName.trim().removePrefix("v")
+            val state = downloadState.takeIf { s ->
+                when (s) {
+                    is UpdateDownloader.State.Downloading -> s.version == thisVersion
+                    is UpdateDownloader.State.Ready -> s.version == thisVersion
+                    is UpdateDownloader.State.Failed -> s.version == thisVersion
+                    else -> false
+                }
+            }
+            val pillModifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(50))
+            val pillText = typo.s.bold.copy(
+                color = colors.onAccent,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
+
+            when (state) {
+                is UpdateDownloader.State.Downloading -> {
+                    val progress = state.progress
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            BasicText(
+                                text = stringResource(R.string.app_update_downloading),
+                                style = typo.xs.semiBold.copy(color = colors.text),
+                                modifier = Modifier.weight(1f),
+                            )
+                            if (progress != null)
+                                BasicText(
+                                    text = "${(progress * 100).toInt()} %",
+                                    style = typo.xs.bold.copy(color = colors.text),
+                                )
+                        }
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(8.dp)
+                                .clip(RoundedCornerShape(50))
+                                .background(colors.textDisabled.copy(alpha = 0.25f))
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth(progress ?: 0.04f)
+                                    .height(8.dp)
+                                    .clip(RoundedCornerShape(50))
+                                    .background(colors.text)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(10.dp))
+                        BasicText(
+                            text = stringResource(R.string.app_update_keeps_going),
+                            style = typo.xxs.copy(color = colors.textSecondary),
+                        )
+                    }
+                }
+
+                is UpdateDownloader.State.Ready -> BasicText(
+                    text = stringResource(R.string.app_update_install),
+                    style = pillText,
+                    modifier = pillModifier
+                        .background(colors.accent)
+                        .clickable { updater.install(context) }
+                        .padding(vertical = 15.dp),
+                )
+
+                is UpdateDownloader.State.Failed -> Column {
+                    BasicText(
+                        text = stringResource(R.string.app_update_failed),
+                        style = typo.xs.copy(color = colors.textSecondary),
+                        modifier = Modifier.padding(bottom = 12.dp),
+                    )
+                    BasicText(
+                        text = stringResource(R.string.app_update_retry),
+                        style = pillText,
+                        modifier = pillModifier
+                            .background(colors.accent)
+                            .clickable { updater.start(context, updatedVersionName) }
+                            .padding(vertical = 15.dp),
+                    )
+                    BasicText(
+                        text = stringResource(R.string.app_update_open_browser),
+                        style = typo.xs.semiBold.copy(
+                            color = colors.text,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        ),
+                        modifier = pillModifier
+                            .clickable { updater.openInBrowser(context, updatedVersionName) }
+                            .padding(vertical = 12.dp),
+                    )
+                }
+
+                else -> BasicText(
+                    text = stringResource(R.string.app_update_install_now),
+                    style = pillText,
+                    modifier = pillModifier
+                        .background(colors.accent)
+                        .clickable { updater.start(context, updatedVersionName) }
+                        .padding(vertical = 15.dp),
+                )
+            }
 
             Spacer(modifier = Modifier.height(4.dp))
 
@@ -2014,7 +2092,9 @@ fun NewVersionDialog (
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(50))
-                    .clickable { snoozeAndDismiss() }
+                    // Once the download is under way it just closes: the installer still opens
+                    // when it finishes, and a snooze would hide the prompt if the user backs out.
+                    .clickable { if (state == null) snoozeAndDismiss() else onDismiss() }
                     .padding(vertical = 12.dp),
             )
         }
@@ -2061,62 +2141,6 @@ private fun fetchReleaseHighlights(): List<Pair<String, String>> = runCatching {
     result.filter { it.first.isNotBlank() }.take(4)
 }.getOrDefault(emptyList())
 
-@Composable
-private fun UpdateInstallGuideDialog(
-    context: android.content.Context,
-    onDismiss: () -> Unit,
-) {
-    val colors = colorPalette()
-    val typo = typography()
-    DefaultDialog(onDismiss = onDismiss) {
-        BasicText(
-            text = stringResource(R.string.app_update_guide_title),
-            style = typo.s.bold.copy(color = colors.text),
-        )
-        Spacer(modifier = Modifier.height(10.dp))
-        BasicText(
-            text = stringResource(R.string.app_update_guide_body),
-            style = typo.xs.semiBold.copy(color = colors.text),
-        )
-        Spacer(modifier = Modifier.height(18.dp))
-        // Primary — open the "install unknown apps" settings so the user can
-        // grant the permission while the download finishes in the background.
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(androidx.compose.foundation.shape.RoundedCornerShape(14.dp))
-                .background(colors.accent)
-                .clickable {
-                    it.fast4x.riplay.utils.openUnknownSourcesSettings(context)
-                }
-                .padding(vertical = 14.dp, horizontal = 16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center,
-        ) {
-            BasicText(
-                text = stringResource(R.string.app_update_guide_allow),
-                style = typo.xs.bold.copy(color = colors.onAccent),
-            )
-        }
-        Spacer(modifier = Modifier.height(6.dp))
-        // Tertiary — close the guide; the download keeps running and the
-        // installer opens automatically when it completes.
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(androidx.compose.foundation.shape.RoundedCornerShape(14.dp))
-                .clickable { onDismiss() }
-                .padding(vertical = 10.dp, horizontal = 16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center,
-        ) {
-            BasicText(
-                text = stringResource(R.string.app_update_guide_done),
-                style = typo.xxs.semiBold.copy(color = colors.textDisabled),
-            )
-        }
-    }
-}
 
 @androidx.annotation.OptIn(UnstableApi::class)
 @OptIn(ExperimentalMaterial3Api::class)
