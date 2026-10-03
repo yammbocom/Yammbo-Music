@@ -1051,6 +1051,7 @@ fun UiSettings(
                                 HomeScreenTabs.Default -> stringResource(R.string._default)
                                 HomeScreenTabs.Inicio -> stringResource(R.string.home)
                                 HomeScreenTabs.LiveRadio -> stringResource(R.string.live_radio_tab)
+                                HomeScreenTabs.Podcasts -> stringResource(R.string.podcasts_tab_podcasts)
                                 HomeScreenTabs.MyMusic -> stringResource(R.string.my_music)
                                 HomeScreenTabs.Search -> stringResource(R.string.search)
                                 HomeScreenTabs.MyAccount -> stringResource(R.string.my_account)

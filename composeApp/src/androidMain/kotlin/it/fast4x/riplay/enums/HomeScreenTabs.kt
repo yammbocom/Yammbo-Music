@@ -4,6 +4,7 @@ enum class HomeScreenTabs {
     Default,
     Inicio,
     LiveRadio,
+    Podcasts,
     MyMusic,
     Search,
     MyAccount;
@@ -13,6 +14,7 @@ enum class HomeScreenTabs {
             Default -> 100
             Inicio -> 0
             LiveRadio -> 1
+            Podcasts -> 5
             MyMusic -> 2
             Search -> 3
             MyAccount -> 4

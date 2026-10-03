@@ -130,9 +130,15 @@ fun FastShare(
     // Caption of the story card; null keeps the default "now playing" used for songs.
     var storyLabel by remember { mutableStateOf<String?>(null) }
     var pendingInstallApp by remember { mutableStateOf<DownloaderApp?>(null) }
+    // The story image is made as soon as the sheet opens: it is shown as a preview and the
+    // share buttons reuse it instead of rendering it again.
+    var storyUri by remember { mutableStateOf<Uri?>(null) }
 
     val appContext = LocalContext.current
-    LaunchedEffect(Unit) {
+    // Keyed on the content: screens compose this sheet before their page has loaded (an
+    // artist without its photo yet), so it must pick up the later, complete value.
+    LaunchedEffect(content) {
+        storyUri = null
         when (content) {
             is MediaItem -> content.asSong.let {
                 shareTitle = cleanPrefix(it.title)
@@ -182,10 +188,8 @@ fun FastShare(
     val scope = rememberCoroutineScope()
     var isGeneratingImage by remember { mutableStateOf(false) }
 
-    // The story image is made as soon as the sheet opens: it is shown as a preview and the
-    // share buttons reuse it instead of rendering it again.
-    var storyUri by remember { mutableStateOf<Uri?>(null) }
-    LaunchedEffect(showFastShare, urlToShare) {
+    // Also keyed on the cover, so a photo that arrives later redraws the preview.
+    LaunchedEffect(showFastShare, urlToShare, thumbnailUrl) {
         if (showFastShare && urlToShare.isNotEmpty() && storyUri == null)
             storyUri = ShareImageGenerator.generateShareImage(
                 context, shareTitle, shareArtist, thumbnailUrl, urlToShare, storyLabel

@@ -79,6 +79,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.neverEqualPolicy
 import androidx.compose.runtime.remember
+import it.fast4x.riplay.extensions.fastshare.FastShare
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -1042,6 +1043,13 @@ fun OnlinePlayer(
     val showNextSongsInPlayer by rememberObservedPreference(showNextSongsInPlayerKey, false)
 
     var showQueue by rememberSaveable { mutableStateOf(false) }
+
+    var showPlayerShare by remember { mutableStateOf(false) }
+    FastShare(
+        showFastShare = showPlayerShare,
+        onDismissRequest = { showPlayerShare = false },
+        content = mediaItem
+    )
     var showSearchEntity by rememberSaveable { mutableStateOf(false) }
 
     val transparentBackgroundActionBarPlayer by rememberObservedPreference(
@@ -2007,18 +2015,6 @@ fun OnlinePlayer(
                                     modifier = Modifier
                                         .size(24.dp),
                                 )
-                            if (!isLandscape || ((playerType == PlayerType.Essential) && !showthumbnail))
-                                if (expandedplayertoggle && !showlyricsthumbnail)
-                                    IconButton(
-                                        icon = R.drawable.minmax,
-                                        color = if (expandedplayer) colorPalette().accent else Color.Gray,
-                                        enabled = true,
-                                        onClick = {
-                                            expandedplayer = !expandedplayer
-                                        },
-                                        modifier = Modifier
-                                            .size(20.dp),
-                                    )
 
 
                             if (visualizerEnabled)
@@ -2123,18 +2119,17 @@ fun OnlinePlayer(
                                         .size(24.dp),
                                 )
 
-                            if (showButtonPlayerArrow)
-                                IconButton(
-                                    icon = R.drawable.chevron_up,
-                                    color = colorPalette().accent,
-                                    enabled = true,
-                                    onClick = {
-                                        showQueue = true
-                                    },
-                                    modifier = Modifier
-                                        //.padding(end = 12.dp)
-                                        .size(24.dp),
-                                )
+                            // Share replaces the expand toggle and the queue arrow: the queue
+                            // still opens by tapping or swiping up on this bar.
+                            IconButton(
+                                icon = R.drawable.share_social,
+                                color = colorPalette().accent,
+                                enabled = true,
+                                onClick = { showPlayerShare = true },
+                                modifier = Modifier
+                                    .size(24.dp),
+                            )
+
 
                             if (showButtonPlayerMenu && !isLandscape)
                                 IconButton(

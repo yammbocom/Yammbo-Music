@@ -76,6 +76,7 @@ import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -1511,6 +1512,11 @@ class MainActivity :
                                     showSheet = menuState.isDisplayed && !menuState.isDetached,
                                     onDismissRequest = menuState::hide,
                                     containerColor = colorPalette().background1,
+                                    // The default 32 % black turns a light player into flat grey; keep the
+                                    // page readable behind light sheets and a little deeper on dark ones.
+                                    scrimColor = Color.Black.copy(
+                                        alpha = if (colorPalette().background0.luminance() > 0.5f) 0.18f else 0.45f
+                                    ),
                                     tonalElevation = 0.dp,
                                     sheetState = rememberModalBottomSheetState(
                                         skipPartiallyExpanded = true

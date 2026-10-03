@@ -161,6 +161,8 @@ fun SongItem(
     trailingContent: (@Composable () -> Unit)? = null,
     isRecommended: Boolean = false,
     mediaItem: MediaItem,
+    // False where the item IS the current song (menu headers), so it isn't shaded as a list row.
+    highlightNowPlaying: Boolean = true,
 ) {
     val binder = LocalPlayerServiceBinder.current
 
@@ -187,6 +189,7 @@ fun SongItem(
         trailingContent = trailingContent,
         isRecommended = isRecommended,
         mediaItem = mediaItem,
+        highlightNowPlaying = highlightNowPlaying,
 
     )
 }
@@ -203,6 +206,7 @@ fun SongItem(
     trailingContent: @Composable (() -> Unit)? = null,
     isRecommended: Boolean = false,
     mediaItem: MediaItem,
+    highlightNowPlaying: Boolean = true,
 ) {
 
     val mediaId = mediaItem.mediaMetadata.extras?.getString("mediaId") // is online id used to identify source from local songs
@@ -233,7 +237,7 @@ fun SongItem(
         modifier = modifier
             .padding(end = 8.dp)
             .clip(RoundedCornerShape(10.dp))
-            .applyIf(isNowPlaying == true) {
+            .applyIf(highlightNowPlaying && isNowPlaying == true) {
                 background(colorPalette.favoritesOverlay)
             }
 

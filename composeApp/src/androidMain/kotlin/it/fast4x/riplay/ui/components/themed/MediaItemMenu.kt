@@ -1422,6 +1422,7 @@ fun MediaItemMenu(
                         thumbnailUrl = mediaItem.mediaMetadata.artworkUri.toString().thumbnail(thumbnailSizePx)
                             ?.toString(),
                         thumbnailSizeDp = thumbnailSizeDp,
+                        highlightNowPlaying = false,
                         modifier = Modifier
                             .weight(1f),
                         //disableScrollingText = disableScrollingText

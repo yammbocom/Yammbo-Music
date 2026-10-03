@@ -219,7 +219,9 @@ class HorizontalNavigationBar(
                         // Height of the pill itself; the insets above are outer margin, so
                         // adding them here too would double-count them.
                         .height(if (isNavbarBottom) Dimensions.navigationBarHeight else 40.dp)
-                        .glassSurface(shape = RoundedCornerShape(26.dp))
+                        // Nearly opaque: the page now scrolls under the pill and text showing
+                        // through it competed with the tab labels.
+                        .glassSurface(shape = RoundedCornerShape(26.dp), alpha = 0.96f)
                 ) {
                     val scrollState = rememberScrollState()
 

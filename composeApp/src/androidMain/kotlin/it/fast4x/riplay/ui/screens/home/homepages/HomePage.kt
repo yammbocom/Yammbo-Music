@@ -670,8 +670,13 @@ fun HomePage(
 
                     // While the picks are still loading the final 3 rows are already reserved, so the
                     // sections below do not jump down when they arrive
-                    val quickPicksRows = if (relatedPage != null || quickPicksLoading) 3 else 1
                     val quickPicksPending = relatedPage == null && quickPicksLoading
+                    // Once loaded, only as many rows as there are picks: a single song in a grid
+                    // sized for three left a large blank gap above the next section.
+                    val quickPicksCount = (if (trending != null) 1 else 0) +
+                            (relatedPage?.songs?.distinctBy { it.key }?.size?.minus(if (trending == null) 0 else 1)
+                                ?.coerceAtLeast(0) ?: 0)
+                    val quickPicksRows = if (quickPicksPending) 3 else quickPicksCount.coerceIn(1, 3)
 
                     SkeletonSwap(
                         loading = quickPicksPending && trending == null,
