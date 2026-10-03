@@ -72,6 +72,8 @@ import it.fast4x.riplay.ui.styling.px
 import it.fast4x.riplay.ui.screens.home.HomeCircleButton
 import it.fast4x.riplay.ui.screens.home.HomeGreetingHeader
 import it.fast4x.riplay.ui.screens.home.JumpBackInSection
+import it.fast4x.riplay.ui.screens.home.isHomeSong
+import it.fast4x.riplay.ui.screens.home.onlySongs
 import it.fast4x.riplay.extensions.preferences.disableScrollingTextKey
 import it.fast4x.riplay.extensions.preferences.homeTypeKey
 import it.fast4x.riplay.utils.isLandscape
@@ -200,10 +202,11 @@ fun HomePageExtended(
             val quickPicksJob = refreshScope.launch(Dispatchers.IO) {
                 when (playEventType) {
                     PlayEventsType.MostPlayed -> {
-                        // More than 3 rows so a listener whose top plays are live stations still gets a song
-                        val songs = Database.trending(10).distinctUntilChanged().first()
+                        // Songs only (no podcasts, videos or stations), over a wide window so the
+                        // filter in Kotlin still leaves a seed
+                        val songs = Database.trendingSongsOnly(30).distinctUntilChanged().first()
                         val song = songs.firstOrNull { item ->
-                            !item.isRadio && (blacklisted.value?.none { bl -> bl.path == item.id } ?: true)
+                            item.isHomeSong && (blacklisted.value?.none { bl -> bl.path == item.id } ?: true)
                         }
                         val songId = if (song?.isLocal == true) song.mediaId else song?.id
 
@@ -220,7 +223,7 @@ fun HomePageExtended(
                                     NextBody(
                                         videoId = effectiveSongId
                                     )
-                                )
+                                )?.map { it?.onlySongs() }
                             }
                             if (song != null) {
                                 trending = song
@@ -231,11 +234,12 @@ fun HomePageExtended(
 
                     PlayEventsType.LastPlayed, PlayEventsType.CasualPlayed -> {
                         val numSongs = if (playEventType == PlayEventsType.LastPlayed) 10 else 50
-                        val songs = Database.lastPlayed(numSongs).distinctUntilChanged().first()
+                        val songs = Database.lastPlayedSongsOnly(numSongs * 4).distinctUntilChanged().first()
+                            .filter { it.isHomeSong }.take(numSongs)
                         val song = (if (playEventType == PlayEventsType.LastPlayed) songs
                             else songs.shuffled()).firstOrNull { item ->
-                            // Never seed (nor "play all") from a live station: it never ends
-                            !item.isRadio && (blacklisted.value?.none { bl -> bl.path == item.id } ?: true)
+                            // Never seed (nor "play all") from a station, podcast or video
+                            blacklisted.value?.none { bl -> bl.path == item.id } ?: true
                         }
                         val songId = if (song?.isLocal == true) song.mediaId else song?.id
                         Timber.d("HomePage Last played song $song relatedPageResult $relatedPageResult songId $songId")
@@ -253,7 +257,7 @@ fun HomePageExtended(
                                         NextBody(
                                             videoId = effectiveSongId
                                         )
-                                    )
+                                    )?.map { it?.onlySongs() }
                             }
                             if (song != null) {
                                 trending = song
@@ -398,7 +402,8 @@ fun HomePageExtended(
                 /*   Load data from url or from saved preference   */
                 if (trendingPreference != null) {
                     when (loadedData) {
-                        true -> trending = trendingPreference
+                        // A saved pick can predate the song-only rule
+                        true -> trending = trendingPreference?.takeIf { it.isHomeSong }
                         else -> trendingPreference = trending
                     }
                 } else trendingPreference = trending
@@ -406,7 +411,7 @@ fun HomePageExtended(
                 if (relatedPreference != null) {
                     when (loadedData) {
                         true -> {
-                            relatedPageResult = Result.success(relatedPreference)
+                            relatedPageResult = Result.success(relatedPreference?.onlySongs())
                             relatedInit = relatedPageResult?.getOrNull()
                         }
                         else -> {

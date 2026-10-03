@@ -56,6 +56,8 @@ import it.fast4x.riplay.enums.Countries
 import it.fast4x.riplay.enums.NavRoutes
 import it.fast4x.riplay.ui.screens.home.HomePodcastsSection
 import it.fast4x.riplay.ui.screens.home.HomeLiveRadioSection
+import it.fast4x.riplay.ui.screens.home.isHomeSong
+import it.fast4x.riplay.ui.screens.home.isHomeShelfItem
 import it.fast4x.riplay.enums.PlayEventsType
 import it.fast4x.riplay.extensions.listenerlevel.HomepageListenerLevelBadges
 import it.fast4x.riplay.extensions.rewind.HomepageRewind
@@ -138,6 +140,7 @@ fun HomePageExtendedSections(
     val relatedInit by remember(relatedInit, blacklisted.value) { mutableStateOf(
         relatedInit?.copy(
                 songs = relatedInit.songs?.filter { item ->
+                    item.isHomeSong &&
                     blacklisted.value?.map { it.path }?.contains(item.key) == false
                 },
                 artists = relatedInit.artists?.filter { item ->
@@ -302,7 +305,7 @@ fun HomePageExtendedSections(
                                         binder?.player?.forcePlay(mediaItem)
                                         //binder?.player?.playOnline(mediaItem)
                                         //fastPlay(mediaItem, binder)
-                                        binder?.setupRadio(
+                                        binder?.setupRadio(swapSeed = true, endpoint =
                                             NavigationEndpoint.Endpoint.Watch(videoId = mediaItem.mediaId)
                                         )
                                     }
@@ -360,15 +363,13 @@ fun HomePageExtendedSections(
                                     },
                                     onClick = {
                                         Timber.d("HomePage Clicked on song")
-                                        val mediaItem = if (song.isAudioOnly)
-                                            song.asMediaItem
-                                        else
-                                            song.asVideoMediaItem
+                                        // Tapped as a song: a video row stays swappable for its song version
+                                        val mediaItem = song.asMediaItem
 
                                         binder?.stopRadio()
                                         binder?.player?.forcePlay(mediaItem)
                                         //fastPlay(mediaItem, binder)
-                                        binder?.setupRadio(
+                                        binder?.setupRadio(swapSeed = true, endpoint =
                                             NavigationEndpoint.Endpoint.Watch(videoId = mediaItem.mediaId)
                                         )
                                     }
@@ -946,7 +947,7 @@ fun ForYouPart(
         homePageInit?.let { page ->
 
             page.sections.forEach {
-                if (it.items.filterNotNull().none { item -> item.key.isNotEmpty() }) return@forEach
+                if (it.items.filterNotNull().none { item -> item.key.isNotEmpty() && item.isHomeShelfItem }) return@forEach
 
                 TitleMiniSection(
                     it.label ?: "", modifier = Modifier
@@ -962,7 +963,7 @@ fun ForYouPart(
                         .padding(vertical = 4.dp)
                 )
                 LazyRow(contentPadding = endPaddingValues) {
-                    items(it.items.filterNotNull().filter { item -> blacklisted.value?.map { it.path }?.contains(item.key) == false }) { item ->
+                    items(it.items.filterNotNull().filter { item -> item.isHomeShelfItem && blacklisted.value?.map { it.path }?.contains(item.key) == false }) { item ->
                         when (item) {
                             is Environment.SongItem -> {
                                 Timber.d("Environment homePage SongItem: ${item.info?.name}")
@@ -976,7 +977,7 @@ fun ForYouPart(
                                     modifier = Modifier.clickable(onClick = {
                                         binder?.stopRadio()
                                         binder?.player?.forcePlay(item.asMediaItem)
-                                        binder?.setupRadio(
+                                        binder?.setupRadio(swapSeed = true, endpoint =
                                             item.info?.endpoint
                                                 ?: NavigationEndpoint.Endpoint.Watch(videoId = item.key)
                                         )

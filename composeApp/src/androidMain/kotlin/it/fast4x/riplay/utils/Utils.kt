@@ -236,7 +236,8 @@ val Environment.SongItem.asMediaItem: MediaItem
         )
         .build()
 
-val Environment.SongItem.asVideoMediaItem: MediaItem
+/** Only for an explicit video choice (an artist page's video sections): never swapped for its song. */
+val Environment.SongItem.asChosenVideoMediaItem: MediaItem
     @UnstableApi
     get() = MediaItem.Builder()
         .setMediaId(key)
@@ -261,6 +262,7 @@ val Environment.SongItem.asVideoMediaItem: MediaItem
                         "isOfficialUploadByArtistContent" to isOfficialUploadByArtistContent,
                         "isUserGeneratedContent" to isUserGeneratedContent,
                         "isVideo" to true,
+                        SongVersion.CHOSEN_VIDEO_EXTRA to true,
                     )
                 )
                 .build()
@@ -298,6 +300,8 @@ val Environment.VideoItem.asMediaItem: MediaItem
                         "isOfficialUploadByArtistContent" to isOfficialUploadByArtistContent,
                         "isUserGeneratedContent" to isUserGeneratedContent,
                         "isVideo" to true,
+                        // A video entity was picked as a video: never swapped for its song.
+                        SongVersion.CHOSEN_VIDEO_EXTRA to true,
                         // "artistNames" to if (isOfficialMusicVideo) authors?.filter { it.endpoint != null }?.mapNotNull { it.name } else null,
                         // "artistIds" to if (isOfficialMusicVideo) authors?.mapNotNull { it.endpoint?.browseId } else null,
                     )
@@ -347,6 +351,9 @@ val Song.asVideoMediaItem: MediaItem
                     bundleOf(
                         "durationText" to durationText,
                         EXPLICIT_BUNDLE_TAG to title.startsWith(EXPLICIT_PREFIX, true ),
+                        // A stored video is not a choice: it still plays as its song when one
+                        // exists (SongVersionQueue). Only explicit video entry points set the
+                        // chosen-video flag.
                         "isVideo" to (isAudioOnly != 1),
                     )
                 )

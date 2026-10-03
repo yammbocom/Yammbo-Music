@@ -8,7 +8,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import com.github.doyaaaaaken.kotlincsv.dsl.csvReader
-import it.fast4x.environment.Environment
 import it.fast4x.riplay.data.Database
 import com.yambo.music.R
 import it.fast4x.riplay.enums.PopupType
@@ -21,9 +20,8 @@ import it.fast4x.riplay.ui.components.tab.toolbar.Descriptive
 import it.fast4x.riplay.ui.components.tab.toolbar.MenuIcon
 import it.fast4x.riplay.utils.formatAsDuration
 import it.fast4x.riplay.utils.getFileNameFromUri
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
+import it.fast4x.riplay.utils.spotify.SpotifyImport
+import it.fast4x.riplay.utils.spotify.SpotifyTrack
 
 class ImportSongsFromSpotifyCSV private constructor(
     private val launcher: ManagedActivityResultLauncher<Array<String>, Uri?>
@@ -44,128 +42,86 @@ class ImportSongsFromSpotifyCSV private constructor(
                 .openInputStream(uri)
                 ?.use { inputStream ->
 
-                    csvReader().open(inputStream) {
-                        readAllWithHeaderAsSequence().forEachIndexed { index, row: Map<String, String> ->
-                            println("mediaItem index song $index")
+                    val rows = csvReader().open(inputStream) { readAllWithHeaderAsSequence().toList() }
 
-                            Database.asyncTransaction {
-                                beforeTransaction( index, row, fileName )
+                    // Exportify rows name a Spotify track (uri, title, artists, duration), not a
+                    // YouTube one: each is matched to a YouTube Music song, as the link import
+                    // does. Storing the Spotify uri as the song id left those songs unplayable.
+                    if (rows.firstOrNull()?.let(::isExportifyRow) == true) {
+                        val name = fileName?.substringBeforeLast('.')?.takeIf { it.isNotBlank() } ?: "Spotify"
+                        SpotifyImport.openDialog()
+                        SpotifyImport.startFromTracks(name, rows.mapNotNull(::exportifyTrack))
+                        return
+                    }
 
-                                // Rilevamento del formato: controlliamo se esiste "Track URI" (Spotify)
-                                val isSpotifyFormat = row.containsKey("Track URI")
+                    rows.forEachIndexed { index, row: Map<String, String> ->
+                        println("mediaItem index song $index")
 
-                                val song: Song
-                                val album: Album
-                                val artists: List<Artist>
+                        Database.asyncTransaction {
+                            beforeTransaction( index, row, fileName )
 
-                                if (isSpotifyFormat) {
+                            // Yammbo Music / RiPlay export: the rows carry our own MediaId.
+                            val explicitPrefix = if (row["Explicit"] == "true") "e:" else ""
+                            val pseudoMediaId = (row["Track Name"]+row["Artist Name(s)"]).filter { it.isLetterOrDigit() }
+                            val mediaId = row["MediaId"] ?: pseudoMediaId
+                            val title = row["Title"] ?: row["Track Name"] ?: return@asyncTransaction
+                            val artistsText = row["Artists"] ?: row["Artist Name(s)"] ?: ""
 
-                                    val explicitPrefix = if (row["Explicit"] == "true") "e:" else ""
+                            // Tenta prima la colonna "Duration" (testo), poi "Track Duration (ms)"
+                            val durationText = row["Duration"] ?: formatAsDuration(row["Track Duration (ms)"]?.toLong() ?: 0L)
 
-                                    // Usa Track URI come ID, o niente
-                                    val mediaId = row["Track URI"] ?: return@asyncTransaction
+                            val song = Song(
+                                id = mediaId,
+                                title = explicitPrefix+title,
+                                artistsText = artistsText,
+                                durationText = durationText,
+                                thumbnailUrl = row["ThumbnailUrl"] ?: "",
+                                totalPlayTimeMs = 1L
+                            )
 
-                                    val title = row["Track Name"] ?: return@asyncTransaction
+                            val albumId = row["AlbumId"] ?: ""
+                            val albumTitle = row["AlbumTitle"]
+                            val album = Album(
+                                id = albumId,
+                                title = albumTitle
+                            )
 
-                                    // Gestione Artisti: Spotify usa "Artist Name(s)"
-                                    val artistsText = row["Artist Name(s)"] ?: ""
-
-                                    // Gestione Durata: Spotify usa "Duration (ms)"
-                                    val durationText = formatAsDuration(row["Duration (ms)"]?.toLong() ?: 0L)
-
-                                    val spotifyTrackId = row["Track URI"]?.split(":")?.last()
-
-                                    song = Song(
-                                        id = mediaId,
-                                        title = explicitPrefix + title,
-                                        artistsText = artistsText,
-                                        durationText = durationText,
-                                        thumbnailUrl = null,
-                                        totalPlayTimeMs = 1L
-                                    )
-
-                                    // Album
-                                    val albumTitle = row["Album Name"]
-                                    album = Album(
-                                        id = "",
-                                        title = albumTitle
-                                    )
-
-                                    // Artisti
-                                    val artistNames = row["Artist Name(s)"]?.split(",")
-                                    artists = artistNames?.map { name ->
-                                        Artist(
-                                            id = "",
-                                            name = name.trim()
+                            val artistNames = row["Artists"]?.split(",")
+                            val artistIds = row["ArtistIds"]?.split(",")
+                            val mutableArtists = mutableListOf<Artist>()
+                            if (artistIds != null && (artistNames?.size == artistIds.size)) {
+                                for(idx in artistIds.indices){
+                                    val artistName = artistNames.getOrNull(idx)
+                                    val artistId = artistIds.getOrNull(idx)
+                                    if(artistId!=null){
+                                        val artist = Artist(
+                                            id = artistId,
+                                            name = artistName
                                         )
-                                    } ?: mutableListOf()
-
-                                    afterTransaction( index, song, album, artists )
-
-                                    // 3. Recupero della copertina in parallelo
-                                    spotifyTrackId?.let { id ->
-                                        CoroutineScope(Dispatchers.IO).launch {
-                                            val url = Environment.spotifyThumbnail(id).getOrNull()
-
-                                            if (!url.isNullOrEmpty()) {
-                                                println("ImportPlaylist Copertina trovata per $title: $url. Aggiorno DB con ID: $mediaId")
-                                                Database.updateSongThumbnail(mediaId, url)
-                                            }
-                                        }
+                                        mutableArtists.add(artist)
                                     }
-
-                                } else {
-
-                                    val explicitPrefix = if (row["Explicit"] == "true") "e:" else ""
-                                    val pseudoMediaId = (row["Track Name"]+row["Artist Name(s)"]).filter { it.isLetterOrDigit() }
-                                    val mediaId = row["MediaId"] ?: pseudoMediaId
-                                    val title = row["Title"] ?: row["Track Name"] ?: return@asyncTransaction
-                                    val artistsText = row["Artists"] ?: row["Artist Name(s)"] ?: ""
-
-                                    // Tenta prima la colonna "Duration" (testo), poi "Track Duration (ms)"
-                                    val durationText = row["Duration"] ?: formatAsDuration(row["Track Duration (ms)"]?.toLong() ?: 0L)
-
-                                    song = Song(
-                                        id = mediaId,
-                                        title = explicitPrefix+title,
-                                        artistsText = artistsText,
-                                        durationText = durationText,
-                                        thumbnailUrl = row["ThumbnailUrl"] ?: "",
-                                        totalPlayTimeMs = 1L
-                                    )
-
-                                    val albumId = row["AlbumId"] ?: ""
-                                    val albumTitle = row["AlbumTitle"]
-                                    album = Album(
-                                        id = albumId,
-                                        title = albumTitle
-                                    )
-
-                                    val artistNames = row["Artists"]?.split(",")
-                                    val artistIds = row["ArtistIds"]?.split(",")
-                                    val mutableArtists = mutableListOf<Artist>()
-                                    if (artistIds != null && (artistNames?.size == artistIds.size)) {
-                                        for(idx in artistIds.indices){
-                                            val artistName = artistNames.getOrNull(idx)
-                                            val artistId = artistIds.getOrNull(idx)
-                                            if(artistId!=null){
-                                                val artist = Artist(
-                                                    id = artistId,
-                                                    name = artistName
-                                                )
-                                                mutableArtists.add(artist)
-                                            }
-                                        }
-                                    }
-                                    artists = mutableArtists
-
-                                    afterTransaction( index, song, album, artists )
                                 }
-
                             }
+
+                            afterTransaction( index, song, album, mutableArtists )
                         }
                     }
                 }
+        }
+
+        /** Exportify.net CSV (any of its versions): Spotify columns and no MediaId of ours. */
+        private fun isExportifyRow(row: Map<String, String>): Boolean =
+            !row.containsKey("MediaId") &&
+                (row.containsKey("Track URI") || row.containsKey("Spotify URI") || row.containsKey("Track Name"))
+
+        private fun exportifyTrack(row: Map<String, String>): SpotifyTrack? {
+            val title = row["Track Name"]?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+            val artists = (row["Artist Name(s)"] ?: row["Artist Name"]).orEmpty()
+                .split(',').map { it.trim() }.filter { it.isNotEmpty() }.joinToString(", ")
+            val duration = (row["Duration (ms)"] ?: row["Track Duration (ms)"])?.trim()?.toLongOrNull() ?: 0L
+            val uri = (row["Track URI"] ?: row["Spotify URI"])?.takeIf { it.isNotBlank() }
+                ?: "csv:${title.lowercase()}|${artists.lowercase()}"
+            return SpotifyTrack(uri = uri, title = title, artists = artists, durationMs = duration)
         }
 
         @JvmStatic

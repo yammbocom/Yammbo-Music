@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Android Auto browse tree -->
+    <string name="aa_recent">Recientes</string>
+    <string name="aa_liked">Me gusta</string>
+    <string name="aa_shuffle_play">Reproducción aleatoria</string>
+    <!-- "Hey Google, play X on Yammbo Music" -->
+    <string name="voice_search_no_results">No encontré «%1$s» en Yammbo Music</string>
+    <string name="voice_search_nothing_to_play">No hay nada que reproducir todavía</string>
+</resources>

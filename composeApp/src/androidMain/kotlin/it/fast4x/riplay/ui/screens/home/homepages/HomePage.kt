@@ -86,6 +86,9 @@ import it.fast4x.riplay.ui.styling.Dimensions
 import it.fast4x.riplay.ui.styling.px
 import it.fast4x.riplay.ui.screens.home.HomeGreetingHeader
 import it.fast4x.riplay.ui.screens.home.JumpBackInSection
+import it.fast4x.riplay.ui.screens.home.isHomeSong
+import it.fast4x.riplay.ui.screens.home.isHomeShelfItem
+import it.fast4x.riplay.ui.screens.home.onlySongs
 import it.fast4x.riplay.extensions.preferences.disableScrollingTextKey
 import it.fast4x.riplay.utils.isLandscape
 import it.fast4x.riplay.extensions.preferences.playEventsTypeKey
@@ -172,8 +175,9 @@ fun HomePage(
     val windowInsets = LocalPlayerAwareWindowInsets.current
     var playEventType by rememberPreference(playEventsTypeKey, PlayEventsType.CasualPlayed)
 
-    var trending by remember { mutableStateOf(HomeDataCache.trending) }
-    var relatedPage by remember { mutableStateOf(HomeDataCache.relatedPage) }
+    // Cached copies can predate the song-only rule: filter them on the way in too.
+    var trending by remember { mutableStateOf(HomeDataCache.trending?.takeIf { it.isHomeSong }) }
+    var relatedPage by remember { mutableStateOf(HomeDataCache.relatedPage?.onlySongs()) }
     var discoverPage by remember { mutableStateOf(HomeDataCache.discoverPage) }
     var homePage by remember { mutableStateOf(HomeDataCache.homePage) }
 
@@ -335,21 +339,24 @@ fun HomePage(
                     val thirtyDaysMs = 30L * 24L * 60L * 60L * 1000L
                     // More than 3 rows: a listener whose top plays are live stations must still get
                     // a song to seed from (a station is not a YouTube video, nor something to "play all").
-                    Database.trending(
-                        limit = 10,
+                    // Songs only (no podcasts, videos or stations), over a wide window so the
+                    // filter in Kotlin still leaves a seed.
+                    Database.trendingSongsOnly(
+                        limit = 30,
                         period = thirtyDaysMs
                     ).distinctUntilChanged().first().firstOrNull { item ->
-                        !item.isRadio && isNotBlacklisted(item.id)
+                        item.isHomeSong && isNotBlacklisted(item.id)
                     }
                 }
 
                 PlayEventsType.LastPlayed, PlayEventsType.CasualPlayed -> {
                     val numSongs = if (playEventType == PlayEventsType.LastPlayed) 10 else 50
-                    val songs = Database.lastPlayed(numSongs).distinctUntilChanged().first()
+                    val songs = Database.lastPlayedSongsOnly(numSongs * 4).distinctUntilChanged().first()
+                        .filter { it.isHomeSong }.take(numSongs)
                     (if (playEventType == PlayEventsType.LastPlayed) songs else songs.shuffled())
                         .firstOrNull { item ->
-                            // Never seed (nor "play all") from a live station: it never ends
-                            !item.isRadio && isNotBlacklisted(item.id)
+                            // Never seed (nor "play all") from a station, podcast or video
+                            isNotBlacklisted(item.id)
                         }
                 }
             }
@@ -379,7 +386,7 @@ fun HomePage(
                 if (relatedPage == null || HomeDataCache.relatedFromDisk) {
                     val fetched = withTimeoutOrNull(20_000L) {
                         Environment.relatedPage(NextBody(videoId = effectiveSongId))
-                    }?.getOrNull()?.let {
+                    }?.getOrNull()?.onlySongs()?.let {
                         it.copy(
                             songs = it.songs?.filter { item -> isNotBlacklisted(item.key) },
                             artists = it.artists?.filter { item -> isNotBlacklisted(item.key) },
@@ -492,8 +499,8 @@ fun HomePage(
 
         if (HomeDataCache.homePage != null) homePage = HomeDataCache.homePage
         if (HomeDataCache.discoverPage != null) discoverPage = HomeDataCache.discoverPage
-        if (HomeDataCache.relatedPage != null) relatedPage = HomeDataCache.relatedPage
-        if (HomeDataCache.trending != null) trending = HomeDataCache.trending
+        if (HomeDataCache.relatedPage != null) relatedPage = HomeDataCache.relatedPage?.onlySongs()
+        if (HomeDataCache.trending != null) trending = HomeDataCache.trending?.takeIf { it.isHomeSong }
         homeLoading = homePage == null
         discoverLoading = discoverPage == null
         quickPicksLoading = relatedPage == null
@@ -502,8 +509,8 @@ fun HomePage(
 
         if (HomeDataCache.homePage != null) homePage = HomeDataCache.homePage
         if (HomeDataCache.discoverPage != null) discoverPage = HomeDataCache.discoverPage
-        if (HomeDataCache.relatedPage != null) relatedPage = HomeDataCache.relatedPage
-        if (HomeDataCache.trending != null) trending = HomeDataCache.trending
+        if (HomeDataCache.relatedPage != null) relatedPage = HomeDataCache.relatedPage?.onlySongs()
+        if (HomeDataCache.trending != null) trending = HomeDataCache.trending?.takeIf { it.isHomeSong }
 
         quickPicksLoading = false
     }
@@ -756,7 +763,7 @@ fun HomePage(
                                                         binder?.player?.forcePlay(mediaItem)
                                                         //binder?.player?.playOnline(mediaItem)
                                                         //fastPlay(mediaItem, binder)
-                                                        binder?.setupRadio(
+                                                        binder?.setupRadio(swapSeed = true, endpoint =
                                                             NavigationEndpoint.Endpoint.Watch(videoId = mediaItem.mediaId)
                                                         )
                                                     }
@@ -814,15 +821,13 @@ fun HomePage(
                                                 },
                                                 onClick = {
                                                     Timber.d("HomePage Clicked on song")
-                                                    val mediaItem = if (song.isAudioOnly)
-                                                        song.asMediaItem
-                                                    else
-                                                        song.asVideoMediaItem
+                                                    // Tapped as a song: a video row stays swappable for its song version
+                                                    val mediaItem = song.asMediaItem
 
                                                     binder?.stopRadio()
                                                     binder?.player?.forcePlay(mediaItem)
                                                     //fastPlay(mediaItem, binder)
-                                                    binder?.setupRadio(
+                                                    binder?.setupRadio(swapSeed = true, endpoint =
                                                         NavigationEndpoint.Endpoint.Watch(videoId = mediaItem.mediaId)
                                                     )
                                                 }
@@ -974,7 +979,8 @@ fun HomePage(
 
                         page.sections.forEach {
                             // A shelf whose first entry failed to parse is still a shelf; judge it by what survived
-                            if (it.items.filterNotNull().none { item -> item.key.isNotEmpty() }) return@forEach
+                            // Same for a shelf made only of music videos, which Home does not show
+                            if (it.items.filterNotNull().none { item -> item.key.isNotEmpty() && item.isHomeShelfItem }) return@forEach
 
                             TitleMiniSection(
                                 it.label ?: "", modifier = Modifier
@@ -991,7 +997,7 @@ fun HomePage(
                             )
                             // Filtered once per page/blacklist change, not on every recomposition
                             val shelfItems = remember(it.items, blacklisted.value) {
-                                it.items.filterNotNull().filter { item -> isNotBlacklisted(item.key) }
+                                it.items.filterNotNull().filter { item -> item.isHomeShelfItem && isNotBlacklisted(item.key) }
                             }
                             LazyRow(contentPadding = endPaddingValues) {
                                 // Index in the key: a shelf can repeat a key (or have an empty one)
@@ -1013,7 +1019,7 @@ fun HomePage(
                                                 modifier = Modifier.clickable(onClick = {
                                                     binder?.stopRadio()
                                                     binder?.player?.forcePlay(item.asMediaItem)
-                                                    binder?.setupRadio(
+                                                    binder?.setupRadio(swapSeed = true, endpoint =
                                                         item.info?.endpoint
                                                             ?: NavigationEndpoint.Endpoint.Watch(videoId = item.key)
                                                     )

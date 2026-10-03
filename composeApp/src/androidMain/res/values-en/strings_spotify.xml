@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="spotify_import_menu">Import from Spotify (link)</string>
+    <string name="spotify_import_title">Import from Spotify</string>
+    <string name="spotify_import_hint">Playlist or album link</string>
+    <string name="spotify_import_note">Public lists only, and up to 100 songs per link. For bigger lists, use the Exportify CSV.</string>
+    <string name="spotify_import_button">Import</string>
+    <string name="spotify_import_reading">Reading the Spotify list</string>
+    <string name="spotify_import_progress">Finding songs: %1$d of %2$d</string>
+    <string name="spotify_import_background_note">You can close this window: the import keeps going.</string>
+    <string name="spotify_import_hide">Hide</string>
+    <string name="spotify_import_done">%1$s: %2$d imported, %3$d not found</string>
+    <string name="spotify_import_updated">%1$s: %2$d new, %3$d removed, %4$d not found</string>
+    <string name="spotify_import_limit_reached">Spotify only lets the first 100 songs be read.</string>
+    <string name="spotify_import_busy">An import is already running</string>
+    <string name="spotify_import_queued">It will be imported when the current import finishes</string>
+    <string name="spotify_import_update">Update from Spotify</string>
+    <string name="spotify_import_err_link">That link is not a Spotify playlist or album</string>
+    <string name="spotify_import_err_not_found">Spotify cannot find that list. Is it public?</string>
+    <string name="spotify_import_err_network">Could not reach Spotify. Check your connection.</string>
+    <string name="spotify_import_err_parse">Could not read the Spotify list</string>
+    <string name="spotify_import_err_none">None of its songs were found</string>
+</resources>

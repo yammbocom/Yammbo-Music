@@ -11,20 +11,11 @@ import android.os.IBinder
 import android.support.v4.media.MediaBrowserCompat.MediaItem
 import android.support.v4.media.MediaDescriptionCompat
 import androidx.annotation.DrawableRes
-import androidx.annotation.OptIn
 import androidx.compose.ui.util.fastFilter
 import androidx.core.net.toUri
 import androidx.core.os.bundleOf
 import androidx.media.MediaBrowserServiceCompat
 import androidx.media3.common.util.UnstableApi
-import it.fast4x.environment.Environment
-import it.fast4x.environment.EnvironmentExt
-import it.fast4x.environment.models.BrowseEndpoint
-import it.fast4x.environment.models.bodies.SearchBody
-import it.fast4x.environment.requests.searchPage
-import it.fast4x.environment.utils.completed
-import it.fast4x.environment.utils.from
-import it.fast4x.riplay.commonutils.MODIFIED_PREFIX
 import it.fast4x.riplay.commonutils.MONTHLY_PREFIX
 import it.fast4x.riplay.commonutils.PINNED_PREFIX
 import com.yambo.music.R
@@ -33,23 +24,15 @@ import it.fast4x.riplay.data.models.Album
 import it.fast4x.riplay.data.models.Artist
 import it.fast4x.riplay.data.models.PlaylistPreview
 import it.fast4x.riplay.data.models.Song
-import it.fast4x.riplay.data.models.SongAlbumMap
-import it.fast4x.riplay.data.models.SongArtistMap
 import it.fast4x.riplay.enums.AlbumSortBy
 import it.fast4x.riplay.enums.ArtistSortBy
-import it.fast4x.riplay.enums.MaxTopPlaylistItems
 import it.fast4x.riplay.enums.SortOrder
-import it.fast4x.riplay.extensions.preferences.MaxTopPlaylistItemsKey
 import it.fast4x.riplay.extensions.preferences.getEnum
 import it.fast4x.riplay.extensions.preferences.preferences
 import it.fast4x.riplay.commonutils.removePrefix
 import it.fast4x.riplay.commonutils.thumbnail
-import it.fast4x.riplay.data.models.SongEntity
 import it.fast4x.riplay.enums.HomeItemSize
-import it.fast4x.riplay.enums.PlaylistSongSortBy
 import it.fast4x.riplay.enums.PlaylistSortBy
-import it.fast4x.riplay.enums.SongSortBy
-import it.fast4x.riplay.extensions.ondevice.OnDeviceViewModel
 import it.fast4x.riplay.extensions.preferences.albumSortByKey
 import it.fast4x.riplay.extensions.preferences.albumSortOrderKey
 import it.fast4x.riplay.extensions.preferences.albumsItemSizeKey
@@ -60,8 +43,6 @@ import it.fast4x.riplay.extensions.preferences.playlistSongSortByKey
 import it.fast4x.riplay.extensions.preferences.playlistSortByKey
 import it.fast4x.riplay.extensions.preferences.songSortByKey
 import it.fast4x.riplay.extensions.preferences.songSortOrderKey
-import it.fast4x.riplay.utils.asMediaItem
-import it.fast4x.riplay.utils.asSong
 import it.fast4x.riplay.utils.getTitleMonthlyPlaylist
 import it.fast4x.riplay.utils.intent
 import it.fast4x.riplay.utils.isRadio
@@ -72,111 +53,77 @@ import it.fast4x.riplay.utils.showMonthlyPlaylistsAA
 import it.fast4x.riplay.utils.showOnDeviceAA
 import it.fast4x.riplay.utils.showTopPlaylistAA
 import it.fast4x.riplay.utils.shuffleSongsAAEnabled
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.firstOrNull
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import timber.log.Timber
-import kotlin.also
 
 @UnstableApi
 class PlayerMediaBrowserService : MediaBrowserServiceCompat(),
     ServiceConnection,
     SharedPreferences.OnSharedPreferenceChangeListener {
 
-    companion object {
-        var lastSongs = emptyList<Song>()
-        var searchedSongs = emptyList<Song>()
-        var lastRadios = emptyList<Song>()
-    }
+    // Children and search results are built here (database and network) and sent back with
+    // Result.sendResult once ready: blocking the binder thread made Android Auto time out.
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    //val context = (this as Context)
-    //private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
-
-    private var playlistSongsSortBy: PlaylistSongSortBy = PlaylistSongSortBy.DateAdded
-    private var songsSortBy: SongSortBy = SongSortBy.DateAdded
     private var playlistSortBy: PlaylistSortBy = PlaylistSortBy.DateAdded
     private var artistSortBy: ArtistSortBy = ArtistSortBy.DateAdded
     private var albumSortBy: AlbumSortBy = AlbumSortBy.DateAdded
-
 
     private var songSortOrder: SortOrder = SortOrder.Descending
     private var artistSortOrder: SortOrder = SortOrder.Descending
     private var albumSortOrder: SortOrder = SortOrder.Descending
 
-    private var bound = false
+    private var bindRequested = false
     private var playerServiceBinder: PlayerService.Binder? = null
+
+    // Android Auto passes how many root children it can show as tabs (4 on current versions)
+    private var rootChildrenLimit = DEFAULT_ROOT_CHILDREN_LIMIT
 
 
     override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences?, key: String?) {
         sharedPreferences ?: return
         Timber.d("PlayerMediaBrowserService onSharedPreferenceChanged $key")
         when (key) {
-            songSortByKey -> {
-                songsSortBy = sharedPreferences.getEnum(songSortByKey, SongSortBy.DateAdded)
-                notifyChildrenChanged(MediaId.SONGS)
-            }
-
-            songSortOrderKey -> {
+            songSortByKey, songSortOrderKey -> {
                 songSortOrder = sharedPreferences.getEnum(songSortOrderKey, SortOrder.Descending)
                 notifyChildrenChanged(MediaId.SONGS)
+                notifyChildrenChanged(MediaId.SONGS_FAVORITES)
             }
 
-            artistSortOrderKey -> {
-                artistSortOrder =
-                    sharedPreferences.getEnum(artistSortOrderKey, SortOrder.Descending)
-                notifyChildrenChanged(MediaId.ARTISTS_FAVORITES)
-            }
-            artistSortByKey -> {
-                artistSortBy =
-                    sharedPreferences.getEnum(artistSortByKey, ArtistSortBy.DateAdded)
+            artistSortOrderKey, artistSortByKey -> {
+                artistSortOrder = sharedPreferences.getEnum(artistSortOrderKey, SortOrder.Descending)
+                artistSortBy = sharedPreferences.getEnum(artistSortByKey, ArtistSortBy.DateAdded)
                 notifyChildrenChanged(MediaId.ARTISTS_FAVORITES)
             }
 
-            albumSortOrderKey -> {
+            albumSortOrderKey, albumSortByKey -> {
                 albumSortOrder = sharedPreferences.getEnum(albumSortOrderKey, SortOrder.Descending)
+                albumSortBy = sharedPreferences.getEnum(albumSortByKey, AlbumSortBy.DateAdded)
                 notifyChildrenChanged(MediaId.ALBUMS_FAVORITES)
             }
 
-            albumSortByKey -> {
-                albumSortBy =
-                    sharedPreferences.getEnum(albumSortByKey, AlbumSortBy.DateAdded)
-                notifyChildrenChanged(MediaId.ALBUMS_FAVORITES)
-            }
-
-            playlistSongSortByKey -> {
-                playlistSongsSortBy =
-                    sharedPreferences.getEnum(playlistSongSortByKey, PlaylistSongSortBy.DateAdded)
+            playlistSongSortByKey, playlistSortByKey -> {
+                playlistSortBy = sharedPreferences.getEnum(playlistSortByKey, PlaylistSortBy.DateAdded)
                 notifyChildrenChanged(MediaId.PLAYLISTS)
             }
-
-            playlistSortByKey -> {
-                playlistSortBy =
-                    sharedPreferences.getEnum(playlistSortByKey, PlaylistSortBy.DateAdded)
-                notifyChildrenChanged(MediaId.PLAYLISTS)
-            }
-
         }
     }
-
-    private val onDeviceViewModel: OnDeviceViewModel by lazy {
-        OnDeviceViewModel(application)
-    }
-
 
     override fun onCreate() {
         super.onCreate()
 
-        songsSortBy = preferences.getEnum(songSortByKey, SongSortBy.DateAdded)
         songSortOrder = preferences.getEnum(songSortOrderKey, SortOrder.Descending)
         playlistSortBy = preferences.getEnum(playlistSortByKey, PlaylistSortBy.DateAdded)
-        playlistSongsSortBy = preferences.getEnum(playlistSongSortByKey, PlaylistSongSortBy.DateAdded)
         artistSortBy = preferences.getEnum(artistSortByKey, ArtistSortBy.DateAdded)
         artistSortOrder = preferences.getEnum(artistSortOrderKey, SortOrder.Descending)
         albumSortBy = preferences.getEnum(albumSortByKey, AlbumSortBy.DateAdded)
         albumSortOrder = preferences.getEnum(albumSortOrderKey, SortOrder.Descending)
-
-
 
         preferences.registerOnSharedPreferenceChangeListener(this)
 
@@ -185,8 +132,10 @@ class PlayerMediaBrowserService : MediaBrowserServiceCompat(),
 
 
     override fun onDestroy() {
-        if (bound) {
-            unbindService(this)
+        serviceScope.cancel()
+        if (bindRequested) {
+            runCatching { unbindService(this) }
+            bindRequested = false
         }
         preferences.unregisterOnSharedPreferenceChangeListener(this)
         super.onDestroy()
@@ -195,23 +144,34 @@ class PlayerMediaBrowserService : MediaBrowserServiceCompat(),
     @UnstableApi
     override fun onServiceConnected(className: ComponentName, service: IBinder) {
         if (service is PlayerService.Binder) {
-            bound = true
-            sessionToken = service.mediaSession.sessionToken
             playerServiceBinder = service
+            // Clients that connected before this point (onGetRoot has to answer right away) are
+            // kept pending by MediaBrowserServiceCompat and get onConnect when the token is set.
+            // The token can be set only once: a second set throws IllegalStateException.
+            if (sessionToken == null) sessionToken = service.mediaSession.sessionToken
             service.cancelSleepTimer()
             // IMPORTANT: Do not override the MediaSession callback here.
             // PlayerService owns the callback and implements the authoritative queue/skip logic.
         }
     }
 
-    override fun onServiceDisconnected(name: ComponentName) = Unit
+    override fun onServiceDisconnected(name: ComponentName) {
+        playerServiceBinder = null
+    }
 
     override fun onGetRoot(
         clientPackageName: String,
         clientUid: Int,
         rootHints: Bundle?
     ): BrowserRoot {
-        bindService(intent<PlayerService>(), this, BIND_AUTO_CREATE)
+        // Every client (car, Assistant, system media controls) ends up here: bind once
+        if (!bindRequested) {
+            bindRequested = runCatching { bindService(intent<PlayerService>(), this, BIND_AUTO_CREATE) }
+                .onFailure { Timber.e("PlayerMediaBrowserService bindService failed ${it.message}") }
+                .getOrDefault(false)
+        }
+        rootHints?.getInt(ROOT_CHILDREN_LIMIT_HINT, 0)?.takeIf { it > 0 }?.let { rootChildrenLimit = it }
+
         return BrowserRoot(
             MediaId.ROOT,
             Bundle().apply {
@@ -221,23 +181,8 @@ class PlayerMediaBrowserService : MediaBrowserServiceCompat(),
                 putInt(CONTENT_STYLE_PLAYABLE_HINT, CONTENT_STYLE_LIST)
             }
         )
-        /*
-        return if (clientUid == Process.myUid()
-            || clientUid == Process.SYSTEM_UID
-            || clientPackageName == "com.google.android.projection.gearhead"
-        ) {
-            bindService(intent<PlayerService>(), this, Context.BIND_AUTO_CREATE)
-            BrowserRoot(
-                MediaId.root,
-                bundleOf("android.media.browse.CONTENT_STYLE_BROWSABLE_HINT" to 1)
-            )
-        } else {
-            null
-        }
-         */
     }
 
-    @OptIn(UnstableApi::class)
     override fun onSearch(
         query: String,
         extras: Bundle?,
@@ -246,613 +191,201 @@ class PlayerMediaBrowserService : MediaBrowserServiceCompat(),
         playerServiceBinder?.cancelSleepTimer()
 
         result.detach()
-        runBlocking(Dispatchers.IO) {
-            searchedSongs = Environment.searchPage(
-                body = SearchBody(
-                    query = query,
-                    params = Environment.SearchFilter.Song.value
-                ),
-                fromMusicShelfRendererContent = Environment.SongItem.Companion::from
-            )?.map {
-                it?.items?.map { it.asSong }
-            }?.getOrNull() ?: emptyList()
+        serviceScope.launch {
+            val parentId = CarLibrary.searchParent(query.trim())
+            val items = runCatching {
+                if (query.isBlank()) emptyList()
+                else CarLibrary.songsFor(this@PlayerMediaBrowserService, parentId)
+                    .map { it.asPlayableMediaItem(parentId) }
+            }.onFailure {
+                Timber.e("PlayerMediaBrowserService onSearch '$query' failed ${it.stackTraceToString()}")
+            }.getOrDefault(emptyList())
 
-            val resultList = searchedSongs.map {
-                MediaItem(
-                    MediaDescriptionCompat.Builder()
-                        .setMediaId(MediaId.forSearched(it.id))
-                        .setTitle(it.title.removePrefix())
-                        .setSubtitle(it.artistsText)
-                        .setIconUri(it.thumbnailUrl?.toUri())
-                        .build(),
-                    MediaItem.FLAG_PLAYABLE
-                )
+            withContext(Dispatchers.Main) {
+                runCatching { result.sendResult(items) }
+                    .onFailure { Timber.e("PlayerMediaBrowserService onSearch sendResult ${it.message}") }
             }
-
-            result.sendResult(resultList)
         }
     }
 
 
-    @OptIn(UnstableApi::class)
     override fun onLoadChildren(
         parentId: String,
         result: Result<List<MediaItem?>?>
     ) {
         playerServiceBinder?.cancelSleepTimer()
+        Timber.d("PlayerMediaBrowserService onLoadChildren parentId $parentId")
 
-        Timber.d("PlayerMediaBrowserService onLoadChildren original parentId $parentId")
-        val data = parentId.split('/')
-        val id = data.getOrNull(1) ?: ""
-        val idOnDeviceFolder = parentId.split(MediaId.PLAYLISTS_ONDEVICE).getOrNull(1)?.substringAfter('/') ?: ""
-        Timber.d("PlayerMediaBrowserService onLoadChildren $parentId data $data id $id idOnDeviceFolder $idOnDeviceFolder")
-        runBlocking(Dispatchers.IO) {
-            result.sendResult(
-                when (data.firstOrNull()) {
-
-                    MediaId.FAULT ->listOf(
-                        faultBrowserMediaItem
-                    )
-
-                    // Start Navigation items
-                    MediaId.ROOT -> listOf(
-                        songsBrowserMediaItem,
-                        artistsFavoritesBrowserMediaItem,
-                        albumsFavoritesBrowserMediaItem,
-                        playlistsBrowserMediaItem,
-                        radioBrowserMediaItem
-                    )
-
-                    MediaId.SONGS -> {
-                            Database
-                                .songs(songsSortBy, songSortOrder, 0)
-                                .first()
-                                // Stations have their own Radio node; as a song entry their id is
-                                // split on '/' by onPlayFromMediaId and the tap does nothing.
-                                .filterNot { it.song.isRadio }
-                                .take(500)
-                                .also { lastSongs = it.map { it.song } }
-                                .map { it.song.asBrowserMediaItem }
-                                .toMutableList()
-                                .apply {
-                                    if (shuffleSongsAAEnabled()) add(0, shuffleBrowserMediaItem)
-                                    if (showOnDeviceAA()) add(0, ondeviceBrowserMediaItem)
-                                    if (showTopPlaylistAA()) add(0, topBrowserMediaItem)
-                                    if (showFavoritesPlaylistsAA()) add(0, favoritesBrowserMediaItem)
-                                }
-                    }
-
-                    MediaId.SONGS_ONDEVICE -> {
-                        Database
-                            .songsOnDevice()
-                            .first()
-                            // Capped like SONGS: an unbounded list overruns the binder transaction limit
-                            .take(500)
-                            .also { lastSongs = it }
-                            .map { it.asBrowserMediaItem }
-                            .toMutableList()
-                    }
-
-                    MediaId.SONGS_SHUFFLE -> lastSongs.shuffled().map { it.asBrowserMediaItem }.toMutableList()
-
-                    MediaId.SONGS_FAVORITES -> {
-
-                        Database
-                            .songsFavorites(songsSortBy, songSortOrder)
-                            //.favorites()
-                            .first()
-                            // A hearted station is listed under Radio; here its id would be split
-                            // on '/' by onPlayFromMediaId and the tap ignored.
-                            .filterNot { it.song.isRadio }
-                            .take(500)
-                            .also { lastSongs = it.map { it.song }}
-                            .map { it.song.asBrowserMediaItem }
-                            .toMutableList()
-                    }
-
-                    MediaId.SONGS_TOP -> {
-                        val maxTopSongs = preferences.getEnum(MaxTopPlaylistItemsKey,
-                            MaxTopPlaylistItems.`10`).number.toInt()
-
-                        Database.trending(maxTopSongs)
-                            .first()
-                            // A live station never ends: it must not be queued among songs
-                            .filterNot { it.isRadio }
-                            .also { lastSongs = it }
-                            .map { it.asBrowserMediaItem }.toMutableList()
-                    }
-
-                    MediaId.RADIO -> {
-                        // Hearted stations first, then the ones played lately, one entry per station.
-                        // Kept apart from lastSongs so the car queue holds stations only and
-                        // next/previous switch station instead of mixing them with songs.
-                        (Database.favoriteRadios().first() + Database.recentRadios(30).first())
-                            .distinctBy { it.id }
-                            .also { lastRadios = it }
-                            .map { it.asRadioBrowserMediaItem }
-                            .toMutableList()
-                    }
-
-                    MediaId.PLAYLISTS -> {
-
-                        if (id == "") {
-                            Database
-                                .playlistPreviews(playlistSortBy, songSortOrder)
-                                //.playlistPreviewsByNameAsc()
-                                .first()
-                                .fastFilter {
-                                    if (showMonthlyPlaylistsAA()) true
-                                    else !it.playlist.name.startsWith(MONTHLY_PREFIX)
-                                }
-                                .map { it.asBrowserMediaItem(Database.playlistThumbnailUrls(it.playlist.id).first().take(1)) }
-                                .sortedBy { it.description.title.toString() }
-                                .map { it.asCleanMediaItem }
-                                .toMutableList()
-                                .apply {
-                                    add(0, playlistsInLibraryBrowserMediaItem)
-                                    add(1, playlistsPodcastBrowserMediaItem)
-                                    add(2, playlistsPinnedBrowserMediaItem)
-                                    add(3, playlistsMonthlyBrowserMediaItem)
-                                    add(4, playlistsOnDeviceBrowserMediaItem)
-                                }
-                        } else {
-                            Database
-                                .songsPlaylist(id.toLong(), playlistSongsSortBy, songSortOrder)
-                                //.playlistWithSongs(id.toLong())
-                                .first()
-                                //?.songs
-                                // Same as the song lists: a station here could not be played.
-                                .filterNot { it.song.isRadio }
-                                .take(500)
-                                .also { lastSongs = it.map { it.song } }
-                                .map { it.song.asBrowserMediaItem }
-                                .toMutableList()
-                        }
-
-                    }
-
-                    MediaId.PLAYLISTS_IN_LIBRARY -> {
-                            Database
-                                .playlistPreviews(playlistSortBy, songSortOrder)
-                                .first()
-                                .fastFilter {
-                                    it.playlist.isYoutubePlaylist
-                                }
-                                .map { it.asBrowserMediaItem(Database.playlistThumbnailUrls(it.playlist.id).first().take(1)) }
-                                .sortedBy { it.description.title.toString() }
-                                .map { it.asCleanMediaItem }
-                                .toMutableList()
-                    }
-
-                    MediaId.PLAYLISTS_PODCAST -> {
-                        Database
-                            .playlistPreviews(playlistSortBy, songSortOrder)
-                            .first()
-                            .fastFilter {
-                                it.playlist.isPodcast
-                            }
-                            .map { it.asBrowserMediaItem(Database.playlistThumbnailUrls(it.playlist.id).first().take(1)) }
-                            .sortedBy { it.description.title.toString() }
-                            .map { it.asCleanMediaItem }
-                            .toMutableList()
-                    }
-
-                    MediaId.PLAYLISTS_PINNED -> {
-                        Database
-                            .playlistPreviews(playlistSortBy, songSortOrder)
-                            .first()
-                            .fastFilter {
-                                it.playlist.isPinned
-                            }
-                            .map { it.asBrowserMediaItem(Database.playlistThumbnailUrls(it.playlist.id).first().take(1)) }
-                            .sortedBy { it.description.title.toString() }
-                            .map { it.asCleanMediaItem }
-                            .toMutableList()
-                    }
-
-                    MediaId.PLAYLISTS_MONTHLY -> {
-                        Database
-                            .playlistPreviews(playlistSortBy, songSortOrder)
-                            .first()
-                            .fastFilter {
-                                it.playlist.isMonthly
-                            }
-                            .map { it.asBrowserMediaItem(Database.playlistThumbnailUrls(it.playlist.id).first().take(1)) }
-                            .sortedBy { it.description.title.toString() }
-                            .map { it.asCleanMediaItem }
-                            .toMutableList()
-                    }
-
-                    MediaId.PLAYLISTS_ONDEVICE -> {
-                        if (idOnDeviceFolder == "") {
-                            onDeviceViewModel.audioFoldersAsPlaylists().first()
-                                .let { folders ->
-                                    when (playlistSortBy) {
-                                        PlaylistSortBy.Name -> when (songSortOrder) {
-                                            SortOrder.Ascending -> folders.sortedBy { it.playlist.name }
-                                            SortOrder.Descending -> folders.sortedByDescending { it.playlist.name }
-                                        }
-
-                                        PlaylistSortBy.DateAdded -> when (songSortOrder) {
-                                            SortOrder.Ascending -> folders.sortedBy { it.totalPlayTimeMs }
-                                            SortOrder.Descending -> folders.sortedByDescending { it.totalPlayTimeMs }
-                                        }
-
-                                        PlaylistSortBy.SongCount -> when (songSortOrder) {
-                                            SortOrder.Ascending -> folders.sortedBy { it.songCount }
-                                            SortOrder.Descending -> folders.sortedByDescending { it.songCount }
-                                        }
-
-                                        PlaylistSortBy.MostPlayed -> when (songSortOrder) {
-                                            SortOrder.Ascending -> folders.sortedBy { it.totalPlayTimeMs }
-                                            SortOrder.Descending -> folders.sortedByDescending { it.totalPlayTimeMs }
-                                        }
-                                    }.map {
-                                        it.asBrowserMediaItem(
-                                            Database.playlistThumbnailUrls(it.playlist.id).first()
-                                                .take(1),
-                                            true
-                                        )
-                                    }
-                                        .sortedBy { it.description.title.toString() }
-                                        .map { it.asCleanMediaItem }
-                                        .toMutableList()
-                                }
-
-                        } else {
-                            onDeviceViewModel.audioFilesFromFolder(
-                                idOnDeviceFolder
-                            ).first()
-                                .map { it.song }
-                                .also { lastSongs = it}
-                                .map { it.asBrowserMediaItem }
-                                .toMutableList()
-                        }
-
-                    }
-
-                    MediaId.ARTISTS_FAVORITES -> {
-
-                        if (id == "") {
-                            Database
-                                .artists(artistSortBy, artistSortOrder)
-                                .first()
-                                .map { it.asBrowserMediaItem(MediaId.ARTISTS_FAVORITES) }
-                                .toMutableList()
-                                .apply {
-                                    if (showOnDeviceAA()) add(0, artistsOnDeviceBrowserMediaItem)
-                                    if (showInLibraryAA()) add(0, artistsInLibraryBrowserMediaItem)
-                                }
-                        } else {
-                            val artist = Database.artist(id).first()
-                            //var songs = Database.artistAllSongs(id).first()
-                            var songs = emptyList<Song>()
-                            //if (songs.isEmpty()) {
-                                EnvironmentExt.getArtistPage(browseId = id)
-                                    .onSuccess { currentArtistPage ->
-                                        var moreEndPointBrowseId: String? = null
-                                        var moreEndPointParams: String? = null
-                                        currentArtistPage.sections
-                                            .forEach {
-                                                if (it.items.firstOrNull() is Environment.SongItem) {
-                                                    moreEndPointBrowseId = it.moreEndpoint?.browseId
-                                                    moreEndPointParams = it.moreEndpoint?.params
-                                                    Timber.d("PlayerMediaBrowserService onGetchildren artist songs moreEndPointBrowseId $moreEndPointBrowseId")
-                                                }
-                                            }
-                                            .also {
-                                                if (moreEndPointBrowseId != null)
-                                                    if (artist != null) {
-                                                        EnvironmentExt.getArtistItemsPage(
-                                                            BrowseEndpoint(
-                                                                browseId = moreEndPointBrowseId,
-                                                                params = moreEndPointParams
-                                                            )
-                                                        ).completed().getOrNull()
-                                                            ?.items
-                                                            ?.map { it as Environment.SongItem }
-                                                            ?.map { it.asSong }
-                                                            .also {
-                                                                if (it != null) {
-                                                                    songs = it
-                                                                }
-                                                            }
-                                                            ?.onEach(Database::insert)
-                                                            ?.map {
-                                                                SongArtistMap(
-                                                                    songId = it.id,
-                                                                    artistId = artist.id
-                                                                )
-                                                            }
-                                                            ?.onEach(Database::insert)
-                                                    }
-
-                                            }
-
-                                    }
-                            //}
-                            songs
-                                .also { lastSongs = it }
-                                .map { it.asBrowserMediaItem }
-                                .toMutableList()
-                        }
-                    }
-
-                    MediaId.ARTISTS_ONDEVICE -> {
-
-                        if (id == "") {
-                            Database
-                                .artistsOnDevice(artistSortBy, artistSortOrder)
-                                .first()
-                                .map { it.asBrowserMediaItem(MediaId.ARTISTS_ONDEVICE) }
-                                .toMutableList()
-                        } else {
-                            Database.artistTopSongs(id, 100)
-                                .first()
-                                .also { lastSongs = it }
-                                .map { it.asBrowserMediaItem }
-                                .toMutableList()
-                        }
-                    }
-
-                    MediaId.ARTISTS_IN_LIBRARY -> {
-
-                        if (id == "") {
-                            Timber.d("PlayerMediaBrowserService onLoadChildren inside artists in library id $id")
-                            Database
-                                .artistsInLibrary(artistSortBy, artistSortOrder)
-                                .first()
-                                .map { it.asBrowserMediaItem(MediaId.ARTISTS_IN_LIBRARY) }
-                                .toMutableList()
-                        } else {
-                            Timber.d("PlayerMediaBrowserService onLoadChildren inside artist single in library id $id")
-                            val artist = Database.artist(id).first()
-                            var songs = Database.artistAllSongs(id).first()
-                            if (songs.isEmpty()) {
-                                EnvironmentExt.getArtistPage(browseId = id)
-                                    .onSuccess { currentArtistPage ->
-                                        var moreEndPointBrowseId: String? = null
-                                        var moreEndPointParams: String? = null
-                                        currentArtistPage.sections
-                                            .forEach {
-                                                if (it.items.firstOrNull() is Environment.SongItem) {
-                                                    moreEndPointBrowseId = it.moreEndpoint?.browseId
-                                                    moreEndPointParams = it.moreEndpoint?.params
-                                                    Timber.d("PlayerMediaBrowserService onLoadChildren artist in library songs moreEndPointBrowseId $moreEndPointBrowseId")
-                                                }
-                                            }
-                                            .also {
-                                                if (moreEndPointBrowseId != null)
-                                                    if (artist != null) {
-                                                        EnvironmentExt.getArtistItemsPage(
-                                                            BrowseEndpoint(
-                                                                browseId = moreEndPointBrowseId,
-                                                                params = moreEndPointParams
-                                                            )
-                                                        ).completed().getOrNull()
-                                                            ?.items
-                                                            ?.map { it as Environment.SongItem }
-                                                            ?.map { it.asSong }
-                                                            .also {
-                                                                if (it != null) {
-                                                                    songs = it
-                                                                }
-                                                            }
-                                                            ?.onEach(Database::insert)
-                                                            ?.map {
-                                                                SongArtistMap(
-                                                                    songId = it.id,
-                                                                    artistId = artist.id
-                                                                )
-                                                            }
-                                                            ?.onEach(Database::insert)
-                                                    }
-
-                                            }
-
-                                    }
-                            }
-                            Timber.d("PlayerMediaBrowserService onLoadChildren inside artist single in library id $id with songs size ${songs.size}")
-                            songs
-                                .also { lastSongs = it }
-                                .map { it.asBrowserMediaItem }
-                                .toMutableList()
-                        }
-                    }
-
-                    MediaId.ALBUMS_FAVORITES -> {
-
-                        if (id == "") {
-                            Timber.d("PlayerMediaBrowserService onLoadChildren inside albums id $id")
-                            Database
-                                .albums(albumSortBy, albumSortOrder)
-                                .first()
-                                .map { it.asBrowserMediaItem(MediaId.ALBUMS_FAVORITES) }
-                                .toMutableList()
-                                .apply {
-                                    if (showOnDeviceAA()) add(0, albumsOnDeviceBrowserMediaItem)
-                                    if (showInLibraryAA()) add(0, albumsInLibraryBrowserMediaItem)
-                                }
-                        } else {
-                            Timber.d("PlayerMediaBrowserService onLoadChildren inside albums SONGS id $id")
-                            val album = Database.album(id).first()
-                            var songs = Database.albumSongs(id).first()
-                            if (songs.isEmpty()) {
-                                EnvironmentExt.getAlbum(id)
-                                    .onSuccess { currentAlbumPage ->
-                                        val innerSongs = currentAlbumPage
-                                            .songs.distinct()
-                                            .also { songItems ->
-                                                songs = songItems
-                                                    .map(Environment.SongItem::asSong)
-                                            }
-
-                                        val innerSongsAlbumMap = innerSongs
-                                            .map(Environment.SongItem::asMediaItem)
-                                            .onEach(Database::insert)
-                                            .mapIndexed { position, mediaItem ->
-                                                SongAlbumMap(
-                                                    songId = mediaItem.mediaId,
-                                                    albumId = id,
-                                                    position = position
-                                                )
-                                            }
-                                        Database.upsert(
-                                            Album(
-                                                id = id,
-                                                title = album?.title ?: currentAlbumPage.album.title,
-                                                thumbnailUrl = if (album?.thumbnailUrl?.startsWith(
-                                                        MODIFIED_PREFIX
-                                                    ) == true
-                                                ) album.thumbnailUrl else currentAlbumPage.album.thumbnail?.url,
-                                                year = currentAlbumPage.album.year,
-                                                authorsText = if (album?.authorsText?.startsWith(
-                                                        MODIFIED_PREFIX
-                                                    ) == true
-                                                ) album.authorsText else currentAlbumPage.album.authors
-                                                    ?.joinToString(", ") { it.name ?: "" },
-                                                shareUrl = currentAlbumPage.url,
-                                                timestamp = System.currentTimeMillis(),
-                                                bookmarkedAt = album?.bookmarkedAt,
-                                                isYoutubeAlbum = album?.isYoutubeAlbum == true
-                                            ),
-                                            innerSongsAlbumMap
-                                        )
-                                    }
-                            }
-
-                            songs
-                                .also { lastSongs = it }
-                                .map { it.asBrowserMediaItem }
-                                .toMutableList()
-                        }
-                    }
-
-                    MediaId.ALBUMS_ON_DEVICE -> {
-
-                        if (id == "") {
-                            Timber.d("PlayerMediaBrowserService onLoadChildren inside albums on device id $id")
-                            Database
-                                .albumsOnDevice(albumSortBy, albumSortOrder)
-                                .first()
-                                .map { it.asBrowserMediaItem(MediaId.ALBUMS_ON_DEVICE) }
-                                .toMutableList()
-                        } else {
-                            Timber.d("PlayerMediaBrowserService onLoadChildren inside albums SONGS id $id")
-                            Database.albumSongs(id)
-                                .first()
-                                .also { lastSongs = it }
-                                .map { it.asBrowserMediaItem }
-                                .toMutableList()
-                        }
-                    }
-
-                    MediaId.ALBUMS_IN_LIBRARY -> {
-
-                        if (id == "") {
-                            Timber.d("PlayerMediaBrowserService onLoadChildren inside albums on device id $id")
-                            Database
-                                .albumsInLibrary(albumSortBy, albumSortOrder)
-                                .first()
-                                .map { it.asBrowserMediaItem(MediaId.ALBUMS_IN_LIBRARY) }
-                                .toMutableList()
-                        } else {
-                            Timber.d("PlayerMediaBrowserService onLoadChildren inside albums SONGS id $id")
-                            val album = Database.album(id).first()
-                            var songs = Database.albumSongs(id).first()
-                            if (songs.isEmpty()) {
-                                EnvironmentExt.getAlbum(id)
-                                    .onSuccess { currentAlbumPage ->
-                                        val innerSongs = currentAlbumPage
-                                            .songs.distinct()
-                                            .also { songItems ->
-                                                songs = songItems
-                                                    .map(Environment.SongItem::asSong)
-                                            }
-
-                                        val innerSongsAlbumMap = innerSongs
-                                            .map(Environment.SongItem::asMediaItem)
-                                            .onEach(Database::insert)
-                                            .mapIndexed { position, mediaItem ->
-                                                SongAlbumMap(
-                                                    songId = mediaItem.mediaId,
-                                                    albumId = id,
-                                                    position = position
-                                                )
-                                            }
-                                        Database.upsert(
-                                            Album(
-                                                id = id,
-                                                title = album?.title ?: currentAlbumPage.album.title,
-                                                thumbnailUrl = if (album?.thumbnailUrl?.startsWith(
-                                                        MODIFIED_PREFIX
-                                                    ) == true
-                                                ) album.thumbnailUrl else currentAlbumPage.album.thumbnail?.url,
-                                                year = currentAlbumPage.album.year,
-                                                authorsText = if (album?.authorsText?.startsWith(
-                                                        MODIFIED_PREFIX
-                                                    ) == true
-                                                ) album.authorsText else currentAlbumPage.album.authors
-                                                    ?.joinToString(", ") { it.name ?: "" },
-                                                shareUrl = currentAlbumPage.url,
-                                                timestamp = System.currentTimeMillis(),
-                                                bookmarkedAt = album?.bookmarkedAt,
-                                                isYoutubeAlbum = album?.isYoutubeAlbum == true
-                                            ),
-                                            innerSongsAlbumMap
-                                        )
-                                    }
-                            }
-
-                            songs
-                                .also { lastSongs = it }
-                                .map { it.asBrowserMediaItem }
-                                .toMutableList()
-                        }
-                    }
-
-                    // End Navigation items
-
-                    // Start Browsable and playable items
-                    MediaId.SONGS_SHUFFLE -> lastSongs.shuffled().map { it.asBrowserMediaItem }.toMutableList()
-                    MediaId.SONGS_FAVORITES -> {
-
-                        Database
-                            .songsFavorites(songsSortBy, songSortOrder)
-                            //.favorites()
-                            .first()
-                            .filterNot { it.song.isRadio }
-                            .also { lastSongs = it.map { it.song }}
-                            .map { it.song.asBrowserMediaItem }
-                            .toMutableList()
-                    }
-                    MediaId.SONGS_TOP -> {
-                        val maxTopSongs = preferences.getEnum(MaxTopPlaylistItemsKey,
-                            MaxTopPlaylistItems.`50`).number.toInt()
-
-                        Database.trending(maxTopSongs)
-                            .first()
-                            // A live station never ends: it must not be queued among songs
-                            .filterNot { it.isRadio }
-                            .also { lastSongs = it }
-                            .map { it.asBrowserMediaItem }.toMutableList()
-                    }
-                    MediaId.SONGS_ONDEVICE -> {
-                        Database
-                            .songsOnDevice()
-                            .first()
-                            .also { lastSongs = it }
-                            .map { it.asBrowserMediaItem }
-                            .toMutableList()
-                    }
-
-                    // End Browsable and playable items
-
-
-                    else -> mutableListOf()
+        result.detach()
+        serviceScope.launch {
+            // A failure must still answer, or the car keeps spinning on that node
+            val items = runCatching { children(parentId) }
+                .onFailure {
+                    Timber.e("PlayerMediaBrowserService onLoadChildren $parentId failed ${it.stackTraceToString()}")
                 }
-            )
+                .getOrDefault(emptyList())
+
+            withContext(Dispatchers.Main) {
+                runCatching { result.sendResult(items) }
+                    .onFailure { Timber.e("PlayerMediaBrowserService onLoadChildren sendResult ${it.message}") }
+            }
         }
+    }
+
+    private suspend fun children(parentId: String): List<MediaItem> {
+        val head = parentId.substringBefore('/')
+        val id = parentId.substringAfter('/', "")
+
+        return when (head) {
+            MediaId.FAULT -> listOf(faultBrowserMediaItem)
+
+            // Tabs on Android Auto, most used first
+            MediaId.ROOT -> listOf(
+                recentBrowserMediaItem,
+                favoritesBrowserMediaItem,
+                playlistsBrowserMediaItem,
+                libraryBrowserMediaItem
+            ).take(rootChildrenLimit.coerceAtLeast(1))
+
+            CarLibrary.LIBRARY -> buildList {
+                add(songsBrowserMediaItem)
+                add(artistsFavoritesBrowserMediaItem)
+                add(albumsFavoritesBrowserMediaItem)
+                add(radioBrowserMediaItem)
+                add(topBrowserMediaItem)
+                if (showOnDeviceAA()) add(ondeviceBrowserMediaItem)
+            }
+
+            MediaId.SONGS -> songListItems(parentId).toMutableList().apply {
+                // Browsable shortcuts kept for the existing Android Auto settings
+                if (showOnDeviceAA()) add(0, ondeviceBrowserMediaItem)
+                if (showTopPlaylistAA()) add(0, topBrowserMediaItem)
+                if (showFavoritesPlaylistsAA()) add(0, favoritesBrowserMediaItem)
+            }
+
+            CarLibrary.RECENT,
+            MediaId.SONGS_FAVORITES,
+            MediaId.SONGS_TOP,
+            MediaId.SONGS_ONDEVICE -> songListItems(parentId)
+
+            // Stations only, so next/previous in the car switch station
+            MediaId.RADIO -> CarLibrary.songsFor(this, parentId)
+                .map { it.asPlayableMediaItem(parentId) }
+
+            MediaId.PLAYLISTS -> if (id.isEmpty()) {
+                playlistPreviews { showMonthlyPlaylistsAA() || !it.playlist.name.startsWith(MONTHLY_PREFIX) }
+                    .map { it.asCleanMediaItem }
+                    .toMutableList()
+                    .apply {
+                        add(0, playlistsInLibraryBrowserMediaItem)
+                        add(1, playlistsPodcastBrowserMediaItem)
+                        add(2, playlistsPinnedBrowserMediaItem)
+                        add(3, playlistsMonthlyBrowserMediaItem)
+                        add(4, playlistsOnDeviceBrowserMediaItem)
+                    }
+            } else songListItems(parentId)
+
+            MediaId.PLAYLISTS_IN_LIBRARY -> playlistPreviews { it.playlist.isYoutubePlaylist }.map { it.asCleanMediaItem }
+            MediaId.PLAYLISTS_PODCAST -> playlistPreviews { it.playlist.isPodcast }.map { it.asCleanMediaItem }
+            MediaId.PLAYLISTS_PINNED -> playlistPreviews { it.playlist.isPinned }.map { it.asCleanMediaItem }
+            MediaId.PLAYLISTS_MONTHLY -> playlistPreviews { it.playlist.isMonthly }.map { it.asCleanMediaItem }
+
+            MediaId.PLAYLISTS_ONDEVICE -> if (id.isEmpty()) onDeviceFolders() else songListItems(parentId)
+
+            MediaId.ARTISTS_FAVORITES -> if (id.isEmpty()) {
+                Database
+                    .artists(artistSortBy, artistSortOrder)
+                    .first()
+                    .map { it.asBrowserMediaItem(MediaId.ARTISTS_FAVORITES) }
+                    .toMutableList()
+                    .apply {
+                        if (showOnDeviceAA()) add(0, artistsOnDeviceBrowserMediaItem)
+                        if (showInLibraryAA()) add(0, artistsInLibraryBrowserMediaItem)
+                    }
+            } else songListItems(parentId)
+
+            MediaId.ARTISTS_ONDEVICE -> if (id.isEmpty()) {
+                Database
+                    .artistsOnDevice(artistSortBy, artistSortOrder)
+                    .first()
+                    .map { it.asBrowserMediaItem(MediaId.ARTISTS_ONDEVICE) }
+            } else songListItems(parentId)
+
+            MediaId.ARTISTS_IN_LIBRARY -> if (id.isEmpty()) {
+                Database
+                    .artistsInLibrary(artistSortBy, artistSortOrder)
+                    .first()
+                    .map { it.asBrowserMediaItem(MediaId.ARTISTS_IN_LIBRARY) }
+            } else songListItems(parentId)
+
+            MediaId.ALBUMS_FAVORITES -> if (id.isEmpty()) {
+                Database
+                    .albums(albumSortBy, albumSortOrder)
+                    .first()
+                    .map { it.asBrowserMediaItem(MediaId.ALBUMS_FAVORITES) }
+                    .toMutableList()
+                    .apply {
+                        if (showOnDeviceAA()) add(0, albumsOnDeviceBrowserMediaItem)
+                        if (showInLibraryAA()) add(0, albumsInLibraryBrowserMediaItem)
+                    }
+            } else songListItems(parentId)
+
+            MediaId.ALBUMS_ON_DEVICE -> if (id.isEmpty()) {
+                Database
+                    .albumsOnDevice(albumSortBy, albumSortOrder)
+                    .first()
+                    .map { it.asBrowserMediaItem(MediaId.ALBUMS_ON_DEVICE) }
+            } else songListItems(parentId)
+
+            MediaId.ALBUMS_IN_LIBRARY -> if (id.isEmpty()) {
+                Database
+                    .albumsInLibrary(albumSortBy, albumSortOrder)
+                    .first()
+                    .map { it.asBrowserMediaItem(MediaId.ALBUMS_IN_LIBRARY) }
+            } else songListItems(parentId)
+
+            else -> emptyList()
+        }
+    }
+
+    /** The songs of a list node, led by a "shuffle play" entry when there is something to shuffle. */
+    private suspend fun songListItems(parentId: String): List<MediaItem> {
+        val songs = CarLibrary.songsFor(this, parentId)
+        return buildList {
+            if (songs.size > 1 && shuffleSongsAAEnabled()) add(shufflePlayMediaItem(parentId))
+            songs.forEach { add(it.asPlayableMediaItem(parentId)) }
+        }
+    }
+
+    private suspend fun playlistPreviews(filter: (PlaylistPreview) -> Boolean): List<MediaItem> =
+        Database
+            .playlistPreviews(playlistSortBy, songSortOrder)
+            .first()
+            .fastFilter(filter)
+            .map { it.asBrowserMediaItem(Database.playlistThumbnailUrls(it.playlist.id).first().take(1)) }
+            .sortedBy { it.description.title.toString() }
+
+    private suspend fun onDeviceFolders(): List<MediaItem> {
+        val folders = CarLibrary.onDevice(this).audioFoldersAsPlaylists().first()
+        return when (playlistSortBy) {
+            PlaylistSortBy.Name -> when (songSortOrder) {
+                SortOrder.Ascending -> folders.sortedBy { it.playlist.name }
+                SortOrder.Descending -> folders.sortedByDescending { it.playlist.name }
+            }
+
+            PlaylistSortBy.DateAdded, PlaylistSortBy.MostPlayed -> when (songSortOrder) {
+                SortOrder.Ascending -> folders.sortedBy { it.totalPlayTimeMs }
+                SortOrder.Descending -> folders.sortedByDescending { it.totalPlayTimeMs }
+            }
+
+            PlaylistSortBy.SongCount -> when (songSortOrder) {
+                SortOrder.Ascending -> folders.sortedBy { it.songCount }
+                SortOrder.Descending -> folders.sortedByDescending { it.songCount }
+            }
+        }
+            .map { it.asBrowserMediaItem(Database.playlistThumbnailUrls(it.playlist.id).first().take(1), true) }
+            .sortedBy { it.description.title.toString() }
+            .map { it.asCleanMediaItem }
     }
 
     private fun uriFor(@DrawableRes id: Int) = Uri.Builder()
@@ -863,29 +396,32 @@ class PlayerMediaBrowserService : MediaBrowserServiceCompat(),
         .build()
 
 
-    private val Song.asBrowserMediaItem
-        inline get() = MediaItem(
-            MediaDescriptionCompat.Builder()
-                .setMediaId(MediaId.forSong(id))
-                .setTitle(title.removePrefix())
-                .setSubtitle(artistsText)
-                .setIconUri(thumbnailUrl?.toUri())
-                .build(),
-            MediaItem.FLAG_PLAYABLE
-        )
+    /**
+     * A song (or station) as shown in the car. Its media id names [parentId], so playing it
+     * queues the rest of that list (see CarLibrary and SessionPlayback).
+     */
+    private fun Song.asPlayableMediaItem(parentId: String) = MediaItem(
+        MediaDescriptionCompat.Builder()
+            .setMediaId(CarLibrary.playId(parentId, id))
+            .setTitle(title.removePrefix())
+            .setSubtitle(artistsText)
+            .setIconUri(
+                if (isRadio) thumbnailUrl?.toUri() ?: uriFor(R.drawable.radio)
+                // Sized for the car screen: the stored url is often a small list thumbnail
+                else thumbnailUrl.thumbnail(CAR_ARTWORK_SIZE)?.toUri()
+            )
+            .build(),
+        MediaItem.FLAG_PLAYABLE
+    )
 
-    // A station id carries its stream url (slashes included), so it gets its own prefix and
-    // onPlayFromMediaId reads everything after it instead of splitting on '/'.
-    private val Song.asRadioBrowserMediaItem
-        inline get() = MediaItem(
-            MediaDescriptionCompat.Builder()
-                .setMediaId(MediaId.forRadio(id))
-                .setTitle(title.removePrefix())
-                .setSubtitle(artistsText)
-                .setIconUri(thumbnailUrl?.toUri() ?: uriFor(R.drawable.radio))
-                .build(),
-            MediaItem.FLAG_PLAYABLE
-        )
+    private fun shufflePlayMediaItem(parentId: String) = MediaItem(
+        MediaDescriptionCompat.Builder()
+            .setMediaId(CarLibrary.shuffleId(parentId))
+            .setTitle(getString(R.string.aa_shuffle_play))
+            .setIconUri(uriFor(R.drawable.shuffle))
+            .build(),
+        MediaItem.FLAG_PLAYABLE
+    )
 
     private fun PlaylistPreview.asBrowserMediaItem(thumbnailUrls: List<String?>, onDevice: Boolean? = false) =
         MediaItem(
@@ -917,32 +453,6 @@ class PlayerMediaBrowserService : MediaBrowserServiceCompat(),
             MediaItem.FLAG_BROWSABLE
         )
 
-    private val PlaylistPreview.asBrowserMediaItem
-        inline get() = MediaItem(
-            MediaDescriptionCompat.Builder()
-                .setMediaId(MediaId.forPlaylist(playlist.id))
-                .setTitle(if (playlist.name.startsWith(PINNED_PREFIX)) playlist.name.replace(PINNED_PREFIX,"0:",true) else
-                    if (playlist.name.startsWith(MONTHLY_PREFIX)) playlist.name.replace(
-                        MONTHLY_PREFIX,"1:",true) else playlist.name.removePrefix())
-                .setSubtitle("$songCount ${(this@PlayerMediaBrowserService as Context).resources.getString(R.string.songs)}")
-                .setIconUri(
-                    if (playlist.browseId?.trim() == "LM") "https://www.gstatic.com/youtube/media/ytm/images/pbg/liked-music-@1200.png".toUri()
-                    else {
-                        uriFor(
-                            if (playlist.name.startsWith(PINNED_PREFIX)) R.drawable.pin else
-                                if (playlist.name.startsWith(MONTHLY_PREFIX)) R.drawable.stat_month else R.drawable.playlist
-                        )
-                    }
-                )
-                .setExtras(
-                    bundleOf(
-                        "browseId" to playlist.browseId
-                    )
-                )
-                .build(),
-            MediaItem.FLAG_BROWSABLE
-        )
-
     private fun Album.asBrowserMediaItem(type: String) =
         MediaItem(
             MediaDescriptionCompat.Builder()
@@ -956,7 +466,6 @@ class PlayerMediaBrowserService : MediaBrowserServiceCompat(),
                 )
                 .setTitle(title?.removePrefix())
                 .setSubtitle(authorsText)
-                //.setIconUri(thumbnailUrl?.toUri())
                 .setIconUri(thumbnailUrl?.thumbnail(preferences.getEnum(albumsItemSizeKey,HomeItemSize.BIG).size)?.toUri())
                 .build(),
             MediaItem.FLAG_BROWSABLE
@@ -974,8 +483,6 @@ class PlayerMediaBrowserService : MediaBrowserServiceCompat(),
                     }
                 )
                 .setTitle(name?.removePrefix())
-                //.setSubtitle()
-                //.setIconUri(thumbnailUrl?.toUri())
                 .setIconUri(thumbnailUrl?.thumbnail(preferences.getEnum(artistsItemSizeKey,HomeItemSize.BIG).size)?.toUri())
                 .build(),
             MediaItem.FLAG_BROWSABLE
@@ -987,11 +494,12 @@ class PlayerMediaBrowserService : MediaBrowserServiceCompat(),
                 .setMediaId(mediaId)
                 .setTitle(if (description.title.toString().startsWith("0:")) description.title.toString().substringAfter("0:") else
                     if (description.title.toString().startsWith("1:")) getTitleMonthlyPlaylist(description.title.toString().substringAfter("1:"), this@PlayerMediaBrowserService) else description.title.toString())
+                .setSubtitle(description.subtitle)
                 .setIconUri(
                     when {
                         description.extras?.getString("browseId") == "LM" -> "https://www.gstatic.com/youtube/media/ytm/images/pbg/liked-music-@1200.png".toUri()
                         description.extras?.getString("browseId") != "LM"
-                                && description.extras?.getString("thumbnailUrl0") != null -> description.extras?.getString("thumbnailUrl0")?.toUri()
+                                && description.extras?.getString("thumbnailUrl0") != null -> description.extras?.getString("thumbnailUrl0").thumbnail(CAR_ARTWORK_SIZE)?.toUri()
                         else -> {
                             uriFor(
                                 if (description.title.toString().startsWith("0:")) R.drawable.pin else
@@ -1007,198 +515,78 @@ class PlayerMediaBrowserService : MediaBrowserServiceCompat(),
             MediaItem.FLAG_BROWSABLE
         )
 
+    private fun browsableItem(mediaId: String, title: String, @DrawableRes icon: Int) = MediaItem(
+        MediaDescriptionCompat.Builder()
+            .setMediaId(mediaId)
+            .setTitle(title)
+            .setIconUri(uriFor(icon))
+            .build(),
+        MediaItem.FLAG_BROWSABLE
+    )
+
     private val faultBrowserMediaItem
-        inline get() = MediaItem(
-            MediaDescriptionCompat.Builder()
-                .setMediaId(MediaId.FAULT)
-                //.setTitle((this as Context).resources.getString(R.string.songs))
-                .setTitle("Fault")
-                .setIconUri(uriFor(R.drawable.close))
-                .build(),
-            MediaItem.FLAG_BROWSABLE
-        )
+        get() = browsableItem(MediaId.FAULT, "Fault", R.drawable.close)
+
+    private val recentBrowserMediaItem
+        get() = browsableItem(CarLibrary.RECENT, getString(R.string.aa_recent), R.drawable.history)
+
+    private val libraryBrowserMediaItem
+        get() = browsableItem(CarLibrary.LIBRARY, getString(R.string.library), R.drawable.music_library)
 
     private val songsBrowserMediaItem
-        inline get() = MediaItem(
-            MediaDescriptionCompat.Builder()
-                .setMediaId(MediaId.SONGS)
-                .setTitle((this as Context).resources.getString(R.string.songs))
-                .setIconUri(uriFor(R.drawable.musical_notes))
-                .build(),
-            MediaItem.FLAG_BROWSABLE
-        )
+        get() = browsableItem(MediaId.SONGS, getString(R.string.songs), R.drawable.musical_notes)
 
     private val radioBrowserMediaItem
-        inline get() = MediaItem(
-            MediaDescriptionCompat.Builder()
-                .setMediaId(MediaId.RADIO)
-                .setTitle((this as Context).resources.getString(R.string.android_auto_radio))
-                .setIconUri(uriFor(R.drawable.radio))
-                .build(),
-            MediaItem.FLAG_BROWSABLE
-        )
+        get() = browsableItem(MediaId.RADIO, getString(R.string.android_auto_radio), R.drawable.radio)
 
     private val playlistsBrowserMediaItem
-        inline get() = MediaItem(
-            MediaDescriptionCompat.Builder()
-                .setMediaId(MediaId.PLAYLISTS)
-                .setTitle((this as Context).resources.getString(R.string.playlists))
-                .setIconUri(uriFor(R.drawable.music_library))
-                .build(),
-            MediaItem.FLAG_BROWSABLE
-        )
+        get() = browsableItem(MediaId.PLAYLISTS, getString(R.string.playlists), R.drawable.playlist)
 
     private val playlistsInLibraryBrowserMediaItem
-        inline get() = MediaItem(
-            MediaDescriptionCompat.Builder()
-                .setMediaId(MediaId.PLAYLISTS_IN_LIBRARY)
-                .setTitle((this as Context).resources.getString(R.string.library))
-                .setIconUri(uriFor(R.drawable.music_library))
-                .build(),
-            MediaItem.FLAG_BROWSABLE
-        )
+        get() = browsableItem(MediaId.PLAYLISTS_IN_LIBRARY, getString(R.string.library), R.drawable.music_library)
 
     private val playlistsPinnedBrowserMediaItem
-        inline get() = MediaItem(
-            MediaDescriptionCompat.Builder()
-                .setMediaId(MediaId.PLAYLISTS_PINNED)
-                .setTitle((this as Context).resources.getString(R.string.pinned_playlists))
-                .setIconUri(uriFor(R.drawable.pin))
-                .build(),
-            MediaItem.FLAG_BROWSABLE
-        )
+        get() = browsableItem(MediaId.PLAYLISTS_PINNED, getString(R.string.pinned_playlists), R.drawable.pin)
 
     private val playlistsMonthlyBrowserMediaItem
-        inline get() = MediaItem(
-            MediaDescriptionCompat.Builder()
-                .setMediaId(MediaId.PLAYLISTS_MONTHLY)
-                .setTitle((this as Context).resources.getString(R.string.monthly_playlists))
-                .setIconUri(uriFor(R.drawable.stat_month))
-                .build(),
-            MediaItem.FLAG_BROWSABLE
-        )
+        get() = browsableItem(MediaId.PLAYLISTS_MONTHLY, getString(R.string.monthly_playlists), R.drawable.stat_month)
 
     private val playlistsOnDeviceBrowserMediaItem
-        inline get() = MediaItem(
-            MediaDescriptionCompat.Builder()
-                .setMediaId(MediaId.PLAYLISTS_ONDEVICE)
-                .setTitle((this as Context).resources.getString(R.string.on_device))
-                .setIconUri(uriFor(R.drawable.folder))
-                .build(),
-            MediaItem.FLAG_BROWSABLE
-        )
+        get() = browsableItem(MediaId.PLAYLISTS_ONDEVICE, getString(R.string.on_device), R.drawable.folder)
 
     private val playlistsPodcastBrowserMediaItem
-        inline get() = MediaItem(
-            MediaDescriptionCompat.Builder()
-                .setMediaId(MediaId.PLAYLISTS_PODCAST)
-                .setTitle((this as Context).resources.getString(R.string.podcasts))
-                .setIconUri(uriFor(R.drawable.podcast))
-                .build(),
-            MediaItem.FLAG_BROWSABLE
-        )
+        get() = browsableItem(MediaId.PLAYLISTS_PODCAST, getString(R.string.podcasts), R.drawable.podcast)
 
     private val albumsFavoritesBrowserMediaItem
-        inline get() = MediaItem(
-            MediaDescriptionCompat.Builder()
-                .setMediaId(MediaId.ALBUMS_FAVORITES)
-                .setTitle((this as Context).resources.getString(R.string.albums))
-                .setIconUri(uriFor(R.drawable.music_album))
-                .build(),
-            MediaItem.FLAG_BROWSABLE
-        )
+        get() = browsableItem(MediaId.ALBUMS_FAVORITES, getString(R.string.albums), R.drawable.music_album)
 
     private val albumsInLibraryBrowserMediaItem
-        inline get() = MediaItem(
-            MediaDescriptionCompat.Builder()
-                .setMediaId(MediaId.ALBUMS_IN_LIBRARY)
-                .setTitle((this as Context).resources.getString(R.string.library))
-                .setIconUri(uriFor(R.drawable.music_album))
-                .build(),
-            MediaItem.FLAG_BROWSABLE
-        )
+        get() = browsableItem(MediaId.ALBUMS_IN_LIBRARY, getString(R.string.library), R.drawable.music_album)
 
     private val albumsOnDeviceBrowserMediaItem
-        inline get() = MediaItem(
-            MediaDescriptionCompat.Builder()
-                .setMediaId(MediaId.ALBUMS_ON_DEVICE)
-                .setTitle((this as Context).resources.getString(R.string.on_device))
-                .setIconUri(uriFor(R.drawable.music_album))
-                .build(),
-            MediaItem.FLAG_BROWSABLE
-        )
+        get() = browsableItem(MediaId.ALBUMS_ON_DEVICE, getString(R.string.on_device), R.drawable.music_album)
 
     private val artistsFavoritesBrowserMediaItem
-        inline get() = MediaItem(
-            MediaDescriptionCompat.Builder()
-                .setMediaId(MediaId.ARTISTS_FAVORITES)
-                .setTitle((this as Context).resources.getString(R.string.artists))
-                .setIconUri(uriFor(R.drawable.music_artist))
-                .build(),
-            MediaItem.FLAG_BROWSABLE
-        )
+        get() = browsableItem(MediaId.ARTISTS_FAVORITES, getString(R.string.artists), R.drawable.music_artist)
 
     private val artistsInLibraryBrowserMediaItem
-        inline get() = MediaItem(
-            MediaDescriptionCompat.Builder()
-                .setMediaId(MediaId.ARTISTS_IN_LIBRARY)
-                .setTitle((this as Context).resources.getString(R.string.library))
-                .setIconUri(uriFor(R.drawable.music_artist))
-                .build(),
-            MediaItem.FLAG_BROWSABLE
-        )
+        get() = browsableItem(MediaId.ARTISTS_IN_LIBRARY, getString(R.string.library), R.drawable.music_artist)
 
     private val artistsOnDeviceBrowserMediaItem
-        inline get() = MediaItem(
-            MediaDescriptionCompat.Builder()
-                .setMediaId(MediaId.ARTISTS_ONDEVICE)
-                .setTitle((this as Context).resources.getString(R.string.on_device))
-                .setIconUri(uriFor(R.drawable.music_artist))
-                .build(),
-            MediaItem.FLAG_BROWSABLE
-        )
-
-    private val shuffleBrowserMediaItem
-        inline get() = MediaItem(
-            MediaDescriptionCompat.Builder()
-                .setMediaId(MediaId.SONGS_SHUFFLE)
-                .setTitle((this as Context).resources.getString(R.string.shuffle))
-                .setIconUri(uriFor(R.drawable.shuffle))
-                .build(),
-            MediaItem.FLAG_BROWSABLE
-        )
+        get() = browsableItem(MediaId.ARTISTS_ONDEVICE, getString(R.string.on_device), R.drawable.music_artist)
 
     private val favoritesBrowserMediaItem
-        inline get() = MediaItem(
-            MediaDescriptionCompat.Builder()
-                .setMediaId(MediaId.SONGS_FAVORITES)
-                .setTitle((this as Context).resources.getString(R.string.favorites))
-                .setIconUri(uriFor(R.drawable.heart))
-                .build(),
-            MediaItem.FLAG_BROWSABLE
-        )
+        get() = browsableItem(MediaId.SONGS_FAVORITES, getString(R.string.aa_liked), R.drawable.heart)
 
     private val topBrowserMediaItem
-        inline get() = MediaItem(
-            MediaDescriptionCompat.Builder()
-                .setMediaId(MediaId.SONGS_TOP)
-                .setTitle((this as Context).resources.getString(R.string.my_playlist_top)
-                    .format((this as Context).preferences.getEnum(MaxTopPlaylistItemsKey,
-                        MaxTopPlaylistItems.`50`).number))
-                .setIconUri(uriFor(R.drawable.trending))
-                .build(),
-            MediaItem.FLAG_BROWSABLE
+        get() = browsableItem(
+            MediaId.SONGS_TOP,
+            getString(R.string.my_playlist_top).format(CarLibrary.maxTopItems(this)),
+            R.drawable.trending
         )
 
     private val ondeviceBrowserMediaItem
-        inline get() = MediaItem(
-            MediaDescriptionCompat.Builder()
-                .setMediaId(MediaId.SONGS_ONDEVICE)
-                .setTitle((this as Context).resources.getString(R.string.on_device))
-                .setIconUri(uriFor(R.drawable.musical_notes))
-                .build(),
-            MediaItem.FLAG_BROWSABLE
-        )
+        get() = browsableItem(MediaId.SONGS_ONDEVICE, getString(R.string.on_device), R.drawable.musical_notes)
 
     fun reloadPlaylist(){
         notifyChildrenChanged(MediaId.PLAYLISTS)
@@ -1221,17 +609,15 @@ class PlayerMediaBrowserService : MediaBrowserServiceCompat(),
         const val ARTISTS_IN_LIBRARY = "artistsInLibrary"
         const val ARTISTS_ONDEVICE = "artistsOnDevice"
 
+        // Media id prefix of search results in older builds, still understood when played
         const val SEARCHED = "searched"
 
         const val SONGS_FAVORITES = "favorites"
-        const val SONGS_SHUFFLE = "shuffle"
         const val SONGS_ONDEVICE = "ondevice"
         const val SONGS_TOP = "top"
 
         const val RADIO = "radio"
 
-        fun forSong(id: String) = "$SONGS/$id"
-        fun forRadio(id: String) = "$RADIO/$id"
         fun forPlaylist(id: Long) = "$PLAYLISTS/$id"
         fun forPlaylistOnDevice(folder: String) = "$PLAYLISTS_ONDEVICE/$folder"
         fun forAlbumFavorites(id: String) = "$ALBUMS_FAVORITES/$id"
@@ -1240,8 +626,6 @@ class PlayerMediaBrowserService : MediaBrowserServiceCompat(),
         fun forArtistFavorites(id: String) = "$ARTISTS_FAVORITES/$id"
         fun forArtistInLibrary(id: String) = "$ARTISTS_IN_LIBRARY/$id"
         fun forArtistOnDevice(id: String) = "$ARTISTS_ONDEVICE/$id"
-
-        fun forSearched(id: String) = "$SEARCHED/$id"
     }
 }
 
@@ -1251,3 +635,10 @@ private const val CONTENT_STYLE_PLAYABLE_HINT = "android.media.browse.CONTENT_ST
 private const val CONTENT_STYLE_SUPPORTED = "android.media.browse.CONTENT_STYLE_SUPPORTED"
 private const val CONTENT_STYLE_LIST = 1
 private const val CONTENT_STYLE_GRID = 2
+
+// androidx.media.utils.MediaConstants.BROWSER_ROOT_HINTS_KEY_ROOT_CHILDREN_LIMIT
+private const val ROOT_CHILDREN_LIMIT_HINT = "androidx.media.MediaBrowserCompat.Extras.KEY_ROOT_CHILDREN_LIMIT"
+private const val DEFAULT_ROOT_CHILDREN_LIMIT = 4
+
+// Artwork requested from the image CDN for car screens
+private const val CAR_ARTWORK_SIZE = 544

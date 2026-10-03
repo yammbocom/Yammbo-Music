@@ -112,6 +112,7 @@ import it.fast4x.riplay.ui.styling.px
 import it.fast4x.riplay.utils.addNext
 import it.fast4x.riplay.ui.styling.align
 import it.fast4x.riplay.utils.asMediaItem
+import it.fast4x.riplay.utils.asChosenVideoMediaItem
 import it.fast4x.riplay.ui.styling.color
 import it.fast4x.riplay.utils.applyIf
 import it.fast4x.riplay.utils.enqueue
@@ -525,6 +526,12 @@ fun ArtistOverview(
 
             artistPage?.sections?.forEach() { it ->
                 //println("ArtistOverviewModern title: ${it.title} browseId: ${it.moreEndpoint?.browseId} params: ${it.moreEndpoint?.params}")
+                // The "Videos" (and live performances) carousels: every entry is an OMV / UGC.
+                // The top songs shelf carries no video type, so it never matches. Tapped here,
+                // the video is what the user asked for: it is not swapped for its song.
+                val isVideoSection = it.items.isNotEmpty() && it.items.all { entry ->
+                    entry is Environment.SongItem && (entry.isOfficialMusicVideo || entry.isUserGeneratedContent)
+                }
                 item {
                     if (it.items.firstOrNull() is Environment.SongItem) {
                         Title(
@@ -576,13 +583,15 @@ fun ArtistOverview(
 
                                 println("Innertube artistmodern SongItem: ${item.info?.name}")
 
+                                val playable = if (isVideoSection) item.asChosenVideoMediaItem else item.asMediaItem
+
                                 SwipeablePlaylistItem(
-                                    mediaItem = item.asMediaItem,
+                                    mediaItem = playable,
                                     onPlayNext = {
-                                        binder?.player?.addNext(item.asMediaItem, queue = selectedQueue ?: defaultQueue())
+                                        binder?.player?.addNext(playable, queue = selectedQueue ?: defaultQueue())
                                     },
                                     onEnqueue = {
-                                        binder?.player?.enqueue(item.asMediaItem, queue = it)
+                                        binder?.player?.enqueue(playable, queue = it)
                                     }
                                 ) {
                                     //var forceRecompose by remember { mutableStateOf(false) }
@@ -638,7 +647,7 @@ fun ArtistOverview(
 
                                                                     //if (artistSongs?.contains(item.asMediaItem) == false){
                                                                         withContext(Dispatchers.Main) {
-                                                                            binder?.player?.forcePlay(item.asMediaItem)
+                                                                            binder?.player?.forcePlay(playable)
                                                                             //fastPlay(item.asMediaItem, binder)
                                                                             if (filteredArtistSongs != null) {
                                                                                 binder?.player?.addMediaItems(filteredArtistSongs.filterNot { it.mediaId == item.key })

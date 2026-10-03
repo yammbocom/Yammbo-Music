@@ -118,6 +118,7 @@ import it.fast4x.riplay.ui.components.navigation.header.TabToolBar
 import it.fast4x.riplay.ui.components.tab.ImportSongsFromCSV
 import it.fast4x.riplay.ui.components.tab.ImportSongsFromSpotifyCSV
 import it.fast4x.riplay.enums.ImportPlaylistType
+import it.fast4x.riplay.utils.spotify.SpotifyImport
 import it.fast4x.riplay.extensions.preferences.importPlaylistTypeKey
 import it.fast4x.riplay.ui.components.tab.ItemSize
 import it.fast4x.riplay.ui.components.tab.TabHeader
@@ -362,6 +363,7 @@ fun HomePlaylists(
                 importType = ImportPlaylistType.entries[it.ordinal]
                 when(importType) {
                     ImportPlaylistType.Riplay -> importPlaylistDialog.onShortClick()
+                    ImportPlaylistType.SpotifyLink -> SpotifyImport.openDialog()
                     else -> importPlaylistSpotifyDialog.onShortClick()
                 }
             },
@@ -1359,6 +1361,7 @@ fun HomePlaylists(
                 importType = ImportPlaylistType.entries[it.ordinal]
                 when(importType) {
                     ImportPlaylistType.Riplay -> importPlaylistDialog.onShortClick()
+                    ImportPlaylistType.SpotifyLink -> SpotifyImport.openDialog()
                     else -> importPlaylistSpotifyDialog.onShortClick()
                 }
             },

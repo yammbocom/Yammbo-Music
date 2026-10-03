@@ -90,9 +90,15 @@ fun GetSeekBar(
         mutableStateOf<Long?>(null)
     }
     LaunchedEffect(scrubbingPosition) {
-        if (scrubbingPosition != null) {
-            onSeekTo((scrubbingPosition ?: 0).toFloat())
-        }
+        val target = scrubbingPosition ?: return@LaunchedEffect
+        onSeekTo(target.toFloat())
+        // The bars report a press at once but its end only on a tap or a drag end. A press that
+        // turned into anything else (a swipe down to close the player) never ended, and the bar
+        // stayed frozen on that value for the rest of the song while the mini player and the
+        // video went on. Once the gesture has been still for a moment, the bar follows the
+        // player again; the seek above already moved the player there, so nothing jumps.
+        delay(1_000)
+        scrubbingPosition = null
     }
 
     var transparentbar by rememberObservedPreference(transparentbarKey, true)
@@ -147,7 +153,7 @@ fun GetSeekBar(
                 },
                 onDrag = { delta ->
                     scrubbingPosition = if (duration != C.TIME_UNSET) {
-                        scrubbingPosition?.plus(delta)?.coerceIn(0, duration)
+                        (scrubbingPosition ?: position).plus(delta).coerceIn(0, duration)
                     } else {
                         null
                     }
@@ -189,7 +195,7 @@ fun GetSeekBar(
                 },
                 onDrag = { delta ->
                     scrubbingPosition = if (duration != C.TIME_UNSET) {
-                        scrubbingPosition?.plus(delta)?.coerceIn(0, duration)
+                        (scrubbingPosition ?: position).plus(delta).coerceIn(0, duration)
                     } else {
                         null
                     }
@@ -212,7 +218,7 @@ fun GetSeekBar(
                 },
                 onDrag = { delta ->
                     scrubbingPosition = if (duration != C.TIME_UNSET) {
-                        scrubbingPosition?.plus(delta)?.coerceIn(0, duration)
+                        (scrubbingPosition ?: position).plus(delta).coerceIn(0, duration)
                     } else {
                         null
                     }
@@ -238,7 +244,7 @@ fun GetSeekBar(
                 },
                 onDrag = { delta ->
                     scrubbingPosition = if (duration != C.TIME_UNSET) {
-                        scrubbingPosition?.plus(delta)?.coerceIn(0, duration)
+                        (scrubbingPosition ?: position).plus(delta).coerceIn(0, duration)
                     } else {
                         null
                     }
@@ -262,7 +268,7 @@ fun GetSeekBar(
                 },
                 onDrag = { delta ->
                     scrubbingPosition = if (duration != C.TIME_UNSET) {
-                        scrubbingPosition?.plus(delta)?.coerceIn(0, duration)
+                        (scrubbingPosition ?: position).plus(delta).coerceIn(0, duration)
                     } else {
                         null
                     }
@@ -285,7 +291,7 @@ fun GetSeekBar(
                 },
                 onDrag = { delta ->
                     scrubbingPosition = if (duration != C.TIME_UNSET) {
-                        scrubbingPosition?.plus(delta)?.coerceIn(0, duration)
+                        (scrubbingPosition ?: position).plus(delta).coerceIn(0, duration)
                     } else {
                         null
                     }

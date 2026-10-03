@@ -460,6 +460,13 @@ const val stateIsPlaying = "stateIsPlaying"
 
 const val timerEndTimeKey = "timerEndTime"
 
+// "Trae tu música" onboarding sheet (OnboardingConnectSheet.kt)
+const val onboardingPendingKey = "onboardingPending"
+const val onboardingDismissedForeverKey = "onboardingDismissedForever"
+const val onboardingSnoozeUntilKey = "onboardingSnoozeUntil"
+const val onboardingTimesShownKey = "onboardingTimesShown"
+const val onboardingSeenExistingKey = "onboardingSeenExisting"
+
 inline fun <reified T : Enum<T>> SharedPreferences.getEnum(
     key: String,
     defaultValue: T

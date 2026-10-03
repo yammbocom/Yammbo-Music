@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="onboarding_connect_title">Bring your music to Yammbo</string>
+    <string name="onboarding_connect_subtitle">Connect your accounts and start with the songs you already love.</string>
+    <string name="onboarding_connect_yt_subtitle">Your likes, playlists and recommendations</string>
+    <string name="onboarding_connect_yt_action">Connect</string>
+    <string name="onboarding_connect_yt_done">Connected</string>
+    <string name="onboarding_connect_spotify_subtitle">Import your playlists with a link</string>
+    <string name="onboarding_connect_spotify_action">Import</string>
+    <string name="onboarding_connect_spotify_action_more">Import another playlist</string>
+    <string name="onboarding_connect_spotify_done">Imported</string>
+    <string name="onboarding_connect_later">Not now</string>
+    <string name="onboarding_connect_never">Don\'t show again</string>
+    <string name="onboarding_connect_close">Close</string>
+    <string name="onboarding_connect_entry_title">Bring your music</string>
+    <string name="onboarding_connect_entry_subtitle">Connect YouTube Music or import your Spotify playlists</string>
+</resources>

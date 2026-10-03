@@ -41,6 +41,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.yambo.music.R
+import it.fast4x.environment.Environment
 import it.fast4x.riplay.LocalPlayerServiceBinder
 import it.fast4x.riplay.data.Database
 import it.fast4x.riplay.data.models.Song
@@ -54,13 +55,64 @@ import it.fast4x.riplay.ui.styling.secondary
 import it.fast4x.riplay.ui.styling.semiBold
 import it.fast4x.riplay.utils.asMediaItem
 import it.fast4x.riplay.utils.colorPalette
+import it.fast4x.riplay.utils.LOCAL_KEY_PREFIX
 import it.fast4x.riplay.utils.forcePlayAtIndex
+import it.fast4x.riplay.utils.isRadio
 import it.fast4x.riplay.utils.typography
 import java.text.SimpleDateFormat
 import java.util.Calendar
 
 /** Rows x columns of the "jump back in" grid. */
 private const val JUMP_BACK_IN_ITEMS = 4
+
+// A YouTube video id is exactly 11 chars; anything else that is not a local file (station
+// playlists, mixes) is not a song to show in the Home song sections.
+private val homeVideoIdRegex = Regex("^[A-Za-z0-9_-]{11}$")
+
+// Safety net for videos stored without the video flag (e.g. played from a related list, which
+// does not carry it): "(Official Lyric Video)", "Official Music Video", "Lyric Video".
+private val homeVideoTitleRegex =
+    Regex("\\b(official\\s+(lyric\\s+|music\\s+)?video|lyric\\s+video|music\\s+video)\\b", RegexOption.IGNORE_CASE)
+
+private fun isHomeSongId(id: String): Boolean =
+    id.startsWith(LOCAL_KEY_PREFIX) || homeVideoIdRegex.matches(id)
+
+/**
+ * True for a real song: not a video (the isAudioOnly flag behind the film badge), not a podcast
+ * episode, not a live station. Used by every song section of Home.
+ */
+internal val Song.isHomeSong: Boolean
+    get() = !isVideo && isPodcast == 0 && !isRadio && isHomeSongId(id) &&
+            !homeVideoTitleRegex.containsMatchIn(title)
+
+/**
+ * Same rule for songs coming from the network (related page). The related list does not set
+ * isAudioOnly, so the YTM video type (OMV / UGC) and the wide thumbnail are the real signals.
+ */
+internal val Environment.SongItem.isHomeSong: Boolean
+    get() {
+        val videoType = info?.endpoint?.watchEndpointMusicSupportedConfigs?.watchEndpointMusicConfig?.musicVideoType
+        val thumb = thumbnail
+        // Only when YTM gives no type: videos have 16:9 art, songs square art.
+        val wideArt = videoType == null && (thumb?.width ?: 0) > (thumb?.height ?: 0)
+        return isAudioOnly && !isOfficialMusicVideo && !isUserGeneratedContent && !wideArt &&
+                isHomeSongId(key) && !homeVideoTitleRegex.containsMatchIn(info?.name.orEmpty())
+    }
+
+/** Related page with only real songs in its song list (other lists untouched). */
+internal fun Environment.RelatedPage.onlySongs(): Environment.RelatedPage =
+    copy(songs = songs?.filter { it.isHomeSong })
+
+/**
+ * Entry of a YouTube Music home-feed shelf that Home shows: no music videos (video items or
+ * OMV/UGC songs). Albums, artists and playlists stay.
+ */
+internal val Environment.Item.isHomeShelfItem: Boolean
+    get() = when (this) {
+        is Environment.VideoItem -> false
+        is Environment.SongItem -> isHomeSong
+        else -> true
+    }
 
 /**
  * Home header: avatar, time-of-day greeting and the account name, with the
@@ -222,8 +274,10 @@ fun JumpBackInSection() {
     var recent by persistList<Song>("home/jumpBackIn")
 
     LaunchedEffect(Unit) {
-        Database.lastPlayed(JUMP_BACK_IN_ITEMS * 4).collect { list ->
-            recent = list.distinctBy { it.id }.take(JUMP_BACK_IN_ITEMS)
+        // SQL already drops podcasts, stations and flagged videos; the rest of the rule runs here
+        // over a wider window so the grid still fills up after filtering.
+        Database.lastPlayedSongsOnly(JUMP_BACK_IN_ITEMS * 8).collect { list ->
+            recent = list.filter { it.isHomeSong }.distinctBy { it.id }.take(JUMP_BACK_IN_ITEMS)
         }
     }
 

@@ -36,6 +36,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.verticalScroll
@@ -115,6 +116,7 @@ import it.fast4x.riplay.enums.PopupType
 import it.fast4x.riplay.enums.Romanization
 import it.fast4x.riplay.data.models.Lyrics
 import it.fast4x.riplay.ui.components.LocalGlobalSheetState
+import it.fast4x.riplay.ui.components.glassSurface
 import it.fast4x.riplay.ui.components.themed.DefaultDialog
 import it.fast4x.riplay.ui.components.themed.IconButton
 import it.fast4x.riplay.ui.components.themed.InputTextDialog
@@ -1862,11 +1864,55 @@ fun Lyrics(
             }
             /*********/
 
+            // Single entry point for the lyric-card share, used by the menu entry and the
+            // quick share button; the picker opens on the line being sung.
+            val openLyricsShare: () -> Unit = {
+                val shareLines = parseShareableLyrics(text)
+                val metadata = mediaMetadataProvider()
+                val startIndex = currentLyricIndex(shareLines, positionProvider())
+                menuState.display {
+                    ShareLyricsPicker(
+                        lines = shareLines,
+                        initialIndex = startIndex,
+                        title = cleanPrefix(metadata.title?.toString() ?: ""),
+                        artist = metadata.artist?.toString() ?: "",
+                        thumbnailUrl = metadata.artworkUri?.toString(),
+                        onDismiss = menuState::hide
+                    )
+                }
+            }
+
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
                     .fillMaxWidth(if (trailingContent == null) 0.30f else 0.22f)
             ) {
+                // Mirrors the menu button on the right edge. In landscape without the
+                // thumbnail the back chevron owns the corner, so the button sits above it.
+                val canShareLyrics = !text.isNullOrBlank()
+                Image(
+                    painter = painterResource(R.drawable.share_social),
+                    contentDescription = stringResource(R.string.lyrics_btn_share),
+                    colorFilter = ColorFilter.tint(colorPalette().text),
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(
+                            start = 4.dp,
+                            top = 4.dp,
+                            end = 4.dp,
+                            bottom = if (isLandscape && !showlyricsthumbnail) 52.dp else 4.dp
+                        )
+                        .size(40.dp)
+                        .alpha(if (canShareLyrics) 1f else 0.4f)
+                        .glassSurface(CircleShape, elevation = 6.dp)
+                        .clickable(
+                            enabled = canShareLyrics,
+                            indication = ripple(bounded = false),
+                            interactionSource = remember { MutableInteractionSource() },
+                            onClick = openLyricsShare
+                        )
+                        .padding(all = 10.dp)
+                )
                 if (isLandscape && !showlyricsthumbnail)
                     IconButton(
                         icon = R.drawable.chevron_back,
@@ -1882,7 +1928,7 @@ fun Lyrics(
                 if (showlyricsthumbnail)
                     IconButton(
                         icon = R.drawable.text,
-                        color = DefaultDarkColorPalette.text,
+                        color = DefaultDarkColorPalette.text, // always on the black 80 % overlay of the thumbnail lyrics
                         enabled = true,
                         onClick = {
                             menuState.display {
@@ -1926,9 +1972,11 @@ fun Lyrics(
                                 }
                             }
                         },
+                        // Stacked above the share button: this box can be narrower than the two
+                        // side by side, and the overlap sent taps on share to this menu.
                         modifier = Modifier
-                            .padding(all = 8.dp)
-                            .align(Alignment.BottomEnd)
+                            .padding(start = 12.dp, end = 8.dp, top = 8.dp, bottom = 56.dp)
+                            .align(Alignment.BottomStart)
                             .size(24.dp)
                     )
             }
@@ -2054,12 +2102,17 @@ fun Lyrics(
                     )
 
 
+                // Glass circle so the dots stay legible on any background; the old fixed white
+                // tint vanished in the light theme.
                 Image(
                     painter = painterResource(R.drawable.ellipsis_vertical),
-                    contentDescription = null,
-                    colorFilter = ColorFilter.tint(DefaultDarkColorPalette.text),
+                    contentDescription = stringResource(R.string.lyrics_btn_menu),
+                    colorFilter = ColorFilter.tint(colorPalette().text),
                     modifier = Modifier
+                        .align(Alignment.BottomEnd)
                         .padding(all = 4.dp)
+                        .size(40.dp)
+                        .glassSurface(CircleShape, elevation = 6.dp)
                         .clickable(
                             indication = ripple(bounded = false),
                             interactionSource = remember { MutableInteractionSource() },
@@ -2070,21 +2123,7 @@ fun Lyrics(
                                             icon = R.drawable.share_social,
                                             text = stringResource(R.string.share_lyrics_title),
                                             enabled = !text.isNullOrBlank(),
-                                            onClick = {
-                                                val shareLines = parseShareableLyrics(text)
-                                                val metadata = mediaMetadataProvider()
-                                                val startIndex = currentLyricIndex(shareLines, positionProvider())
-                                                menuState.display {
-                                                    ShareLyricsPicker(
-                                                        lines = shareLines,
-                                                        initialIndex = startIndex,
-                                                        title = cleanPrefix(metadata.title?.toString() ?: ""),
-                                                        artist = metadata.artist?.toString() ?: "",
-                                                        thumbnailUrl = metadata.artworkUri?.toString(),
-                                                        onDismiss = menuState::hide
-                                                    )
-                                                }
-                                            }
+                                            onClick = openLyricsShare
                                         )
                                         if (isLandscape && !showlyricsthumbnail) {
                                             MenuEntry(
@@ -2630,9 +2669,7 @@ fun Lyrics(
                                 }
                             }
                         )
-                        .padding(all = 8.dp)
-                        .size(20.dp)
-                        .align(Alignment.BottomEnd)
+                        .padding(all = 10.dp)
                 )
             }
         }

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="spotify_import_menu">Importar de Spotify (enlace)</string>
+    <string name="spotify_import_title">Importar de Spotify</string>
+    <string name="spotify_import_hint">Enlace de la playlist o del álbum</string>
+    <string name="spotify_import_note">Solo listas públicas, y hasta 100 canciones por enlace. Para listas más grandes, usa el CSV de Exportify.</string>
+    <string name="spotify_import_button">Importar</string>
+    <string name="spotify_import_reading">Leyendo la lista de Spotify</string>
+    <string name="spotify_import_progress">Buscando canciones: %1$d de %2$d</string>
+    <string name="spotify_import_background_note">Puedes cerrar esta ventana: la importación sigue.</string>
+    <string name="spotify_import_hide">Ocultar</string>
+    <string name="spotify_import_done">%1$s: %2$d importadas, %3$d no encontradas</string>
+    <string name="spotify_import_updated">%1$s: %2$d nuevas, %3$d quitadas, %4$d no encontradas</string>
+    <string name="spotify_import_limit_reached">Spotify solo deja leer las primeras 100 canciones.</string>
+    <string name="spotify_import_busy">Ya hay una importación en curso</string>
+    <string name="spotify_import_queued">Se importará al terminar la importación en curso</string>
+    <string name="spotify_import_update">Actualizar desde Spotify</string>
+    <string name="spotify_import_err_link">Ese enlace no es de una playlist ni de un álbum de Spotify</string>
+    <string name="spotify_import_err_not_found">Spotify no encuentra esa lista. ¿Es pública?</string>
+    <string name="spotify_import_err_network">No se pudo conectar con Spotify. Revisa tu conexión.</string>
+    <string name="spotify_import_err_parse">No se pudo leer la lista de Spotify</string>
+    <string name="spotify_import_err_none">No se encontró ninguna de sus canciones</string>
+</resources>

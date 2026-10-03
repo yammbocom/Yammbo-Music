@@ -10,5 +10,6 @@ fun refreshYammboRemoteNotification(
     authManager: YammboAuthManager,
     onResult: (NotificationPopupData?) -> Unit
 ) {
-    // Intentionally empty: the FOSS build has no proprietary remote-config backend.
+    // No proprietary remote-config backend: report "checked, nothing to show" right away.
+    onResult(null)
 }

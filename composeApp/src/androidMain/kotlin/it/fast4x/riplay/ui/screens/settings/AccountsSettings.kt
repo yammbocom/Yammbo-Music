@@ -6,6 +6,7 @@ import android.webkit.CookieManager
 import android.webkit.WebStorage
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -75,7 +77,9 @@ import it.fast4x.riplay.extensions.yammboapi.YammboApiService
 import it.fast4x.riplay.extensions.yammboapi.YammboAuthManager
 import it.fast4x.riplay.service.PlayerService
 import it.fast4x.riplay.ui.components.CustomModalBottomSheet
+import it.fast4x.riplay.ui.components.glassSurface
 import it.fast4x.riplay.ui.components.themed.AccountInfoDialog
+import it.fast4x.riplay.ui.components.themed.OnboardingConnectSheet
 import it.fast4x.riplay.ui.components.themed.SmartMessage
 import it.fast4x.riplay.ui.styling.Dimensions
 import it.fast4x.riplay.ui.styling.semiBold
@@ -135,7 +139,7 @@ fun AccountsSettings(
             val yammboWho = authManager.getUserName().ifBlank { authManager.getUserEmail() }
             AccountsCard(
                 title = "Yammbo Music",
-                monogram = "Y",
+                icon = R.drawable.yambo_icon,
                 connected = yammboLoggedIn,
                 statusText = when {
                     yammboLoggedIn && yammboWho.isNotBlank() ->
@@ -171,6 +175,29 @@ fun AccountsSettings(
             Spacer(modifier = Modifier.height(14.dp))
         }
         /****** YAMMBO MUSIC ACCOUNT ******/
+
+        /****** BRING YOUR MUSIC ******/
+        // Same sheet as the Home onboarding, opened by hand: no show rules apply here.
+        var showBringMusic by rememberSaveable { mutableStateOf(false) }
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .glassSurface(shape = RoundedCornerShape(20.dp), elevation = 4.dp)
+                .clickable { showBringMusic = true }
+                .padding(horizontal = 16.dp)
+        ) {
+            AccountsRow(
+                title = stringResource(R.string.onboarding_connect_entry_title),
+                subtitle = stringResource(R.string.onboarding_connect_entry_subtitle),
+            )
+        }
+        OnboardingConnectSheet(
+            show = showBringMusic,
+            onDismiss = { showBringMusic = false },
+            manual = true,
+        )
+        Spacer(modifier = Modifier.height(14.dp))
+        /****** BRING YOUR MUSIC ******/
 
         /****** YOUTUBE MUSIC ******/
         var isYouTubeLoginEnabled by rememberPreference(enableYouTubeLoginKey, false)
@@ -239,7 +266,7 @@ fun AccountsSettings(
 
         AccountsCard(
             title = "YouTube Music",
-            icon = R.drawable.musical_notes,
+            monogram = "YT",
             connected = ytConnected,
             statusText = when {
                 ytConnected -> accountName.ifBlank { accountEmail }.let {

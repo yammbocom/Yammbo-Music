@@ -118,6 +118,9 @@ import it.fast4x.riplay.data.models.Lyrics
 import it.fast4x.riplay.data.models.Song
 import it.fast4x.riplay.ui.components.themed.SmartMessage
 import it.fast4x.riplay.utils.asSong
+import it.fast4x.riplay.utils.SongVersion
+import it.fast4x.riplay.utils.isChosenVideo
+import it.fast4x.riplay.utils.isMusicVideo
 import it.fast4x.riplay.utils.forceSeekToNext
 import it.fast4x.riplay.utils.forceSeekToPrevious
 import it.fast4x.riplay.utils.intent
@@ -452,6 +455,20 @@ class PlayerService : Service(),
     // clears it.
     private var onlinePlaybackIntended = false
 
+    // CPU + Wi-Fi locks while an online song (WebView, outside ExoPlayer's wake mode) is wanted:
+    // playing, or between two songs / buffering with play still requested. Not after a pause.
+    private val onlinePlaybackLocks by lazy {
+        OnlinePlaybackLocks(
+            context = this,
+            isWanted = {
+                val item = player.currentMediaItem
+                item != null && !item.usesLocalPlayer && (sessionShowsPlaying() ||
+                        (player.playWhenReady && _internalOnlinePlayerState.value != PlayerConstants.PlayerState.PAUSED))
+            },
+            isPlaying = { _internalOnlinePlayerState.value == PlayerConstants.PlayerState.PLAYING }
+        )
+    }
+
     // Artwork for the song after this one, warmed into Coil's cache while the current
     // one plays, so the cover swap at the transition does not wait on the network.
     private var preloadedArtworkForMediaId: String? = null
@@ -503,6 +520,12 @@ class PlayerService : Service(),
     // there crashed with "concurrent change during composition".
     private val _isLoadingRadio = MutableStateFlow(false)
     val isLoadingRadio: StateFlow<Boolean> = _isLoadingRadio.asStateFlow()
+    // Song version that startRadio is putting in place of the tapped music video.
+    private var radioSwapTargetId: String? = null
+    // Music videos reached in the queue play as their song versions; see SongVersionQueue.
+    private val songVersionQueue by lazy {
+        SongVersionQueue(coroutineScope, { player }, ::swapCurrentForSongVersion) { _isLoadingRadio.value }
+    }
 
     /**
      * end online configuration
@@ -879,6 +902,12 @@ class PlayerService : Service(),
 
         Timber.d("PlayerService restoreStateIfNeeded mediaId $mediaId position $position wasPlaying $wasPlaying resumeOnStart $isResumePlaybackOnStart")
 
+        // A car tap or voice request already chose what plays: the old song must not be cued over it
+        if (SessionPlayback.hasRecentRequest()) {
+            statePersistence.clearState()
+            return false
+        }
+
         // Restoring what was playing is one thing; starting it again is another, and only the
         // "resume on start" setting is allowed to do that.
         if (mediaId != null && wasPlaying && isResumePlaybackOnStart) {
@@ -1127,6 +1156,26 @@ class PlayerService : Service(),
             player.playWhenReady = playWhenReady
         }
         return true
+    }
+
+    /**
+     * Puts the song version in place of the music video that was just tapped as a song. Runs on
+     * Main, from the radio job, outside any player callback. Only in the first seconds: later the
+     * user is already listening and a restart from zero would be worse than the video.
+     */
+    private fun swapCurrentForSongVersion(videoId: String, song: MediaItem) {
+        val video = player.currentMediaItem ?: return
+        if (video.mediaId != videoId) return
+        if (currentSecond.value > 15f) return
+        Timber.d("PlayerService song version ${song.mediaId} replaces music video $videoId")
+        Database.asyncTransaction { insert(song) }
+        val playWhenReady = player.playWhenReady
+        // The same song again, not another one, for the ads.
+        localCopySwapFor = song.mediaId
+        // Keeps the slot's queue extras and, in shuffle, its place in the order.
+        player.replaceKeepingShuffle(player.currentMediaItemIndex, video.songStandIn(song))
+        player.prepare()
+        player.playWhenReady = playWhenReady
     }
 
     private fun pausePlayback() {
@@ -1513,6 +1562,8 @@ class PlayerService : Service(),
         // The old condition needed BOTH to be off to stay quiet, so with the queue on (the
         // default) the app started playing by itself with resume switched off.
         if (!isResumePlaybackOnStart) return
+        // A car tap or voice request started first: that is what plays, not the old queue
+        if (SessionPlayback.hasRecentRequest()) return
 
         when (player.currentMediaItem?.usesLocalPlayer) {
             true -> {
@@ -1586,7 +1637,9 @@ class PlayerService : Service(),
             .setMediaSourceFactory(createMediaSourceFactory())
             .setRenderersFactory(createRendersFactory())
             .setHandleAudioBecomingNoisy(true)
-            .setWakeMode(C.WAKE_MODE_LOCAL)
+            // NETWORK, not LOCAL: radio stations stream through ExoPlayer and need Wi-Fi kept
+            // awake with the screen off, not only the CPU
+            .setWakeMode(C.WAKE_MODE_NETWORK)
             .setAudioAttributes(
                 AudioAttributes.Builder()
                     .setUsage(C.USAGE_MEDIA)
@@ -2175,6 +2228,8 @@ class PlayerService : Service(),
         // just quietly stop working.
         unregisterNetworkResume()
 
+        runCatching { onlinePlaybackLocks.release() }
+
         // Flush any pending local play-time before the service goes away.
         if (localTrackedMediaId != null && localListenedDurationMs > 0) {
             incrementLocalListenedPlaytimeMs()
@@ -2404,6 +2459,8 @@ class PlayerService : Service(),
     override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
 
         if (mediaItem == null) return
+
+        songVersionQueue.onQueueChanged()
 
         // Songs and stations never share a queue; this is the net for whatever still slips through.
         // A live station never ends, so reaching one after a song would leave the listener stuck.
@@ -2726,6 +2783,7 @@ class PlayerService : Service(),
     override fun onTimelineChanged(timeline: Timeline, reason: Int) {
         if (reason == Player.TIMELINE_CHANGE_REASON_PLAYLIST_CHANGED) {
             updateMediaSessionQueue(timeline)
+            songVersionQueue.onQueueChanged()
         }
     }
 
@@ -2829,6 +2887,9 @@ class PlayerService : Service(),
         // Live radio brings its own related stations; a YouTube "radio" seeded from a stream url
         // would only add songs that have nothing to do with the station.
         if (player.currentMediaItem?.isRadio == true) return
+        // The song-version swap in startRadio fires a transition while its radio is still
+        // loading, and that radio fills the queue. Any other item (a new tap) gets its own radio.
+        if (_isLoadingRadio.value && player.currentMediaItem?.mediaId == radioSwapTargetId) return
         if (!preferences.getBoolean(autoLoadSongsInQueueKey, true)
             || preferences.getEnum(
                 queueLoopTypeKey,
@@ -3605,7 +3666,13 @@ class PlayerService : Service(),
                     // Without it watches and car screens treat the published queue as
                     // read-only and hide the "up next" list entirely.
                     PlaybackStateCompat.ACTION_SKIP_TO_QUEUE_ITEM or
-                    PlaybackStateCompat.ACTION_SEEK_TO
+                    PlaybackStateCompat.ACTION_SEEK_TO or
+                    // Without these Android Auto and the Assistant never send "play X" (voice)
+                    // nor a tap on a song of the browse tree; see SessionPlayback.
+                    PlaybackStateCompat.ACTION_PLAY_FROM_SEARCH or
+                    PlaybackStateCompat.ACTION_PREPARE_FROM_SEARCH or
+                    PlaybackStateCompat.ACTION_PLAY_FROM_MEDIA_ID or
+                    PlaybackStateCompat.ACTION_PREPARE_FROM_MEDIA_ID
 
         val notificationPlayerFirstIcon = preferences.getEnum(notificationPlayerFirstIconKey, NotificationButtons.Shuffle)
         val notificationPlayerSecondIcon = preferences.getEnum(notificationPlayerSecondIconKey, NotificationButtons.Favorites)
@@ -3661,6 +3728,8 @@ class PlayerService : Service(),
                 }
                 .build()
         )
+        // Every play/pause/state change passes here, on the main thread
+        onlinePlaybackLocks.refresh()
         Timber.d("PlayerService updateUnifiedMediasessionData onlineplayer playing ${_internalOnlinePlayerState.value == PlayerConstants.PlayerState.PLAYING} localplayer playing ${player?.isPlaying}")
     }
 
@@ -4766,16 +4835,30 @@ class PlayerService : Service(),
         }
 
         @UnstableApi
-        fun setupRadio(endpoint: NavigationEndpoint.Endpoint.Watch?, onDone: () -> Unit = {}) =
-            startRadio(endpoint = endpoint, justAdd = true, onDone = onDone)
+        /**
+         * [swapSeed]: true only where the user just tapped this item in a song list. Then a music
+         * video seed that has an exact song version is replaced by it. Every other caller (end of
+         * queue, notification, menus) only gets a queue of songs; the playing item stays.
+         */
+        fun setupRadio(
+            endpoint: NavigationEndpoint.Endpoint.Watch?,
+            onDone: () -> Unit = {},
+            swapSeed: Boolean = false
+        ) = startRadio(endpoint = endpoint, justAdd = true, onDone = onDone, swapSeed = swapSeed)
 
         @UnstableApi
-        fun playRadio(endpoint: NavigationEndpoint.Endpoint.Watch?) =
-            startRadio(endpoint = endpoint, justAdd = false)
+        fun playRadio(endpoint: NavigationEndpoint.Endpoint.Watch?, swapSeed: Boolean = false) =
+            startRadio(endpoint = endpoint, justAdd = false, swapSeed = swapSeed)
 
 
         @UnstableApi
-        private fun startRadio(endpoint: NavigationEndpoint.Endpoint.Watch?, justAdd: Boolean, filterArtist: String = "", onDone: () -> Unit = {}) {
+        private fun startRadio(
+            endpoint: NavigationEndpoint.Endpoint.Watch?,
+            justAdd: Boolean,
+            filterArtist: String = "",
+            onDone: () -> Unit = {},
+            swapSeed: Boolean = false
+        ) {
             radioJob?.cancel()
             radio = null
             val isDiscoverEnabled = applicationContext.preferences.getBoolean(discoverKey, false)
@@ -4797,9 +4880,43 @@ class PlayerService : Service(),
                 radioJob = coroutineScope.launch(Dispatchers.Main) {
 
                     try {
+                        var source = it
+                        var fetched = source.process()
+
+                        // Seeded with a music video, YouTube Music answers with a radio made only
+                        // of music videos, so every next song in the queue played as a video.
+                        // The radio is re-seeded from the song version of the seed instead.
+                        val seedId = endpoint?.videoId
+                        val seed = seedId?.let { id -> fetched.firstOrNull { song -> song.mediaId == id } }
+                        // Song version that replaces the playing seed, decided here, applied below.
+                        var swapTo: MediaItem? = null
+                        // The seed's song version, which is (or replaces) the playing item too.
+                        var songVersionId: String? = null
+                        if (seedId != null && seed != null && seed.isMusicVideo) {
+                            SongVersion.resolve(seed)?.let { match ->
+                                val reseeded = OnlineRadio(
+                                    match.mediaItem.mediaId, null, null, null,
+                                    isDiscoverEnabled, applicationContext, binder, coroutineScope
+                                )
+                                val reseededSongs = reseeded.process()
+                                if (reseededSongs.isNotEmpty()) {
+                                    source = reseeded
+                                    songVersionId = match.mediaItem.mediaId
+                                    // Not with a song the user blacklisted or disliked.
+                                    val replacesSeed = swapSeed && match.exact &&
+                                            SongVersion.isAcceptable(match.mediaItem)
+                                    // Otherwise what was tapped (or is playing) stays first and
+                                    // only the rest of the queue changes.
+                                    fetched = if (replacesSeed) reseededSongs
+                                    else listOf(seed) + reseededSongs.filter { song -> song.mediaId != match.mediaItem.mediaId }
+                                    if (replacesSeed && justAdd) swapTo = match.mediaItem
+                                }
+                            }
+                        }
+
                         val songs =
-                            (if (filterArtist.isEmpty()) it.process()
-                            else it.process().filter { song -> song.mediaMetadata.artist == filterArtist })
+                            (if (filterArtist.isEmpty()) fetched
+                            else fetched.filter { song -> song.mediaMetadata.artist == filterArtist })
                                 .filter { song ->
                                     when (filterContentType) {
                                         ContentType.All -> true
@@ -4812,12 +4929,29 @@ class PlayerService : Service(),
                             Database.asyncTransaction { insert(it) }
                         }
 
+                        // Set before the swap: the swap's own transition runs maybeProcessRadio,
+                        // which must neither start a second radio nor cancel this job (it also
+                        // stands back for radioSwapTargetId while _isLoadingRadio is on).
+                        radio = source
+                        swapTo?.let { song ->
+                            val current = player.currentMediaItem
+                            // The tapped item itself, unless it was picked as a video
+                            if (seedId != null && current != null && current.mediaId == seedId && !current.isChosenVideo) {
+                                radioSwapTargetId = song.mediaId
+                                swapCurrentForSongVersion(seedId, song)
+                            }
+                        }
+
                         if (justAdd) {
-                            player.addMediaItems( songs.drop(1))
+                            // The playing item is already in the queue. By id, not by position:
+                            // with Discover or a content filter the first entry may be another song.
+                            player.addMediaItems(
+                                if (seedId == null) songs.drop(1)
+                                else songs.filter { song -> song.mediaId != seedId && song.mediaId != songVersionId }
+                            )
                         } else {
                             player.forcePlayFromBeginning(songs)
                         }
-                        radio = it
                         _isLoadingRadio.value = false
                         onDone()
                     } catch (e: CancellationException) {
@@ -4843,17 +4977,9 @@ class PlayerService : Service(),
             radio = null
         }
 
-        fun playFromSearch(query: String) {
-            coroutineScope.launch {
-                Environment.searchPage(
-                    body = SearchBody(
-                        query = query,
-                        params = Environment.SearchFilter.Song.value
-                    ),
-                    fromMusicShelfRendererContent = Environment.SongItem.Companion::from
-                )?.getOrNull()?.items?.firstOrNull()?.info?.endpoint?.let { playRadio(it) }
-            }
-        }
+        // Voice search ("play X on Yammbo Music"): see SessionPlayback for the focus handling
+        fun playFromSearch(query: String?, extras: android.os.Bundle? = null) =
+            SessionPlayback.playFromSearch(this, query, extras)
 
         /**
          * This method should ONLY be called when the application (sc. activity) is in the foreground!

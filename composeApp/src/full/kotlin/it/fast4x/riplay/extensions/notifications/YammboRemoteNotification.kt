@@ -24,6 +24,8 @@ fun refreshYammboRemoteNotification(
             "notification_min_version" to ""
         ))
         remoteConfig.fetchAndActivate().addOnCompleteListener { task ->
+            // onResult(null) = checked, nothing to show. Callers wait for it to avoid stacking popups.
+            var shown = false
             if (task.isSuccessful) {
                 val isActive = remoteConfig.getBoolean("notification_active")
                 val notifId = remoteConfig.getString("notification_id")
@@ -37,6 +39,7 @@ fun refreshYammboRemoteNotification(
                         val showForVersion = minVersion.isEmpty() ||
                             compareVersions(appVersion, minVersion) < 0
                         if (showForVersion) {
+                            shown = true
                             onResult(
                                 NotificationPopupData(
                                     id = notifId,
@@ -51,9 +54,11 @@ fun refreshYammboRemoteNotification(
                     }
                 }
             }
+            if (!shown) onResult(null)
         }
     } catch (e: Exception) {
         timber.log.Timber.e("Remote Config error: ${e.message}")
+        onResult(null)
     }
 }
 

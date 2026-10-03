@@ -5,20 +5,9 @@ import android.os.Build
 import android.os.Bundle
 import android.support.v4.media.session.MediaSessionCompat
 import android.view.KeyEvent
-import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.SessionCommand
-import it.fast4x.riplay.data.models.Song
-import it.fast4x.riplay.utils.asMediaItem
-import it.fast4x.riplay.utils.forcePlayAtIndex
-import it.fast4x.riplay.utils.playNext
-import it.fast4x.riplay.utils.playPrevious
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import timber.log.Timber
-import kotlin.collections.emptyList
 
 @UnstableApi
 class PlayerMediaSessionCallback (
@@ -73,114 +62,29 @@ class PlayerMediaSessionCallback (
         Timber.d("MediaSessionCallback onCustomAction() action $action")
         onCustomClick(action)
     }
+    // "Hey Google, play X" in the car, or on the phone while the app is running. Assistant may
+    // prepare before it plays: preparing starts playback as well (a repeated request within a few
+    // seconds is dropped), so the play() that may follow only confirms it.
     override fun onPlayFromSearch(query: String?, extras: Bundle?) {
-        if (query.isNullOrBlank()) return
-        binder.playFromSearch(query)
+        Timber.d("MediaSessionCallback onPlayFromSearch query $query")
+        SessionPlayback.playFromSearch(binder, query, extras)
     }
-    @OptIn(UnstableApi::class)
+
+    override fun onPrepareFromSearch(query: String?, extras: Bundle?) {
+        Timber.d("MediaSessionCallback onPrepareFromSearch query $query")
+        SessionPlayback.playFromSearch(binder, query, extras)
+    }
+
+    // A tap on a playable item of the Android Auto browse tree: its media id names the list it
+    // was shown in, so the rest of that list becomes the queue (see CarLibrary).
     override fun onPlayFromMediaId(mediaId: String?, extras: Bundle?) {
-        Timber.d("MediaSessionCallback onPlayFromMediaId mediaId ${mediaId} called")
-        val data = mediaId?.split('/') ?: return
-        var index = 0
-        //var mediaItemSelected: MediaItem? = null
+        Timber.d("MediaSessionCallback onPlayFromMediaId mediaId $mediaId")
+        SessionPlayback.playFromMediaId(binder, mediaId)
+    }
 
-        Timber.d("MediaSessionCallback onPlayFromMediaId mediaId ${mediaId} data $data processing")
-
-        CoroutineScope(Dispatchers.IO).launch {
-            val mediaItems = when (data.getOrNull(0)) {
-
-                PlayerMediaBrowserService.MediaId.SONGS ->  data
-                    .getOrNull(1)
-                    ?.let { songId ->
-                        index = PlayerMediaBrowserService.lastSongs.indexOfFirst { it.id == songId }
-
-                        if (index < 0) return@launch // index not found
-
-                        //mediaItemSelected = PlayerMediaBrowserService.lastSongs[index].asMediaItem
-                        PlayerMediaBrowserService.lastSongs
-                    }
-                    .also { Timber.d("MediaSessionCallback onPlayFromMediaId processing songs, mediaId ${mediaId} index $index songs ${it?.size}") }
-
-                PlayerMediaBrowserService.MediaId.SEARCHED -> data
-                    .getOrNull(1)
-                    ?.let { songId ->
-                        index = PlayerMediaBrowserService.searchedSongs.indexOfFirst { it.id == songId }
-
-                        if (index < 0) return@launch // index not found
-
-                        //mediaItemSelected = PlayerMediaBrowserService.searchedSongs[index].asMediaItem
-                        PlayerMediaBrowserService.searchedSongs
-
-                    }
-
-                // The station id is a stream url with slashes: take everything after the prefix.
-                // The queue is the station list itself, so next/previous in the car switch station.
-                PlayerMediaBrowserService.MediaId.RADIO -> data
-                    .drop(1)
-                    .joinToString("/")
-                    .takeIf { it.isNotEmpty() }
-                    ?.let { stationId ->
-                        index = PlayerMediaBrowserService.lastRadios.indexOfFirst { it.id == stationId }
-
-                        if (index < 0) return@launch // index not found
-
-                        PlayerMediaBrowserService.lastRadios
-                    }
-
-                // Maybe it needed in the future
-                /*
-                PlayerMediaBrowserService.MediaId.shuffle -> lastSongs.shuffled()
-
-                PlayerMediaBrowserService.MediaId.favorites -> Database
-                    .favorites()
-                    .first()
-
-                PlayerMediaBrowserService.MediaId.ondevice -> Database
-                    .songsOnDevice()
-                    .first()
-
-                PlayerMediaBrowserService.MediaId.top -> {
-                    val maxTopSongs = context().preferences.getEnum(MaxTopPlaylistItemsKey,
-                        MaxTopPlaylistItems.`50`).number.toInt()
-
-                    Database.trending(maxTopSongs)
-                        .first()
-                }
-
-                PlayerMediaBrowserService.MediaId.playlists -> data
-                    .getOrNull(1)
-                    ?.toLongOrNull()
-                    ?.let(Database::playlistWithSongs)
-                    ?.first()
-                    ?.songs
-
-                PlayerMediaBrowserService.MediaId.albums -> data
-                    .getOrNull(1)
-                    ?.let(Database::albumSongs)
-                    ?.first()
-
-                PlayerMediaBrowserService.MediaId.artists -> {
-                    data
-                        .getOrNull(1)
-                        ?.let(Database::artistSongsByname)
-                        ?.first()
-                }
-
-
-                */
-
-                else -> emptyList()
-            }?.map(Song::asMediaItem) ?: return@launch
-
-            withContext(Dispatchers.Main) {
-                Timber.d("MediaSessionCallback onPlayFromMediaId mediaId ${mediaId} index $index mediaItems ${mediaItems.size} ready to play")
-                //binder.stopRadio()
-                binder.player.forcePlayAtIndex(mediaItems, index)
-            }
-        }
-
-        // END PROCESSING
-
+    override fun onPrepareFromMediaId(mediaId: String?, extras: Bundle?) {
+        Timber.d("MediaSessionCallback onPrepareFromMediaId mediaId $mediaId")
+        SessionPlayback.playFromMediaId(binder, mediaId)
     }
 
     // getParcelableExtra(String) is deprecated on API 33+, where the typed overload is used instead

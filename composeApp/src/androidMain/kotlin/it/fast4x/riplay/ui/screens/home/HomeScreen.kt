@@ -37,6 +37,8 @@ import it.fast4x.riplay.enums.NavRoutes
 import it.fast4x.riplay.data.models.toUiMood
 import it.fast4x.riplay.enums.HomePagetype
 import it.fast4x.riplay.ui.components.themed.ConfirmationDialog
+import it.fast4x.riplay.ui.components.themed.OnboardingConnect
+import it.fast4x.riplay.ui.components.themed.OnboardingConnectSheet
 import it.fast4x.riplay.ui.components.themed.SmartMessage
 import it.fast4x.riplay.utils.CheckAvailableNewVersion
 import it.fast4x.riplay.utils.checkAndDownloadNewVersionCode
@@ -64,6 +66,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
+import androidx.compose.runtime.snapshotFlow
+import it.fast4x.riplay.utils.spotify.SpotifyImport
 import androidx.compose.runtime.LaunchedEffect
 import it.fast4x.riplay.extensions.yammboapi.YammboAuthManager
 import it.fast4x.riplay.ui.components.ScreenContainer
@@ -96,15 +102,27 @@ fun HomeScreen(
 
     var checkUpdateState by rememberPreference(checkUpdateStateKey, CheckUpdateState.Enabled)
 
+    // The "Trae tu música" sheet waits for the update check, and skips the session in which
+    // an update (or the update question) was shown: two prompts in a row is one too many.
+    val updateCheckRuns = BuildConfig.BUILD_VARIANT == "full" && checkUpdateState == CheckUpdateState.Enabled
+    var updateCheckDone by remember { mutableStateOf(!updateCheckRuns) }
+
     // Fetch latest release from GitHub on cold start, THEN flip the flag so
     // CheckAvailableNewVersion (which reads UpdatedVersionCode.ver) runs with
     // fresh data. Previously the dialog composed immediately, read an empty
     // .ver file, dismissed itself, and never re-armed even after the fetch.
-    if (BuildConfig.BUILD_VARIANT == "full" && checkUpdateState == CheckUpdateState.Enabled) {
+    if (updateCheckRuns) {
         LaunchedEffect(Unit) {
+            updateCheckDone = false
             checkAndDownloadNewVersionCode()
             showNewversionDialog = true
+            updateCheckDone = true
         }
+    }
+    // The "check for updates?" question is a prompt of its own.
+    LaunchedEffect(checkUpdateState) {
+        if (BuildConfig.BUILD_VARIANT == "full" && checkUpdateState == CheckUpdateState.Ask)
+            OnboardingConnect.skipThisProcess()
     }
 
     val saveableStateHolder = rememberSaveableStateHolder()
@@ -170,14 +188,24 @@ fun HomeScreen(
     val notifContext = LocalContext.current
     val authManager = remember { YammboAuthManager(notifContext) }
     var pendingNotification by remember { mutableStateOf<NotificationPopupData?>(null) }
+    // "Trae tu música" sheet, declared here because the popup below has to know about it.
+    var showOnboarding by rememberSaveable { mutableStateOf(false) }
+    // Remote Config answers asynchronously; onResult(null) means "checked, nothing to show".
+    var remoteNotificationChecked by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         refreshYammboRemoteNotification(notifContext, authManager) { data ->
-            pendingNotification = data
+            if (data != null) {
+                pendingNotification = data
+                // Never both: a sheet not yet up waits for the next launch.
+                if (!showOnboarding) OnboardingConnect.skipThisProcess()
+            }
+            remoteNotificationChecked = true
         }
     }
 
-    pendingNotification?.let { notification ->
+    // A popup that lands while the sheet is already open waits until the sheet closes.
+    pendingNotification?.takeIf { !showOnboarding }?.let { notification ->
         YammboNotificationPopup(
             notification = notification,
             onDismiss = {
@@ -185,6 +213,33 @@ fun HomeScreen(
                 pendingNotification = null
             }
         )
+    }
+
+    // "Trae tu música": new accounts, and once for users who never connected YouTube Music.
+    // The rules live in OnboardingConnect (persisted); this only picks a quiet moment.
+    val onboardingGateOpen = updateCheckDone && !showNewversionDialog &&
+            pendingNotification == null
+    LaunchedEffect(onboardingGateOpen) {
+        if (!onboardingGateOpen) return@LaunchedEffect
+        // Bounded: a Remote Config that never answers must not hold the sheet forever.
+        withTimeoutOrNull(5_000L) {
+            snapshotFlow { remoteNotificationChecked }.first { it }
+        }
+        delay(800)
+        if (pendingNotification != null) return@LaunchedEffect
+        // Opened from a shared Spotify link: the import dialog has the stage this run.
+        if (SpotifyImport.dialogVisible || SpotifyImport.running) {
+            OnboardingConnect.skipThisProcess()
+            return@LaunchedEffect
+        }
+        if (authManager.isLoggedIn() && !offlineModeEnabled && OnboardingConnect.shouldAutoShow()) {
+            OnboardingConnect.markAutoShown()
+            showOnboarding = true
+        }
+    }
+    // A Spotify link shared while the sheet is open: the import dialog wins, no snooze counted.
+    LaunchedEffect(SpotifyImport.dialogVisible) {
+        if (SpotifyImport.dialogVisible) showOnboarding = false
     }
 
     if (tabIndex == -2 || tabIndex == 3) {
@@ -392,7 +447,7 @@ fun HomeScreen(
         if (showNewversionDialog && checkUpdateState == CheckUpdateState.Enabled)
             CheckAvailableNewVersion(
                 onDismiss = { showNewversionDialog = false },
-                updateAvailable = {}
+                updateAvailable = { if (it) OnboardingConnect.skipThisProcess() }
             )
 
         if (checkUpdateState == CheckUpdateState.Ask)
@@ -409,6 +464,11 @@ fun HomeScreen(
                 onConfirm = { checkUpdateState = CheckUpdateState.Enabled },
             )
     }
+
+    OnboardingConnectSheet(
+        show = showOnboarding,
+        onDismiss = { showOnboarding = false },
+    )
 
     // Back button behavior (single source of truth — no other BackHandler should compete):
     //  - Expanded/partially expanded player → collapse the player first

@@ -85,14 +85,14 @@ internal fun AccountsCard(
                     .background(colorPalette().background2),
                 contentAlignment = Alignment.Center,
             ) {
+                // The logo or monogram is always drawn, and the photo goes on top: an avatar URL
+                // that fails to load (or is empty on the server) used to leave a blank circle.
                 when {
-                    !avatarUrl.isNullOrBlank() -> AsyncImage(
-                        model = avatarUrl,
+                    icon != null -> Image(
+                        painter = painterResource(icon),
                         contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clip(CircleShape),
+                        colorFilter = ColorFilter.tint(colorPalette().text),
+                        modifier = Modifier.size(22.dp),
                     )
 
                     monogram != null -> BasicText(
@@ -102,14 +102,15 @@ internal fun AccountsCard(
                             color = colorPalette().text,
                         ),
                     )
-
-                    icon != null -> Image(
-                        painter = painterResource(icon),
-                        contentDescription = null,
-                        colorFilter = ColorFilter.tint(colorPalette().text),
-                        modifier = Modifier.size(22.dp),
-                    )
                 }
+                if (!avatarUrl.isNullOrBlank()) AsyncImage(
+                    model = avatarUrl,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(CircleShape),
+                )
             }
 
             Spacer(modifier = Modifier.width(14.dp))

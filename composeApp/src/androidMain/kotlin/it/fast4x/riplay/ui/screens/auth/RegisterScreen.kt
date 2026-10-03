@@ -43,6 +43,7 @@ import com.yambo.music.R
 import it.fast4x.riplay.enums.NavRoutes
 import it.fast4x.riplay.extensions.yammboapi.VpnState
 import it.fast4x.riplay.ui.components.themed.ConfirmationDialog
+import it.fast4x.riplay.ui.components.themed.OnboardingConnect
 import it.fast4x.riplay.extensions.yammboapi.YammboApiService
 import it.fast4x.riplay.extensions.yammboapi.YammboAuthManager
 import it.fast4x.riplay.utils.colorPalette
@@ -201,6 +202,8 @@ fun RegisterScreen(
                             val accessToken = response.resolvedUser?.accessToken
                             if (response.isSuccess && !accessToken.isNullOrEmpty()) {
                                 authManager.saveUser(response)
+                                // Offer "Trae tu música" on Home; persisted, Home reads it from prefs.
+                                OnboardingConnect.markNewAccount()
                                 val userId = authManager.getUserId()
                                 if (userId > 0) {
                                     YammboApiService.checkSubscription(userId).onSuccess { subResponse ->

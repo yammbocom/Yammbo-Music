@@ -2790,6 +2790,22 @@ interface Database {
         period: Long
     ): Flow<List<Song>>
 
+    // Same as trending(limit, now, period) but songs only (no podcasts, stations or videos), for Home.
+    @Transaction
+    @Query("SELECT Song.* FROM Event JOIN Song ON Song.id = songId WHERE (:now - Event.timestamp) <= :period AND Song.isPodcast = 0 AND Song.isAudioOnly = 1 AND Song.id NOT LIKE 'radio:%' GROUP BY songId ORDER BY SUM(playTime) DESC LIMIT :limit")
+    @RewriteQueriesToDropUnusedColumns
+    fun trendingSongsOnly(
+        limit: Int = 3,
+        now: Long = System.currentTimeMillis(),
+        period: Long
+    ): Flow<List<Song>>
+
+    // All-time variant of the above (no period window).
+    @Transaction
+    @Query("SELECT Song.* FROM Event JOIN Song ON Song.id = songId WHERE Song.isPodcast = 0 AND Song.isAudioOnly = 1 AND Song.id NOT LIKE 'radio:%' GROUP BY songId ORDER BY SUM(playTime) DESC LIMIT :limit")
+    @RewriteQueriesToDropUnusedColumns
+    fun trendingSongsOnly(limit: Int = 3): Flow<List<Song>>
+
     @SuppressWarnings(RoomWarnings.QUERY_MISMATCH)
     @Transaction
     //@Query("SELECT Song.* FROM Event JOIN Song ON Song.id = songId WHERE (:now - Event.timestamp) <= :period AND Song.id NOT LIKE '$LOCAL_KEY_PREFIX%' GROUP BY songId ORDER BY SUM(playTime) DESC LIMIT :limit")
@@ -2885,6 +2901,14 @@ interface Database {
     @Query("SELECT Song.* FROM Event JOIN Song ON Song.id = songId ORDER BY timestamp DESC LIMIT :limit")
     @RewriteQueriesToDropUnusedColumns
     fun lastPlayed( limit: Int = 10 ): Flow<List<Song>>
+
+    // Home song sections: real songs only. Podcast episodes, live stations (radio:) and videos
+    // (isAudioOnly = 0, the flag behind the film badge on thumbnails) are left out; GROUP BY gives
+    // one row per song, not per play.
+    @Transaction
+    @Query("SELECT Song.* FROM Event JOIN Song ON Song.id = Event.songId WHERE Song.isPodcast = 0 AND Song.isAudioOnly = 1 AND Song.id NOT LIKE 'radio:%' GROUP BY Song.id ORDER BY MAX(Event.timestamp) DESC LIMIT :limit")
+    @RewriteQueriesToDropUnusedColumns
+    fun lastPlayedSongsOnly( limit: Int = 10 ): Flow<List<Song>>
 
     @Transaction
     @Query("SELECT Song.* FROM Event JOIN Song ON Song.id = Event.songId WHERE Song.isPodcast = 1 GROUP BY Song.id ORDER BY MAX(Event.timestamp) DESC LIMIT :limit")

@@ -226,6 +226,8 @@ import it.fast4x.riplay.ui.components.SheetShape
 import it.fast4x.riplay.utils.colorPalette
 import it.fast4x.riplay.ui.components.rememberBottomSheetState
 import it.fast4x.riplay.ui.components.themed.ConfirmationDialog
+import it.fast4x.riplay.ui.components.themed.SpotifyImportHost
+import it.fast4x.riplay.utils.spotify.SpotifyImport
 import it.fast4x.riplay.ui.components.themed.CrossfadeContainer
 import it.fast4x.riplay.ui.components.themed.BoxWithMessages
 import it.fast4x.riplay.ui.components.themed.SmartMessage
@@ -512,6 +514,10 @@ class MainActivity :
     @ExperimentalPermissionsApi
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // "Hey Google, play X on Yammbo Music" (MEDIA_PLAY_FROM_SEARCH). Not on a recreation:
+        // after process death the original voice intent comes back and would replace the queue.
+        if (savedInstanceState == null) it.fast4x.riplay.service.VoiceSearchIntent.handle(this, intent)
 
         authManager = it.fast4x.riplay.extensions.yammboapi.YammboAuthManager(this)
 
@@ -1410,6 +1416,8 @@ class MainActivity :
                                     authManager = authManager
                                 )
 
+                                SpotifyImportHost()
+
                                 // Popup shown when online playback fails for
                                 // content that likely requires the user's
                                 // YouTube account and the user is not logged in.
@@ -1688,6 +1696,11 @@ class MainActivity :
 
             LaunchedEffect(intentUriData) {
                 var uri = intentUriData ?: return@LaunchedEffect
+                // A Spotify playlist or album shared from the Spotify app: import it.
+                if (SpotifyImport.onSharedText(uri.toString())) {
+                    intentUriData = null
+                    return@LaunchedEffect
+                }
                 if (uri.host == "www.shazam.com") {
                     uri = "${"https://"}${
                         uri.toString().substringAfter("https://").substringBeforeLast("\"")
@@ -1976,6 +1989,7 @@ class MainActivity :
             ?.takeIf { intent.action == Intent.ACTION_VIEW && it.scheme != "glance-action" }
             ?: intent.getStringExtra(Intent.EXTRA_TEXT)?.toUri()
         intent.data?.let { handleTvLinkDeepLink(it) }
+        it.fast4x.riplay.service.VoiceSearchIntent.handle(this, intent)
     }
 
     /**

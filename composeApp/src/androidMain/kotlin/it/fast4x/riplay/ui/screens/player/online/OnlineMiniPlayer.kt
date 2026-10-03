@@ -248,6 +248,8 @@ fun OnlineMiniPlayer(
         PlayerViewModelFactory(binder)
     }
     val playerViewModel: PlayerViewModel = viewModel(factory = factory)
+    // The view model outlives a service that was stopped and bound again; point it at this one.
+    LaunchedEffect(binder) { playerViewModel.updateBinder(binder) }
     val positionAndDuration by playerViewModel.positionAndDuration.collectAsStateWithLifecycle()
 
 

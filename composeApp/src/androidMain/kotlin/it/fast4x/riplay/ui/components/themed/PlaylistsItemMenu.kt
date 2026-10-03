@@ -66,6 +66,7 @@ import it.fast4x.riplay.ui.styling.semiBold
 import kotlinx.coroutines.Dispatchers
 import it.fast4x.riplay.utils.colorPalette
 import it.fast4x.riplay.utils.typography
+import it.fast4x.riplay.utils.spotify.SpotifyImport
 import it.fast4x.riplay.utils.isNetworkConnected
 
 @ExperimentalTextApi
@@ -581,6 +582,19 @@ fun PlaylistsItemMenu(
                             onClick = {
                                 onDismiss()
                                 onSyncronize()
+                            }
+                        )
+                    }
+
+                    // Playlists imported from a Spotify link can be brought up to date.
+                    playlist?.playlist?.id?.takeIf { SpotifyImport.isImported(it) }?.let { playlistId ->
+                        MenuEntry(
+                            icon = R.drawable.sync,
+                            text = stringResource(R.string.spotify_import_update),
+                            onClick = {
+                                onDismiss()
+                                SpotifyImport.openDialog()
+                                SpotifyImport.startUpdate(playlistId)
                             }
                         )
                     }

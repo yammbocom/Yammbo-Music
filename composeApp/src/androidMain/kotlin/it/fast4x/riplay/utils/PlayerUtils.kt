@@ -51,7 +51,11 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.flowOf
@@ -726,6 +730,8 @@ fun Player.loadMasterQueue(onLoaded: (Long) -> Unit) {
         Timber.d("LoadMasterQueue loadPersistentQueue is enabled, processing, restored index: $index and mediaItemPosition: $mediaItemPosition")
 
         runBlocking(Dispatchers.Main) {
+            // A car tap or voice request on a cold start got in first: keep it, drop the old queue
+            if (it.fast4x.riplay.service.SessionPlayback.hasRecentRequest()) return@runBlocking
             setMediaItems(
                 queuedSong.map { mediaItem ->
                     mediaItem.mediaItem.buildUpon()
@@ -759,16 +765,29 @@ inline fun Player.DisposableListener(crossinline listenerProvider: () -> Player.
 fun Player.positionAndDurationStateFlow(
     scope: CoroutineScope,
     binder: PlayerService.Binder?
-): StateFlow<Pair<Long, Long>> {
+): StateFlow<Pair<Long, Long>> =
+    positionAndDurationFlow(binder).stateIn(
+        scope = scope,
+        started = SharingStarted.Eagerly,
+        initialValue = positionAndDurationNow(binder)
+    )
 
-    val initialValue = if (currentMediaItem?.usesLocalPlayer == true) {
+@OptIn(UnstableApi::class)
+private fun Player.positionAndDurationNow(binder: PlayerService.Binder?): Pair<Long, Long> =
+    if (currentMediaItem?.usesLocalPlayer == true) {
         currentPosition to duration
     } else {
         (binder?.onlinePlayerCurrentSecond?.toLong() ?: 0L) to
                 (binder?.onlinePlayerCurrentDuration?.toLong() ?: 0L)
     }
 
-    return callbackFlow {
+/** Cold: the listener and the polling live only while collected, so a collector that moves on
+ *  (see PlayerViewModel) lets go of the player and the service it was reading. */
+@OptIn(UnstableApi::class)
+private fun Player.positionAndDurationFlow(binder: PlayerService.Binder?): Flow<Pair<Long, Long>> =
+    callbackFlow {
+        trySend(positionAndDurationNow(binder))
+
         var isSeeking = false
 
         val listener = object : Player.Listener {
@@ -823,20 +842,33 @@ fun Player.positionAndDurationStateFlow(
             removeListener(listener)
             pollJob.cancel()
         }
-    }.stateIn(
-        scope = scope,
-        started = SharingStarted.Eagerly,
-        initialValue = initialValue
-    )
-}
+    }
 
 @UnstableApi
 class PlayerViewModel (
-    private val binder: PlayerService.Binder?
+    binder: PlayerService.Binder?
 ) : ViewModel() {
+    // The view model outlives the binder it was made with: the activity unbinds in onStop and a
+    // service stopped meanwhile comes back as a new one. Reading the old one froze the bar on a
+    // position that matched neither the video nor the other player. updateBinder() moves the
+    // one flow over; flatMapLatest drops the previous player listener and polling.
+    private val binderFlow = MutableStateFlow(binder)
+
+    fun updateBinder(binder: PlayerService.Binder?) {
+        binderFlow.value = binder
+    }
+
+    @kotlin.OptIn(ExperimentalCoroutinesApi::class)
     val positionAndDuration: StateFlow<Pair<Long, Long>> =
-        binder?.player?.positionAndDurationStateFlow(viewModelScope, binder)
-            ?: flowOf(0L to 0L).stateIn(viewModelScope, SharingStarted.Eagerly, 0L to 0L)
+        binderFlow
+            .flatMapLatest { current ->
+                current?.player?.positionAndDurationFlow(current) ?: flowOf(0L to 0L)
+            }
+            .stateIn(
+                viewModelScope,
+                SharingStarted.Eagerly,
+                binder?.player?.positionAndDurationNow(binder) ?: (0L to 0L)
+            )
 }
 
 @UnstableApi
