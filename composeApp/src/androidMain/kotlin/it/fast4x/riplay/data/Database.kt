@@ -2565,6 +2565,12 @@ interface Database {
     @Query("SELECT *, (SELECT COUNT(*) FROM SongPlaylistMap WHERE playlistId = id) as songCount, 0 as isOnDevice FROM Playlist WHERE name LIKE '${PINNED_PREFIX}%' ORDER BY name COLLATE NOCASE ASC")
     fun playlistPinnedPreviewsByNameAsc(): Flow<List<PlaylistPreview>>
 
+    // Saved podcast shows (Playlist.isPodcast = 1), most recently saved first
+    @SuppressWarnings(RoomWarnings.QUERY_MISMATCH)
+    @Transaction
+    @Query("SELECT *, (SELECT COUNT(*) FROM SongPlaylistMap WHERE playlistId = id) as songCount, 0 as isOnDevice FROM Playlist WHERE isPodcast = 1 ORDER BY ROWID DESC")
+    fun podcastPlaylists(): Flow<List<PlaylistPreview>>
+
     @SuppressWarnings(RoomWarnings.QUERY_MISMATCH)
     @Transaction
     @Query("SELECT *, (SELECT COUNT(*) FROM SongPlaylistMap WHERE playlistId = id) as songCount, 0 as isOnDevice FROM Playlist ORDER BY name COLLATE NOCASE ASC")

@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="podcasts_tab_radio">Radio</string>
+    <string name="podcasts_tab_podcasts">Podcasts</string>
+    <string name="podcasts_search_hint">Buscar podcasts</string>
+    <string name="podcasts_continue">Continuar escuchando</string>
+    <string name="podcasts_my">Mis podcasts</string>
+    <string name="podcasts_see_all">Ver todo</string>
+    <string name="podcasts_see_less">Ver menos</string>
+    <string name="podcasts_featured">Destacados</string>
+    <string name="podcasts_featured_label">Destacado</string>
+    <string name="podcasts_open_show">Ver podcast</string>
+    <string name="podcasts_cat_popular">Populares</string>
+    <string name="podcasts_cat_news">Noticias</string>
+    <string name="podcasts_cat_comedy">Comedia</string>
+    <string name="podcasts_cat_truecrime">True crime</string>
+    <string name="podcasts_cat_history">Historia</string>
+    <string name="podcasts_cat_tech">Tecnología</string>
+    <string name="podcasts_cat_health">Salud y bienestar</string>
+    <string name="podcasts_cat_business">Negocios</string>
+    <string name="podcasts_cat_sports">Deportes</string>
+    <string name="podcasts_cat_education">Educación</string>
+    <string name="podcasts_cat_science">Ciencia</string>
+    <string name="podcasts_cat_music">Música</string>
+    <string name="podcasts_cat_mystery">Misterio y terror</string>
+    <string name="podcasts_results">Resultados</string>
+    <string name="podcasts_error">No se pudieron cargar los podcasts. Revisa tu conexión e inténtalo de nuevo.</string>
+    <string name="podcasts_retry">Reintentar</string>
+    <string name="podcasts_empty">No encontramos podcasts para esta búsqueda</string>
+    <string name="podcasts_play">Reproducir</string>
+    <string name="podcasts_episodes_count">%1$d episodios</string>
+    <string name="podcasts_library_title">Mis podcasts</string>
+    <string name="podcasts_library_recent">Episodios recientes</string>
+    <string name="podcasts_library_empty_title">Aún no tienes podcasts guardados</string>
+    <string name="podcasts_library_empty_body">Abre un podcast, toca el menú de tres puntos y elige Importar lista de reproducción. Se guardará aquí con sus episodios.</string>
+</resources>

@@ -82,6 +82,7 @@ import it.fast4x.riplay.ui.styling.Dimensions
 import it.fast4x.riplay.ui.styling.px
 import it.fast4x.riplay.ui.styling.semiBold
 import it.fast4x.riplay.utils.addNext
+import it.fast4x.riplay.utils.openPlaylistOrMix
 import it.fast4x.riplay.utils.asMediaItem
 import it.fast4x.riplay.utils.colorPalette
 import it.fast4x.riplay.utils.enqueue
@@ -699,7 +700,7 @@ fun SearchResultsContent(
                         modifier = Modifier
                             .clickable(onClick = {
                                 //playlistRoute(playlist.key)
-                                navController.navigate("${NavRoutes.playlist.name}/${playlist.key}")
+                                openPlaylistOrMix(navController, binder, playlist.key)
                             }),
                         disableScrollingText = disableScrollingText
                     )

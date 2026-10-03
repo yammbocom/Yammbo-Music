@@ -23,6 +23,8 @@ import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,6 +38,7 @@ import it.fast4x.environment.models.bodies.BrowseBodyWithLocale
 import it.fast4x.environment.requests.BrowseResult
 import it.fast4x.environment.requests.browse
 import it.fast4x.riplay.LocalPlayerAwareWindowInsets
+import it.fast4x.riplay.LocalPlayerServiceBinder
 import com.yambo.music.R
 import it.fast4x.riplay.enums.NavRoutes
 import it.fast4x.riplay.enums.NavigationBarPosition
@@ -54,11 +57,15 @@ import it.fast4x.riplay.ui.styling.center
 import it.fast4x.riplay.extensions.preferences.disableScrollingTextKey
 import it.fast4x.riplay.extensions.preferences.rememberPreference
 import it.fast4x.riplay.ui.components.themed.LoaderScreen
+import it.fast4x.riplay.ui.components.themed.LoadingEmptyScreen
+import it.fast4x.riplay.ui.components.themed.LoadingErrorScreen
 import it.fast4x.riplay.ui.styling.secondary
 import it.fast4x.riplay.ui.styling.semiBold
 import it.fast4x.riplay.utils.colorPalette
 import it.fast4x.riplay.utils.typography
 import it.fast4x.riplay.utils.LazyListContainer
+import it.fast4x.riplay.utils.openPlaylistOrMix
+import kotlinx.coroutines.withTimeoutOrNull
 import timber.log.Timber
 
 internal const val defaultBrowseId = "FEmusic_moods_and_genres_category"
@@ -75,10 +82,18 @@ fun MoodList(
     val browseId = mood.browseId ?: defaultBrowseId
     var moodPage by persist<Result<BrowseResult>>("playlist/$browseId${mood.params?.let { "/$it" } ?: ""}")
 
+    val binder = LocalPlayerServiceBinder.current
+    var retry by rememberSaveable { mutableStateOf(0) }
+
     LoaderScreen(show = moodPage == null)
 
-    LaunchedEffect(Unit) {
-        moodPage = Environment.browse(BrowseBodyWithLocale(browseId = browseId, params = mood.params))
+    LaunchedEffect(retry) {
+        // Drop a persisted failure so the loader shows again while retrying
+        if (retry > 0 || moodPage?.isFailure == true) moodPage = null
+        // A request that hangs becomes a failure with retry instead of an endless loader
+        moodPage = withTimeoutOrNull(20_000) {
+            Environment.browse(BrowseBodyWithLocale(browseId = browseId, params = mood.params))
+        } ?: Result.failure(Exception("MoodList timeout"))
         Timber.d("MoodList moodPage $moodPage")
     }
 
@@ -108,7 +123,7 @@ fun MoodList(
                     1f
             )
     ) {
-        moodPage?.getOrNull()?.let { moodResult ->
+        moodPage?.getOrNull()?.takeIf { it.items.isNotEmpty() }?.let { moodResult ->
             LazyListContainer(
                 state = lazyListState,
             ) {
@@ -190,7 +205,9 @@ fun MoodList(
                                                     p2 = childItem.songCount?.let { it / 100 }
                                                 )
                                                  */
-                                                    navController.navigate(route = "${NavRoutes.playlist.name}/${endpoint.browseId}")
+                                                    endpoint.browseId?.let {
+                                                        openPlaylistOrMix(navController, binder, it)
+                                                    }
                                                 }
                                                 /*
                                             childItem.info?.endpoint?.browseId?.let {
@@ -218,14 +235,9 @@ fun MoodList(
 
                 }
             }
-        } ?: moodPage?.exceptionOrNull()?.let {
-            BasicText(
-                text = stringResource(R.string.page_not_been_loaded),
-                style = typography().s.secondary.center,
-                modifier = Modifier
-                    .align(Alignment.CenterHorizontally)
-                    .padding(all = 16.dp)
-            )
+        } ?: moodPage?.let { page ->
+            if (page.isFailure) LoadingErrorScreen(onRetry = { retry++ })
+            else LoadingEmptyScreen()
         } ?: ShimmerHost {
             HeaderPlaceholder(modifier = Modifier.shimmer())
             repeat(4) {

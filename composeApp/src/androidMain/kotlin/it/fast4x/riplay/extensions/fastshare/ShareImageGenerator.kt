@@ -14,6 +14,10 @@ import android.graphics.RectF
 import android.graphics.Shader
 import android.graphics.Typeface
 import android.net.Uri
+import android.text.Layout
+import android.text.StaticLayout
+import android.text.TextPaint
+import android.text.TextUtils
 import androidx.core.content.FileProvider
 import androidx.palette.graphics.Palette
 import com.yambo.music.R
@@ -39,7 +43,7 @@ object ShareImageGenerator {
     private const val CARD_HEIGHT = 1240f
     private const val CARD_RADIUS = 56f
     private const val CARD_INSET = 60f
-    private const val COVER_SIZE = 740
+    private const val COVER_SIZE = 700
     private const val COVER_RADIUS = 36f
 
     private const val GLASS_FILL = "#1FFFFFFF"
@@ -51,7 +55,10 @@ object ShareImageGenerator {
         title: String,
         artist: String,
         thumbnailUrl: String?,
-        shareUrl: String
+        shareUrl: String,
+        // Caption above the card; defaults to "now playing" (songs). Albums, artists, playlists
+        // and podcasts pass their own so the card does not claim they are playing.
+        headerLabel: String? = null
     ): Uri? = withContext(Dispatchers.IO) {
         try {
             val bitmap = Bitmap.createBitmap(IMAGE_WIDTH, IMAGE_HEIGHT, Bitmap.Config.ARGB_8888)
@@ -64,15 +71,15 @@ object ShareImageGenerator {
 
             // 1. Full-bleed blurred artwork (falls back to a palette gradient)
             drawBlurredBackdrop(canvas, coverBitmap, palette)
-            drawHeaderLabel(canvas, context.getString(R.string.share_story_now_playing))
+            drawHeaderLabel(canvas, headerLabel ?: context.getString(R.string.share_story_now_playing))
 
             // 2. The floating glass panel and everything inside it
             drawGlassCard(canvas)
             drawCoverGlow(canvas, palette)
             val coverBottom = drawCoverArt(canvas, coverBitmap)
-            val titleBottom = drawTitle(canvas, title, coverBottom + 92f)
-            drawArtist(canvas, artist, titleBottom + 12f)
-            drawProgressBar(canvas, CARD_TOP + CARD_HEIGHT - 214f)
+            val progressY = CARD_TOP + CARD_HEIGHT - 214f
+            drawTextBlock(canvas, title, artist, coverBottom + 20f, progressY - 40f)
+            drawProgressBar(canvas, progressY)
             drawTransportControls(canvas, CARD_TOP + CARD_HEIGHT - 100f)
 
             // 3. Yammbo Music branding under the card
@@ -417,46 +424,59 @@ object ShareImageGenerator {
         return top + COVER_SIZE
     }
 
-    /** Track title, one line, ellipsised so it can never push the transport row out. */
-    private fun drawTitle(canvas: Canvas, title: String, y: Float): Float {
-        val paint = Paint().apply {
-            color = Color.WHITE
-            textSize = 62f
-            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-            isAntiAlias = true
-            textAlign = Paint.Align.CENTER
+    /**
+     * Title (up to two lines, ellipsised) and artist (one line), centred vertically in the band
+     * between the cover and the progress bar. A long title steps down in size instead of
+     * being cut to a few words, and nothing can ever reach the transport row.
+     */
+    private fun drawTextBlock(canvas: Canvas, title: String, artist: String, areaTop: Float, areaBottom: Float) {
+        val width = (CARD_WIDTH - CARD_INSET * 2).toInt()
+        val white = Color.WHITE
+        val titleLayout = textLayout(title, 62f, true, white, width, 2).let { full ->
+            if (full.lineCount > 1) textLayout(title, 54f, true, white, width, 2) else full
         }
+        val artistLayout = if (artist.isNotEmpty())
+            textLayout(artist, 40f, false, Color.parseColor(TEXT_SECONDARY), width, 1) else null
 
-        val maxWidth = CARD_WIDTH - CARD_INSET * 2
-        canvas.drawText(ellipsize(title, paint, maxWidth), IMAGE_WIDTH / 2f, y, paint)
-        return y
+        val gap = 14f
+        val total = titleLayout.height + (artistLayout?.let { gap + it.height } ?: 0f)
+        var y = areaTop + ((areaBottom - areaTop) - total).coerceAtLeast(0f) / 2f
+        val x = CARD_LEFT + CARD_INSET
+
+        canvas.save()
+        canvas.translate(x, y)
+        titleLayout.draw(canvas)
+        canvas.restore()
+        y += titleLayout.height + gap
+
+        if (artistLayout != null) {
+            canvas.save()
+            canvas.translate(x, y)
+            artistLayout.draw(canvas)
+            canvas.restore()
+        }
     }
 
-    private fun drawArtist(canvas: Canvas, artist: String, y: Float): Float {
-        if (artist.isEmpty()) return y
-
-        val paint = Paint().apply {
-            color = Color.parseColor(TEXT_SECONDARY)
-            textSize = 42f
-            typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL)
+    private fun textLayout(
+        text: String,
+        size: Float,
+        bold: Boolean,
+        color: Int,
+        width: Int,
+        maxLines: Int
+    ): StaticLayout {
+        val paint = TextPaint().apply {
+            this.color = color
+            textSize = size
+            typeface = Typeface.create(Typeface.DEFAULT, if (bold) Typeface.BOLD else Typeface.NORMAL)
             isAntiAlias = true
-            textAlign = Paint.Align.CENTER
         }
-
-        val maxWidth = CARD_WIDTH - CARD_INSET * 2
-        val currentY = y + 56f
-        canvas.drawText(ellipsize(artist, paint, maxWidth), IMAGE_WIDTH / 2f, currentY, paint)
-        return currentY
-    }
-
-    /** Shortens to a single line, adding an ellipsis only when it actually overflows. */
-    private fun ellipsize(text: String, paint: Paint, maxWidth: Float): String {
-        if (paint.measureText(text) <= maxWidth) return text
-        var truncated = text
-        while (truncated.isNotEmpty() && paint.measureText("$truncated\u2026") > maxWidth) {
-            truncated = truncated.dropLast(1)
-        }
-        return "$truncated\u2026"
+        return StaticLayout.Builder.obtain(text, 0, text.length, paint, width)
+            .setAlignment(Layout.Alignment.ALIGN_CENTER)
+            .setMaxLines(maxLines)
+            .setEllipsize(TextUtils.TruncateAt.END)
+            .setIncludePad(false)
+            .build()
     }
 
     private fun drawBranding(context: Context, canvas: Canvas) {

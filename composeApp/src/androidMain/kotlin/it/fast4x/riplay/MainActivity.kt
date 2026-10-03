@@ -166,6 +166,8 @@ import it.fast4x.riplay.extensions.preferences.loadedDataKey
 import it.fast4x.riplay.extensions.preferences.miniPlayerTypeKey
 import it.fast4x.riplay.extensions.preferences.keepPlayerMinimizedKey
 import it.fast4x.riplay.utils.keepPlayerSheetOnNextTransition
+import it.fast4x.riplay.utils.isPersonalMix
+import it.fast4x.riplay.utils.openPlaylistOrMix
 import it.fast4x.riplay.extensions.preferences.expandedplayerKey
 import it.fast4x.riplay.extensions.preferences.showButtonPlayerVideoKey
 import it.fast4x.riplay.extensions.preferences.preloadNextSongKey
@@ -1775,7 +1777,11 @@ class MainActivity :
                                     id.startsWith("MPSP") -> navController.navigate(route = "${NavRoutes.podcast.name}/$id")
                                     id.startsWith("OLAK5uy_") -> openAlbumOfPlaylist(id)
                                     id.all { it.isDigit() } -> searchFor(slugText)
-                                    else -> navController.navigate(route = "${NavRoutes.playlist.name}/${if (id.startsWith("VL")) id else "VL$id"}")
+                                    else -> {
+                                        val key = if (id.startsWith("VL")) id else "VL$id"
+                                        // Personal mixes play as a radio, so wait for the player binder
+                                        openPlaylistOrMix(navController, if (isPersonalMix(key)) snapshotFlow { this@MainActivity.binder }.filterNotNull().first() else this@MainActivity.binder, key)
+                                    }
                                 }
                                 "podcast" -> id?.let { navController.navigate(route = "${NavRoutes.podcast.name}/$it") }
                                 "open" -> if (id == "premium") PremiumGuard.openPricing(this@MainActivity)
@@ -1803,7 +1809,8 @@ class MainActivity :
                                         }
                                     }
                             } else {
-                                navController.navigate(route = "${NavRoutes.playlist.name}/$browseId")
+                                // Personal mixes play as a radio, so wait for the player binder
+                                openPlaylistOrMix(navController, if (isPersonalMix(browseId)) snapshotFlow { this@MainActivity.binder }.filterNotNull().first() else this@MainActivity.binder, browseId)
                             }
                         }
 

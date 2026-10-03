@@ -65,10 +65,13 @@ import it.fast4x.riplay.extensions.rewind.utils.getRewindYears
 import it.fast4x.riplay.extensions.rewind.utils.shadersList
 import it.fast4x.riplay.extensions.visualbitmap.VisualBitmapCreator
 import it.fast4x.riplay.ui.components.themed.LoaderScreen
+import it.fast4x.riplay.ui.components.themed.LoadingErrorScreen
 import it.fast4x.riplay.ui.components.themed.Title
 import it.fast4x.riplay.ui.items.RewindItem
 import it.fast4x.riplay.utils.colorPalette
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 import java.util.Calendar
 import kotlin.random.Random
 
@@ -99,12 +102,24 @@ fun DynamicRewindSlide(slide: RewindSlide, isPageActive: Boolean) {
 @Composable
 fun RewindScreen(year: Int? = null) {
 
-    val factory = remember {
+    var retry by remember { mutableStateOf(0) }
+    var timedOut by remember { mutableStateOf(false) }
+
+    val factory = remember(retry) {
         RewindViewModelFactory(year)
     }
-    val viewModel = viewModel(RewindViewModel::class.java, factory = factory)
+    // A new key on retry gives a fresh view model, which reloads the data
+    val viewModel = viewModel(RewindViewModel::class.java, key = "rewind-$retry", factory = factory)
 
     val state by viewModel.uiState.collectAsState()
+
+    // Never leave the loader spinning forever if the data does not arrive
+    LaunchedEffect(retry) {
+        timedOut = false
+        timedOut = withTimeoutOrNull(20_000) {
+            viewModel.uiState.first { !it.isLoading }
+        } == null
+    }
 
     // todo export rewind to pdf
 
@@ -206,6 +221,7 @@ fun RewindScreen(year: Int? = null) {
                 }
             }
         }
+    else if (timedOut) LoadingErrorScreen(onRetry = { retry++ })
     else LoaderScreen()
 }
 

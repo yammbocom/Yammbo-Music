@@ -47,6 +47,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.navigation.compose.currentBackStackEntryAsState
+import coil.compose.AsyncImage
+import it.fast4x.riplay.extensions.yammboapi.YammboAuthManager
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.Image
 import androidx.compose.ui.res.painterResource
@@ -525,7 +530,7 @@ fun ActionBar(
         false
     )
     if (isEnabledMusicIdentifier) {
-        HeaderIcon(R.drawable.soundwave) {
+        HeaderIcon(R.drawable.soundwave, tint = colorPalette().text) {
             sheet.display {
                 SheetBody {
                     MusicIdentifier(navController)
@@ -538,11 +543,41 @@ fun ActionBar(
     CastButton()
 
     // Search Icon
-    HeaderIcon( R.drawable.search, tint = colorPalette().accent) {
+    HeaderIcon( R.drawable.search, tint = colorPalette().text) {
         navController.navigate(NavRoutes.search.name)
     }
 
+    // Account, to the right of search; hidden while the account screen itself is open
+    val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
+    if (currentRoute != NavRoutes.myAccount.name) {
+        val context = LocalContext.current
+        val avatarUrl = remember { YammboAuthManager(context).getUserAvatar() }
+        if (avatarUrl.isNotEmpty()) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .clickable { navController.navigate(NavRoutes.myAccount.name) },
+                contentAlignment = Alignment.Center
+            ) {
+                AsyncImage(
+                    model = avatarUrl,
+                    contentDescription = stringResource(R.string.my_account),
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(26.dp)
+                        .clip(CircleShape)
+                        .background(colorPalette().background2)
+                )
+            }
+        } else {
+            HeaderIcon(R.drawable.person, tint = colorPalette().text) {
+                navController.navigate(NavRoutes.myAccount.name)
+            }
+        }
+    }
+
     // Nothing else lives here: the tools menu moved to the Yammbo profile on Home, so the top
-    // bar is the search icon (plus Cast when a device is around) and nothing more.
+    // bar is cast (when a device is around), search and account.
 // END
 }

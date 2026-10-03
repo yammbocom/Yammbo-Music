@@ -26,7 +26,7 @@ const val YAMBO_ALBUM_SHARE_BASEURL = "https://music.yammbo.com/album/"
 const val YAMBO_PLAYLIST_SHARE_BASEURL = "https://music.yammbo.com/playlist/"
 
 fun slugify(text: String): String {
-    return text.lowercase()
+    return cleanPrefix(text).lowercase()
         .replace(Regex("[^a-z0-9\\s-]"), "")
         .trim()
         .replace(Regex("\\s+"), "-")

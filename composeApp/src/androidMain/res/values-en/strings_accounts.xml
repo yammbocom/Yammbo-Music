@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Status lines -->
+    <string name="accounts_status_connected_as">Connected as %1$s</string>
+    <string name="accounts_status_connected">Connected</string>
+    <string name="accounts_status_not_connected">Not connected</string>
+    <string name="accounts_status_off">Off</string>
+
+    <!-- Generic actions -->
+    <string name="accounts_action_connect">Connect</string>
+    <string name="accounts_action_disconnect">Disconnect</string>
+    <string name="accounts_action_cancel">Cancel</string>
+    <string name="accounts_action_retry">Retry</string>
+    <string name="accounts_action_sign_out">Sign out</string>
+    <string name="accounts_action_switch_account">Switch account</string>
+    <string name="accounts_action_account_info">Account information</string>
+
+    <!-- Yammbo Music -->
+    <string name="accounts_yammbo_sign_out_info">Playback will stop and you will return to the sign-in screen.</string>
+
+    <!-- YouTube Music -->
+    <string name="accounts_yt_sync_master_title">Sync with my account</string>
+    <string name="accounts_yt_sync_master_subtitle">Keep your library the same in the app and in YouTube Music.</string>
+    <string name="accounts_yt_likes_title">Likes (two-way)</string>
+    <string name="accounts_yt_likes_subtitle">Likes are copied in both directions.</string>
+    <string name="accounts_yt_playlists_title">Playlists</string>
+    <string name="accounts_yt_playlists_subtitle">Bring your YouTube Music playlists into the app.</string>
+    <string name="accounts_yt_library_title">Albums and artists</string>
+    <string name="accounts_yt_library_subtitle">Saved albums and artists you follow.</string>
+    <string name="accounts_yt_history_title">Listening history</string>
+    <string name="accounts_yt_history_subtitle">Send what you listen to into your YouTube Music history.</string>
+    <string name="accounts_yt_info_error">Could not load the account information.</string>
+
+    <!-- Manual sync -->
+    <string name="accounts_sync_now">Sync now</string>
+    <string name="accounts_sync_running">Syncing...</string>
+    <string name="accounts_sync_step_lists">Syncing likes and playlists...</string>
+    <string name="accounts_sync_step_library">Syncing albums and artists...</string>
+    <string name="accounts_sync_failed">The sync did not finish. Check your connection and try again.</string>
+    <string name="accounts_sync_never">Not synced yet</string>
+    <string name="accounts_sync_last">Last sync: %1$s</string>
+    <string name="accounts_time_just_now">just now</string>
+    <string name="accounts_time_minutes_ago">%1$d min ago</string>
+    <string name="accounts_time_hours_ago">%1$d h ago</string>
+    <string name="accounts_time_days_ago">%1$d d ago</string>
+
+    <!-- Discord -->
+    <string name="accounts_discord_presence_title">Discord presence</string>
+    <string name="accounts_discord_presence_subtitle">Show what you are listening to on your profile.</string>
+
+    <!-- Last.fm -->
+    <string name="accounts_lastfm_scrobble_title">Send listens to Last.fm</string>
+    <string name="accounts_lastfm_scrobble_subtitle">Record the songs you listen to on your profile.</string>
+
+    <!-- ListenBrainz -->
+    <string name="accounts_listenbrainz_title">ListenBrainz</string>
+    <string name="accounts_listenbrainz_scrobble_title">Send listens to ListenBrainz</string>
+    <string name="accounts_listenbrainz_scrobble_subtitle">Keep your history on an open, ad-free profile.</string>
+    <string name="accounts_listenbrainz_dialog_title">Connect ListenBrainz</string>
+    <string name="accounts_listenbrainz_dialog_info">Copy your user token from listenbrainz.org/settings and paste it here.</string>
+    <string name="accounts_listenbrainz_token_hint">User token</string>
+    <string name="accounts_listenbrainz_open_settings">Open listenbrainz.org/settings</string>
+    <string name="accounts_listenbrainz_validating">Checking the token...</string>
+    <string name="accounts_listenbrainz_invalid_token">The token is not valid. Make sure you copied all of it.</string>
+    <string name="accounts_listenbrainz_network_error">Could not reach ListenBrainz. Try again.</string>
+
+    <!-- Music identifier -->
+    <string name="accounts_identifier_enable_title">Enable music identifier</string>
+    <string name="accounts_identifier_title">Music identifier</string>
+    <string name="accounts_identifier_off_info">Recognise songs playing around you.</string>
+</resources>

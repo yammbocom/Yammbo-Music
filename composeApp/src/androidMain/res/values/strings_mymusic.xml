@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <plurals name="mymusic_count_songs">
+        <item quantity="one">%d canción</item>
+        <item quantity="other">%d canciones</item>
+    </plurals>
+    <plurals name="mymusic_count_artists">
+        <item quantity="one">%d artista</item>
+        <item quantity="other">%d artistas</item>
+    </plurals>
+    <plurals name="mymusic_count_albums">
+        <item quantity="one">%d álbum</item>
+        <item quantity="other">%d álbumes</item>
+    </plurals>
+    <plurals name="mymusic_count_playlists">
+        <item quantity="one">%d lista</item>
+        <item quantity="other">%d listas</item>
+    </plurals>
+    <plurals name="mymusic_count_radios">
+        <item quantity="one">%d radio</item>
+        <item quantity="other">%d radios</item>
+    </plurals>
+
+    <string name="mymusic_play">Reproducir</string>
+    <string name="mymusic_shuffle">Aleatorio</string>
+    <string name="mymusic_action_search">Buscar</string>
+    <string name="mymusic_action_locate">Ir a la canción actual</string>
+    <string name="mymusic_action_more">Más opciones</string>
+    <string name="mymusic_action_sort">Ordenar</string>
+
+    <string name="mymusic_podcasts">Mis podcasts</string>
+    <string name="mymusic_podcasts_hint">Tus programas guardados</string>
+    <string name="mymusic_hub_open">Abrir</string>
+
+    <string name="mymusic_empty_songs_title">Aún no hay canciones</string>
+    <string name="mymusic_empty_songs_hint">Las canciones que escuches aparecerán aquí</string>
+    <string name="mymusic_empty_favorites_title">Aún no tienes favoritos</string>
+    <string name="mymusic_empty_favorites_hint">Toca el corazón en cualquier canción para guardarla aquí</string>
+    <string name="mymusic_empty_top_title">Tu Top está vacío</string>
+    <string name="mymusic_empty_top_hint">Escucha más música y aquí verás tus canciones más reproducidas</string>
+    <string name="mymusic_empty_device_title">No hay música en el dispositivo</string>
+    <string name="mymusic_empty_device_hint">Las canciones guardadas en tu teléfono aparecerán aquí</string>
+    <string name="mymusic_empty_disliked_title">Nada descartado</string>
+    <string name="mymusic_empty_disliked_hint">Las canciones que marques con No me gusta aparecerán aquí</string>
+    <string name="mymusic_empty_artists_title">Aún no sigues a ningún artista</string>
+    <string name="mymusic_empty_artists_hint">Sigue a un artista desde su perfil para tenerlo siempre a mano</string>
+    <string name="mymusic_empty_albums_title">Aún no guardas álbumes</string>
+    <string name="mymusic_empty_albums_hint">Guarda un álbum desde su página para verlo aquí</string>
+    <string name="mymusic_empty_playlists_title">Aún no tienes listas</string>
+    <string name="mymusic_empty_playlists_hint">Crea una lista para organizar tu música</string>
+    <string name="mymusic_empty_playlists_action">Crear lista</string>
+    <string name="mymusic_empty_radios_title">Aún no tienes radios favoritas</string>
+    <string name="mymusic_empty_radios_hint">Toca el corazón en una emisora para guardarla aquí</string>
+    <string name="mymusic_empty_search_title">Sin resultados</string>
+    <string name="mymusic_empty_search_hint">Prueba con otra búsqueda</string>
+    <string name="mymusic_hub_subtitle">Todo lo tuyo en un solo lugar</string>
+</resources>

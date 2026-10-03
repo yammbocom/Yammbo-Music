@@ -145,7 +145,9 @@ import it.fast4x.riplay.data.models.SongAlbumMap
 import it.fast4x.riplay.data.models.defaultQueue
 import it.fast4x.riplay.utils.typography
 import it.fast4x.riplay.ui.components.PullToRefreshBox
-import it.fast4x.riplay.ui.components.themed.FastPlayActionsBar
+import it.fast4x.riplay.ui.components.themed.LoadFailed
+import it.fast4x.riplay.ui.components.themed.MediaActionButton
+import it.fast4x.riplay.ui.components.themed.MediaHeader
 import it.fast4x.riplay.ui.components.themed.LoaderScreen
 import it.fast4x.riplay.ui.components.themed.QueuesDialog
 import it.fast4x.riplay.ui.components.themed.Title
@@ -174,10 +176,17 @@ fun AlbumDetails(
     headerContent: @Composable (textButton: (@Composable () -> Unit)?) -> Unit,
     thumbnailContent: @Composable () -> Unit,
     onSearchClick: () -> Unit,
-    onSettingsClick: () -> Unit
+    onSettingsClick: () -> Unit,
+    // The fetch lives in AlbumScreen: it reports a failed load and owns the retry.
+    loadFailed: Boolean = false,
+    onRetry: (() -> Unit)? = null,
 ) {
 
-    if (albumPage == null) return
+    if (albumPage == null) {
+        if (loadFailed && onRetry != null)
+            LoadFailed(onRetry = onRetry, onBack = { navController.popBackStack() })
+        return
+    }
 
     val binder = LocalPlayerServiceBinder.current
     val menuState = LocalGlobalSheetState.current
@@ -561,268 +570,47 @@ fun AlbumDetails(
                         item(
                             key = "header"
                         ) {
+                            // "author · year · N songs · duration", skipping what is missing.
+                            val albumSubtitle = listOfNotNull(
+                                cleanPrefix(album?.authorsText ?: "").takeIf { it.isNotBlank() },
+                                album?.year?.takeIf { it.isNotBlank() },
+                                if (songs.isNotEmpty())
+                                    songs.size.toString() + " " + stringResource(R.string.songs) +
+                                            " · " + formatAsTime(totalPlayTimes)
+                                else null
+                            ).joinToString(" · ")
 
-                            val modifierArt = Modifier.fillMaxWidth()
-
-                            Box(
-                                modifier = modifierArt
+                            MediaHeader(
+                                // Landscape shows the cover in the side panel: only the name is shown here.
+                                imageUrl = if (isLandscape) null else album?.thumbnailUrl,
+                                title = cleanPrefix(album?.title ?: ""),
+                                subtitle = albumSubtitle,
+                                fullWidthCover = isLandscape,
+                                showOnlineBadge = album?.isYoutubeAlbum == true,
+                                onBack = { navController.popBackStack() },
+                                onPlay = if (songs.isEmpty()) null else ({
+                                    binder?.stopRadio()
+                                    binder?.player?.forcePlayFromBeginning(
+                                        songs.filter { it.likedAt != -1L }
+                                            .map(Song::asMediaItem)
+                                    )
+                                }),
+                                onShuffle = if (songs.isEmpty()) null else ({
+                                    binder?.stopRadio()
+                                    binder?.player?.forcePlayFromBeginning(
+                                        songs.filter { it.likedAt != -1L }
+                                            .shuffled()
+                                            .map(Song::asMediaItem)
+                                    )
+                                }),
                             ) {
-                                if (album != null) {
-                                    if (!isLandscape)
-                                        Box {
-                                            AsyncImage(
-                                                model = album?.thumbnailUrl?.resizeNoCrop(1200, 1200),
-                                                contentDescription = "loading...",
-                                                // Same as the artist header: full width, height
-                                                // from the artwork's own ratio. Square covers
-                                                // stay square; anything else is still whole.
-                                                contentScale = ContentScale.FillWidth,
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .align(Alignment.Center)
-                                            )
-
-                                            // Bottom scrim so the album title stays legible.
-                                            Box(
-                                                modifier = Modifier
-                                                    .matchParentSize()
-                                                    .background(
-                                                        Brush.verticalGradient(
-                                                            colorStops = arrayOf(
-                                                                // Short and low: carries the
-                                                                // title without veiling the art.
-                                                                0.68f to Color.Transparent,
-                                                                0.88f to colorPalette().background0.copy(alpha = 0.6f),
-                                                                1f to colorPalette().background0
-                                                            )
-                                                        )
-                                                    )
-                                            )
-                                            if (album?.isYoutubeAlbum == true) {
-                                                Image(
-                                                    painter = painterResource(R.drawable.internet),
-                                                    colorFilter = ColorFilter.tint(
-                                                        Color.White.copy(0.75f)
-                                                            .compositeOver(Color.White)
-                                                    ),
-                                                    modifier = Modifier
-                                                        .size(40.dp)
-                                                        .background(Color.Black.copy(alpha = 0.55f), CircleShape)
-                                                        .padding(all = 5.dp)
-                                                        .offset(10.dp, 10.dp),
-                                                    contentDescription = "Background Image",
-                                                    contentScale = ContentScale.Fit
-                                                )
-                                            }
-                                        }
-
-                                    AutoResizeText(
-                                        text = cleanPrefix(album?.title ?: ""),
-                                        style = typography().l.semiBold,
-                                        fontSizeRange = FontSizeRange(32.sp, 38.sp),
-                                        fontWeight = typography().l.semiBold.fontWeight,
-                                        fontFamily = typography().l.semiBold.fontFamily,
-                                        color = typography().l.semiBold.color,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                        textAlign = TextAlign.Center,
-                                        modifier = Modifier
-                                            .align(Alignment.BottomCenter)
-                                            .padding(horizontal = 30.dp)
-                                            .applyIf(!disableScrollingText) {
-                                                basicMarquee(
-                                                    iterations = Int.MAX_VALUE
-                                                )
-                                            }
-                                        //.padding(bottom = 20.dp)
-                                    )
-
-                                    // No app bar on this screen: back floats over the cover.
-                                    val statusBarTop = WindowInsets.systemBars
-                                        .asPaddingValues().calculateTopPadding()
-
-                                    Box(
-                                        modifier = Modifier
-                                            .align(Alignment.TopStart)
-                                            .padding(start = 12.dp, top = statusBarTop + 2.dp)
-                                            .size(40.dp)
-                                            .glassSurface(shape = CircleShape, elevation = 6.dp)
-                                            .clickable { navController.popBackStack() },
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Image(
-                                            painter = painterResource(R.drawable.chevron_back),
-                                            contentDescription = null,
-                                            colorFilter = ColorFilter.tint(colorPalette().text),
-                                            modifier = Modifier.size(20.dp)
-                                        )
-                                    }
-
-                                    // The whole album to the downloader, left of Share.
-                                    HeaderIconButton(
-                                        icon = R.drawable.downloaded,
-                                        color = colorPalette().text,
-                                        iconSize = 20.dp,
-                                        modifier = Modifier
-                                            .align(Alignment.TopEnd)
-                                            .padding(end = 62.dp, top = statusBarTop + 2.dp)
-                                            .size(40.dp)
-                                            .glassSurface(shape = CircleShape, elevation = 6.dp)
-                                            .padding(10.dp),
-                                        onClick = {
-                                            shareSongsToDownloader(
-                                                context = context,
-                                                songs = songs,
-                                                title = album?.title.orEmpty(),
-                                                onEmpty = {
-                                                    SmartMessage(
-                                                        context.resources.getString(R.string.nothing_to_download),
-                                                        context = context,
-                                                        type = PopupType.Info,
-                                                    )
-                                                },
-                                                onAppMissing = {
-                                                    SmartMessage(
-                                                        context.resources.getString(R.string.ytdlnis_not_installed),
-                                                        context = context,
-                                                        type = PopupType.Error,
-                                                    )
-                                                },
-                                            )
-                                        }
-                                    )
-
-                                    // Share as a glass pill, matching Back on the other side.
-                                    HeaderIconButton(
-                                        icon = R.drawable.share_social,
-                                        color = colorPalette().text,
-                                        iconSize = 20.dp,
-                                        modifier = Modifier
-                                            .align(Alignment.TopEnd)
-                                            .padding(end = 12.dp, top = statusBarTop + 2.dp)
-                                            .size(40.dp)
-                                            .glassSurface(shape = CircleShape, elevation = 6.dp)
-                                            .padding(10.dp),
-                                        onClick = {
-                                            showFastShare = true
-//                                        album?.shareYTUrl?.let { url ->
-//                                            val sendIntent = Intent().apply {
-//                                                action = Intent.ACTION_SEND
-//                                                type = "text/plain"
-//                                                putExtra(Intent.EXTRA_TEXT, url)
-//                                            }
-//
-//                                            context.startActivity(
-//                                                Intent.createChooser(
-//                                                    sendIntent,
-//                                                    null
-//                                                )
-//                                            )
-//                                        }
-                                        }
-                                    )
-
-
-                                } else {
-                                    Column(
-                                        verticalArrangement = Arrangement.Center,
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .aspectRatio(4f / 3)
-                                    ) {
-                                        ShimmerHost {
-                                            AlbumItemPlaceholder(
-                                                thumbnailSizeDp = 200.dp,
-                                                alternative = true
-                                            )
-                                            BasicText(
-                                                text = stringResource(R.string.info_wait_it_may_take_a_few_minutes),
-                                                style = typography().xs.medium,
-                                                maxLines = 1,
-                                                modifier = Modifier
-                                                //.padding(top = 10.dp)
-
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-
-                        }
-
-                        if (album?.year != null && songs.isNotEmpty())
-                            item(
-                                key = "infoAlbum"
-                            ) {
-                                Row(
-                                    horizontalArrangement = Arrangement.Center,
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier
-                                        //.padding(top = 10.dp)
-                                        .fillMaxWidth()
-                                ) {
-                                    BasicText(
-                                        text = "${album?.year} - " + songs.size.toString() + " "
-                                                + stringResource(R.string.songs)
-                                                + " - " + formatAsTime(totalPlayTimes),
-                                        style = typography().xs.medium,
-                                        maxLines = 1
-                                    )
-                                }
-                            }
-
-                        // Play / shuffle as their own item: dropping them into the existing
-                        // "actions" item would stack them on top of the icon row, since a
-                        // LazyColumn item has no layout of its own.
-                        item(key = "playActions") {
-                          // Lazy items are left-aligned by default, so a half-width bar sits
-                          // against the edge; this Box centres it.
-                          Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                            FastPlayActionsBar(
-                                modifier = Modifier.fillMaxWidth(.55f),
-                                        onPlayNowClick = {
-                                            binder?.stopRadio()
-                                            binder?.player?.forcePlayFromBeginning(
-                                                songs.filter { it.likedAt != -1L }
-                                                    .map(Song::asMediaItem)
-                                            )
-                                        },
-                                        onShufflePlayClick = {
-                                            binder?.stopRadio()
-                                            binder?.player?.forcePlayFromBeginning(
-                                                songs.filter { it.likedAt != -1L }
-                                                    .shuffled()
-                                                    .map(Song::asMediaItem)
-                                            )
-                                        }
-                                    )
-                          }
-                        }
-                        item(
-                            key = "actions",
-                            contentType = 0
-                        ) {
-                            Row(
-                                horizontalArrangement = Arrangement.Center,
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier
-                                    .padding(top = 10.dp)
-                                    .fillMaxWidth()
-                            ) {
-                                //headerContent {
-                                HeaderIconButton(
+                                MediaActionButton(
                                     icon = if (album?.bookmarkedAt == null) {
                                         R.drawable.bookmark_outline
                                     } else {
                                         R.drawable.bookmark
                                     },
-                                    color = colorPalette().accent,
-                                    modifier = Modifier
-                                        .padding(horizontal = 8.dp)
-                                        .glassSurface(shape = CircleShape, elevation = 6.dp)
-                                        .combinedClickable(
-                                            onClick = {
+                                    onClick = {
                                                 if (isYtSyncEnabled() && !isNetworkConnected(
                                                         context
                                                     )
@@ -873,152 +661,148 @@ fun AlbumDetails(
                                                         }
                                                 }
                                             },
-                                            onLongClick = {
-                                                SmartMessage(
-                                                    context.resources.getString(R.string.info_bookmark_album),
-                                                    context = context
-                                                )
-                                            }
+                                    onLongClick = {
+                                        SmartMessage(
+                                            context.resources.getString(R.string.info_bookmark_album),
+                                            context = context
                                         )
-                                        .padding(9.dp),
-                                    onClick = {}
+                                    }
                                 )
 
 
-                                HeaderIconButton(
+                                MediaActionButton(
                                     icon = R.drawable.shuffle,
                                     enabled = songs.any { it.likedAt != -1L },
-                                    color = if (songs.any { it.likedAt != -1L }) colorPalette().text else colorPalette().textDisabled,
-                                    onClick = {},
-                                    modifier = Modifier
-                                        .padding(horizontal = 5.dp)
-                                        .glassSurface(shape = CircleShape, elevation = 6.dp)
-                                        .combinedClickable(
-                                            onClick = {
-                                                if (songs.any { it.likedAt != -1L }) {
-                                                    binder?.stopRadio()
-                                                    binder?.player?.forcePlayFromBeginning(
-                                                        songs.filter { it.likedAt != -1L }
-                                                            .shuffled()
-                                                            .map(Song::asMediaItem)
-                                                    )
-                                                } else {
-                                                    SmartMessage(
-                                                        context.resources.getString(R.string.disliked_this_collection),
-                                                        type = PopupType.Error,
-                                                        context = context
-                                                    )
-                                                }
-                                            },
-                                            onLongClick = {
-                                                SmartMessage(
-                                                    context.resources.getString(R.string.info_shuffle),
-                                                    context = context
-                                                )
-                                            }
+                                    tint = if (songs.any { it.likedAt != -1L }) colorPalette().text else colorPalette().textDisabled,
+                                    onClick = {
+                                        if (songs.any { it.likedAt != -1L }) {
+                                            binder?.stopRadio()
+                                            binder?.player?.forcePlayFromBeginning(
+                                                songs.filter { it.likedAt != -1L }
+                                                    .shuffled()
+                                                    .map(Song::asMediaItem)
+                                            )
+                                        } else {
+                                            SmartMessage(
+                                                context.resources.getString(R.string.disliked_this_collection),
+                                                type = PopupType.Error,
+                                                context = context
+                                            )
+                                        }
+                                    },
+                                    onLongClick = {
+                                        SmartMessage(
+                                            context.resources.getString(R.string.info_shuffle),
+                                            context = context
                                         )
-                                        .padding(9.dp)
+                                    }
                                 )
 
-                                HeaderIconButton(
+                                MediaActionButton(
                                     icon = R.drawable.radio,
-                                    enabled = true,
-                                    color = if (songs.any { it.likedAt != -1L }) colorPalette().text else colorPalette().textDisabled,
-                                    onClick = {},
-                                    modifier = Modifier
-                                        .padding(horizontal = 5.dp)
-                                        .glassSurface(shape = CircleShape, elevation = 6.dp)
-                                        .combinedClickable(
-                                            onClick = {
-                                                if (songs.any { it.likedAt != -1L }) {
-                                                    binder?.stopRadio()
-                                                    binder?.player?.forcePlayFromBeginning(songs.filter { it.likedAt != -1L }
-                                                        .map(Song::asMediaItem))
-                                                    binder?.setupRadio(
-                                                        NavigationEndpoint.Endpoint.Watch(
-                                                            videoId = songs.first { it.likedAt != -1L }.id
-                                                        )
-                                                    )
-                                                } else {
-                                                    SmartMessage(
-                                                        context.resources.getString(R.string.disliked_this_collection),
-                                                        type = PopupType.Error,
-                                                        context = context
-                                                    )
-                                                }
-                                            },
-                                            onLongClick = {
-                                                SmartMessage(
-                                                    context.resources.getString(R.string.info_start_radio),
-                                                    context = context
+                                    tint = if (songs.any { it.likedAt != -1L }) colorPalette().text else colorPalette().textDisabled,
+                                    onClick = {
+                                        if (songs.any { it.likedAt != -1L }) {
+                                            binder?.stopRadio()
+                                            binder?.player?.forcePlayFromBeginning(songs.filter { it.likedAt != -1L }
+                                                .map(Song::asMediaItem))
+                                            binder?.setupRadio(
+                                                NavigationEndpoint.Endpoint.Watch(
+                                                    videoId = songs.first { it.likedAt != -1L }.id
                                                 )
-                                            }
+                                            )
+                                        } else {
+                                            SmartMessage(
+                                                context.resources.getString(R.string.disliked_this_collection),
+                                                type = PopupType.Error,
+                                                context = context
+                                            )
+                                        }
+                                    },
+                                    onLongClick = {
+                                        SmartMessage(
+                                            context.resources.getString(R.string.info_start_radio),
+                                            context = context
                                         )
-                                        .padding(9.dp)
+                                    }
                                 )
 
-                                HeaderIconButton(
-                                    modifier = Modifier
-                                        .padding(horizontal = 5.dp)
-                                        .glassSurface(shape = CircleShape, elevation = 6.dp)
-                                        .combinedClickable(
-                                            onClick = {
-                                                nowPlayingItem = -1
-                                                scrollToNowPlaying = false
-                                                songs
-                                                    .forEachIndexed { index, song ->
-                                                        if (song.asMediaItem.mediaId == binder?.player?.currentMediaItem?.mediaId)
-                                                            nowPlayingItem = index
-                                                    }
-
-                                                if (nowPlayingItem > -1)
-                                                    scrollToNowPlaying = true
-                                            },
-                                            onLongClick = {
-                                                SmartMessage(
-                                                    context.resources.getString(R.string.info_find_the_song_that_is_playing),
-                                                    context = context
-                                                )
-                                            }
-                                        )
-                                        .padding(9.dp),
+                                MediaActionButton(
                                     icon = R.drawable.locate,
                                     enabled = songs.isNotEmpty(),
-                                    color = if (songs.isNotEmpty()) colorPalette().text else colorPalette().textDisabled,
-                                    onClick = {}
+                                    tint = if (songs.isNotEmpty()) colorPalette().text else colorPalette().textDisabled,
+                                    onClick = {
+                                        nowPlayingItem = -1
+                                        scrollToNowPlaying = false
+                                        songs
+                                            .forEachIndexed { index, song ->
+                                                if (song.asMediaItem.mediaId == binder?.player?.currentMediaItem?.mediaId)
+                                                    nowPlayingItem = index
+                                            }
+
+                                        if (nowPlayingItem > -1)
+                                            scrollToNowPlaying = true
+                                    },
+                                    onLongClick = {
+                                        SmartMessage(
+                                            context.resources.getString(R.string.info_find_the_song_that_is_playing),
+                                            context = context
+                                        )
+                                    }
                                 )
 
-                                HeaderIconButton(
-                                    modifier = Modifier
-                                        .padding(horizontal = 5.dp)
-                                        .glassSurface(shape = CircleShape, elevation = 6.dp)
-                                        .combinedClickable(
-                                            onClick = {
-                                                showFastShare = true
-                                                showDirectFastShare = true
-                                            },
-                                            onLongClick = {
-                                                SmartMessage(
-                                                    context.resources.getString(R.string.share_with_external_app),
-                                                    context = context
-                                                )
-                                            }
-                                        )
-                                        .padding(9.dp),
+                                MediaActionButton(
                                     icon = R.drawable.get_app,
                                     enabled = songs.isNotEmpty(),
-                                    color = if (songs.isNotEmpty()) colorPalette().text else colorPalette().textDisabled,
-                                    onClick = {}
+                                    tint = if (songs.isNotEmpty()) colorPalette().text else colorPalette().textDisabled,
+                                    onClick = {
+                                        showFastShare = true
+                                        showDirectFastShare = true
+                                    },
+                                    onLongClick = {
+                                        SmartMessage(
+                                            context.resources.getString(R.string.share_with_external_app),
+                                            context = context
+                                        )
+                                    }
                                 )
 
-                                HeaderIconButton(
-                                    modifier = Modifier
-                                        .padding(horizontal = 5.dp)
-                                        .glassSurface(shape = CircleShape, elevation = 6.dp)
-                                        .padding(9.dp),
+                                // The whole album to the downloader (moved from the old top corner).
+                                MediaActionButton(
+                                    icon = R.drawable.downloaded,
+                                    onClick = {
+                                        shareSongsToDownloader(
+                                            context = context,
+                                            songs = songs,
+                                            title = album?.title.orEmpty(),
+                                            onEmpty = {
+                                                SmartMessage(
+                                                    context.resources.getString(R.string.nothing_to_download),
+                                                    context = context,
+                                                    type = PopupType.Info,
+                                                )
+                                            },
+                                            onAppMissing = {
+                                                SmartMessage(
+                                                    context.resources.getString(R.string.ytdlnis_not_installed),
+                                                    context = context,
+                                                    type = PopupType.Error,
+                                                )
+                                            },
+                                        )
+                                    }
+                                )
+
+                                // Moved here from the old top-right corner icon.
+                                MediaActionButton(
+                                    icon = R.drawable.share_social,
+                                    onClick = { showFastShare = true }
+                                )
+
+                                MediaActionButton(
                                     icon = R.drawable.ellipsis_horizontal,
                                     enabled = songs.isNotEmpty(),
-                                    color = if (songs.isNotEmpty()) colorPalette().text else colorPalette().textDisabled,
+                                    tint = if (songs.isNotEmpty()) colorPalette().text else colorPalette().textDisabled,
                                     onClick = {
                                         menuState.display {
                                             album?.let { it ->
@@ -1221,7 +1005,6 @@ fun AlbumDetails(
 
                                     }
                                 )
-
                             }
                         }
 

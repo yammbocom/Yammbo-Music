@@ -1,7 +1,13 @@
 package it.fast4x.riplay.ui.screens.settings
 
 import android.content.Context
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ExperimentalAnimationApi
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
@@ -20,6 +26,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -35,11 +46,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.compose.ui.text.style.TextOverflow
@@ -62,10 +76,14 @@ import it.fast4x.riplay.ui.components.SubscriptionGateOverlay
 import it.fast4x.riplay.ui.styling.color
 import it.fast4x.riplay.ui.styling.secondary
 import it.fast4x.riplay.ui.styling.semiBold
-import it.fast4x.riplay.ui.components.ScreenContainer
+import it.fast4x.riplay.ui.components.PageContainer
+import it.fast4x.riplay.ui.components.glassSurface
+import it.fast4x.riplay.ui.styling.Dimensions
 import it.fast4x.riplay.utils.colorPalette
 import it.fast4x.riplay.ui.components.themed.IDialog
 import it.fast4x.riplay.utils.typography
+
+private const val SettingsHomeIndex = -1
 
 @ExperimentalMaterial3Api
 @ExperimentalMaterialApi
@@ -79,56 +97,226 @@ fun SettingsScreen(
     navController: NavController,
     miniPlayer: @Composable () -> Unit = {},
 ) {
-    //val context = LocalContext.current
     val saveableStateHolder = rememberSaveableStateHolder()
 
-    val (tabIndex, onTabChanged) = rememberSaveable {
-        mutableStateOf(0)
-    }
+    // -1 = settings home (list of sections), otherwise the open section.
+    var section by rememberSaveable { mutableStateOf(SettingsHomeIndex) }
 
-            ScreenContainer(
-                navController,
-                tabIndex,
-                onTabChanged,
-                miniPlayer,
-                navBarContent = { item ->
-                    item(0, stringResource(R.string.tab_general), R.drawable.yambo_icon)
-                    item(1, stringResource(R.string.ui_tab), R.drawable.ui)
-                    item(2, stringResource(R.string.player_appearance), R.drawable.color_palette)
-                    item(3, if (!isYtLoggedIn()) stringResource(R.string.home)
-                    else stringResource(R.string.home), if (!isYtLoggedIn()) R.drawable.sparkles
-                    else R.drawable.home)
-                    item(4, stringResource(R.string.tab_data), R.drawable.server)
-                    item(5, stringResource(R.string.tab_accounts), R.drawable.person)
-                    item(6, stringResource(R.string.tab_miscellaneous), R.drawable.equalizer)
-                    item(7, stringResource(R.string.about), R.drawable.information)
+    // System back goes from a section to the list before leaving settings.
+    BackHandler(enabled = section != SettingsHomeIndex) { section = SettingsHomeIndex }
 
-                }
-            ) { currentTabIndex ->
-                saveableStateHolder.SaveableStateProvider(currentTabIndex) {
-                    when (currentTabIndex) {
-                        0 -> SubscriptionGateOverlay { GeneralSettings(navController = navController) }
-                        1 -> SubscriptionGateOverlay { UiSettings(navController = navController) }
-                        2 -> SubscriptionGateOverlay { AppearanceSettings(navController = navController) }
-                        3 -> SubscriptionGateOverlay { HomeSettings(navController = navController) }
-                        4 -> DataSettings()
-                        5 -> {
-                            val activity = navController.context as? it.fast4x.riplay.MainActivity
-                            AccountsSettings(
-                                authManager = activity?.authManager,
-                                onLogout = {
-                                    navController.navigate(it.fast4x.riplay.enums.NavRoutes.login.name) {
-                                        popUpTo(0) { inclusive = true }
-                                    }
-                                }
-                            )
+    PageContainer(
+        navController = navController,
+        miniPlayer = miniPlayer,
+        // A section draws its own header (back + title); the app bar would double it.
+        showTopBar = section == SettingsHomeIndex
+    ) {
+        AnimatedContent(
+            targetState = section,
+            transitionSpec = { fadeIn(tween(220)) togetherWith fadeOut(tween(140)) },
+            label = "settingsSection"
+        ) { current ->
+            if (current == SettingsHomeIndex) {
+                SettingsHome(onOpen = { section = it })
+            } else {
+                Column(modifier = Modifier.fillMaxSize()) {
+                    SettingsSectionHeader(
+                        title = settingsSectionTitle(current),
+                        onBack = { section = SettingsHomeIndex }
+                    )
+                    Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                        saveableStateHolder.SaveableStateProvider(current) {
+                            SettingsSectionContent(current, navController)
                         }
-                        6 -> MiscSettings()
-                        7 -> About()
-
                     }
                 }
             }
+        }
+    }
+}
+
+@ExperimentalMaterial3Api
+@ExperimentalMaterialApi
+@ExperimentalTextApi
+@ExperimentalFoundationApi
+@ExperimentalAnimationApi
+@ExperimentalComposeUiApi
+@UnstableApi
+@Composable
+private fun SettingsSectionContent(index: Int, navController: NavController) {
+    when (index) {
+        0 -> SubscriptionGateOverlay { GeneralSettings(navController = navController) }
+        1 -> SubscriptionGateOverlay { UiSettings(navController = navController) }
+        2 -> SubscriptionGateOverlay { AppearanceSettings(navController = navController) }
+        3 -> SubscriptionGateOverlay { HomeSettings(navController = navController) }
+        4 -> DataSettings()
+        5 -> {
+            val activity = navController.context as? it.fast4x.riplay.MainActivity
+            AccountsSettings(
+                authManager = activity?.authManager,
+                onLogout = {
+                    navController.navigate(it.fast4x.riplay.enums.NavRoutes.login.name) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
+            )
+        }
+        6 -> MiscSettings()
+        7 -> About()
+    }
+}
+
+@Composable
+private fun settingsSectionTitle(index: Int): String = when (index) {
+    0 -> stringResource(R.string.tab_general)
+    1 -> stringResource(R.string.ui_tab)
+    2 -> stringResource(R.string.player_appearance)
+    3 -> stringResource(R.string.home)
+    4 -> stringResource(R.string.settings_title_data)
+    5 -> stringResource(R.string.tab_accounts)
+    6 -> stringResource(R.string.settings_title_misc)
+    else -> stringResource(R.string.about)
+}
+
+@Composable
+private fun SettingsSectionHeader(title: String, onBack: () -> Unit) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+    ) {
+        val backDescription = stringResource(R.string.back)
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(40.dp)
+                .glassSurface(CircleShape, elevation = 6.dp)
+                .clickable(onClickLabel = backDescription, role = Role.Button, onClick = onBack)
+        ) {
+            Image(
+                painter = painterResource(R.drawable.chevron_back),
+                contentDescription = backDescription,
+                colorFilter = ColorFilter.tint(colorPalette().text),
+                modifier = Modifier.size(20.dp)
+            )
+        }
+        BasicText(
+            text = title,
+            style = typography().l.semiBold.copy(color = colorPalette().text),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+private class SettingsHubRow(val index: Int, val icon: Int, val title: String, val subtitle: String)
+
+@Composable
+private fun SettingsHome(onOpen: (Int) -> Unit) {
+    val rows = listOf(
+        SettingsHubRow(0, R.drawable.grid_view, stringResource(R.string.tab_general), stringResource(R.string.settings_sub_general)),
+        SettingsHubRow(1, R.drawable.ui, stringResource(R.string.ui_tab), stringResource(R.string.settings_sub_ui)),
+        SettingsHubRow(2, R.drawable.color_palette, stringResource(R.string.player_appearance), stringResource(R.string.settings_sub_appearance)),
+        SettingsHubRow(3, R.drawable.home, stringResource(R.string.home), stringResource(R.string.settings_sub_home)),
+        SettingsHubRow(4, R.drawable.server, stringResource(R.string.settings_title_data), stringResource(R.string.settings_sub_data)),
+        SettingsHubRow(5, R.drawable.person, stringResource(R.string.tab_accounts), stringResource(R.string.settings_sub_accounts)),
+        SettingsHubRow(6, R.drawable.ellipsis_horizontal, stringResource(R.string.settings_title_misc), stringResource(R.string.settings_sub_misc)),
+        SettingsHubRow(7, R.drawable.information, stringResource(R.string.about), stringResource(R.string.settings_sub_about)),
+    )
+    // Visual groups of the list, by row index.
+    val groups = listOf(listOf(0, 1, 2, 3), listOf(4, 5), listOf(6, 7))
+
+    Column(
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp)
+    ) {
+        BasicText(
+            text = stringResource(R.string.settings),
+            style = typography().xxl.semiBold.copy(color = colorPalette().text),
+            modifier = Modifier.padding(start = 4.dp, top = 8.dp, bottom = 4.dp)
+        )
+
+        groups.forEach { group ->
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .glassSurface(RoundedCornerShape(20.dp), elevation = 4.dp)
+            ) {
+                group.forEachIndexed { position, rowIndex ->
+                    val row = rows[rowIndex]
+                    if (position > 0) {
+                        // Inset past the icon circle, like a native list.
+                        Box(
+                            modifier = Modifier
+                                .padding(start = 70.dp)
+                                .fillMaxWidth()
+                                .height(1.dp)
+                                .background(colorPalette().background2)
+                        )
+                    }
+                    SettingsHubRowItem(row, onClick = { onOpen(row.index) })
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(Dimensions.bottomSpacer))
+    }
+}
+
+@Composable
+private fun SettingsHubRowItem(row: SettingsHubRow, onClick: () -> Unit) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 14.dp)
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(40.dp)
+                .clip(CircleShape)
+                .background(colorPalette().background2)
+        ) {
+            Image(
+                painter = painterResource(row.icon),
+                contentDescription = null,
+                colorFilter = ColorFilter.tint(colorPalette().text),
+                modifier = Modifier.size(20.dp)
+            )
+        }
+        Column(
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+            modifier = Modifier.weight(1f)
+        ) {
+            BasicText(
+                text = row.title,
+                style = typography().s.semiBold.copy(color = colorPalette().text),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            BasicText(
+                text = row.subtitle,
+                style = typography().xxs.copy(color = colorPalette().textSecondary),
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        Image(
+            painter = painterResource(R.drawable.chevron_forward),
+            contentDescription = null,
+            colorFilter = ColorFilter.tint(colorPalette().textSecondary),
+            modifier = Modifier.size(18.dp)
+        )
+    }
 }
 
 @Composable
@@ -237,26 +425,27 @@ fun <T> ValueSelectorSettingsEntry(
         )
     }
 
+    // Current value on the right, description (if any) under the title.
     SettingsEntry(
         title = title,
         titleSecondary = titleSecondary,
-        text = valueText(selectedValue),
+        text = text.orEmpty(),
         modifier = modifier,
         isEnabled = isEnabled,
         onClick = { isShowingDialog = true },
-        trailingContent = trailingContent,
+        trailingContent = {
+            BasicText(
+                text = valueText(selectedValue),
+                style = typography().xs.copy(color = colorPalette().textSecondary),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.widthIn(max = 160.dp)
+            )
+            trailingContent()
+        },
         online = online,
         offline = offline
     )
-
-    text?.let {
-        BasicText(
-            text = it,
-            style = typography().xs.semiBold.copy(color = colorPalette().textSecondary),
-            modifier = Modifier
-                .padding(start = 12.dp)
-        )
-    }
 }
 
 @Composable
@@ -304,6 +493,7 @@ fun SettingsEntry(
             verticalAlignment = Alignment.CenterVertically,
             modifier = modifier
                 .fillMaxWidth()
+                .alpha(if (isEnabled) 1f else 0.5f)
                 .clickable(enabled = isEnabled, onClick = onClick)
                 .padding(horizontal = if (inCard) 12.dp else 4.dp, vertical = 14.dp)
         ) {
@@ -339,6 +529,18 @@ fun SettingsEntry(
 
             trailingContent?.invoke()
         }
+    }
+}
+
+/**
+ * Pulls the content up by one hairline so the divider of the first row in a card is
+ * clipped away by the card's rounded top edge (same trick as settingsItem).
+ */
+internal fun Modifier.hideLeadingHairline(): Modifier = layout { measurable, constraints ->
+    val cut = 1.dp.roundToPx()
+    val placeable = measurable.measure(constraints)
+    layout(placeable.width, (placeable.height - cut).coerceAtLeast(0)) {
+        placeable.place(0, -cut)
     }
 }
 
@@ -432,7 +634,7 @@ fun SettingsDescription(
 ) {
     BasicText(
         text = text,
-        style = if (important) typography().xxs.semiBold.color(colorPalette().red)
+        style = if (important) typography().xxs.semiBold.color(colorPalette().text)
         else typography().xxs.secondary,
         modifier = modifier
             .padding(start = 12.dp)
@@ -448,7 +650,7 @@ fun ImportantSettingsDescription(
 ) {
     BasicText(
         text = text,
-        style = typography().xxs.semiBold.color(colorPalette().red),
+        style = typography().xxs.semiBold.color(colorPalette().text),
         modifier = modifier
             .padding(start = 12.dp)
             .padding(vertical = 8.dp)
@@ -557,9 +759,10 @@ fun ColorSettingEntry(
         trailingContent = {
             Box(
                 modifier = Modifier
-                    .size(20.dp)
+                    .size(24.dp)
+                    .clip(CircleShape)
                     .background(color)
-                    .border(BorderStroke(1.dp, colorPalette().textDisabled))
+                    .border(BorderStroke(1.dp, colorPalette().textDisabled), CircleShape)
             )
         },
         modifier = modifier
@@ -666,7 +869,7 @@ fun SliderSettingsEntry(
         modifier = Modifier
             .height(36.dp)
             .alpha(if (isEnabled) 1f else 0.5f)
-            .let { if (usePadding) it.padding(start = 32.dp, end = 16.dp) else it }
+            .let { if (usePadding) it.padding(horizontal = 12.dp) else it }
             .padding(vertical = 16.dp)
             .fillMaxWidth()
     )
@@ -678,7 +881,7 @@ fun SettingsGroup(
     modifier: Modifier = Modifier,
     description: String? = null,
     important: Boolean = false,
-    color: Color = colorPalette().accent,
+    color: Color = colorPalette().textSecondary,
     uppercase: Boolean = true,
     content: @Composable ColumnScope.() -> Unit
 ) {

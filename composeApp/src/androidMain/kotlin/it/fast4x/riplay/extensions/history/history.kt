@@ -11,7 +11,7 @@ import it.fast4x.riplay.extensions.preferences.preferences
 import it.fast4x.riplay.data.models.Format
 import it.fast4x.riplay.extensions.players.getOnlineMetadata
 import it.fast4x.riplay.utils.isLocal
-import it.fast4x.riplay.ui.screens.settings.isYtSyncEnabled
+import it.fast4x.riplay.utils.isYtHistorySyncEnabled
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -24,7 +24,7 @@ fun updateOnlineHistory(mediaItem: MediaItem) {
 
     Timber.d("UpdateOnlineHistory called with mediaItem $mediaItem")
 
-    if (!mediaItem.isLocal && isYtSyncEnabled()) {
+    if (!mediaItem.isLocal && isYtHistorySyncEnabled()) {
         CoroutineScope(Dispatchers.IO).launch {
             val playbackUrl = Database.format(mediaItem.mediaId).first()?.playbackUrl
                 ?: getOnlineMetadata(mediaItem.mediaId)

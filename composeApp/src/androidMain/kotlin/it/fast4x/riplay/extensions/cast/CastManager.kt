@@ -406,7 +406,7 @@ object CastManager {
 
         val client = castSession.remoteMediaClient ?: return false
         val metadata = MediaMetadata(MediaMetadata.MEDIA_TYPE_MUSIC_TRACK).apply {
-            putString(MediaMetadata.KEY_TITLE, item.mediaMetadata.title?.toString().orEmpty())
+            putString(MediaMetadata.KEY_TITLE, cleanPrefix(item.mediaMetadata.title?.toString().orEmpty()))
             putString(MediaMetadata.KEY_ARTIST, item.mediaMetadata.artist?.toString().orEmpty())
             item.mediaMetadata.artworkUri?.let { addImage(WebImage(it)) }
         }

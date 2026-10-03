@@ -109,7 +109,7 @@ fun AppTitle(
                 Image(
                     painter = painterResource(R.drawable.maintenance),
                     contentDescription = null,
-                    colorFilter = ColorFilter.tint(colorPalette().red),
+                    colorFilter = ColorFilter.tint(colorPalette().text),
                     modifier = Modifier
                         .size(8.dp)
                        // .align(Alignment.BottomEnd)
@@ -119,7 +119,7 @@ fun AppTitle(
         if(isParentalControlEnabled())
             Button(
                 iconId = R.drawable.shield_checkmark,
-                color = AppBar.contentColor(),
+                color = colorPalette().text,
                 padding = 0.dp,
                 size = 20.dp
             ).Draw()

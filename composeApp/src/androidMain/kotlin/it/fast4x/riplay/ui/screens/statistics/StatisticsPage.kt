@@ -85,6 +85,7 @@ import it.fast4x.riplay.ui.styling.color
 import it.fast4x.riplay.extensions.preferences.disableScrollingTextKey
 import it.fast4x.riplay.utils.forcePlayAtIndex
 import it.fast4x.riplay.utils.formatAsTime
+import it.fast4x.riplay.utils.openPlaylistOrMix
 import it.fast4x.riplay.extensions.preferences.maxStatisticsItemsKey
 import it.fast4x.riplay.extensions.preferences.navigationBarPositionKey
 import it.fast4x.riplay.extensions.preferences.rememberPreference
@@ -486,12 +487,11 @@ fun StatisticsPage(
                             if (playlistId.isEmpty()) return@clickable
 
                             val pBrowseId = cleanPrefix(playlistPreview.playlist.browseId ?: "")
-                            val route = if (pBrowseId.isNotEmpty()) {
-                                "${NavRoutes.playlist.name}/$pBrowseId"
+                            if (pBrowseId.isNotEmpty()) {
+                                openPlaylistOrMix(navController, binder, pBrowseId)
                             } else {
-                                "${NavRoutes.localPlaylist.name}/$playlistId"
+                                navController.navigate("${NavRoutes.localPlaylist.name}/$playlistId")
                             }
-                            navController.navigate(route)
                         },
                         disableScrollingText = disableScrollingText
                     )

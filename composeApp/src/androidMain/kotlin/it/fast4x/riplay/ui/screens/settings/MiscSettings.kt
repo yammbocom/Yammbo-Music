@@ -65,6 +65,7 @@ fun MiscSettings() {
     var text by remember { mutableStateOf(null as String?) }
 
     val noLogAvailable = stringResource(R.string.no_log_available)
+    val noDocumentApp = stringResource(R.string.settings_misc_no_document_app)
     var exportCrashlog by remember { mutableStateOf(false) }
 
     // The document picker creates the destination file as soon as it returns, so giving up
@@ -114,9 +115,9 @@ fun MiscSettings() {
     if (isExporting) {
         InputTextDialog(
             onDismiss = { isExporting = false },
-            title = stringResource(R.string.enter_the_name_of_log_export),
+            title = stringResource(R.string.settings_misc_export_name_title),
             value = "",
-            placeholder = stringResource(R.string.enter_the_name_of_log_export),
+            placeholder = stringResource(R.string.settings_misc_export_name_hint),
             setValue = { txt ->
                 fileName = txt
                 try {
@@ -127,7 +128,7 @@ fun MiscSettings() {
                     )
                 } catch (e: ActivityNotFoundException) {
                     SmartMessage(
-                        "Couldn't find an application to create documents",
+                        noDocumentApp,
                         type = PopupType.Warning, context = context
                     )
                 }
@@ -147,9 +148,9 @@ fun MiscSettings() {
                 else Dimensions.contentWidthRightBar
             )
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp)
+            .padding(horizontal = 16.dp)
     ) {
-        Spacer(modifier = Modifier.height(40.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         SettingsCard(title = stringResource(R.string.debug)) {
             SwitchSettingEntry(

@@ -123,7 +123,16 @@ object EnvironmentExt {
         println("EnvironmentExt removelikeVideoOrSong error: ${it.stackTraceToString()}")
     }
 
-    suspend fun getHomePage(setLogin: Boolean = false, params: String? = null): Result<HomePage> = runCatching {
+    /**
+     * [followContinuations] = false returns as soon as the first page is parsed, with the
+     * pending token in [HomePage.continuation]; the rest can be fetched later one page at a time
+     * with [getHomePageContinuation]. The default (true) keeps the old "load everything" behavior.
+     */
+    suspend fun getHomePage(
+        setLogin: Boolean = false,
+        params: String? = null,
+        followContinuations: Boolean = true
+    ): Result<HomePage> = runCatching {
 
         var response = Environment.browse(browseId = "FEmusic_home", setLogin = setLogin, params = params).body<BrowseResponse>()
 
@@ -145,6 +154,14 @@ object EnvironmentExt {
 
         val chips = sectionListRender?.header?.chipCloudRenderer?.chips?.mapNotNull {
             Environment.Chip.fromChipCloudChipRenderer(it)
+        }
+
+        if (!followContinuations) {
+            return@runCatching HomePage(
+                sections = sections?.distinctBy { it.title } ?: emptyList(),
+                chips = chips,
+                continuation = continuation
+            )
         }
 
         val continuationsList = mutableListOf<String>()
@@ -184,6 +201,25 @@ object EnvironmentExt {
             //cont += 1
         }
         HomePage( sections = sections?.distinctBy { it.title } ?: emptyList(), chips = chips, continuation = continuation)
+    }
+
+    /**
+     * Fetches ONE continuation page of the home feed. [HomePage.continuation] of the result is the
+     * token for the next page (null when there are no more). Chips are only on the first page.
+     */
+    suspend fun getHomePageContinuation(continuation: String): Result<HomePage> = runCatching {
+        val response = Environment.browse(continuation = continuation).body<BrowseResponse>()
+        val sectionListContinuation = response.continuationContents?.sectionListContinuation
+
+        HomePage(
+            sections = sectionListContinuation?.contents
+                ?.mapNotNull { it.musicCarouselShelfRenderer }
+                ?.mapNotNull { HomePage.Section.fromMusicCarouselShelfRenderer(it) }
+                ?.distinctBy { it.title }
+                .orEmpty(),
+            chips = null,
+            continuation = sectionListContinuation?.continuations?.getContinuation()
+        )
     }
 
     suspend fun getHistory(setLogin: Boolean = false): Result<HistoryPage> = runCatching {

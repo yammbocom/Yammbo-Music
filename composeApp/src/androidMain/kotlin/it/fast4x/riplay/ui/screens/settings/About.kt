@@ -40,7 +40,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
@@ -70,16 +69,6 @@ import it.fast4x.riplay.utils.typography
 import kotlinx.coroutines.launch
 
 
-// Brand colors — official palette for each social platform.
-private val FacebookColor = Color(0xFF1877F2)
-private val InstagramTop = Color(0xFFFEDA77)
-private val InstagramMid = Color(0xFFF58529)
-private val InstagramBot = Color(0xFFDD2A7B)
-private val XColor = Color(0xFF000000)
-private val TikTokBg = Color(0xFF010101)
-private val WhatsAppColor = Color(0xFF25D366)
-
-
 @ExperimentalAnimationApi
 @Composable
 fun About() {
@@ -90,6 +79,10 @@ fun About() {
 
     var showBugReportSheet by remember { mutableStateOf(false) }
     val authManager = remember { YammboAuthManager(context) }
+
+    // Resolved here because the click handlers below are not composable.
+    val helpCenterTitle = stringResource(R.string.settings_about_help_center)
+    val liveChatTitle = stringResource(R.string.settings_about_live_chat)
 
     Column(
         modifier = Modifier
@@ -104,7 +97,7 @@ fun About() {
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 16.dp)
     ) {
-        Spacer(modifier = Modifier.height(28.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         // === Hero ===
         StaggeredEntry(index = 0) {
@@ -115,46 +108,39 @@ fun About() {
 
         // === Social ===
         StaggeredEntry(index = 1) {
-            SectionLabel("Conecta con nosotros")
+            SectionLabel(stringResource(R.string.settings_about_connect))
             Spacer(modifier = Modifier.height(10.dp))
             Row(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(20.dp))
+                    .clip(RoundedCornerShape(16.dp))
                     .background(colors.background1)
                     .padding(horizontal = 16.dp, vertical = 18.dp)
             ) {
                 SocialChip(
                     iconId = R.drawable.brand_facebook,
                     label = "Facebook",
-                    brandBg = Brush.linearGradient(listOf(FacebookColor, FacebookColor)),
                     modifier = Modifier.weight(1f),
                 ) { uriHandler.openUri("https://www.facebook.com/yammbo") }
                 SocialChip(
                     iconId = R.drawable.brand_instagram,
                     label = "Instagram",
-                    brandBg = Brush.linearGradient(
-                        colors = listOf(InstagramTop, InstagramMid, InstagramBot),
-                    ),
                     modifier = Modifier.weight(1f),
                 ) { uriHandler.openUri("https://instagram.com/yammbo_com") }
                 SocialChip(
                     iconId = R.drawable.brand_x,
                     label = "X",
-                    brandBg = Brush.linearGradient(listOf(XColor, XColor)),
                     modifier = Modifier.weight(1f),
                 ) { uriHandler.openUri("https://x.com/yammbo_com") }
                 SocialChip(
                     iconId = R.drawable.brand_tiktok,
                     label = "TikTok",
-                    brandBg = Brush.linearGradient(listOf(TikTokBg, TikTokBg)),
                     modifier = Modifier.weight(1f),
                 ) { uriHandler.openUri("https://www.tiktok.com/@yammbo_com") }
                 SocialChip(
                     iconId = R.drawable.brand_whatsapp,
                     label = "WhatsApp",
-                    brandBg = Brush.linearGradient(listOf(WhatsAppColor, WhatsAppColor)),
                     modifier = Modifier.weight(1f),
                 ) { uriHandler.openUri("https://api.whatsapp.com/send?phone=5623464876") }
             }
@@ -164,35 +150,31 @@ fun About() {
 
         // === Support ===
         StaggeredEntry(index = 2) {
-            SectionLabel("Soporte")
+            SectionLabel(stringResource(R.string.settings_about_support))
             Spacer(modifier = Modifier.height(10.dp))
             LinkGroup {
                 AboutLinkRow(
-                    title = "Sitio web",
+                    title = stringResource(R.string.settings_about_website),
                     subtitle = "music.yammbo.com",
                     iconId = R.drawable.globe,
-                    tint = Color(0xFF26C6DA),
                 ) { uriHandler.openUri("https://music.yammbo.com") }
                 AboutRowDivider()
                 AboutLinkRow(
-                    title = "Centro de ayuda",
-                    subtitle = "Base de conocimiento y tutoriales",
+                    title = helpCenterTitle,
+                    subtitle = stringResource(R.string.settings_about_help_center_sub),
                     iconId = R.drawable.information,
-                    tint = Color(0xFF5C6BC0),
-                ) { YammboWebViewActivity.open(context, "https://help.yammbo.com/", "Centro de ayuda") }
+                ) { YammboWebViewActivity.open(context, "https://help.yammbo.com/", helpCenterTitle) }
                 AboutRowDivider()
                 AboutLinkRow(
-                    title = "Chat en vivo",
-                    subtitle = "Habla con nuestro equipo",
+                    title = liveChatTitle,
+                    subtitle = stringResource(R.string.settings_about_live_chat_sub),
                     iconId = R.drawable.help_circle,
-                    tint = Color(0xFF66BB6A),
-                ) { YammboWebViewActivity.open(context, "https://tawk.to/yammbo", "Chat en vivo") }
+                ) { YammboWebViewActivity.open(context, "https://tawk.to/yammbo", liveChatTitle) }
                 AboutRowDivider()
                 AboutLinkRow(
                     title = stringResource(R.string.report_an_issue),
-                    subtitle = "Reportar un problema o sugerencia",
+                    subtitle = stringResource(R.string.settings_about_report_sub),
                     iconId = R.drawable.alert_circle,
-                    tint = Color(0xFFEF5350),
                 ) { showBugReportSheet = true }
             }
         }
@@ -201,21 +183,19 @@ fun About() {
 
         // === Legal ===
         StaggeredEntry(index = 3) {
-            SectionLabel("Legal")
+            SectionLabel(stringResource(R.string.settings_about_legal))
             Spacer(modifier = Modifier.height(10.dp))
             LinkGroup {
                 AboutLinkRow(
-                    title = "Política de privacidad",
-                    subtitle = "Cómo protegemos tus datos",
+                    title = stringResource(R.string.settings_about_privacy),
+                    subtitle = stringResource(R.string.settings_about_privacy_sub),
                     iconId = R.drawable.shield_checkmark,
-                    tint = Color(0xFF5C6BC0),
                 ) { uriHandler.openUri("https://music.yammbo.com/pages/privacy-policy") }
                 AboutRowDivider()
                 AboutLinkRow(
-                    title = "Términos de servicio",
-                    subtitle = "Condiciones de uso",
+                    title = stringResource(R.string.settings_about_terms),
+                    subtitle = stringResource(R.string.settings_about_terms_sub),
                     iconId = R.drawable.singlepage,
-                    tint = Color(0xFFAB47BC),
                 ) { uriHandler.openUri("https://music.yammbo.com/pages/terms-of-service") }
             }
         }
@@ -231,7 +211,7 @@ fun About() {
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 BasicText(
-                    text = "Hecho con ♥ por Frank Rivera",
+                    text = stringResource(R.string.settings_about_made_by),
                     style = typo.xs.copy(
                         color = colors.textSecondary,
                         textAlign = TextAlign.Center,
@@ -239,7 +219,7 @@ fun About() {
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 BasicText(
-                    text = "© 2026 Yammbo LLC · Todos los derechos reservados",
+                    text = stringResource(R.string.settings_about_copyright),
                     style = typo.xxs.copy(
                         color = colors.textDisabled,
                         textAlign = TextAlign.Center,
@@ -270,6 +250,11 @@ private fun BugReportSheet(
     val typo = typography()
     val scope = rememberCoroutineScope()
 
+    // Resolved here because the button handler is not composable.
+    val invalidMessage = stringResource(R.string.settings_about_bug_invalid)
+    val sentMessage = stringResource(R.string.settings_about_bug_sent)
+    val failedMessage = stringResource(R.string.settings_about_bug_failed)
+
     var name by remember { mutableStateOf(authManager.getUserName().orEmpty()) }
     var email by remember { mutableStateOf(authManager.getUserEmail().orEmpty()) }
     var messageText by remember { mutableStateOf("") }
@@ -299,7 +284,7 @@ private fun BugReportSheet(
                 .padding(bottom = 24.dp),
         ) {
             BasicText(
-                text = "Reportar un error",
+                text = stringResource(R.string.settings_about_bug_title),
                 style = typo.l.copy(
                     fontWeight = FontWeight.Bold,
                     color = colors.text,
@@ -307,7 +292,7 @@ private fun BugReportSheet(
             )
             Spacer(modifier = Modifier.height(4.dp))
             BasicText(
-                text = "Cuéntanos qué salió mal y te ayudaremos.",
+                text = stringResource(R.string.settings_about_bug_subtitle),
                 style = typo.xxs.secondary,
             )
 
@@ -316,7 +301,7 @@ private fun BugReportSheet(
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
-                label = { Text("Nombre") },
+                label = { Text(stringResource(R.string.settings_about_bug_name)) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
                 colors = textFieldColors,
@@ -328,7 +313,7 @@ private fun BugReportSheet(
             OutlinedTextField(
                 value = email,
                 onValueChange = { email = it },
-                label = { Text("Correo electrónico") },
+                label = { Text(stringResource(R.string.settings_about_bug_email)) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Email,
@@ -343,7 +328,7 @@ private fun BugReportSheet(
             OutlinedTextField(
                 value = messageText,
                 onValueChange = { messageText = it },
-                label = { Text("Mensaje") },
+                label = { Text(stringResource(R.string.settings_about_bug_message)) },
                 minLines = 4,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
                 colors = textFieldColors,
@@ -358,7 +343,7 @@ private fun BugReportSheet(
                         !android.util.Patterns.EMAIL_ADDRESS.matcher(email.trim()).matches()
                     ) {
                         SmartMessage(
-                            "Completa tu nombre, un correo válido y el mensaje.",
+                            invalidMessage,
                             type = PopupType.Error,
                             context = context,
                         )
@@ -378,14 +363,14 @@ private fun BugReportSheet(
                         )
                         if (result.isSuccess && result.getOrNull()?.success == true) {
                             SmartMessage(
-                                "¡Gracias! Tu reporte fue enviado.",
+                                sentMessage,
                                 type = PopupType.Success,
                                 context = context,
                             )
                             onDismiss()
                         } else {
                             SmartMessage(
-                                "No se pudo enviar. Inténtalo de nuevo.",
+                                failedMessage,
                                 type = PopupType.Error,
                                 context = context,
                             )
@@ -398,7 +383,7 @@ private fun BugReportSheet(
                     containerColor = colors.accent,
                     contentColor = colors.onAccent,
                 ),
-                shape = RoundedCornerShape(8.dp),
+                shape = RoundedCornerShape(24.dp),
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp),
@@ -410,7 +395,7 @@ private fun BugReportSheet(
                         strokeWidth = 2.dp,
                     )
                 } else {
-                    Text("Enviar")
+                    Text(stringResource(R.string.settings_about_bug_send))
                 }
             }
         }
@@ -454,7 +439,7 @@ private fun AboutHeroCard() {
             ) {
                 Image(
                     painter = painterResource(R.drawable.yambo_icon),
-                    contentDescription = "Yammbo Music",
+                    contentDescription = null,
                     colorFilter = ColorFilter.tint(colors.text),
                     modifier = Modifier.size(48.dp),
                 )
@@ -475,7 +460,7 @@ private fun AboutHeroCard() {
             Spacer(modifier = Modifier.height(2.dp))
 
             BasicText(
-                text = "Tu música, tu mundo",
+                text = stringResource(R.string.settings_about_tagline),
                 style = typo.s.copy(
                     color = colors.textSecondary,
                     textAlign = TextAlign.Center,
@@ -500,7 +485,7 @@ private fun AboutHeroCard() {
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 BasicText(
-                    text = "Versión ${BuildConfig.VERSION_NAME}",
+                    text = stringResource(R.string.settings_about_version, BuildConfig.VERSION_NAME),
                     style = typo.xs.copy(
                         fontWeight = FontWeight.SemiBold,
                         color = colors.text,
@@ -529,9 +514,9 @@ private fun LinkGroup(content: @Composable () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
+            .clip(RoundedCornerShape(16.dp))
             .background(colorPalette().background1)
-            .padding(horizontal = 14.dp, vertical = 8.dp),
+            .padding(horizontal = 4.dp),
     ) {
         content()
     }
@@ -541,7 +526,6 @@ private fun LinkGroup(content: @Composable () -> Unit) {
 private fun SocialChip(
     iconId: Int,
     label: String,
-    brandBg: Brush,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
@@ -550,17 +534,18 @@ private fun SocialChip(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = modifier.pressable(onClick = onClick),
     ) {
+        // Black and white only: the platform colors are gone on purpose.
         Box(
             modifier = Modifier
                 .size(50.dp)
                 .clip(CircleShape)
-                .background(brandBg),
+                .background(colorPalette().background2),
             contentAlignment = Alignment.Center,
         ) {
             Image(
                 painter = painterResource(iconId),
                 contentDescription = label,
-                colorFilter = ColorFilter.tint(Color.White),
+                colorFilter = ColorFilter.tint(colorPalette().text),
                 modifier = Modifier.size(24.dp),
             )
         }
@@ -581,7 +566,6 @@ private fun AboutLinkRow(
     title: String,
     subtitle: String,
     iconId: Int,
-    tint: Color,
     onClick: () -> Unit,
 ) {
     val colors = colorPalette()
@@ -592,19 +576,19 @@ private fun AboutLinkRow(
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
             .pressable(onClick = onClick)
-            .padding(vertical = 12.dp, horizontal = 2.dp),
+            .padding(horizontal = 12.dp, vertical = 12.dp),
     ) {
         Box(
             modifier = Modifier
                 .size(40.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(tint.copy(alpha = 0.18f)),
+                .clip(CircleShape)
+                .background(colors.background2),
             contentAlignment = Alignment.Center,
         ) {
             Image(
                 painter = painterResource(iconId),
                 contentDescription = null,
-                colorFilter = ColorFilter.tint(tint),
+                colorFilter = ColorFilter.tint(colors.text),
                 modifier = Modifier.size(20.dp),
             )
         }
@@ -628,8 +612,8 @@ private fun AboutLinkRow(
         Image(
             painter = painterResource(R.drawable.chevron_forward),
             contentDescription = null,
-            colorFilter = ColorFilter.tint(colors.textDisabled),
-            modifier = Modifier.size(16.dp),
+            colorFilter = ColorFilter.tint(colors.textSecondary),
+            modifier = Modifier.size(18.dp),
         )
     }
 }
@@ -638,8 +622,9 @@ private fun AboutLinkRow(
 private fun AboutRowDivider() {
     Box(
         modifier = Modifier
+            .padding(start = 66.dp)
             .fillMaxWidth()
             .height(1.dp)
-            .background(colorPalette().background0.copy(alpha = 0.5f)),
+            .background(colorPalette().background2),
     )
 }

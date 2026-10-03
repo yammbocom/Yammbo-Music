@@ -20,6 +20,8 @@ import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -48,9 +50,11 @@ import it.fast4x.riplay.extensions.preferences.rememberPreference
 import it.fast4x.riplay.ui.styling.secondary
 import it.fast4x.riplay.extensions.preferences.showSearchTabKey
 import it.fast4x.riplay.ui.components.themed.LoaderScreen
+import it.fast4x.riplay.ui.components.themed.LoadingErrorScreen
 import it.fast4x.riplay.utils.colorPalette
 import it.fast4x.riplay.utils.typography
 import it.fast4x.riplay.utils.LazyListContainer
+import kotlinx.coroutines.withTimeoutOrNull
 
 @ExperimentalTextApi
 @UnstableApi
@@ -61,12 +65,20 @@ import it.fast4x.riplay.utils.LazyListContainer
 fun NewAlbumsFromArtists(
     navController: NavController
 ) {
-    var discoverPage by persist<Result<Environment.DiscoverPageAlbums>>("home/discoveryAlbums")
+    // Own tag: NewAlbums persists a different type under "home/discoveryAlbums" and reading it
+    // here would throw a ClassCastException
+    var discoverPage by persist<Result<Environment.DiscoverPageAlbums>>("home/discoveryAlbumsFromArtists")
+    var retry by rememberSaveable { mutableStateOf(0) }
 
     LoaderScreen(show = discoverPage == null)
 
-    LaunchedEffect(Unit) {
-        discoverPage = Environment.discoverPageNewAlbums()
+    LaunchedEffect(retry) {
+        // Drop a persisted failure so the loader shows again while retrying
+        if (retry > 0 || discoverPage?.isFailure == true) discoverPage = null
+        // A request that hangs becomes a failure with retry instead of an endless loader
+        discoverPage = withTimeoutOrNull(20_000) {
+            Environment.discoverPageNewAlbums()
+        } ?: Result.failure(Exception("NewAlbumsFromArtists timeout"))
     }
 
     var preferitesArtists by persistList<Artist>("home/artists")
@@ -162,7 +174,7 @@ fun NewAlbumsFromArtists(
                             contentType = 0,
                         ) {
                             BasicText(
-                                text = "There are no new releases for your favorite artists",
+                                text = stringResource(R.string.loading_no_new_releases_artists),
                                 style = typography().s.secondary.center,
                                 modifier = Modifier
                                     .align(Alignment.CenterHorizontally)
@@ -179,6 +191,8 @@ fun NewAlbumsFromArtists(
                 }
             }
 
+        } ?: discoverPage?.let {
+            LoadingErrorScreen(onRetry = { retry++ })
         }
         /***************/
 

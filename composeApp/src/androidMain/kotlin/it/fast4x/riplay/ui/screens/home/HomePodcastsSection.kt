@@ -25,9 +25,13 @@ import it.fast4x.riplay.enums.NavRoutes
 import it.fast4x.riplay.extensions.preferences.rememberPreference
 import it.fast4x.riplay.extensions.preferences.showPodcastsKey
 import it.fast4x.riplay.ui.components.themed.Title
+import it.fast4x.riplay.ui.components.ShimmerHost
 import it.fast4x.riplay.ui.items.PlaylistItem
+import it.fast4x.riplay.ui.items.PlaylistItemPlaceholder
+import it.fast4x.riplay.utils.SkeletonSwap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Shared Home carousel that showcases podcasts. It is used by both the Classic
@@ -57,47 +61,79 @@ fun HomePodcastsSection(
     val seed = if (hasHistory) recent.first().title else genericSeed
     val title = if (hasHistory) forYouTitle else popularTitle
 
-    var podcasts by remember { mutableStateOf(emptyList<Environment.PlaylistItem>()) }
+    // null = still loading (skeleton), empty = answered with nothing or failed (section hidden)
+    var podcasts by remember { mutableStateOf<List<Environment.PlaylistItem>?>(null) }
 
     LaunchedEffect(seed) {
-        withContext(Dispatchers.IO) {
-            Environment.searchPage(
-                body = SearchBody(query = seed, params = Environment.SearchFilter.Podcast.value),
-                fromMusicShelfRendererContent = Environment.PlaylistItem::from
-            )
-        }?.onSuccess { page ->
+        // A timeout counts as a failure: the skeleton must never spin forever
+        val result = withTimeoutOrNull(15_000L) {
+            withContext(Dispatchers.IO) {
+                Environment.searchPage(
+                    body = SearchBody(query = seed, params = Environment.SearchFilter.Podcast.value),
+                    fromMusicShelfRendererContent = Environment.PlaylistItem::from
+                )
+            }
+        }?.getOrNull()
+
+        if (result != null) {
             // Only show pages open into an episode list. The search also returns channels and
             // single episodes, whose ids browse into a page with no episodes at all, so tapping
             // them used to land on an empty screen.
-            podcasts = page?.items
+            podcasts = result.items
                 ?.filter { p -> p.key.startsWith("MPSP") }
                 ?.distinctBy { p -> p.key }
                 ?.take(15)
                 ?: emptyList()
+        } else if (podcasts == null) {
+            // Keep the previous list when only a re-seed failed
+            podcasts = emptyList()
         }
     }
 
+    val list = podcasts
+
     // Do not paint an empty section
-    if (podcasts.isEmpty()) return
+    if (list != null && list.isEmpty()) return
 
     // No onClick: there is no "see all podcasts" screen yet, so we omit the
     // trailing arrow (Title only draws it when onClick != null).
     Title(title = title)
 
-    LazyRow(contentPadding = contentPadding) {
-        items(podcasts, key = { it.key }) { p ->
-            PlaylistItem(
-                playlist = p,
-                thumbnailSizePx = thumbnailSizePx,
-                thumbnailSizeDp = thumbnailSizeDp,
-                alternative = true,
-                showSongsCount = false,
-                modifier = Modifier.clickable {
-                    navController.navigate("${NavRoutes.podcast.name}/${p.key}")
-                },
-                disableScrollingText = disableScrollingText,
-                shelfCard = true
-            )
+    SkeletonSwap(
+        loading = list == null,
+        skeleton = {
+            // Same card size as the final row, so nothing jumps when the data arrives
+            ShimmerHost {
+                LazyRow(userScrollEnabled = false, contentPadding = contentPadding) {
+                    items(6) {
+                        PlaylistItemPlaceholder(
+                            thumbnailSizeDp = thumbnailSizeDp,
+                            alternative = true
+                        )
+                    }
+                }
+            }
+        }
+    ) {
+        LazyRow(contentPadding = contentPadding) {
+            items(
+                items = list.orEmpty(),
+                key = { it.key },
+                contentType = { "podcast" }
+            ) { p ->
+                PlaylistItem(
+                    playlist = p,
+                    thumbnailSizePx = thumbnailSizePx,
+                    thumbnailSizeDp = thumbnailSizeDp,
+                    alternative = true,
+                    showSongsCount = false,
+                    modifier = Modifier.clickable {
+                        navController.navigate("${NavRoutes.podcast.name}/${p.key}")
+                    },
+                    disableScrollingText = disableScrollingText,
+                    shelfCard = true
+                )
+            }
         }
     }
 }

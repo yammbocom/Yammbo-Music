@@ -24,6 +24,8 @@ import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -56,6 +58,8 @@ import it.fast4x.riplay.ui.styling.center
 import it.fast4x.riplay.extensions.preferences.disableScrollingTextKey
 import it.fast4x.riplay.extensions.preferences.rememberPreference
 import it.fast4x.riplay.ui.components.themed.LoaderScreen
+import it.fast4x.riplay.ui.components.themed.LoadingEmptyScreen
+import it.fast4x.riplay.ui.components.themed.LoadingErrorScreen
 import it.fast4x.riplay.ui.components.themed.TitleMiniSection
 import it.fast4x.riplay.ui.items.SongItem
 import it.fast4x.riplay.ui.items.VideoItem
@@ -67,6 +71,8 @@ import it.fast4x.riplay.utils.typography
 import it.fast4x.riplay.utils.LazyListContainer
 import it.fast4x.riplay.utils.asMediaItem
 import it.fast4x.riplay.utils.forcePlay
+import it.fast4x.riplay.utils.openPlaylistOrMix
+import kotlinx.coroutines.withTimeoutOrNull
 import timber.log.Timber
 
 @OptIn(UnstableApi::class)
@@ -82,11 +88,17 @@ fun ChipList(
     val browseId = chip.browseId ?: "FEmusic_home"
     var chipPage by persist<Result<HomePage>>("playlist/$browseId${chip.params?.let { "/$it" } ?: ""}")
 
+    var retry by rememberSaveable { mutableStateOf(0) }
+
     LoaderScreen(show = chipPage == null)
 
-    LaunchedEffect(Unit) {
-        chipPage =
+    LaunchedEffect(retry) {
+        // Drop a persisted failure so the loader shows again while retrying
+        if (retry > 0 || chipPage?.isFailure == true) chipPage = null
+        // A request that hangs becomes a failure with retry instead of an endless loader
+        chipPage = withTimeoutOrNull(20_000) {
             EnvironmentExt.getHomePage(params = chip.params) //Environment.browse(BrowseBodyWithLocale(browseId = browseId, params = mood.params))
+        } ?: Result.failure(Exception("ChipList timeout"))
         Timber.d("MoodList chipPage $chipPage")
     }
 
@@ -122,7 +134,10 @@ fun ChipList(
                     1f
             )
     ) {
-        chipPage?.getOrNull()?.let { moodResult ->
+        // A success whose sections are all unusable would render a blank screen, so treat it as empty
+        chipPage?.getOrNull()?.takeIf { page ->
+            page.sections.any { it.items.isNotEmpty() && it.items.firstOrNull()?.key != null }
+        }?.let { moodResult ->
             LazyListContainer(
                 state = lazyListState,
             ) {
@@ -223,7 +238,7 @@ fun ChipList(
                                                 thumbnailSizeDp = playlistThumbnailSizeDp,
                                                 disableScrollingText = disableScrollingText,
                                                 modifier = Modifier.clickable(onClick = {
-                                                    navController.navigate("${NavRoutes.playlist.name}/${item.key}")
+                                                    openPlaylistOrMix(navController, binder, item.key)
                                                 })
                                             )
                                         }
@@ -260,14 +275,9 @@ fun ChipList(
 
                 }
             }
-        } ?: chipPage?.exceptionOrNull()?.let {
-            BasicText(
-                text = stringResource(R.string.page_not_been_loaded),
-                style = typography().s.secondary.center,
-                modifier = Modifier
-                    .align(Alignment.CenterHorizontally)
-                    .padding(all = 16.dp)
-            )
+        } ?: chipPage?.let { page ->
+            if (page.isFailure) LoadingErrorScreen(onRetry = { retry++ })
+            else LoadingEmptyScreen()
         } ?: ShimmerHost {
             HeaderPlaceholder(modifier = Modifier.shimmer())
             repeat(4) {

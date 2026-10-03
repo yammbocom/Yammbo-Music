@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Settings home: section titles and one-line subtitles -->
+    <string name="settings_title_data">Datos y almacenamiento</string>
+    <string name="settings_title_misc">Otros</string>
+    <string name="settings_sub_general">Idioma, red, actualizaciones y reproducción en segundo plano</string>
+    <string name="settings_sub_ui">Tema, barra de navegación, gestos y transiciones</string>
+    <string name="settings_sub_appearance">Aspecto del reproductor, carátulas y cola</string>
+    <string name="settings_sub_home">Qué secciones aparecen en la pantalla de inicio</string>
+    <string name="settings_sub_data">Caché, descargas, copias de seguridad e historial</string>
+    <string name="settings_sub_accounts">Tu sesión y servicios conectados</string>
+    <string name="settings_sub_misc">Registros y depuración</string>
+    <string name="settings_sub_about">Redes, ayuda, legal y reportar un problema</string>
+
+    <!-- Home section -->
+    <string name="settings_home_extended">Extendido</string>
+
+    <!-- Data section -->
+    <string name="settings_backup_in_progress">Creando la copia de seguridad...</string>
+    <string name="settings_restore_in_progress">Restaurando la copia de seguridad...</string>
+
+    <!-- Misc and appearance exports -->
+    <string name="settings_misc_export_name_title">Nombre del registro exportado</string>
+    <string name="settings_misc_export_name_hint">Escribe un nombre para el registro</string>
+    <string name="settings_misc_no_document_app">No se encontró ninguna aplicación para crear documentos</string>
+    <string name="settings_appearance_export_name_title">Nombre del archivo de ajustes exportado</string>
+
+    <!-- About -->
+    <string name="settings_about_tagline">Tu música, tu mundo</string>
+    <string name="settings_about_version">Versión %1$s</string>
+    <string name="settings_about_connect">Conecta con nosotros</string>
+    <string name="settings_about_support">Soporte</string>
+    <string name="settings_about_website">Sitio web</string>
+    <string name="settings_about_help_center">Centro de ayuda</string>
+    <string name="settings_about_help_center_sub">Base de conocimiento y tutoriales</string>
+    <string name="settings_about_live_chat">Chat en vivo</string>
+    <string name="settings_about_live_chat_sub">Habla con nuestro equipo</string>
+    <string name="settings_about_report_sub">Reportar un problema o sugerencia</string>
+    <string name="settings_about_legal">Legal</string>
+    <string name="settings_about_privacy">Política de privacidad</string>
+    <string name="settings_about_privacy_sub">Cómo protegemos tus datos</string>
+    <string name="settings_about_terms">Términos de servicio</string>
+    <string name="settings_about_terms_sub">Condiciones de uso</string>
+    <string name="settings_about_made_by">Hecho por Frank Rivera</string>
+    <string name="settings_about_copyright">© 2026 Yammbo LLC · Todos los derechos reservados</string>
+
+    <!-- About: bug report sheet -->
+    <string name="settings_about_bug_title">Reportar un error</string>
+    <string name="settings_about_bug_subtitle">Cuéntanos qué salió mal y te ayudaremos.</string>
+    <string name="settings_about_bug_name">Nombre</string>
+    <string name="settings_about_bug_email">Correo electrónico</string>
+    <string name="settings_about_bug_message">Mensaje</string>
+    <string name="settings_about_bug_send">Enviar</string>
+    <string name="settings_about_bug_invalid">Completa tu nombre, un correo válido y el mensaje.</string>
+    <string name="settings_about_bug_sent">¡Gracias! Tu reporte fue enviado.</string>
+    <string name="settings_about_bug_failed">No se pudo enviar. Inténtalo de nuevo.</string>
+</resources>

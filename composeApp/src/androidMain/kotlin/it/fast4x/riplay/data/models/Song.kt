@@ -45,7 +45,9 @@ data class Song(
 
     val shareYamboUrl: String?
         get() = if(!id.startsWith(LOCAL_KEY_PREFIX) && !id.isRadioId)
-            "${YAMBO_TRACK_SHARE_BASEURL}$id/${slugify(title)}" else null
+            // No trailing slash for an empty slug: the site answers that with a redirect.
+            "${YAMBO_TRACK_SHARE_BASEURL}$id" + slugify(title).let { if (it.isEmpty()) "" else "/$it" }
+        else null
 
     val formattedTotalPlayTime: String
         get() {

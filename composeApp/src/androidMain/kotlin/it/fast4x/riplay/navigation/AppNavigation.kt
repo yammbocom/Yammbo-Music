@@ -55,6 +55,8 @@ import it.fast4x.riplay.ui.screens.album.AlbumScreen
 import it.fast4x.riplay.ui.screens.artist.ArtistScreen
 import it.fast4x.riplay.ui.screens.history.HistoryScreen
 import it.fast4x.riplay.ui.screens.home.HomeScreen
+import it.fast4x.riplay.ui.screens.home.MyAccountTab
+import it.fast4x.riplay.ui.components.PageContainer
 import it.fast4x.riplay.ui.screens.ondevice.OnDeviceAlbumScreen
 import it.fast4x.riplay.ui.screens.localplaylist.LocalPlaylistScreen
 import it.fast4x.riplay.ui.screens.moodandchip.MoodListScreen
@@ -450,6 +452,17 @@ fun AppNavigation(
         composable(route = NavRoutes.musicIdentifier.name) {
             modalBottomSheetPage {
                 MusicIdentifier(navController)
+            }
+        }
+
+        // Reached from the account icon in the top bar; PageContainer keeps the top bar,
+        // mini player and bottom nav around it like the other full screens.
+        composable(route = NavRoutes.myAccount.name) {
+            PageContainer(
+                navController = navController,
+                miniPlayer = miniPlayer,
+            ) {
+                MyAccountTab(navController = navController)
             }
         }
 

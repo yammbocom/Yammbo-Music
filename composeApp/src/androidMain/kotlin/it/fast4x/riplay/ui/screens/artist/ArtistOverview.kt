@@ -126,8 +126,14 @@ import it.fast4x.riplay.ui.styling.secondary
 import it.fast4x.riplay.ui.styling.semiBold
 import it.fast4x.riplay.extensions.preferences.showFloatingIconKey
 import it.fast4x.riplay.extensions.preferences.thumbnailRoundnessKey
-import it.fast4x.riplay.ui.components.themed.FastPlayActionsBar
+import it.fast4x.riplay.ui.components.themed.LoadFailed
 import it.fast4x.riplay.ui.components.themed.LoaderScreen
+import it.fast4x.riplay.ui.components.themed.MediaActionButton
+import it.fast4x.riplay.ui.components.themed.MediaActionPill
+import it.fast4x.riplay.ui.components.themed.MediaHeader
+import it.fast4x.environment.models.NavigationEndpoint
+import kotlinx.coroutines.withTimeoutOrNull
+import androidx.compose.runtime.mutableIntStateOf
 import it.fast4x.riplay.utils.forcePlay
 import it.fast4x.riplay.utils.forcePlayFromBeginning
 import kotlinx.coroutines.CoroutineScope
@@ -193,16 +199,27 @@ fun ArtistOverview(
 
     var showFastShare by remember { mutableStateOf(false) }
 
-    LoaderScreen(show = artistPage == null)
+    // A null page is not "still loading": a failed or hung request must end in a retry state,
+    // not a spinner that never stops.
+    var loadFailed by remember(browseId) { mutableStateOf(false) }
+    var reloadKey by remember(browseId) { mutableIntStateOf(0) }
 
-    LaunchedEffect(Unit) {
+    LoaderScreen(show = artistPage == null && !loadFailed)
+
+    LaunchedEffect(browseId, reloadKey) {
         Database.artist(browseId).distinctUntilChanged().collect { currentArtist ->
             artist = currentArtist
 
             if (artistPage == null) {
                 CoroutineScope(Dispatchers.IO).launch {
-                    EnvironmentExt.getArtistPage(browseId = browseId)
-                        .onSuccess { currentArtistPage ->
+                    val result = withTimeoutOrNull(20_000L) {
+                        EnvironmentExt.getArtistPage(browseId = browseId)
+                    }
+                    if (result == null || result.isFailure) {
+                        loadFailed = true
+                    } else {
+                        result.onSuccess { currentArtistPage ->
+                            loadFailed = false
                             artistPage = currentArtistPage
 
                             Database.upsert(
@@ -216,9 +233,22 @@ fun ArtistOverview(
                                 )
                             )
                         }
+                    }
                 }
             }
         }
+    }
+
+    // Emitted before the `artist ?: return` below, which would otherwise swallow it.
+    if (artistPage == null && loadFailed) {
+        LoadFailed(
+            onRetry = {
+                loadFailed = false
+                reloadKey++
+            },
+            onBack = { navController.popBackStack() }
+        )
+        return
     }
 
     FastShare(
@@ -252,208 +282,51 @@ fun ArtistOverview(
         ) {
 
             item {
-                val modifierArt = Modifier.fillMaxWidth()
-
-                Box(
-                    modifier = modifierArt
-                ) {
-                    //if (artistPage != null) {
-                    if (!isLandscape)
-                        Box {
-                            AsyncImage(
-                                model = artistPage?.artist?.thumbnail?.url?.resizeNoCrop(
-                                    1200,
-                                    1200
-                                ),
-                                contentDescription = "loading...",
-                                // No fixed aspect ratio: artist photos are landscape, album art
-                                // is square, and forcing either into the other's box means
-                                // cropping or letterboxing. FillWidth takes the full width and
-                                // lets the image's own proportions decide the height, so it is
-                                // always whole and never padded with empty bars.
-                                contentScale = ContentScale.FillWidth,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .align(Alignment.Center)
-                            )
-
-                            // Bottom scrim so the artist name stays readable over any photo.
-                            Box(
-                                modifier = Modifier
-                                    .matchParentSize()
-                                    .background(
-                                        Brush.verticalGradient(
-                                            colorStops = arrayOf(
-                                                // Short and low: it only has to carry the
-                                                // name, not veil the photo.
-                                                0.68f to Color.Transparent,
-                                                0.88f to colorPalette().background0.copy(alpha = 0.6f),
-                                                1f to colorPalette().background0
+                // Same fetch for Play and Shuffle: the first song section of the artist page.
+                fun playArtistSongs(shuffled: Boolean) {
+                    CoroutineScope(Dispatchers.IO).launch {
+                        artistPage?.sections?.firstOrNull{sec -> sec.items.firstOrNull() is Environment.SongItem}.let {
+                            songsBrowseId = it?.moreEndpoint?.browseId.toString()
+                            songsParams = it?.moreEndpoint?.params.toString()
+                        }
+                        if (songsBrowseId.isNotEmpty())
+                            EnvironmentExt.getArtistItemsPage(
+                                BrowseEndpoint(
+                                    browseId = songsBrowseId,
+                                    params = songsParams
+                                )
+                            ).completed().getOrNull()
+                                ?.items
+                                ?.map { it as Environment.SongItem }
+                                ?.map { it.asMediaItem }
+                                .let {
+                                    if (it != null)
+                                        withContext(Dispatchers.Main) {
+                                            binder?.player?.forcePlayFromBeginning(
+                                                if (shuffled) it.shuffled() else it
                                             )
-                                        )
-                                    )
-                            )
-                            if (artist?.isYoutubeArtist == true) {
-                                Image(
-                                    painter = painterResource(R.drawable.internet),
-                                    colorFilter = ColorFilter.tint(
-                                        Color.White
-                                    ),
-                                    modifier = Modifier
-                                        .size(40.dp)
-                                        .background(Color.Black.copy(alpha = 0.55f), CircleShape)
-                                        .padding(all = 5.dp)
-                                        .offset(10.dp,10.dp),
-                                    contentDescription = "Background Image",
-                                    contentScale = ContentScale.Fit
-                                )
-                            }
-                        }
-
-                    AutoResizeText(
-                        text = artistPage?.artist?.info?.name ?: "",
-                        style = typography().l.semiBold,
-                        fontSizeRange = FontSizeRange(32.sp, 38.sp),
-                        fontWeight = typography().l.semiBold.fontWeight,
-                        fontFamily = typography().l.semiBold.fontFamily,
-                        color = typography().l.semiBold.color,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .padding(horizontal = 30.dp)
-                            .applyIf(!disableScrollingText) {
-                                basicMarquee(
-                                    iterations = Int.MAX_VALUE
-                                )
-                            }
-
-                    )
-
-
-                    // The app bar is gone on this screen, so back and share float over the
-                    // photo as glass pills, clear of the status bar.
-                    val statusBarTop = WindowInsets.systemBars.asPaddingValues().calculateTopPadding()
-
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.TopStart)
-                            .padding(start = 12.dp, top = statusBarTop + 2.dp)
-                            .size(40.dp)
-                            .glassSurface(shape = CircleShape, elevation = 6.dp)
-                            .clickable { navController.popBackStack() },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Image(
-                            painter = painterResource(R.drawable.chevron_back),
-                            contentDescription = null,
-                            colorFilter = ColorFilter.tint(colorPalette().text),
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-
-                    // Share moved down into the glass action bar; only Back stays over the
-                    // photo, and it has to, because this screen draws no app bar.
-
-
-                }
-
-                artistPage?.subscribers?.let {
-                    Row(
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                    ) {
-                        BasicText(
-                            text = String.format(
-                                stringResource(R.string.artist_subscribers),
-                                it
-                            ),
-                            style = typography().xs.semiBold,
-                            maxLines = 1
-                        )
+                                        }
+                                }
                     }
                 }
 
-
-                // Controls sit below the photo, but the glass belongs to each individual
-                // button — a single panel wrapping the whole row reads as a grey slab.
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier
-                        .padding(horizontal = 16.dp)
-                        .padding(top = 14.dp)
-                        .fillMaxWidth()
+                MediaHeader(
+                    // Landscape has no room for the photo: only the name is shown.
+                    imageUrl = if (isLandscape) null else artistPage?.artist?.thumbnail?.url,
+                    title = artistPage?.artist?.info?.name ?: "",
+                    subtitle = artistPage?.subscribers?.let {
+                        String.format(stringResource(R.string.artist_subscribers), it)
+                    },
+                    fullWidthCover = true,
+                    showOnlineBadge = artist?.isYoutubeArtist == true,
+                    onBack = { navController.popBackStack() },
+                    onPlay = { playArtistSongs(shuffled = false) },
+                    onShuffle = { playArtistSongs(shuffled = true) },
                 ) {
-                    FastPlayActionsBar(
-                        modifier = Modifier.fillMaxWidth(.55f),
-                        onPlayNowClick = {
-                            CoroutineScope(Dispatchers.IO).launch {
-                                artistPage?.sections?.firstOrNull{sec -> sec.items.firstOrNull() is Environment.SongItem}.let {
-                                    songsBrowseId = it?.moreEndpoint?.browseId.toString()
-                                    songsParams = it?.moreEndpoint?.params.toString()
-                                }
-                                if (songsBrowseId.isNotEmpty())
-                                    EnvironmentExt.getArtistItemsPage(
-                                        BrowseEndpoint(
-                                            browseId = songsBrowseId,
-                                            params = songsParams
-                                        )
-                                    ).completed().getOrNull()
-                                        ?.items
-                                        ?.map { it as Environment.SongItem }
-                                        ?.map { it.asMediaItem }
-                                        .let {
-                                            if (it != null)
-                                                withContext(Dispatchers.Main) {
-                                                    binder?.player?.forcePlayFromBeginning(it)
-                                                }
-                                        }
-                            }
-                        },
-                        onShufflePlayClick = {
-                            CoroutineScope(Dispatchers.IO).launch {
-                                artistPage?.sections?.firstOrNull{sec -> sec.items.firstOrNull() is Environment.SongItem}.let {
-                                    songsBrowseId = it?.moreEndpoint?.browseId.toString()
-                                    songsParams = it?.moreEndpoint?.params.toString()
-                                }
-                                if (songsBrowseId.isNotEmpty())
-                                    EnvironmentExt.getArtistItemsPage(
-                                        BrowseEndpoint(
-                                            browseId = songsBrowseId,
-                                            params = songsParams
-                                        )
-                                    ).completed().getOrNull()
-                                        ?.items
-                                        ?.map { it as Environment.SongItem }
-                                        ?.map { it.asMediaItem }
-                                        .let {
-                                            if (it != null)
-                                                withContext(Dispatchers.Main) {
-                                                    binder?.player?.forcePlayFromBeginning(it.shuffled())
-                                                }
-                                        }
-                            }
-                        }
-                    )
-                Row(
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .padding(top = 10.dp)
-                        .fillMaxWidth()
-                ) {
-                    // Built inline rather than with SecondaryTextButton: that component always
-                    // paints its own fill, which shows up as a second background inside the
-                    // glass pill. Here the glass is the only surface.
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier
-                            .padding(end = 24.dp)
-                            .glassSurface(shape = RoundedCornerShape(20.dp), elevation = 6.dp)
-                            .clickable {
+                    MediaActionPill(
+                        text = if (artist?.bookmarkedAt == null) stringResource(R.string.follow)
+                        else stringResource(R.string.following),
+                        onClick = {
                             if (isYtSyncEnabled() && !isNetworkConnected(context)){
                                 SmartMessage(context.resources.getString(R.string.no_connection), context = context, type = PopupType.Error)
                             } else {
@@ -486,76 +359,44 @@ fun ArtistOverview(
                                             }
                                     }
                             }
-
-                            }
-                            // Fixed height so the pill matches the circular buttons beside
-                            // it; padding alone left it a few dp shorter.
-                            .height(40.dp)
-                            .padding(horizontal = 20.dp)
-                    ) {
-                        BasicText(
-                            text = if (artist?.bookmarkedAt == null) stringResource(R.string.follow)
-                            else stringResource(R.string.following),
-                            style = typography().xxs.semiBold.color(colorPalette().text),
-                            maxLines = 1
-                        )
-                    }
+                        }
+                    )
 
                     artistPage?.shuffleEndpoint?.let { endpoint ->
-                        HeaderIconButton(
+                        MediaActionButton(
                             icon = R.drawable.shuffle,
-                            enabled = true,
-                            color = colorPalette().text,
-                            onClick = {},
-                            modifier = Modifier
-                                .padding(horizontal = 6.dp)
-                                .glassSurface(shape = CircleShape, elevation = 6.dp)
-                                .combinedClickable(
-                                    onClick = {
-                                        binder?.stopRadio()
-                                        binder?.playRadio(endpoint)
-                                    },
-                                    onLongClick = {
-                                        SmartMessage(
-                                            context.resources.getString(R.string.info_shuffle),
-                                            context = context
-                                        )
-                                    }
+                            onClick = {
+                                binder?.stopRadio()
+                                binder?.playRadio(endpoint)
+                            },
+                            onLongClick = {
+                                SmartMessage(
+                                    context.resources.getString(R.string.info_shuffle),
+                                    context = context
                                 )
-                                .padding(10.dp)
+                            }
                         )
                     }
 
                     artistPage?.radioEndpoint?.let { endpoint ->
-                        HeaderIconButton(
+                        MediaActionButton(
                             icon = R.drawable.radio,
-                            enabled = true,
-                            color = colorPalette().text,
-                            onClick = {},
-                            modifier = Modifier
-                                .padding(horizontal = 6.dp)
-                                .glassSurface(shape = CircleShape, elevation = 6.dp)
-                                .combinedClickable(
-                                    onClick = {
-                                        binder?.stopRadio()
-                                        binder?.playRadio(endpoint)
-                                    },
-                                    onLongClick = {
-                                        SmartMessage(
-                                            context.resources.getString(R.string.info_start_radio),
-                                            context = context
-                                        )
-                                    }
+                            onClick = {
+                                binder?.stopRadio()
+                                binder?.playRadio(endpoint)
+                            },
+                            onLongClick = {
+                                SmartMessage(
+                                    context.resources.getString(R.string.info_start_radio),
+                                    context = context
                                 )
-                                .padding(10.dp)
+                            }
                         )
                     }
 
                     // Everything this artist has in the library, in one download.
-                    HeaderIconButton(
+                    MediaActionButton(
                         icon = R.drawable.downloaded,
-                        enabled = true,
-                        color = colorPalette().text,
                         onClick = {
                             // Not the composition scope: the query outlives this click.
                             CoroutineScope(Dispatchers.IO).launch {
@@ -582,26 +423,15 @@ fun ArtistOverview(
                                     )
                                 }
                             }
-                        },
-                        modifier = Modifier
-                            .padding(horizontal = 6.dp)
-                            .glassSurface(shape = CircleShape, elevation = 6.dp)
-                            .padding(10.dp)
+                        }
                     )
 
                     artistPage?.let {
-                        HeaderIconButton(
+                        MediaActionButton(
                             icon = R.drawable.share_social,
-                            enabled = true,
-                            color = colorPalette().text,
-                            onClick = { showFastShare = true },
-                            modifier = Modifier
-                                .padding(horizontal = 6.dp)
-                                .glassSurface(shape = CircleShape, elevation = 6.dp)
-                                .padding(10.dp)
+                            onClick = { showFastShare = true }
                         )
                     }
-                }
                 }
             }
 
@@ -894,7 +724,14 @@ fun ArtistOverview(
                                             disableScrollingText = disableScrollingText,
                                             isYoutubePlaylist = playlistById?.isYoutubePlaylist == true,
                                             modifier = Modifier.clickable(onClick = {
-                                                navController.navigate("${NavRoutes.playlist.name}/${item.key}")
+                                                // Personal mixes (RD...) have no browsable page: play them.
+                                                val mixId = item.key.removePrefix("VL")
+                                                if (mixId.startsWith("RD") && !mixId.startsWith("RDCLAK")) {
+                                                    binder?.stopRadio()
+                                                    binder?.playRadio(NavigationEndpoint.Endpoint.Watch(playlistId = mixId))
+                                                } else {
+                                                    navController.navigate("${NavRoutes.playlist.name}/${item.key}")
+                                                }
                                             })
                                         )
                                     }

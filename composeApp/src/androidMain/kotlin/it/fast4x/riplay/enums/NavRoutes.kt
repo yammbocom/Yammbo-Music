@@ -40,7 +40,8 @@ enum class NavRoutes {
     blacklist,
     ritunecontroller,
     onBoarding,
-    webview;
+    webview,
+    myAccount;
 
     companion object {
         fun current( navController: NavController ) = navController.currentBackStackEntry?.destination?.route

@@ -42,6 +42,7 @@ import coil.compose.AsyncImage
 import com.yambo.music.R
 import it.fast4x.environment.Environment
 import it.fast4x.environment.requests.chartsPageComplete
+import it.fast4x.riplay.LocalPlayerServiceBinder
 import it.fast4x.riplay.enums.Countries
 import it.fast4x.riplay.enums.NavRoutes
 import it.fast4x.riplay.extensions.preferences.rememberPreference
@@ -50,6 +51,7 @@ import it.fast4x.riplay.ui.components.pressable
 import it.fast4x.riplay.ui.styling.secondary
 import it.fast4x.riplay.ui.styling.semiBold
 import it.fast4x.riplay.utils.colorPalette
+import it.fast4x.riplay.utils.openPlaylistOrMix
 import it.fast4x.riplay.utils.typography
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -200,6 +202,7 @@ fun PopularArtistsRow(navController: NavController) {
 @UnstableApi
 @Composable
 fun PopularPlaylistsGrid(navController: NavController) {
+    val binder = LocalPlayerServiceBinder.current
     val playlists = rememberChartsPage()?.playlists?.take(POPULAR_PLAYLISTS).orEmpty()
 
     if (playlists.isEmpty()) return
@@ -226,7 +229,7 @@ fun PopularPlaylistsGrid(navController: NavController) {
                             modifier = Modifier.weight(1f)
                         ) {
                             if (playlist.key.isNotEmpty())
-                                navController.navigate("${NavRoutes.playlist.name}/${playlist.key}")
+                                openPlaylistOrMix(navController, binder, playlist.key)
                         }
                     }
                     // Keep a lone last card at half width instead of stretching it.

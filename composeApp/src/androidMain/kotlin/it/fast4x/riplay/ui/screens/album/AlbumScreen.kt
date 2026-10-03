@@ -56,6 +56,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
+import androidx.compose.runtime.mutableIntStateOf
 import timber.log.Timber
 
 
@@ -90,13 +92,15 @@ fun AlbumScreen(
     var album by persist<Album?>("album/$browseId/album")
     //var albumPage by persist<AlbumPage?>("album/$browseId/albumPage")
     var albumPage by remember { mutableStateOf<AlbumPage?>(null) }
+    var loadFailed by remember { mutableStateOf(false) }
+    var reloadKey by remember { mutableIntStateOf(0) }
 
     val disableScrollingText by rememberPreference(disableScrollingTextKey, false)
 
     PersistMapCleanup(tagPrefix = "album/$browseId/")
 
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(reloadKey) {
         // Usiamo collectLatest: se il DB emette valori velocemente, cancella la raccolta precedente
         Database.album(browseId).collectLatest { currentAlbum ->
             album = currentAlbum
@@ -105,8 +109,11 @@ fun AlbumScreen(
             if (albumPage == null) {
                 // Spostiamoci sul thread IO per la rete e il DB usando withContext
                 withContext(Dispatchers.IO) {
-                    EnvironmentExt.getAlbum(browseId)
-                        .onSuccess { currentAlbumPage ->
+                    // A hung request would otherwise keep the loader up forever.
+                    val result = withTimeoutOrNull(20_000L) { EnvironmentExt.getAlbum(browseId) }
+                    if (result == null || result.isFailure) loadFailed = true
+                    result
+                        ?.onSuccess { currentAlbumPage ->
                             albumPage = currentAlbumPage
 
                             try {
@@ -157,7 +164,7 @@ fun AlbumScreen(
                                 Timber.e("AlbumScreen Errore salvataggio DB Album/Songs: ${e.stackTraceToString()}")
                             }
                         }
-                        .onFailure {
+                        ?.onFailure {
                             Timber.e("AlbumScreen network error ${it.stackTraceToString()}")
                         }
                 }
@@ -327,6 +334,8 @@ fun AlbumScreen(
             navController = navController,
             browseId = browseId,
             albumPage = albumPage,
+            loadFailed = loadFailed,
+            onRetry = { loadFailed = false; reloadKey++ },
             headerContent = headerContent,
             thumbnailContent = thumbnailContent,
             onSearchClick = {

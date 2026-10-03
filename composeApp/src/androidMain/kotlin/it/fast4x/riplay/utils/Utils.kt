@@ -174,7 +174,10 @@ val Environment.PlaylistItem.asPlaylist: Playlist
         browseId = key,
         name = info?.name.toString(),
         isPodcast = false
-    )
+    ).also {
+        // Carried into the share card so playlists are shared with their cover.
+        it.thumbnailUrl = thumbnail?.url
+    }
 
 val Environment.Podcast.EpisodeItem.asMediaItem: MediaItem
     @UnstableApi
@@ -1199,46 +1202,71 @@ suspend fun addSongToYtPlaylist(localPlaylistId: Long, position: Int, ytplaylist
 }
 
 
+/**
+ * Applies a like/unlike locally and, when the likes sync is on, to the YouTube Music account.
+ * The local change goes first so the UI answers at once; a push that fails is queued and retried
+ * by the next sync instead of being lost.
+ *
+ * @return true when the account confirmed, false when the push failed (queued), null when nothing
+ * was sent to the account (sync off or a local file).
+ */
+@OptIn(UnstableApi::class)
+private suspend fun applyLike(mediaItem: MediaItem, like: Boolean): Boolean? {
+    withContext(Dispatchers.IO) {
+        if (Database.songExist(mediaItem.mediaId) == 0) Database.insert(mediaItem)
+        Database.like(mediaItem.mediaId, if (like) System.currentTimeMillis() else null)
+    }
+
+    if (!isYtLikeSyncEnabled() || mediaItem.isLocal) return null
+
+    val pushed = pushYtLike(mediaItem.mediaId, like)
+    if (pushed) {
+        YtSyncState.clearPending(mediaItem.mediaId)
+        // Becomes "synced" only once the account lists it; see runLikeSync.
+        if (like) YtSyncState.addPushedLiked(listOf(mediaItem.mediaId))
+        else { YtSyncState.removeSyncedLiked(listOf(mediaItem.mediaId)); YtSyncState.removePushedLiked(listOf(mediaItem.mediaId)) }
+    } else {
+        YtSyncState.setPending(mediaItem.mediaId, like)
+    }
+    return pushed
+}
+
+/** Toggle: likes the song, or removes the like when it is already liked. */
 @OptIn(UnstableApi::class)
 suspend fun addToOnlineLikedSong(mediaItem: MediaItem){
 
-    if(isEnabledLastFm()) {
-        sendLoveTrack(mediaItem.mediaMetadata.artist as String,
-            mediaItem.mediaMetadata.title as String
-        )
-        SmartMessage(
-            appContext().resources.getString(R.string.song_liked_lastfm),
-            context = appContext(),
-            durationLong = false
-        )
+    val alreadyLiked = (withContext(Dispatchers.IO) { getLikedAt(mediaItem.mediaId) } ?: 0L) > 0L
+    if (alreadyLiked) {
+        removeFromOnlineLikedSong(mediaItem)
+        return
+    }
+
+    if (isEnabledLastFm()) {
+        val artist = mediaItem.mediaMetadata.artist?.toString()
+        val title = mediaItem.mediaMetadata.title?.toString()
+        if (!artist.isNullOrBlank() && !title.isNullOrBlank()) {
+            sendLoveTrack(artist, title)
+            SmartMessage(
+                appContext().resources.getString(R.string.song_liked_lastfm),
+                context = appContext(),
+                durationLong = false
+            )
+        }
     }
 
     if (isYtSyncEnabled()) {
-        if (getLikedAt(mediaItem.mediaId) in listOf(-1L, null)) {
-            likeVideoOrSong(mediaItem.mediaId)
-                .onSuccess {
-                    Database.asyncTransaction {
-                        if (songExist(mediaItem.mediaId) == 0) {
-                            Database.insert(mediaItem)
-                        }
-                        like(mediaItem.mediaId, System.currentTimeMillis())
-
-                    }
-                    SmartMessage(
-                        appContext().resources.getString(R.string.songs_liked_yt),
-                        context = appContext(),
-                        durationLong = false
-                    )
-                }
-                .onFailure {
-                    SmartMessage(
-                        appContext().resources.getString(R.string.songs_liked_yt_failed),
-                        context = appContext(),
-                        durationLong = false
-                    )
-                }
-        } else {
-            removeFromOnlineLikedSong(mediaItem)
+        when (applyLike(mediaItem, true)) {
+            true -> SmartMessage(
+                appContext().resources.getString(R.string.songs_liked_yt),
+                context = appContext(),
+                durationLong = false
+            )
+            false -> SmartMessage(
+                appContext().resources.getString(R.string.songs_liked_yt_failed),
+                context = appContext(),
+                durationLong = false
+            )
+            null -> Unit
         }
     }
 }
@@ -1246,40 +1274,33 @@ suspend fun addToOnlineLikedSong(mediaItem: MediaItem){
 @OptIn(UnstableApi::class)
 suspend fun removeFromOnlineLikedSong(mediaItem: MediaItem){
 
-    if(isEnabledLastFm()) {
-        sendUnloveTrack(mediaItem.mediaMetadata.artist as String,
-            mediaItem.mediaMetadata.title as String
-        )
-        SmartMessage(
-            appContext().resources.getString(R.string.song_unliked_lastfm),
-            context = appContext(),
-            durationLong = false
-        )
+    if (isEnabledLastFm()) {
+        val artist = mediaItem.mediaMetadata.artist?.toString()
+        val title = mediaItem.mediaMetadata.title?.toString()
+        if (!artist.isNullOrBlank() && !title.isNullOrBlank()) {
+            sendUnloveTrack(artist, title)
+            SmartMessage(
+                appContext().resources.getString(R.string.song_unliked_lastfm),
+                context = appContext(),
+                durationLong = false
+            )
+        }
     }
 
-    if(isYtSyncEnabled()){
-        removelikeVideoOrSong(mediaItem.mediaId)
-            .onSuccess {
-                Database.asyncTransaction {
-                    if(songExist(mediaItem.mediaId) == 0){
-                        insert(mediaItem)
-                    }
-                    like(mediaItem.mediaId, null)
-
-                }
-                SmartMessage(
-                    appContext().resources.getString(R.string.song_unliked_yt),
-                    context = appContext(),
-                    durationLong = false
-                )
-            }
-            .onFailure {
-                SmartMessage(
-                    appContext().resources.getString(R.string.songs_unliked_yt_failed),
-                    context = appContext(),
-                    durationLong = false
-                )
-            }
+    if (isYtSyncEnabled()) {
+        when (applyLike(mediaItem, false)) {
+            true -> SmartMessage(
+                appContext().resources.getString(R.string.song_unliked_yt),
+                context = appContext(),
+                durationLong = false
+            )
+            false -> SmartMessage(
+                appContext().resources.getString(R.string.songs_unliked_yt_failed),
+                context = appContext(),
+                durationLong = false
+            )
+            null -> Unit
+        }
     }
 }
 
@@ -1287,26 +1308,22 @@ suspend fun removeFromOnlineLikedSong(mediaItem: MediaItem){
 suspend fun addToYtLikedSongs(mediaItems: List<MediaItem>){
     if (isYtSyncEnabled()) {
         mediaItems.forEachIndexed { index, item ->
-            delay(1000)
-            likeVideoOrSong(item.mediaId).onSuccess {
-                Database.asyncTransaction {
-                    if (songExist(item.mediaId) == 0) {
-                        Database.insert(item)
-                    }
-                    like(item.mediaId, System.currentTimeMillis())
-
-                }
-                SmartMessage(
-                    "${index + 1}/${mediaItems.size} " + appContext().resources.getString(R.string.songs_liked_yt),
+            // Pause between pushes only when one was actually sent, to stay under rate limits.
+            val pushed = applyLike(item, true)
+            if (pushed != null) delay(1000)
+            val counter = "${index + 1}/${mediaItems.size} "
+            when (pushed) {
+                true -> SmartMessage(
+                    counter + appContext().resources.getString(R.string.songs_liked_yt),
                     context = appContext(),
                     durationLong = false
                 )
-            }.onFailure {
-                SmartMessage(
-                    "${index + 1}/${mediaItems.size} " + appContext().resources.getString(R.string.songs_liked_yt_failed),
+                false -> SmartMessage(
+                    counter + appContext().resources.getString(R.string.songs_liked_yt_failed),
                     context = appContext(),
                     durationLong = false
                 )
+                null -> Unit
             }
         }
     }

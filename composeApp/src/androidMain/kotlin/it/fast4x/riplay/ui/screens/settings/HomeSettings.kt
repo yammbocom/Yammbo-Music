@@ -21,6 +21,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.unit.sp
+import it.fast4x.riplay.ui.components.themed.LocalSettingsCard
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.shape.CircleShape
@@ -86,9 +89,9 @@ fun HomeSettings(navController: androidx.navigation.NavController? = null) {
                     1f
             )
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp)
+            .padding(horizontal = 16.dp)
     ) {
-        Spacer(modifier = Modifier.height(40.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         // Homepage Type
         SettingsCard(title = stringResource(R.string.home)) {
@@ -158,7 +161,7 @@ fun HomeSettings(navController: androidx.navigation.NavController? = null) {
             Column {
                 Spacer(modifier = Modifier.height(12.dp))
 
-                SettingsCard(title = "Extended") {
+                SettingsCard(title = stringResource(R.string.settings_home_extended)) {
                     SwitchSettingEntry(
                         offline = false,
                         title = stringResource(R.string.charts),
@@ -319,21 +322,29 @@ internal fun SettingsCard(
     title: String,
     content: @Composable () -> Unit
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(colorPalette().background1)
-            .padding(16.dp)
-    ) {
+    // Title sits above the card (small caps); rows inside get dividers through
+    // LocalSettingsCard, same look as the lazy sections.
+    Column(modifier = Modifier.fillMaxWidth()) {
         BasicText(
             text = title.uppercase(),
             style = typography().xxs.copy(
                 fontWeight = FontWeight.SemiBold,
-                color = colorPalette().textSecondary
-            )
+                color = colorPalette().textSecondary,
+                letterSpacing = 1.sp
+            ),
+            modifier = Modifier.padding(start = 4.dp, top = 8.dp, bottom = 8.dp)
         )
-        Spacer(modifier = Modifier.height(8.dp))
-        content()
+        CompositionLocalProvider(LocalSettingsCard provides true) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(colorPalette().background1)
+                    .hideLeadingHairline()
+                    .padding(horizontal = 4.dp)
+            ) {
+                content()
+            }
+        }
     }
 }

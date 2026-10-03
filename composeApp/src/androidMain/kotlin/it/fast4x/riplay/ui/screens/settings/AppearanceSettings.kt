@@ -55,7 +55,6 @@ import it.fast4x.riplay.enums.ThumbnailCoverType
 import it.fast4x.riplay.enums.ThumbnailRoundness
 import it.fast4x.riplay.enums.ThumbnailType
 import it.fast4x.riplay.enums.WallpaperType
-import it.fast4x.riplay.ui.components.themed.HeaderWithIcon
 import it.fast4x.riplay.ui.components.themed.SmartMessage
 import it.fast4x.riplay.ui.styling.Dimensions
 import it.fast4x.riplay.utils.RestartPlayerService
@@ -648,6 +647,7 @@ fun AppearanceSettings(
 
         }
 
+    val noDocumentApp = stringResource(R.string.settings_misc_no_document_app)
     var isExporting by rememberSaveable {
         mutableStateOf(false)
     }
@@ -658,9 +658,9 @@ fun AppearanceSettings(
             onDismiss = {
                 isExporting = false
             },
-            title = "Enter the name of settings export",
+            title = stringResource(R.string.settings_appearance_export_name_title),
             value = "RP_Appearance",
-            placeholder = "Enter the name of settings export",
+            placeholder = stringResource(R.string.settings_appearance_export_name_title),
             setValue = { text ->
                 appearanceFilename = text
                 try {
@@ -670,7 +670,7 @@ fun AppearanceSettings(
                         Date()
                     )}")
                 } catch (e: ActivityNotFoundException) {
-                    SmartMessage("Couldn't find an application to create documents",
+                    SmartMessage(noDocumentApp,
                         type = PopupType.Warning, context = context)
                 }
             }
@@ -1276,17 +1276,6 @@ fun AppearanceSettings(
                 state = state,
                 contentPadding = PaddingValues(bottom = Dimensions.bottomSpacer)
             ) {
-                settingsItem {
-                    HeaderWithIcon(
-                        title = stringResource(R.string.player_appearance),
-                        iconId = R.drawable.color_palette,
-                        enabled = false,
-                        showIcon = true,
-                        modifier = Modifier,
-                        onClick = {}
-                    )
-                }
-
                 settingsSearchBarItem {
                     search.ToolBarButton()
                     search.SearchBar(this)

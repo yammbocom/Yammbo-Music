@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="share_msg_with_artist">Listen to “%1$s” by %2$s on Yammbo Music</string>
+    <string name="share_msg_no_artist">Listen to “%1$s” on Yammbo Music</string>
+    <string name="share_label_album">Album</string>
+    <string name="share_label_artist">Artist</string>
+    <string name="share_label_playlist">Playlist</string>
+    <string name="share_label_podcast">Podcast</string>
+    <string name="share_target_ig_story">Instagram</string>
+    <string name="share_target_copy_link">Copy link</string>
+    <string name="share_target_save_image">Save image</string>
+    <string name="share_link_copied">Link copied</string>
+    <string name="share_image_saved">Image saved to Pictures/Yammbo Music</string>
+    <string name="share_image_save_failed">Could not save the image</string>
+</resources>

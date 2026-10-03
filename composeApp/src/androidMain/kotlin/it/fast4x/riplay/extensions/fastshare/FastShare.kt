@@ -3,7 +3,15 @@ package it.fast4x.riplay.extensions.fastshare
 import it.fast4x.riplay.extensions.yammboapi.AppEvents
 import androidx.compose.foundation.layout.Box
 import android.content.ActivityNotFoundException
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.ContentValues
+import android.media.MediaScannerConnection
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
 import it.fast4x.riplay.utils.isLocal
+import it.fast4x.riplay.commonutils.cleanPrefix
 import it.fast4x.riplay.utils.isRadio
 import android.content.Context
 import android.content.Intent
@@ -23,6 +31,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -45,14 +55,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.media3.common.MediaItem
@@ -76,7 +85,6 @@ import it.fast4x.riplay.ui.components.themed.SmartMessage
 import it.fast4x.riplay.ui.styling.semiBold
 import it.fast4x.riplay.utils.asSong
 import it.fast4x.riplay.utils.colorPalette
-import it.fast4x.riplay.utils.copyTextToClipboard
 import it.fast4x.riplay.utils.thumbnailShape
 import it.fast4x.riplay.utils.typography
 import kotlinx.coroutines.launch
@@ -119,37 +127,46 @@ fun FastShare(
     var shareTitle by remember { mutableStateOf("") }
     var shareArtist by remember { mutableStateOf("") }
     var thumbnailUrl by remember { mutableStateOf<String?>(null) }
+    // Caption of the story card; null keeps the default "now playing" used for songs.
+    var storyLabel by remember { mutableStateOf<String?>(null) }
     var pendingInstallApp by remember { mutableStateOf<DownloaderApp?>(null) }
 
+    val appContext = LocalContext.current
     LaunchedEffect(Unit) {
         when (content) {
             is MediaItem -> content.asSong.let {
-                shareTitle = it.title
+                shareTitle = cleanPrefix(it.title)
                 shareArtist = it.artistsText ?: ""
                 thumbnailUrl = it.thumbnailUrl
                 urlToShare = it.shareYamboUrl ?: ""
                 ytUrlToShare = it.shareYTUrl ?: it.shareYTMUrl ?: ""
             }
             is Playlist -> {
-                shareTitle = content.name
+                shareTitle = cleanPrefix(content.name)
                 shareArtist = ""
                 thumbnailUrl = content.thumbnailUrl
                 urlToShare = content.shareYamboUrl ?: ""
                 ytUrlToShare = content.shareYTUrl ?: content.shareYTMUrl ?: ""
+                storyLabel = appContext.getString(
+                    if (content.isPodcastShow || content.isPodcast) R.string.share_label_podcast
+                    else R.string.share_label_playlist
+                )
             }
             is Album -> {
-                shareTitle = content.title ?: ""
+                shareTitle = cleanPrefix(content.title ?: "")
                 shareArtist = content.authorsText ?: ""
                 thumbnailUrl = content.thumbnailUrl
                 urlToShare = content.shareYamboUrl ?: ""
                 ytUrlToShare = content.shareYTUrl ?: content.shareYTMUrl ?: ""
+                storyLabel = appContext.getString(R.string.share_label_album)
             }
             is Artist -> {
-                shareTitle = content.name ?: ""
+                shareTitle = cleanPrefix(content.name ?: "")
                 shareArtist = ""
                 thumbnailUrl = content.thumbnailUrl
                 urlToShare = content.shareYamboUrl ?: ""
                 ytUrlToShare = content.shareYTUrl ?: content.shareYTMUrl ?: ""
+                storyLabel = appContext.getString(R.string.share_label_artist)
             }
         }
     }
@@ -171,7 +188,7 @@ fun FastShare(
     LaunchedEffect(showFastShare, urlToShare) {
         if (showFastShare && urlToShare.isNotEmpty() && storyUri == null)
             storyUri = ShareImageGenerator.generateShareImage(
-                context, shareTitle, shareArtist, thumbnailUrl, urlToShare
+                context, shareTitle, shareArtist, thumbnailUrl, urlToShare, storyLabel
             )
     }
 
@@ -195,23 +212,42 @@ fun FastShare(
         },
         shape = SheetShape
     ) {
-        val shareToApp = { packageName: String? ->
+        // Runs [action] with the story image, rendering it first if the preview is not ready.
+        val withStoryImage = { event: String, action: (Uri?) -> Unit ->
             if (!isGeneratingImage) {
                 isGeneratingImage = true
-                AppEvents.log(AppEvents.SHARE_SONG, detail = packageName ?: "chooser")
+                AppEvents.log(AppEvents.SHARE_SONG, detail = event)
                 scope.launch {
                     val imageUri = storyUri ?: ShareImageGenerator.generateShareImage(
-                        context, shareTitle, shareArtist, thumbnailUrl, urlToShare
+                        context, shareTitle, shareArtist, thumbnailUrl, urlToShare, storyLabel
                     )
+                    if (storyUri == null) storyUri = imageUri
                     isGeneratingImage = false
-                    if (imageUri != null) {
-                        shareWithImage(context, packageName, imageUri, shareTitle, urlToShare)
-                    } else {
-                        classicShare(urlToShare, context, "$shareTitle - $shareArtist")
-                    }
+                    action(imageUri)
                 }
             }
         }
+
+        val shareToApp = { packageName: String? ->
+            withStoryImage(packageName ?: "chooser") { imageUri ->
+                val intro = buildShareIntro(context, shareTitle, shareArtist)
+                if (imageUri != null) {
+                    shareWithImage(context, packageName, imageUri, intro, urlToShare)
+                } else {
+                    classicShare(urlToShare, context, intro)
+                }
+            }
+        }
+
+        val copyLink = {
+            runCatching {
+                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                clipboard.setPrimaryClip(ClipData.newPlainText("Yammbo Music", urlToShare))
+            }
+            SmartMessage(context.getString(R.string.share_link_copied), PopupType.Info, context = context)
+        }
+
+        val instagramInstalled = remember { isPackageInstalled(context, INSTAGRAM_PACKAGE) }
 
         Column(
             modifier = Modifier
@@ -256,7 +292,8 @@ fun FastShare(
                         color = colorPalette().text,
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp,
-                        maxLines = 1
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
                     )
                     if (shareArtist.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(2.dp))
@@ -264,7 +301,8 @@ fun FastShare(
                             text = shareArtist,
                             color = colorPalette().textSecondary,
                             fontSize = 13.sp,
-                            maxLines = 1
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
@@ -280,7 +318,7 @@ fun FastShare(
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
                     .background(colorPalette().background2)
-                    .clickable { copyTextToClipboard(urlToShare, context) }
+                    .clickable { copyLink() }
                     .padding(horizontal = 16.dp, vertical = 14.dp)
             ) {
                 Text(
@@ -288,6 +326,7 @@ fun FastShare(
                     fontSize = 12.sp,
                     color = colorPalette().textSecondary,
                     maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
@@ -309,37 +348,59 @@ fun FastShare(
                 modifier = Modifier.padding(bottom = 12.dp)
             )
 
+            // Monochrome tiles; the row scrolls sideways when the screen is narrow.
             Row(
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                modifier = Modifier.fillMaxWidth()
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
             ) {
-                SocialShareButton(
-                    icon = R.drawable.brand_instagram,
-                    label = "Instagram",
-                    brush = Brush.linearGradient(
-                        listOf(Color(0xFFFEDA77), Color(0xFFF58529), Color(0xFFDD2A7B), Color(0xFF8134AF))
-                    )
-                ) { shareToApp("com.instagram.android") }
+                // Only offered when Instagram is installed, so the tile never leads to an error.
+                if (instagramInstalled)
+                    SocialShareButton(
+                        icon = R.drawable.brand_instagram,
+                        label = stringResource(R.string.share_target_ig_story)
+                    ) {
+                        withStoryImage("instagram_story") { imageUri ->
+                            val intro = buildShareIntro(context, shareTitle, shareArtist)
+                            if (imageUri != null) shareToInstagramStory(context, imageUri, intro, urlToShare)
+                            else classicShare(urlToShare, context, intro)
+                        }
+                    }
                 SocialShareButton(
                     icon = R.drawable.brand_whatsapp,
-                    label = "WhatsApp",
-                    brush = Brush.linearGradient(
-                        listOf(Color(0xFF25D366), Color(0xFF128C7E))
-                    )
+                    label = "WhatsApp"
                 ) { shareToApp("com.whatsapp") }
                 SocialShareButton(
                     icon = R.drawable.brand_facebook,
-                    label = "Facebook",
-                    brush = Brush.linearGradient(
-                        listOf(Color(0xFF1877F2), Color(0xFF0A4A9C))
-                    )
+                    label = "Facebook"
                 ) { shareToApp("com.facebook.katana") }
                 SocialShareButton(
+                    icon = R.drawable.link,
+                    label = stringResource(R.string.share_target_copy_link)
+                ) { copyLink() }
+                SocialShareButton(
+                    icon = R.drawable.download,
+                    label = stringResource(R.string.share_target_save_image)
+                ) {
+                    withStoryImage("save_image") { imageUri ->
+                        scope.launch {
+                            val saved = imageUri != null && withContext(Dispatchers.IO) {
+                                saveImageToGallery(context, imageUri)
+                            }
+                            SmartMessage(
+                                context.getString(
+                                    if (saved) R.string.share_image_saved else R.string.share_image_save_failed
+                                ),
+                                if (saved) PopupType.Success else PopupType.Error,
+                                context = context
+                            )
+                        }
+                    }
+                }
+                SocialShareButton(
                     icon = R.drawable.share_social,
-                    label = "YTDLnis",
-                    brush = Brush.linearGradient(
-                        listOf(Color(0xFF424242), Color(0xFF1B1B1B))
-                    )
+                    label = "YTDLnis"
                 ) {
                     // Free users cannot download tracks via YTDLnis — gate behind Premium.
                     if (PremiumGuard.checkFeature(context, PremiumFeature.Download)) {
@@ -403,27 +464,27 @@ fun FastShare(
 private fun SocialShareButton(
     icon: Int,
     label: String,
-    brush: Brush? = null,
     onClick: () -> Unit
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
+            .width(76.dp)
             .clip(RoundedCornerShape(14.dp))
             .clickable(onClick = onClick)
-            .padding(horizontal = 8.dp, vertical = 6.dp)
+            .padding(vertical = 6.dp)
     ) {
-        val iconBox = Modifier
-            .size(52.dp)
-            .clip(RoundedCornerShape(14.dp))
         Column(
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = if (brush != null) iconBox.background(brush) else iconBox.background(colorPalette().background2)
+            modifier = Modifier
+                .size(52.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(colorPalette().background2)
         ) {
             Image(
                 painter = painterResource(icon),
-                colorFilter = if (brush != null) ColorFilter.tint(Color.White) else ColorFilter.tint(colorPalette().text),
+                colorFilter = ColorFilter.tint(colorPalette().text),
                 contentDescription = label,
                 modifier = Modifier.size(26.dp)
             )
@@ -434,8 +495,45 @@ private fun SocialShareButton(
             color = colorPalette().textSecondary,
             fontSize = 11.sp,
             fontWeight = FontWeight.Medium,
-            textAlign = TextAlign.Center
+            textAlign = TextAlign.Center,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis
         )
+    }
+}
+
+private const val INSTAGRAM_PACKAGE = "com.instagram.android"
+
+private fun isPackageInstalled(context: Context, packageName: String): Boolean =
+    runCatching {
+        context.packageManager.getPackageInfo(packageName, 0)
+        true
+    }.getOrDefault(false)
+
+/** "Escucha «Title» de Artist en Yammbo Music"; the link goes on the next line. */
+private fun buildShareIntro(context: Context, title: String, artist: String): String =
+    if (artist.isNotBlank()) context.getString(R.string.share_msg_with_artist, title, artist)
+    else context.getString(R.string.share_msg_no_artist, title)
+
+private fun startShareIntent(context: Context, intent: Intent, packageName: String?, imageUri: Uri?) {
+    if (imageUri != null) {
+        // ClipData + explicit grant: the flag alone is ignored by some targets and, with a
+        // chooser, the grant has to reach every app the user can pick.
+        intent.clipData = ClipData.newRawUri("", imageUri)
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        if (packageName != null) {
+            runCatching {
+                context.grantUriPermission(packageName, imageUri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+        }
+    }
+    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    if (packageName != null) {
+        context.startActivity(intent)
+    } else {
+        val chooser = Intent.createChooser(intent, null)
+        chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        context.startActivity(chooser)
     }
 }
 
@@ -443,46 +541,25 @@ private fun shareWithImage(
     context: Context,
     packageName: String?,
     imageUri: Uri?,
-    title: String,
+    intro: String,
     url: String
 ) {
     try {
-        if (imageUri != null) {
-            val intent = Intent(Intent.ACTION_SEND).apply {
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            if (imageUri != null) {
                 type = "image/png"
                 putExtra(Intent.EXTRA_STREAM, imageUri)
-                putExtra(Intent.EXTRA_TEXT, "$title\n$url")
-                putExtra(Intent.EXTRA_SUBJECT, title)
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                if (packageName != null) setPackage(packageName)
-            }
-            if (packageName != null) {
-                context.startActivity(intent)
             } else {
-                val chooser = Intent.createChooser(intent, null)
-                chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                context.startActivity(chooser)
-            }
-        } else {
-            // Fallback to text share
-            val intent = Intent(Intent.ACTION_SEND).apply {
                 type = "text/plain"
-                putExtra(Intent.EXTRA_TEXT, "$title\n$url")
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                if (packageName != null) setPackage(packageName)
             }
-            if (packageName != null) {
-                context.startActivity(intent)
-            } else {
-                val chooser = Intent.createChooser(intent, null)
-                chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                context.startActivity(chooser)
-            }
+            putExtra(Intent.EXTRA_TEXT, "$intro\n$url")
+            putExtra(Intent.EXTRA_SUBJECT, intro)
+            if (packageName != null) setPackage(packageName)
         }
+        startShareIntent(context, intent, packageName, imageUri)
     } catch (e: ActivityNotFoundException) {
         val appName = when (packageName) {
-            "com.instagram.android" -> "Instagram"
+            INSTAGRAM_PACKAGE -> "Instagram"
             "com.whatsapp" -> "WhatsApp"
             "com.facebook.katana" -> "Facebook"
             else -> context.getString(R.string.share_app_fallback_label)
@@ -492,8 +569,63 @@ private fun shareWithImage(
             PopupType.Error,
             context = context,
         )
+    } catch (e: Exception) {
+        // A refused grant or an odd OEM restriction must never crash the share sheet.
+        classicShare(url, context, intro)
     }
 }
+
+/**
+ * Sends the card to the Instagram story editor. If the story action is refused it falls back
+ * to a plain send to the app, which still lets the user pick feed, story or message.
+ */
+private fun shareToInstagramStory(context: Context, imageUri: Uri, intro: String, url: String) {
+    // ADD_TO_STORY requires a registered Facebook App ID ("source_application"); without one
+    // Instagram opens and silently drops the content. A plain image share to Instagram opens its
+    // own picker, which offers Story, Feed and Messages.
+    shareWithImage(context, INSTAGRAM_PACKAGE, imageUri, intro, url)
+}
+
+/** Copies the card into Pictures/Yammbo Music. Returns false when it could not be saved. */
+private fun saveImageToGallery(context: Context, source: Uri): Boolean = runCatching {
+    val name = "YammboMusic_" + System.currentTimeMillis() + ".png"
+    val resolver = context.contentResolver
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        val values = ContentValues().apply {
+            put(MediaStore.Images.Media.DISPLAY_NAME, name)
+            put(MediaStore.Images.Media.MIME_TYPE, "image/png")
+            put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/Yammbo Music")
+            put(MediaStore.Images.Media.IS_PENDING, 1)
+        }
+        val target = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
+            ?: return@runCatching false
+        val copied = resolver.openInputStream(source)?.use { input ->
+            resolver.openOutputStream(target)?.use { output -> input.copyTo(output) }
+        } != null
+        if (!copied) {
+            resolver.delete(target, null, null)
+            return@runCatching false
+        }
+        values.clear()
+        values.put(MediaStore.Images.Media.IS_PENDING, 0)
+        resolver.update(target, values, null, null)
+        true
+    } else {
+        // Below Android 10 there is no scoped storage; this needs WRITE_EXTERNAL_STORAGE, so on
+        // a device without it the copy throws and the caller shows the failure message.
+        @Suppress("DEPRECATION")
+        val folder = File(
+            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
+            "Yammbo Music"
+        ).apply { mkdirs() }
+        val file = File(folder, name)
+        val copied = resolver.openInputStream(source)?.use { input ->
+            file.outputStream().use { output -> input.copyTo(output) }
+        } != null
+        if (copied) MediaScannerConnection.scanFile(context, arrayOf(file.absolutePath), arrayOf("image/png"), null)
+        copied
+    }
+}.getOrDefault(false)
 
 fun classicShare(content: String, context: Context, title: String = "") {
     val shareText = if (title.isNotEmpty()) "$title\n$content" else content

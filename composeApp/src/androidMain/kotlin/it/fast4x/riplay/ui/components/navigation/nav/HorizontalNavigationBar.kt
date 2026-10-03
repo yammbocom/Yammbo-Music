@@ -172,12 +172,10 @@ class HorizontalNavigationBar(
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = if (NavigationBarPosition.Bottom.isCurrent()) Arrangement.Bottom else Arrangement.Top,
-            // The Scaffold paints its containerColor across the whole bottomBar slot, which
-            // showed up as a lighter rectangle around the floating pill. Painting this strip
-            // with the app background makes the slot indistinguishable from the page.
+            // No fill here: the page now runs under the bar, so anything painted on this
+            // full-width slot would hide the content around the floating pill.
             modifier = modifier
                 .fillMaxWidth()
-                .background(colorPalette().background0)
         ) {
 
             // Definizione delle transizioni

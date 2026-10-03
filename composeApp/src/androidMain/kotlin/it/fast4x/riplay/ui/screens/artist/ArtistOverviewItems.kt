@@ -63,6 +63,7 @@ import it.fast4x.riplay.LocalPlayerServiceBinder
 import it.fast4x.riplay.LocalSelectedQueue
 import com.yambo.music.R
 import it.fast4x.riplay.utils.appContext
+import it.fast4x.riplay.utils.openPlaylistOrMix
 import it.fast4x.riplay.enums.NavRoutes
 import it.fast4x.riplay.enums.NavigationBarPosition
 import it.fast4x.riplay.ui.components.LocalGlobalSheetState
@@ -661,7 +662,7 @@ fun ArtistOverviewItems(
                                     thumbnailSizeDp = playlistThumbnailSizeDp,
                                     disableScrollingText = disableScrollingText,
                                     modifier = Modifier.clickable(onClick = {
-                                        navController.navigate("${NavRoutes.playlist.name}/${item.key}")
+                                        openPlaylistOrMix(navController, binder, item.key)
                                     })
                                         .animateItem()
                                 )

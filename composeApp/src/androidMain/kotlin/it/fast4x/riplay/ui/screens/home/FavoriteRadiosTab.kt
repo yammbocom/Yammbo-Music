@@ -7,17 +7,13 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
 import androidx.media3.common.util.UnstableApi
 import com.yambo.music.R
 import it.fast4x.riplay.LocalPlayerServiceBinder
@@ -25,15 +21,12 @@ import it.fast4x.riplay.data.Database
 import it.fast4x.riplay.enums.NavigationBarPosition
 import it.fast4x.riplay.extensions.preferences.navigationBarPositionKey
 import it.fast4x.riplay.extensions.preferences.rememberPreference
-import it.fast4x.riplay.ui.components.themed.HeaderWithIcon
 import it.fast4x.riplay.ui.items.RadioFavoriteRow
 import it.fast4x.riplay.ui.items.rememberNowPlayingMediaId
 import it.fast4x.riplay.ui.styling.Dimensions
-import it.fast4x.riplay.ui.styling.secondary
 import it.fast4x.riplay.utils.asMediaItem
 import it.fast4x.riplay.utils.colorPalette
 import it.fast4x.riplay.utils.forcePlayAtIndex
-import it.fast4x.riplay.utils.typography
 
 /**
  * Mi Música > Radios favoritas: every station the listener hearted, newest first. A station is
@@ -61,30 +54,28 @@ fun FavoriteRadiosTab() {
             )
     ) {
         LazyColumn(modifier = Modifier.fillMaxSize()) {
-            item(key = "header") {
-                HeaderWithIcon(
+            item(key = "header", contentType = "header") {
+                LibraryTitleBlock(
                     title = stringResource(R.string.favorite_radios),
-                    iconId = R.drawable.radio,
-                    enabled = true,
-                    showIcon = true,
-                    modifier = Modifier,
-                    onClick = {}
+                    subtitle = libraryCountText(R.plurals.mymusic_count_radios, favorites.size)
                 )
             }
 
             if (favorites.isEmpty()) {
-                item(key = "empty") {
-                    BasicText(
-                        text = stringResource(R.string.favorite_radios_empty),
-                        style = typography().xs.secondary.copy(textAlign = TextAlign.Center),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 32.dp, vertical = 40.dp)
+                item(key = "empty", contentType = "empty") {
+                    LibraryEmptyState(
+                        iconId = R.drawable.radio,
+                        title = stringResource(R.string.mymusic_empty_radios_title),
+                        message = stringResource(R.string.mymusic_empty_radios_hint)
                     )
                 }
             }
 
-            itemsIndexed(favorites, key = { _, song -> song.id }) { index, song ->
+            itemsIndexed(
+                favorites,
+                key = { _, song -> song.id },
+                contentType = { _, _ -> "radio" }
+            ) { index, song ->
                 RadioFavoriteRow(
                     song = song,
                     isPlaying = nowPlayingId == song.id,
@@ -97,7 +88,7 @@ fun FavoriteRadiosTab() {
                 )
             }
 
-            item(key = "footer") {
+            item(key = "footer", contentType = "footer") {
                 Spacer(modifier = Modifier.height(Dimensions.bottomSpacer))
             }
         }

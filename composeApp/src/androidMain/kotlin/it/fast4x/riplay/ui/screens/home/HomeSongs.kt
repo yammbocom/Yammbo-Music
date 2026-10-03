@@ -29,6 +29,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -41,6 +42,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -588,7 +590,7 @@ fun HomeSongs(
     ) {
         LazyColumn(state = lazyListState, modifier = Modifier) {
 
-            stickyHeader {
+            item(key = "library-header", contentType = "header") {
                 Column(modifier = Modifier.fillMaxWidth().background(colorPalette().background0)) {
                     // 0. Optional Header for ViMusic
                     if (UiType.ViMusic.isCurrent())
@@ -601,121 +603,97 @@ fun HomeSongs(
                             onClick = onSearchClick
                         )
 
-                    // 1. Modern Header (Clean)
-                    TabHeader(R.string.songs) {
-                        //if (UiType.RiPlay.isCurrent()) TitleSection(title = stringResource(R.string.songs))
-                        HeaderInfo(
-                            title = if (builtInPlaylist == BuiltInPlaylist.OnDevice) "${filteredSongs.size}" else "${items.size}",
-                            iconId = R.drawable.musical_notes
-                        )
-                        Spacer(modifier = Modifier.weight(1f))
-                    }
-
-                    // 2. Control Bar (Tabs + Sort)
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(modifier = Modifier.weight(1f)) {
-                            ButtonsRow(
-                                buttons = buttonsList,
-                                currentValue = builtInPlaylist,
-                                onValueUpdate = { builtInPlaylist = it },
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(4.dp))
-
-                        // Sort Controls (Hidden for Top playlist)
-                        if (builtInPlaylist != BuiltInPlaylist.Top) {
-
-                            // Stato per gestire l'espansione del chip
-                            var isSortExpanded by remember { mutableStateOf(false) }
-
-                            // Timer automatico per la chiusura
-                            LaunchedEffect(isSortExpanded) {
-                                if (isSortExpanded) {
-                                    delay(3000) // Aspetta 3 secondi
-                                    isSortExpanded = false // Chiudi il chip
-                                }
-                            }
-
-                            val activeSortTextId = if (builtInPlaylist == BuiltInPlaylist.OnDevice) {
-                                if (showFolders) sortByFolderOnDevice.textId else sortByOnDevice.textId
-                            } else sortBy.textId
-
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier
-                                    .animateContentSize(animationSpec = tween(durationMillis = 300))
-                                    .clip(RoundedCornerShape(16.dp))
-                                    .background(colorPalette().background1.copy(alpha = 0.8f))
-                                    .clickable {
-                                        // Ogni click (sia per aprire che per interagire) resetta il timer
-                                        if (isSortExpanded) {
-                                            menuState.display { sortMenu() }
-                                        } else {
-                                            isSortExpanded = true
-                                        }
+                    // 1. Title block: large title, count and sort pill
+                    LibraryTitleBlock(
+                        title = stringResource(R.string.songs),
+                        subtitle = libraryCountText(
+                            R.plurals.mymusic_count_songs,
+                            if (builtInPlaylist == BuiltInPlaylist.OnDevice) filteredSongs.size else items.size
+                        ),
+                        trailing = {
+                            // Sort controls are hidden for the Top playlist (its order is fixed)
+                            if (builtInPlaylist != BuiltInPlaylist.Top) {
+                                val activeSortTextId = if (builtInPlaylist == BuiltInPlaylist.OnDevice) {
+                                    if (showFolders) sortByFolderOnDevice.textId else sortByOnDevice.textId
+                                } else sortBy.textId
+                                LibrarySortPill(
+                                    label = stringResource(activeSortTextId),
+                                    arrowRotation = sortOrderIconRotation,
+                                    onOpenMenu = { menuState.display { sortMenu() } },
+                                    onToggleOrder = {
+                                        if (builtInPlaylist != BuiltInPlaylist.OnDevice) sortOrder = !sortOrder
+                                        else sortOrderOnDevice = !sortOrderOnDevice
                                     }
-                                    .padding(horizontal = 6.dp, vertical = 6.dp)
-                            ) {
-                                AnimatedVisibility(
-                                    visible = isSortExpanded,
-                                    enter = fadeIn(tween(200)) + expandHorizontally(expandFrom = Alignment.Start),
-                                    exit = fadeOut(tween(200)) + shrinkHorizontally(shrinkTowards = Alignment.Start)
-                                ) {
-                                    Text(
-                                        text = stringResource(activeSortTextId),
-                                        style = typography().xs,
-                                        color = colorPalette().textSecondary,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                        modifier = Modifier.padding(end = 4.dp)
-                                    )
-                                }
-
-                                HeaderIconButton(
-                                    icon = R.drawable.arrow_up,
-                                    color = colorPalette().text,
-                                    onClick = {},
-                                    modifier = Modifier
-                                        .size(20.dp)
-                                        .graphicsLayer { rotationZ = sortOrderIconRotation }
-                                        .combinedClickable(
-                                            onClick = {
-                                                // Cliccando la freccia (anche qui) il timer si resetta perché lo stato rimane true
-                                                if (isSortExpanded) {
-                                                    if (builtInPlaylist != BuiltInPlaylist.OnDevice) sortOrder = !sortOrder
-                                                    else sortOrderOnDevice = !sortOrderOnDevice
-                                                } else {
-                                                    isSortExpanded = true
-                                                }
-                                            },
-                                            onLongClick = { menuState.display { sortMenu() } }
-                                        )
                                 )
                             }
                         }
+                    )
+
+                    // 2. Scrollable pill chips
+                    LibraryChipsRow(
+                        options = buttonsList,
+                        selected = builtInPlaylist,
+                        onSelect = { builtInPlaylist = it }
+                    )
+
+                    // 3. Play / shuffle pills
+                    val hasPlayableSongs = remember(items) { items.any { it.song.likedAt != -1L } }
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                    ) {
+                        LibraryPrimaryPill(
+                            label = stringResource(R.string.mymusic_play),
+                            iconId = R.drawable.play,
+                            enabled = hasPlayableSongs,
+                            modifier = Modifier.weight(1f),
+                            onClick = {
+                                if (builtInPlaylist == BuiltInPlaylist.OnDevice) items = filteredSongs
+                                val playable = items.filter { it.song.likedAt != -1L }
+                                if (playable.isNotEmpty()) {
+                                    binder?.stopRadio()
+                                    binder?.player?.forcePlayFromBeginning(
+                                        playable.take(maxSongsInQueue.number.toInt()).map(SongEntity::asMediaItem)
+                                    )
+                                } else {
+                                    SmartMessage(context.resources.getString(R.string.disliked_this_collection), type = PopupType.Error, context = context)
+                                }
+                            }
+                        )
+                        LibraryGlassPill(
+                            label = stringResource(R.string.mymusic_shuffle),
+                            iconId = R.drawable.shuffle,
+                            enabled = hasPlayableSongs,
+                            modifier = Modifier.weight(1f),
+                            onClick = {
+                                if (builtInPlaylist == BuiltInPlaylist.OnDevice) items = filteredSongs
+                                if (items.filter { it.song.likedAt != -1L }.isNotEmpty()) {
+                                    val itemsLimited = if (items.filter { it.song.likedAt != -1L }.size > maxSongsInQueue.number) items.filter { it.song.likedAt != -1L }.shuffled().take(maxSongsInQueue.number.toInt()) else items.filter { it.song.likedAt != -1L }
+                                    binder?.stopRadio()
+                                    binder?.player?.forcePlayFromBeginning(itemsLimited.shuffled().map(SongEntity::asMediaItem))
+                                } else {
+                                    SmartMessage(context.resources.getString(R.string.disliked_this_collection), type = PopupType.Error, context = context)
+                                }
+                            }
+                        )
                     }
 
-                    // 3. Action Toolbar
+                    // 4. Round glass actions (scroll sideways when there are many)
                     Row(
-                        horizontalArrangement = Arrangement.SpaceAround,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
-                            .padding(horizontal = 12.dp)
-                            .padding(vertical = 4.dp)
                             .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState())
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
                     ) {
                         if (builtInPlaylist == BuiltInPlaylist.Top) {
-                            HeaderIconButton(
-                                icon = R.drawable.stat, color = colorPalette().text, onClick = {},
-                                modifier = Modifier.padding(horizontal = 2.dp).clickable {
+                            LibraryCircleButton(
+                                iconId = R.drawable.stat,
+                                contentDescription = null,
+                                onClick = {
                                     menuState.display {
                                         PeriodMenu(onDismiss = { topPlaylistPeriod = it; menuState.hide() })
                                     }
@@ -723,23 +701,25 @@ fun HomeSongs(
                             )
                         }
 
-                        HeaderIconButton(
-                            onClick = { searching = !searching }, icon = R.drawable.search_circle,
-                            color = colorPalette().text, iconSize = 24.dp, modifier = Modifier.padding(horizontal = 2.dp)
+                        LibraryCircleButton(
+                            iconId = R.drawable.search,
+                            contentDescription = stringResource(R.string.mymusic_action_search),
+                            active = searching,
+                            onClick = { searching = !searching }
                         )
 
-                        HeaderIconButton(
-                            modifier = Modifier.padding(horizontal = 5.dp).combinedClickable(
-                                onClick = {
-                                    nowPlayingItem = -1; scrollToNowPlaying = false
-                                    items.forEachIndexed { index, song ->
-                                        if (song.song.asMediaItem.mediaId == binder?.player?.currentMediaItem?.mediaId) nowPlayingItem = index
-                                    }
-                                    if (nowPlayingItem > -1) scrollToNowPlaying = true
-                                },
-                                onLongClick = { SmartMessage(context.resources.getString(R.string.info_find_the_song_that_is_playing), context = context) }
-                            ),
-                            icon = R.drawable.locate, enabled = songs.isNotEmpty(), color = colorPalette().text, onClick = {}
+                        LibraryCircleButton(
+                            iconId = R.drawable.locate,
+                            contentDescription = stringResource(R.string.mymusic_action_locate),
+                            enabled = songs.isNotEmpty(),
+                            onClick = {
+                                nowPlayingItem = -1; scrollToNowPlaying = false
+                                items.forEachIndexed { index, song ->
+                                    if (song.song.asMediaItem.mediaId == binder?.player?.currentMediaItem?.mediaId) nowPlayingItem = index
+                                }
+                                if (nowPlayingItem > -1) scrollToNowPlaying = true
+                            },
+                            onLongClick = { SmartMessage(context.resources.getString(R.string.info_find_the_song_that_is_playing), context = context) }
                         )
                         LaunchedEffect(scrollToNowPlaying) { if (scrollToNowPlaying) lazyListState.scrollToItem(nowPlayingItem, 1); scrollToNowPlaying = false }
 
@@ -784,71 +764,45 @@ fun HomeSongs(
                         }
 
                         if (builtInPlaylist == BuiltInPlaylist.All)
-                            HeaderIconButton(
-                                onClick = {}, icon = if (showHiddenSongs == 0) R.drawable.eye_off else R.drawable.eye,
-                                color = colorPalette().text,
-                                modifier = Modifier.padding(horizontal = 2.dp).combinedClickable(
-                                    onClick = { showHiddenSongs = if (showHiddenSongs == 0) -1 else 0 },
-                                    onLongClick = { SmartMessage(context.resources.getString(R.string.info_show_hide_hidden_songs), context = context) }
-                                )
+                            LibraryCircleButton(
+                                iconId = if (showHiddenSongs == 0) R.drawable.eye_off else R.drawable.eye,
+                                contentDescription = null,
+                                onClick = { showHiddenSongs = if (showHiddenSongs == 0) -1 else 0 },
+                                onLongClick = { SmartMessage(context.resources.getString(R.string.info_show_hide_hidden_songs), context = context) }
                             )
-
-                        HeaderIconButton(
-                            icon = R.drawable.shuffle,
-                            enabled = items.any { it.song.likedAt != -1L },
-                            color = if (items.any { it.song.likedAt != -1L }) colorPalette().text else colorPalette().textDisabled,
-                            onClick = {},
-                            modifier = Modifier.padding(horizontal = 2.dp).combinedClickable(
-                                onClick = {
-                                    if (builtInPlaylist == BuiltInPlaylist.OnDevice) items = filteredSongs
-                                    if (items.filter { it.song.likedAt != -1L }.isNotEmpty()) {
-                                        val itemsLimited = if (items.filter { it.song.likedAt != -1L }.size > maxSongsInQueue.number) items.filter { it.song.likedAt != -1L }.shuffled().take(maxSongsInQueue.number.toInt()) else items.filter { it.song.likedAt != -1L }
-                                        binder?.stopRadio()
-                                        binder?.player?.forcePlayFromBeginning(itemsLimited.shuffled().map(SongEntity::asMediaItem))
-                                    } else {
-                                        SmartMessage(context.resources.getString(R.string.disliked_this_collection), type = PopupType.Error, context = context)
-                                    }
-                                },
-                                onLongClick = { SmartMessage(context.resources.getString(R.string.info_shuffle), context = context) }
-                            )
-                        )
 
                         if (builtInPlaylist == BuiltInPlaylist.Favorites)
-                            HeaderIconButton(
-                                icon = R.drawable.random, enabled = true,
-                                color = if (autoShuffle) colorPalette().text else colorPalette().textDisabled,
-                                onClick = {},
-                                modifier = Modifier.combinedClickable(
-                                    onClick = { autoShuffle = !autoShuffle },
-                                    onLongClick = { SmartMessage("Random sorting", context = context) }
-                                )
+                            LibraryCircleButton(
+                                iconId = R.drawable.random,
+                                contentDescription = null,
+                                active = autoShuffle,
+                                onClick = { autoShuffle = !autoShuffle },
+                                onLongClick = { SmartMessage("Random sorting", context = context) }
                             )
 
                         if (builtInPlaylist != BuiltInPlaylist.Favorites)
-                            HeaderIconButton(
-                                icon = R.drawable.resource_import, color = colorPalette().text, onClick = {},
-                                modifier = Modifier.padding(horizontal = 2.dp).combinedClickable(
-                                    onClick = {
-                                        try { importLauncher.launch(arrayOf("text/*")) }
-                                        catch (e: ActivityNotFoundException) { SmartMessage(context.resources.getString(R.string.info_not_find_app_open_doc), type = PopupType.Warning, context = context) }
-                                    },
-                                    onLongClick = { SmartMessage(context.resources.getString(R.string.import_favorites), context = context) }
-                                )
+                            LibraryCircleButton(
+                                iconId = R.drawable.resource_import,
+                                contentDescription = null,
+                                onClick = {
+                                    try { importLauncher.launch(arrayOf("text/*")) }
+                                    catch (e: ActivityNotFoundException) { SmartMessage(context.resources.getString(R.string.info_not_find_app_open_doc), type = PopupType.Warning, context = context) }
+                                },
+                                onLongClick = { SmartMessage(context.resources.getString(R.string.import_favorites), context = context) }
                             )
 
                         if (BuiltInPlaylist.OnDevice == builtInPlaylist) {
-                            HeaderIconButton(
-                                icon = if (showFolders) R.drawable.list_view else R.drawable.grid_view,
-                                color = colorPalette().text, onClick = {},
-                                modifier = Modifier.combinedClickable(
-                                    onClick = { showFolders = !showFolders },
-                                    onLongClick = { SmartMessage(context.resources.getString(R.string.viewType), context = context) }
-                                )
+                            LibraryCircleButton(
+                                iconId = if (showFolders) R.drawable.list_view else R.drawable.grid_view,
+                                contentDescription = null,
+                                onClick = { showFolders = !showFolders },
+                                onLongClick = { SmartMessage(context.resources.getString(R.string.viewType), context = context) }
                             )
                         }
 
-                        HeaderIconButton(
-                            icon = R.drawable.ellipsis_horizontal, color = colorPalette().text,
+                        LibraryCircleButton(
+                            iconId = R.drawable.ellipsis_horizontal,
+                            contentDescription = stringResource(R.string.mymusic_action_more),
                             onClick = {
                                 menuState.display {
                                     PlaylistsItemMenu(
@@ -936,8 +890,7 @@ fun HomeSongs(
                                         disableScrollingText = disableScrollingText,
                                     )
                                 }
-                            },
-                            modifier = Modifier.padding(horizontal = 2.dp)
+                            }
                         )
                     }
 
@@ -1041,32 +994,12 @@ fun HomeSongs(
                             )
                         }
                     } else if (!showFolders && filteredSongs.isEmpty()) {
-                        item {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(32.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Icon(
-                                        painter = painterResource(R.drawable.musical_notes),
-                                        contentDescription = null,
-                                        modifier = Modifier.size(64.dp),
-                                        tint = colorPalette().textDisabled
-                                    )
-                                    Spacer(modifier = Modifier.height(16.dp))
-                                    Text(
-                                        text = stringResource(R.string.no_songs), // Assicurati di avere questa stringa o usa un placeholder
-                                        style = typography().m,
-                                        color = colorPalette().textSecondary
-                                    )
-                                }
-                            }
+                        item(key = "empty", contentType = "empty") {
+                            SongsEmptyState(playlist = builtInPlaylist, searching = !filter.isNullOrBlank())
                         }
                     }
 
-                    itemsIndexed(items = filteredSongs.distinctBy { it.song.id }, key = { _, song -> song.song.id }) { index, song ->
+                    itemsIndexed(items = filteredSongs.distinctBy { it.song.id }, key = { _, song -> song.song.id }, contentType = { _, _ -> "song" }) { index, song ->
                         SwipeablePlaylistItem(mediaItem = song.asMediaItem, onPlayNext = { binder?.player?.addNext(song.asMediaItem, queue = selectedQueue ?: defaultQueue()) }) {
                             SongItem(
                                 song = song.song, thumbnailSizeDp = thumbnailSizeDp, thumbnailSizePx = thumbnailSizePx,
@@ -1108,31 +1041,11 @@ fun HomeSongs(
                 }
             } else {
                 if (items.isEmpty()) {
-                    item {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(32.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(
-                                    painter = painterResource(R.drawable.musical_notes),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(64.dp),
-                                    tint = colorPalette().textDisabled
-                                )
-                                Spacer(modifier = Modifier.height(16.dp))
-                                Text(
-                                    text = stringResource(R.string.no_songs), // Assicurati di avere questa stringa o usa un placeholder
-                                    style = typography().m,
-                                    color = colorPalette().textSecondary
-                                )
-                            }
-                        }
+                    item(key = "empty", contentType = "empty") {
+                        SongsEmptyState(playlist = builtInPlaylist, searching = !filter.isNullOrBlank())
                     }
                 }
-                itemsIndexed(items = if (parentalControlEnabled) items.filter { !it.song.title.startsWith(EXPLICIT_PREFIX) }.distinctBy { it.song.id } else items.distinctBy { it.song.id }, key = { _, song -> song.song.id }) { index, song ->
+                itemsIndexed(items = if (parentalControlEnabled) items.filter { !it.song.title.startsWith(EXPLICIT_PREFIX) }.distinctBy { it.song.id } else items.distinctBy { it.song.id }, key = { _, song -> song.song.id }, contentType = { _, _ -> "song" }) { index, song ->
                     var isHiding by remember { mutableStateOf(false) }
                     var isDeleting by remember { mutableStateOf(false) }
                     var deleteAlsoPlayTimes by remember { mutableStateOf(false) }
@@ -1235,6 +1148,24 @@ fun HomeSongs(
     }
 }
 
+
+/** Empty state for the songs library; picks the copy from the playlist being shown. */
+@Composable
+private fun SongsEmptyState(playlist: BuiltInPlaylist, searching: Boolean) {
+    val (title, hint) = when {
+        searching -> R.string.mymusic_empty_search_title to R.string.mymusic_empty_search_hint
+        playlist == BuiltInPlaylist.Favorites -> R.string.mymusic_empty_favorites_title to R.string.mymusic_empty_favorites_hint
+        playlist == BuiltInPlaylist.Top -> R.string.mymusic_empty_top_title to R.string.mymusic_empty_top_hint
+        playlist == BuiltInPlaylist.OnDevice -> R.string.mymusic_empty_device_title to R.string.mymusic_empty_device_hint
+        playlist == BuiltInPlaylist.Disliked -> R.string.mymusic_empty_disliked_title to R.string.mymusic_empty_disliked_hint
+        else -> R.string.mymusic_empty_songs_title to R.string.mymusic_empty_songs_hint
+    }
+    LibraryEmptyState(
+        iconId = if (playlist == BuiltInPlaylist.Favorites && !searching) R.drawable.heart else R.drawable.musical_notes,
+        title = stringResource(title),
+        message = stringResource(hint)
+    )
+}
 
 /*
 

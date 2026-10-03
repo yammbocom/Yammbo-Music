@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="loading_error_title">Could not load</string>
+    <string name="loading_error_subtitle">Check your connection and try again.</string>
+    <string name="loading_error_retry">Retry</string>
+    <string name="loading_empty">There is nothing to show here.</string>
+    <string name="loading_no_new_releases_artists">There are no new releases from your favorite artists</string>
+</resources>

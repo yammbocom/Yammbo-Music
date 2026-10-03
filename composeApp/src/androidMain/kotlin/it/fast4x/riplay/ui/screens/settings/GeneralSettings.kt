@@ -57,7 +57,6 @@ import it.fast4x.riplay.enums.MusicAnimationType
 import it.fast4x.riplay.enums.NavigationBarPosition
 import it.fast4x.riplay.enums.PauseBetweenSongs
 import it.fast4x.riplay.enums.PipModule
-import it.fast4x.riplay.ui.components.themed.HeaderWithIcon
 import it.fast4x.riplay.ui.components.themed.SmartMessage
 import it.fast4x.riplay.ui.styling.DefaultDarkColorPalette
 import it.fast4x.riplay.ui.styling.DefaultLightColorPalette
@@ -482,17 +481,6 @@ fun GeneralSettings(
                 state = state,
                 contentPadding = PaddingValues(bottom = Dimensions.bottomSpacer)
             ) {
-                settingsItem {
-                    HeaderWithIcon(
-                        title = stringResource(R.string.tab_general),
-                        iconId = R.drawable.yambo_icon,
-                        enabled = false,
-                        showIcon = true,
-                        modifier = Modifier,
-                        onClick = {}
-                    )
-                }
-
                 settingsSearchBarItem {
                     search.ToolBarButton()
                     search.SearchBar(this)

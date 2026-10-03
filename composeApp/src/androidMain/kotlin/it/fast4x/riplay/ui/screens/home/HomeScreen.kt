@@ -28,7 +28,10 @@ import com.yambo.music.R
 import it.fast4x.riplay.data.models.toUiChip
 import it.fast4x.riplay.enums.CheckUpdateState
 import it.fast4x.riplay.enums.HomeScreenTabs
-import it.fast4x.riplay.ui.screens.liveradio.LiveRadio
+import it.fast4x.riplay.LocalPlayerServiceBinder
+import it.fast4x.riplay.utils.openPlaylistOrMix
+import it.fast4x.riplay.ui.screens.podcast.MyPodcastsTab
+import it.fast4x.riplay.ui.screens.podcast.RadioPodcastsTab
 import it.fast4x.riplay.enums.NavRoutes
 import it.fast4x.riplay.data.models.toUiMood
 import it.fast4x.riplay.enums.HomePagetype
@@ -153,6 +156,8 @@ fun HomeScreen(
     // shared sub-tabs 10..13 so the back button returns to the correct hub.
     var subTabsParent by rememberSaveable { mutableIntStateOf(2) }
 
+    val binder = LocalPlayerServiceBinder.current
+
     val isEnabledMusicIdentifier by rememberPreference(
         enableMusicIdentifierKey,
         false
@@ -185,6 +190,10 @@ fun HomeScreen(
         onTabChanged(0)
         navController.navigate(NavRoutes.search.name)
     }
+    // Index 4 (My account) is no longer a tab; an old persisted value lands on Home
+    if (tabIndex == HomeScreenTabs.MyAccount.index) {
+        onTabChanged(0)
+    }
     if (tabIndex == -3) {
         onTabChanged(0)
         if (isEnabledMusicIdentifier)
@@ -205,7 +214,6 @@ fun HomeScreen(
             Item(1, stringResource(R.string.live_radio_tab), R.drawable.radio)
             Item(2, stringResource(R.string.my_music), R.drawable.musical_notes)
             Item(3, stringResource(R.string.search), R.drawable.search)
-            Item(4, stringResource(R.string.my_account), R.drawable.person)
         }
     ) { currentTabIndex ->
         saveableStateHolder.SaveableStateProvider(key = currentTabIndex) {
@@ -219,7 +227,7 @@ fun HomeScreen(
                             navController.navigate(route = "${NavRoutes.artist.name}/$it")
                         },
                         onPlaylistClick = {
-                            navController.navigate(route = "${NavRoutes.playlist.name}/$it")
+                            openPlaylistOrMix(navController, binder, it)
                         },
                         onSearchClick = {
                             navController.navigate(NavRoutes.search.name)
@@ -253,7 +261,7 @@ fun HomeScreen(
                             navController.navigate(route = "${NavRoutes.artist.name}/$it")
                         },
                         onPlaylistClick = {
-                            navController.navigate(route = "${NavRoutes.playlist.name}/$it")
+                            openPlaylistOrMix(navController, binder, it)
                         },
                         onSearchClick = {
                             navController.navigate(NavRoutes.search.name)
@@ -281,7 +289,10 @@ fun HomeScreen(
 
                 }
 
-                1 -> LiveRadio()
+                1 -> RadioPodcastsTab(
+                    navController = navController,
+                    onSeeAllMyPodcasts = { subTabsParent = 1; onTabChanged(16) }
+                )
 
                 2 -> MyMusicTab(
                     onSongsClick = { subTabsParent = 2; leaveOnDeviceSelection(); onTabChanged(10) },
@@ -289,14 +300,13 @@ fun HomeScreen(
                     onAlbumsClick = { subTabsParent = 2; leaveOnDeviceSelection(); onTabChanged(12) },
                     onPlaylistsClick = { subTabsParent = 2; leaveOnDeviceSelection(); onTabChanged(13) },
                     onRadioClick = { subTabsParent = 2; onTabChanged(15) },
+                    onPodcastsClick = { subTabsParent = 2; onTabChanged(16) },
                     onDeviceClick = { onTabChanged(14) }
                 )
 
                 // 3 = Search, handled above (navigates to search screen)
-
-                4 -> MyAccountTab(
-                    navController = navController
-                )
+                // 4 = My account used to be a tab; now the NavRoutes.myAccount screen opened
+                // from the top bar (a stale 4 falls back to Home above)
 
                 // Sub-screens from MyMusicTab
                 10 -> HomeSongs(
@@ -364,6 +374,7 @@ fun HomeScreen(
 
                 // Favourite stations, launched from the Mi Música hub
                 15 -> FavoriteRadiosTab()
+                16 -> MyPodcastsTab(navController = navController)
 
             }
         }
@@ -424,7 +435,7 @@ fun HomeScreen(
 
         // Shared sub-tabs (Songs 10, Artists 11, Albums 12, Playlists 13) → back to
         // whichever hub launched them (Mi Música = 2, En mi dispositivo = 14).
-        if (tabIndex in 10..13 || tabIndex == 15) {
+        if (tabIndex in 10..13 || tabIndex == 15 || tabIndex == 16) {
             onTabChanged(subTabsParent)
             return@BackHandler
         }

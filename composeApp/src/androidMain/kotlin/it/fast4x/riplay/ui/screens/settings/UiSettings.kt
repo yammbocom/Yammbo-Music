@@ -63,7 +63,6 @@ import it.fast4x.riplay.enums.ThumbnailType
 import it.fast4x.riplay.enums.TransitionEffect
 import it.fast4x.riplay.enums.UiType
 import it.fast4x.riplay.ui.components.themed.ConfirmationDialog
-import it.fast4x.riplay.ui.components.themed.HeaderWithIcon
 import it.fast4x.riplay.ui.components.themed.SmartMessage
 import it.fast4x.riplay.ui.styling.DefaultDarkColorPalette
 import it.fast4x.riplay.ui.styling.DefaultLightColorPalette
@@ -815,17 +814,6 @@ fun UiSettings(
             state = state,
             contentPadding = PaddingValues(bottom = Dimensions.bottomSpacer)
         ) {
-            settingsItem {
-                HeaderWithIcon(
-                    title = stringResource(R.string.user_interface),
-                    iconId = R.drawable.ui,
-                    enabled = false,
-                    showIcon = true,
-                    modifier = Modifier,
-                    onClick = {}
-                )
-            }
-
             settingsSearchBarItem {
                 search.ToolBarButton()
                 search.SearchBar(this)
@@ -1051,9 +1039,12 @@ fun UiSettings(
                         true
                     )
                 )
-                    EnumValueSelectorSettingsEntry(
+                    // My account is no longer a bottom tab (it opens from the top bar), so it
+                    // can't be a start page.
+                    ValueSelectorSettingsEntry(
                         title = stringResource(R.string.default_page),
                         selectedValue = indexNavigationTab,
+                        values = HomeScreenTabs.entries.filter { it != HomeScreenTabs.MyAccount },
                         onValueSelected = { indexNavigationTab = it },
                         valueText = {
                             when (it) {

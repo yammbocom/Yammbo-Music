@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Settings home: section titles and one-line subtitles -->
+    <string name="settings_title_data">Data and storage</string>
+    <string name="settings_title_misc">Other</string>
+    <string name="settings_sub_general">Language, network, updates and background playback</string>
+    <string name="settings_sub_ui">Theme, navigation bar, gestures and transitions</string>
+    <string name="settings_sub_appearance">Player look, covers and queue</string>
+    <string name="settings_sub_home">Which sections appear on the home screen</string>
+    <string name="settings_sub_data">Cache, downloads, backups and history</string>
+    <string name="settings_sub_accounts">Your session and connected services</string>
+    <string name="settings_sub_misc">Logs and debugging</string>
+    <string name="settings_sub_about">Social, help, legal and report a problem</string>
+
+    <!-- Home section -->
+    <string name="settings_home_extended">Extended</string>
+
+    <!-- Data section -->
+    <string name="settings_backup_in_progress">Creating the backup...</string>
+    <string name="settings_restore_in_progress">Restoring the backup...</string>
+
+    <!-- Misc and appearance exports -->
+    <string name="settings_misc_export_name_title">Name of the exported log</string>
+    <string name="settings_misc_export_name_hint">Enter a name for the log</string>
+    <string name="settings_misc_no_document_app">Couldn\'t find an application to create documents</string>
+    <string name="settings_appearance_export_name_title">Name of the exported settings file</string>
+
+    <!-- About -->
+    <string name="settings_about_tagline">Your music, your world</string>
+    <string name="settings_about_version">Version %1$s</string>
+    <string name="settings_about_connect">Connect with us</string>
+    <string name="settings_about_support">Support</string>
+    <string name="settings_about_website">Website</string>
+    <string name="settings_about_help_center">Help center</string>
+    <string name="settings_about_help_center_sub">Knowledge base and tutorials</string>
+    <string name="settings_about_live_chat">Live chat</string>
+    <string name="settings_about_live_chat_sub">Talk to our team</string>
+    <string name="settings_about_report_sub">Report a problem or suggestion</string>
+    <string name="settings_about_legal">Legal</string>
+    <string name="settings_about_privacy">Privacy policy</string>
+    <string name="settings_about_privacy_sub">How we protect your data</string>
+    <string name="settings_about_terms">Terms of service</string>
+    <string name="settings_about_terms_sub">Conditions of use</string>
+    <string name="settings_about_made_by">Made by Frank Rivera</string>
+    <string name="settings_about_copyright">© 2026 Yammbo LLC · All rights reserved</string>
+
+    <!-- About: bug report sheet -->
+    <string name="settings_about_bug_title">Report a bug</string>
+    <string name="settings_about_bug_subtitle">Tell us what went wrong and we will help.</string>
+    <string name="settings_about_bug_name">Name</string>
+    <string name="settings_about_bug_email">Email</string>
+    <string name="settings_about_bug_message">Message</string>
+    <string name="settings_about_bug_send">Send</string>
+    <string name="settings_about_bug_invalid">Fill in your name, a valid email and the message.</string>
+    <string name="settings_about_bug_sent">Thank you! Your report was sent.</string>
+    <string name="settings_about_bug_failed">Could not send. Please try again.</string>
+</resources>

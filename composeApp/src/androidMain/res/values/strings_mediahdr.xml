@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="mediahdr_play">Reproducir</string>
+    <string name="mediahdr_shuffle">Aleatorio</string>
+    <string name="mediahdr_load_failed">No se pudo cargar el contenido</string>
+    <string name="mediahdr_retry">Reintentar</string>
+    <string name="mediahdr_episodes_count">%1$d episodios</string>
+</resources>

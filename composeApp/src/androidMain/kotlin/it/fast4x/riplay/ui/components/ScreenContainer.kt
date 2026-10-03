@@ -98,7 +98,9 @@ fun ScreenContainer(
 
         Box(
             Modifier
-                .padding(it)
+                // Only the top inset: the content runs under the floating nav pill so the page
+                // shows through around it instead of stopping at an opaque strip.
+                .padding(top = it.calculateTopPadding())
                 .padding(innerPadding)
                 .fillMaxSize()
         ) {
@@ -132,6 +134,7 @@ fun ScreenContainer(
 
             Column(
                 Modifier
+                    .padding(bottom = it.calculateBottomPadding())
                     .padding( vertical = 5.dp )
                     .align( playerAlignment ),
             ) {

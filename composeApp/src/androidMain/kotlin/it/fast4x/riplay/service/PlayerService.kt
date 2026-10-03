@@ -2715,6 +2715,10 @@ class PlayerService : Service(),
 
             }
         }
+
+        // ListenBrainz keeps its own gate and timing (playing_now now, listen later).
+        it.fast4x.riplay.extensions.listenbrainz.ListenBrainzClient.onTrackStarted(mediaItem)
+
         Timber.d("PlayerService-onMediaItemTransition mediaItem: ${mediaItem.mediaId} currentMediaItemIndex: $currentQueuePosition shuffleModeEnabled ${player.shuffleModeEnabled} repeatMode ${player.repeatMode} reason $reason")
 
     }
@@ -4862,6 +4866,16 @@ class PlayerService : Service(),
         @kotlin.OptIn(FlowPreview::class)
         fun toggleLike() {
             Timber.d("PlayerService toggleLike currentSong ${currentSong.value}")
+            // Notification, lock screen and Android Auto land here: with likes sync on, go
+            // through the shared path so the like also reaches the YouTube Music account.
+            val song = currentSong.value
+            if (song != null && it.fast4x.riplay.utils.isYtLikeSyncEnabled() && !song.asMediaItem.isLocal) {
+                coroutineScope.launch {
+                    it.fast4x.riplay.utils.addToOnlineLikedSong(song.asMediaItem)
+                    withContext(Dispatchers.Main) { updateUnifiedNotification() }
+                }
+                return
+            }
             Database.asyncTransaction {
                 currentSong.value?.let {
                     Timber.d("PlayerService toggleLike currentSong inside ${it.title}")

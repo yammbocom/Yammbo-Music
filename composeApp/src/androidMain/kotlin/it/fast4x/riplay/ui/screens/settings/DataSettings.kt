@@ -60,7 +60,6 @@ import it.fast4x.riplay.enums.NavigationBarPosition
 import it.fast4x.riplay.ui.components.themed.CacheSpaceIndicator
 import it.fast4x.riplay.ui.components.themed.ConfirmationDialog
 import it.fast4x.riplay.ui.components.themed.HeaderIconButton
-import it.fast4x.riplay.ui.components.themed.HeaderWithIcon
 import it.fast4x.riplay.ui.components.themed.InputNumericDialog
 import it.fast4x.riplay.ui.styling.Dimensions
 import it.fast4x.riplay.utils.RestartPlayerService
@@ -291,9 +290,9 @@ fun DataSettings() {
                     1f
             )
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp)
+            .padding(horizontal = 16.dp)
     ) {
-        Spacer(modifier = Modifier.height(40.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         Coil.imageLoader(context).diskCache?.let { diskCache ->
             val diskCacheSize = remember(diskCache.size, cleanCacheImages) {
@@ -361,13 +360,13 @@ fun DataSettings() {
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
-                CacheSpaceIndicator(cacheType = CacheType.Images, horizontalPadding = 0.dp)
+                CacheSpaceIndicator(cacheType = CacheType.Images)
                 BasicText(
                     text = stringResource(R.string.cache_cleared),
                     style = it.fast4x.riplay.utils.typography().xxs.copy(
                         color = colorPalette().textSecondary
                     ),
-                    modifier = Modifier.padding(top = 8.dp)
+                    modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 14.dp)
                 )
             }
 
@@ -456,7 +455,7 @@ fun DataSettings() {
                 style = it.fast4x.riplay.utils.typography().xxs.copy(
                     color = colorPalette().textSecondary
                 ),
-                modifier = Modifier.padding(top = 8.dp)
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp)
             )
         }
 
@@ -476,7 +475,10 @@ fun DataSettings() {
                 CircularProgressIndicator()
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = if (backupUiState is BackupUiState.BackingUp) "Backup in progress..." else "Restore in progress..."
+                    text = stringResource(
+                        if (backupUiState is BackupUiState.BackingUp) R.string.settings_backup_in_progress
+                        else R.string.settings_restore_in_progress
+                    )
                 )
             }
 
@@ -494,10 +496,10 @@ fun DataSettings() {
                     context.applicationInfo.nonLocalizedLabel
                 ),
                 style = it.fast4x.riplay.utils.typography().xxs.copy(
-                    color = colorPalette().red,
+                    color = colorPalette().text,
                     fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold
                 ),
-                modifier = Modifier.padding(top = 8.dp)
+                modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 14.dp)
             )
         }
 
@@ -551,7 +553,7 @@ private fun DataUsageRow(label: String, value: String) {
         horizontalArrangement = Arrangement.SpaceBetween,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 4.dp, vertical = 6.dp)
+            .padding(horizontal = 12.dp, vertical = 10.dp)
     ) {
         BasicText(
             text = label,

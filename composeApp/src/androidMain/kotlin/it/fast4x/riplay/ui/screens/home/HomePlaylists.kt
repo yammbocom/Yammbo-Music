@@ -504,102 +504,28 @@ fun HomePlaylists(
                 )
         ) {
             Column(Modifier.fillMaxSize()) {
-                // 1. Header Pulito
-                TabHeader(R.string.playlists) {
-                    HeaderInfo(itemsOnDisplay.size.toString(), R.drawable.playlist)
-                    Spacer(modifier = Modifier.weight(1f))
-                }
-
-                // 2. Control Bar Unificata
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(modifier = Modifier.weight(1f)) {
-                        ButtonsRow(
-                            buttons = buttonsList,
-                            currentValue = playlistType,
-                            onValueUpdate = { playlistType = it },
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(4.dp))
-
-                    // SORT CONTROLS
-                    var isSortExpanded by remember { mutableStateOf(false) }
-
-                    // Timer per auto-chiusura dopo 3 secondi di inattività
-                    LaunchedEffect(isSortExpanded) {
-                        if (isSortExpanded) {
-                            delay(3000)
-                            isSortExpanded = false
-                        }
-                    }
-
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            // Animazione della larghezza quando si espande/contrae
-                            .animateContentSize(animationSpec = tween(durationMillis = 300))
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(colorPalette().background1.copy(alpha = 0.5f))
-                            .clickable {
-                                // Se è espanso -> Apre il menu ordinamento
-                                // Se è chiuso -> Espande il chip
-                                if (isSortExpanded) {
-                                    menuState.display { sortMenu() }
-                                } else {
-                                    isSortExpanded = true
-                                }
+                // 1. Title block: large title, count and sort pill
+                LibraryTitleBlock(
+                    title = stringResource(R.string.playlists),
+                    subtitle = libraryCountText(R.plurals.mymusic_count_playlists, itemsOnDisplay.size),
+                    trailing = {
+                        LibrarySortPill(
+                            label = stringResource(sortBy.textId),
+                            arrowRotation = sortOrderIconRotation,
+                            onOpenMenu = { menuState.display { sortMenu() } },
+                            onToggleOrder = {
+                                sortOrder = if (sortOrder == SortOrder.Ascending) SortOrder.Descending else SortOrder.Ascending
                             }
-                            .padding(horizontal = 6.dp, vertical = 6.dp)
-                    ) {
-                        // TESTO dell'ordinamento (Animato)
-                        AnimatedVisibility(
-                            visible = isSortExpanded,
-                            enter = fadeIn(tween(200)) + expandHorizontally(expandFrom = Alignment.Start),
-                            exit = fadeOut(tween(200)) + shrinkHorizontally(shrinkTowards = Alignment.Start)
-                        ) {
-                            Text(
-                                text = stringResource(sortBy.textId),
-                                style = typography().xs,
-                                color = colorPalette().textSecondary,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.padding(end = 4.dp)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(2.dp))
-
-                        HeaderIconButton(
-                            icon = R.drawable.arrow_up,
-                            color = colorPalette().text,
-                            onClick = {},
-                            modifier = Modifier
-                                .size(20.dp)
-                                .graphicsLayer { rotationZ = sortOrderIconRotation }
-                                .combinedClickable(
-                                    onClick = {
-                                        // Cliccando la freccia:
-                                        // Se espanso -> Inverte ordine (e resetta timer)
-                                        // Se chiuso -> Espande il chip
-                                        if (isSortExpanded) {
-                                            sortOrder = if (sortOrder == SortOrder.Ascending) SortOrder.Descending else SortOrder.Ascending
-                                        } else {
-                                            isSortExpanded = true
-                                        }
-                                    },
-                                    onLongClick = { menuState.display { sortMenu() } }
-                                )
                         )
                     }
+                )
 
-                }
+                // 2. Scrollable pill chips
+                LibraryChipsRow(
+                    options = buttonsList,
+                    selected = playlistType,
+                    onSelect = { playlistType = it }
+                )
 
                 // 3. Toolbar
                 val buttons = mutableListOf(
@@ -608,34 +534,34 @@ fun HomePlaylists(
                     if (playlistType == PlaylistType.OnDevicePlaylist)
                         add(toggleOndeviceFolderName)
                 }
-                TabToolBar.Buttons(buttons)
+                // Glass dock keeps the shared toolbar buttons consistent with the new header
+                LibraryToolbarDock {
+                    TabToolBar.Buttons(buttons)
+                }
 
                 // 4. Search Bar
                 search.SearchBar(this)
 
                 // 5. Contenuto (Lista o Griglia)
                 if (itemsOnDisplay.isEmpty()) {
-                    // Empty State
                     Box(
                         modifier = Modifier
-                            .fillMaxSize()
-                            .padding(32.dp),
+                            .fillMaxWidth()
+                            .weight(1f),
                         contentAlignment = Alignment.Center
                     ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(
-                                painter = painterResource(R.drawable.music_album),
-                                contentDescription = null,
-                                modifier = Modifier.size(64.dp),
-                                tint = colorPalette().textDisabled
-                            )
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Text(
-                                text = stringResource(R.string.no_plaulists), // Assicurati di avere questa stringa o usa un placeholder
-                                style = typography().m,
-                                color = colorPalette().textSecondary
-                            )
-                        }
+                        val searching = search.input.isNotBlank()
+                        LibraryEmptyState(
+                            iconId = R.drawable.library,
+                            title = stringResource(
+                                if (searching) R.string.mymusic_empty_search_title else R.string.mymusic_empty_playlists_title
+                            ),
+                            message = stringResource(
+                                if (searching) R.string.mymusic_empty_search_hint else R.string.mymusic_empty_playlists_hint
+                            ),
+                            actionLabel = if (searching) null else stringResource(R.string.mymusic_empty_playlists_action),
+                            onAction = { newPlaylistDialog.onShortClick() }
+                        )
                     }
                 } else {
                     if (getViewType() == ViewType.List) {
@@ -664,7 +590,8 @@ fun HomePlaylists(
 
                                 items(
                                     items = filteredItems,
-                                    key = { it.playlist.id }
+                                    key = { it.playlist.id },
+                                    contentType = { "playlist" }
                                 ) { preview ->
                                     if (!preview.isOnDevice)
                                         PlaylistItem(
@@ -926,7 +853,8 @@ fun HomePlaylists(
 
                                 items(
                                     items = filteredItems,
-                                    key = { it.playlist.id }
+                                    key = { it.playlist.id },
+                                    contentType = { "playlist" }
                                 ) { preview ->
                                     if (!preview.isOnDevice)
                                         PlaylistItem(

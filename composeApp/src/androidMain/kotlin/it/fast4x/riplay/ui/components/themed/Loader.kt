@@ -8,6 +8,12 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -37,6 +43,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.yambo.music.R
+import it.fast4x.riplay.ui.styling.center
+import it.fast4x.riplay.ui.styling.color
+import it.fast4x.riplay.ui.styling.semiBold
 import it.fast4x.riplay.utils.colorPalette
 import it.fast4x.riplay.utils.typography
 import kotlinx.coroutines.delay
@@ -65,6 +74,68 @@ fun LoaderScreen(show: Boolean = true) {
     if (!show) return
     //RotatingLoaderScreen()
     PoligonIndicatorScreen()
+}
+
+/**
+ * Shown when a screen gave up waiting for its data (timeout or failed request), so a dead
+ * network never leaves the blob spinner running forever.
+ */
+@Composable
+fun LoadingErrorScreen(onRetry: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        BasicText(
+            text = stringResource(R.string.loading_error_title),
+            style = typography().m.semiBold.color(colorPalette().text).center
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        BasicText(
+            text = stringResource(R.string.loading_error_subtitle),
+            style = typography().xs.color(colorPalette().textSecondary).center
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Inverted pill: emphasis without any colour
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .height(44.dp)
+                .clip(RoundedCornerShape(22.dp))
+                .background(colorPalette().text)
+                .clickable(onClick = onRetry)
+                .padding(horizontal = 28.dp)
+        ) {
+            BasicText(
+                text = stringResource(R.string.loading_error_retry),
+                style = typography().s.semiBold.color(colorPalette().background0)
+            )
+        }
+    }
+}
+
+/** Shown when a request finished fine but there is nothing to list. */
+@Composable
+fun LoadingEmptyScreen() {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        BasicText(
+            text = stringResource(R.string.loading_empty),
+            style = typography().s.color(colorPalette().textSecondary).center
+        )
+    }
 }
 
 @Composable

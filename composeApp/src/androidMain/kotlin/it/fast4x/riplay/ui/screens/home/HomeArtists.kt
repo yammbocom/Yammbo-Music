@@ -285,138 +285,56 @@ fun HomeArtists(
                 )
         ) {
             Column(Modifier.fillMaxSize()) {
-                // 1. Header Pulito: Solo Titolo e Conteggio
-                TabHeader(R.string.artists) {
-                    HeaderInfo(itemsOnDisplay.size.toString(), R.drawable.music_artist)
-                    Spacer(modifier = Modifier.weight(1f))
-                }
-
-                // 2. Control Bar Unificata: Tabs + Sort
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // FIX:
-                    // ButtonsRow è sicuramente un LazyRow. Non serve (e causa crash)
-                    // avvolgerlo in un altro horizontalScroll.
-                    // La Box con weight(1f) fornisce il vincolo di larghezza necessario.
-                    Box(
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        ButtonsRow(
-                            buttons = buttonsList,
-                            currentValue = artistType,
-                            onValueUpdate = { artistType = it },
-                            // FillMaxWidth assicura che il LazyRow interno occupi tutto lo spazio disponibile
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(4.dp))
-
-                    // SORT CONTROLS
-                    var isSortExpanded by remember { mutableStateOf(false) }
-
-                    // Timer per auto-chiusura dopo 3 secondi di inattività
-                    LaunchedEffect(isSortExpanded) {
-                        if (isSortExpanded) {
-                            delay(3000)
-                            isSortExpanded = false
-                        }
-                    }
-
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            // Animazione della larghezza quando si espande/contrae
-                            .animateContentSize(animationSpec = tween(durationMillis = 300))
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(colorPalette().background1.copy(alpha = 0.5f))
-                            .clickable {
-                                // Se è espanso -> Apre il menu ordinamento
-                                // Se è chiuso -> Espande il chip
-                                if (isSortExpanded) {
-                                    menuState.display { sortMenu() }
-                                } else {
-                                    isSortExpanded = true
-                                }
+                // 1. Title block: large title, count and sort pill
+                LibraryTitleBlock(
+                    title = stringResource(R.string.artists),
+                    subtitle = libraryCountText(R.plurals.mymusic_count_artists, itemsOnDisplay.size),
+                    trailing = {
+                        LibrarySortPill(
+                            label = stringResource(sortBy.textId),
+                            arrowRotation = sortOrderIconRotation,
+                            onOpenMenu = { menuState.display { sortMenu() } },
+                            onToggleOrder = {
+                                sortOrder = if (sortOrder == SortOrder.Ascending) SortOrder.Descending else SortOrder.Ascending
                             }
-                            .padding(horizontal = 6.dp, vertical = 6.dp)
-                    ) {
-                        // TESTO dell'ordinamento (Animato)
-                        AnimatedVisibility(
-                            visible = isSortExpanded,
-                            enter = fadeIn(tween(200)) + expandHorizontally(expandFrom = Alignment.Start),
-                            exit = fadeOut(tween(200)) + shrinkHorizontally(shrinkTowards = Alignment.Start)
-                        ) {
-                            Text(
-                                text = stringResource(sortBy.textId),
-                                style = typography().xs,
-                                color = colorPalette().textSecondary,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.padding(end = 4.dp)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(2.dp))
-
-                        HeaderIconButton(
-                            icon = R.drawable.arrow_up,
-                            color = colorPalette().text,
-                            onClick = {},
-                            modifier = Modifier
-                                .size(20.dp)
-                                .graphicsLayer { rotationZ = sortOrderIconRotation }
-                                .combinedClickable(
-                                    onClick = {
-                                        // Cliccando la freccia:
-                                        // Se espanso -> Inverte ordine (e resetta timer)
-                                        // Se chiuso -> Espande il chip
-                                        if (isSortExpanded) {
-                                            sortOrder = if (sortOrder == SortOrder.Ascending) SortOrder.Descending else SortOrder.Ascending
-                                        } else {
-                                            isSortExpanded = true
-                                        }
-                                    },
-                                    onLongClick = { menuState.display { sortMenu() } }
-                                )
                         )
                     }
-                }
+                )
 
-                // 3. Toolbar delle azioni (Sync, Random, Shuffle, etc.)
-                TabToolBar.Buttons(sync, search, randomizer, shuffle, itemSize, viewType)
+                // 2. Scrollable pill chips
+                LibraryChipsRow(
+                    options = buttonsList,
+                    selected = artistType,
+                    onSelect = { artistType = it }
+                )
+
+                // 3. Toolbar actions (sync, search, random, shuffle, size, view) on a glass dock
+                LibraryToolbarDock {
+                    TabToolBar.Buttons(sync, search, randomizer, shuffle, itemSize, viewType)
+                }
 
                 // 4. Search Bar
                 search.SearchBar(this)
 
                 // 5. Contenuto (Lista o Griglia)
                 if (itemsOnDisplay.isEmpty()) {
-                    // Empty State Moderno
                     Box(
                         modifier = Modifier
-                            .fillMaxSize()
-                            .padding(32.dp),
+                            .fillMaxWidth()
+                            .weight(1f),
                         contentAlignment = Alignment.Center
                     ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(
-                                painter = painterResource(R.drawable.music_artist),
-                                contentDescription = null,
-                                modifier = Modifier.size(64.dp),
-                                tint = colorPalette().textDisabled
+                        LibraryEmptyState(
+                            iconId = R.drawable.music_artist,
+                            title = stringResource(
+                                if (search.input.isBlank()) R.string.mymusic_empty_artists_title
+                                else R.string.mymusic_empty_search_title
+                            ),
+                            message = stringResource(
+                                if (search.input.isBlank()) R.string.mymusic_empty_artists_hint
+                                else R.string.mymusic_empty_search_hint
                             )
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Text(
-                                text = stringResource(R.string.no_artists),
-                                style = typography().m,
-                                color = colorPalette().textSecondary
-                            )
-                        }
+                        )
                     }
                 } else {
                     if (getViewType() == ViewType.List) {
@@ -425,7 +343,7 @@ fun HomeArtists(
                                 state = lazyListState,
                                 modifier = Modifier.fillMaxSize()
                             ) {
-                                items(items = itemsOnDisplay, key = Artist::id) { artist ->
+                                items(items = itemsOnDisplay, key = Artist::id, contentType = { "artist" }) { artist ->
                                     ArtistItem(
                                         artist = artist,
                                         thumbnailSizeDp = itemSize.size.dp,
@@ -477,7 +395,7 @@ fun HomeArtists(
                                     .fillMaxSize(),
                                 contentPadding = PaddingValues(bottom = Dimensions.bottomSpacer)
                             ) {
-                                items(items = itemsOnDisplay, key = Artist::id) { artist ->
+                                items(items = itemsOnDisplay, key = Artist::id, contentType = { "artist" }) { artist ->
                                     ArtistItem(
                                         artist = artist,
                                         thumbnailSizeDp = itemSize.size.dp,

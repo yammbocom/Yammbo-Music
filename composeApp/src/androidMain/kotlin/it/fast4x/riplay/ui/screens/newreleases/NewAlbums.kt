@@ -18,6 +18,8 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -41,8 +43,11 @@ import it.fast4x.riplay.extensions.preferences.navigationBarPositionKey
 import it.fast4x.riplay.extensions.preferences.rememberPreference
 import it.fast4x.riplay.extensions.preferences.showSearchTabKey
 import it.fast4x.riplay.ui.components.themed.LoaderScreen
+import it.fast4x.riplay.ui.components.themed.LoadingEmptyScreen
+import it.fast4x.riplay.ui.components.themed.LoadingErrorScreen
 import it.fast4x.riplay.utils.colorPalette
 import it.fast4x.riplay.utils.LazyListContainer
+import kotlinx.coroutines.withTimeoutOrNull
 
 @ExperimentalTextApi
 @UnstableApi
@@ -55,10 +60,17 @@ fun NewAlbums(
 ) {
     var discoverPage by persist<Result<Environment.DiscoverPage>>("home/discoveryAlbums")
 
+    var retry by rememberSaveable { mutableStateOf(0) }
+
     LoaderScreen(show = discoverPage == null)
 
-    LaunchedEffect(Unit) {
-        discoverPage = Environment.discoverPage(contentCountryCode())
+    LaunchedEffect(retry) {
+        // Drop a persisted failure so the loader shows again while retrying
+        if (retry > 0 || discoverPage?.isFailure == true) discoverPage = null
+        // A request that hangs becomes a failure with retry instead of an endless loader
+        discoverPage = withTimeoutOrNull(20_000) {
+            Environment.discoverPage(contentCountryCode())
+        } ?: Result.failure(Exception("NewAlbums timeout"))
     }
 
     val thumbnailSizeDp = Dimensions.thumbnails.album + 24.dp
@@ -91,7 +103,7 @@ fun NewAlbums(
     ) {
 
         /***************/
-        discoverPage?.getOrNull()?.let { page ->
+        discoverPage?.getOrNull()?.takeIf { it.newReleaseAlbums.isNotEmpty() }?.let { page ->
             LazyListContainer(
                 state = lazyGridState,
             ) {
@@ -142,6 +154,9 @@ fun NewAlbums(
                 }
             }
 
+        } ?: discoverPage?.let { result ->
+            if (result.isFailure) LoadingErrorScreen(onRetry = { retry++ })
+            else LoadingEmptyScreen()
         }
         /***************/
 

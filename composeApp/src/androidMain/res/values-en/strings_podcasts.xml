@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="podcasts_tab_radio">Radio</string>
+    <string name="podcasts_tab_podcasts">Podcasts</string>
+    <string name="podcasts_search_hint">Search podcasts</string>
+    <string name="podcasts_continue">Continue listening</string>
+    <string name="podcasts_my">My podcasts</string>
+    <string name="podcasts_see_all">See all</string>
+    <string name="podcasts_see_less">See less</string>
+    <string name="podcasts_featured">Featured</string>
+    <string name="podcasts_featured_label">Featured</string>
+    <string name="podcasts_open_show">View podcast</string>
+    <string name="podcasts_cat_popular">Popular</string>
+    <string name="podcasts_cat_news">News</string>
+    <string name="podcasts_cat_comedy">Comedy</string>
+    <string name="podcasts_cat_truecrime">True crime</string>
+    <string name="podcasts_cat_history">History</string>
+    <string name="podcasts_cat_tech">Technology</string>
+    <string name="podcasts_cat_health">Health and wellness</string>
+    <string name="podcasts_cat_business">Business</string>
+    <string name="podcasts_cat_sports">Sports</string>
+    <string name="podcasts_cat_education">Education</string>
+    <string name="podcasts_cat_science">Science</string>
+    <string name="podcasts_cat_music">Music</string>
+    <string name="podcasts_cat_mystery">Mystery and horror</string>
+    <string name="podcasts_results">Results</string>
+    <string name="podcasts_error">Could not load podcasts. Check your connection and try again.</string>
+    <string name="podcasts_retry">Retry</string>
+    <string name="podcasts_empty">No podcasts found for this search</string>
+    <string name="podcasts_play">Play</string>
+    <string name="podcasts_episodes_count">%1$d episodes</string>
+    <string name="podcasts_library_title">My podcasts</string>
+    <string name="podcasts_library_recent">Recent episodes</string>
+    <string name="podcasts_library_empty_title">No saved podcasts yet</string>
+    <string name="podcasts_library_empty_body">Open a podcast, tap the three-dot menu and choose Import playlist. It will be saved here with its episodes.</string>
+</resources>

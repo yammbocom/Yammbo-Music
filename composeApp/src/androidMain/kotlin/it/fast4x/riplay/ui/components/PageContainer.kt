@@ -78,7 +78,6 @@ fun PageContainer(
         Item(1, stringResource(R.string.live_radio_tab), R.drawable.radio)
         Item(2, stringResource(R.string.my_music), R.drawable.musical_notes)
         Item(3, stringResource(R.string.search), R.drawable.search)
-        Item(4, stringResource(R.string.my_account), R.drawable.person)
     }
 
     androidx.compose.material3.Scaffold(
@@ -96,7 +95,8 @@ fun PageContainer(
         //**
         Box(
             modifier = Modifier
-                .padding(it)
+                // Content runs under the floating nav pill; see ScreenContainer.
+                .padding(top = it.calculateTopPadding())
                 .fillMaxSize()
         ) {
 
@@ -171,6 +171,7 @@ fun PageContainer(
             //**
             Box(
                 modifier = Modifier
+                    .padding(bottom = it.calculateBottomPadding())
                     .padding(vertical = 5.dp)
                     .align(if (playerPosition == PlayerPosition.Top) Alignment.TopCenter
                     else Alignment.BottomCenter)

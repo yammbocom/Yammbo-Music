@@ -56,6 +56,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.plus
 import kotlinx.coroutines.withContext
 import it.fast4x.riplay.utils.colorPalette
+import it.fast4x.riplay.utils.openPlaylistOrMix
 import it.fast4x.riplay.utils.typography
 import it.fast4x.riplay.utils.LazyListContainer
 import it.fast4x.riplay.utils.forcePlay
@@ -167,7 +168,7 @@ fun GoToLink(
                                                     }
                                                 }
                                         } else {
-                                            navController.navigate(route = "${NavRoutes.playlist.name}/$browseId")
+                                            openPlaylistOrMix(navController, binder, browseId)
                                         }
                                     }
 

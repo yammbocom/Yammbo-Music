@@ -1,6 +1,7 @@
 package it.fast4x.riplay.extensions.discord
 
 import android.content.Context
+import it.fast4x.riplay.commonutils.cleanPrefix
 import android.net.Uri
 import androidx.compose.runtime.MutableState
 import androidx.core.net.toUri
@@ -280,7 +281,7 @@ class DiscordPresenceManager(
         if (isStopped) return
         val mediaItem = lastMediaItem ?: return
         val frozenTimestamp = now - pausedPosition
-        val title = mediaItem.mediaMetadata.title?.toString().takeIf { !it.isNullOrBlank() } ?: context.getString(R.string.unknown_title)
+        val title = mediaItem.mediaMetadata.title?.toString()?.let(::cleanPrefix).takeIf { !it.isNullOrBlank() } ?: context.getString(R.string.unknown_title)
         val artist = mediaItem.mediaMetadata.artist?.toString().takeIf { !it.isNullOrBlank() } ?: context.getString(R.string.unknown_artist)
         discordScope.launch {
             if (isStopped) return@launch
@@ -407,7 +408,7 @@ class DiscordPresenceManager(
     private fun sendPlayingPresence(mediaItem: MediaItem, position: Long, duration: Long, now: Long) {
         val start = now - position
         val end = start + duration
-        val title = mediaItem.mediaMetadata.title?.toString().takeIf { !it.isNullOrBlank() } ?: context.getString(R.string.unknown_title)
+        val title = mediaItem.mediaMetadata.title?.toString()?.let(::cleanPrefix).takeIf { !it.isNullOrBlank() } ?: context.getString(R.string.unknown_title)
         val artist = mediaItem.mediaMetadata.artist?.toString().takeIf { !it.isNullOrBlank() } ?: context.getString(R.string.unknown_artist)
         discordScope.launch {
             sendActivity(
