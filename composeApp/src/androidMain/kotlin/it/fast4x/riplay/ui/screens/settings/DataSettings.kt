@@ -71,19 +71,18 @@ import it.fast4x.riplay.extensions.preferences.autoDownloadFavoritesKey
 import it.fast4x.riplay.extensions.preferences.playLocalCopyKey
 import it.fast4x.riplay.extensions.ads.PremiumFeature
 import it.fast4x.riplay.extensions.ads.PremiumGuard
-import it.fast4x.riplay.extensions.fastshare.AutoDownloadActivity
-import it.fast4x.riplay.extensions.fastshare.isYtdlnisInstalled
-import it.fast4x.riplay.extensions.fastshare.openYtdlnisInstallPage
+import it.fast4x.riplay.extensions.fastshare.downloadPendingFavoritesNow
 import it.fast4x.riplay.extensions.fastshare.pendingFavoritesToSend
 import it.fast4x.riplay.extensions.fastshare.favoritesGivenUpCount
 import androidx.core.content.ContextCompat
-import it.fast4x.riplay.extensions.scheduled.cancelAutoDownloadFavorites
-import it.fast4x.riplay.extensions.scheduled.scheduleAutoDownloadFavorites
+import it.fast4x.riplay.extensions.download.AutoDownloads
 import it.fast4x.riplay.utils.AppDataUsage
 import it.fast4x.riplay.utils.formatDataAmount
 import it.fast4x.riplay.utils.isConnectionMetered
 import it.fast4x.riplay.utils.readAppDataUsage
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.distinctUntilChanged
 import it.fast4x.riplay.utils.colorPalette
@@ -240,18 +239,16 @@ fun DataSettings() {
     // Data saver: read by the player on every song, so no restart is needed.
     var playLocalCopy by rememberPreference(playLocalCopyKey, true)
     var autoDownloadFavorites by rememberPreference(autoDownloadFavoritesKey, false)
-    var ytdlnisInstalled by remember { mutableStateOf(isYtdlnisInstalled(context)) }
     var onUnmeteredNetwork by remember { mutableStateOf(!context.isConnectionMetered()) }
     var resumeTick by remember { mutableIntStateOf(0) }
-    // YTDLnis may have been installed, or the network changed, while the screen was away.
+    // The network may have changed while the screen was away.
     LifecycleResumeEffect(Unit) {
-        ytdlnisInstalled = isYtdlnisInstalled(context)
         onUnmeteredNetwork = !context.isConnectionMetered()
         resumeTick++
         onPauseOrDispose { }
     }
     // The query only tells when the favorites or the downloads change; the number shown also
-    // leaves out songs handed to YTDLnis in the last days and ids that are not videos.
+    // leaves out songs queued in the last days and ids that are not videos.
     val pendingFavoritesChanged by remember {
         Database.pendingFavoriteDownloadsCount().distinctUntilChanged()
     }.collectAsState(initial = 0)
@@ -261,19 +258,6 @@ fun DataSettings() {
         pendingToSend = withContext(Dispatchers.IO) { pendingFavoritesToSend(context).size }
         givenUpFavorites = withContext(Dispatchers.IO) { favoritesGivenUpCount(context) }
     }
-    // The reminder is a notification; without the permission the switch still works, but only
-    // through the button below, and the user has to know that.
-    val notificationPermissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        if (!granted) SmartMessage(
-            context.getString(R.string.auto_download_no_notification_permission),
-            type = PopupType.Warning,
-            durationLong = true,
-            context = context
-        )
-    }
-
     var dataUsage by remember { mutableStateOf<AppDataUsage?>(null) }
     LaunchedEffect(Unit) {
         dataUsage = withContext(Dispatchers.IO) { readAppDataUsage(context) }
@@ -384,32 +368,19 @@ fun DataSettings() {
             SwitchSettingEntry(
                 title = stringResource(R.string.auto_download_favorites),
                 text = stringResource(R.string.auto_download_favorites_description),
-                isChecked = autoDownloadFavorites && ytdlnisInstalled,
-                isEnabled = ytdlnisInstalled,
-                modifier = Modifier.alpha(if (ytdlnisInstalled) 1f else 0.5f),
+                isChecked = autoDownloadFavorites,
                 onCheckedChange = { enabled ->
                     if (!enabled) {
                         autoDownloadFavorites = false
-                        cancelAutoDownloadFavorites(context)
+                        // Playlists and albums kept downloaded share the schedule: sync, never cancel.
+                        AutoDownloads.setEnabled(context, AutoDownloads.FAVORITES, false)
                     } else if (PremiumGuard.checkFeature(context, PremiumFeature.Download)) {
                         // Same gate as the download button: it shows the subscription message itself.
                         autoDownloadFavorites = true
-                        scheduleAutoDownloadFavorites(context)
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-                            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS)
-                            != PackageManager.PERMISSION_GRANTED
-                        ) notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        AutoDownloads.setEnabled(context, AutoDownloads.FAVORITES, true)
                     }
                 }
             )
-            if (!ytdlnisInstalled) {
-                SettingsEntry(
-                    title = stringResource(R.string.ytdlnis_not_installed),
-                    text = stringResource(R.string.auto_download_install_ytdlnis),
-                    onClick = { openYtdlnisInstallPage(context) }
-                )
-            }
-
             SettingsEntry(
                 title = stringResource(R.string.auto_download_now, pendingToSend),
                 text = listOf(
@@ -418,17 +389,18 @@ fun DataSettings() {
                         pendingToSend == 0 -> stringResource(R.string.auto_download_nothing_pending)
                         else -> ""
                     },
-                    // Left out after repeated sends; saying so keeps the count above from looking wrong.
+                    // Left out after repeated attempts; saying so keeps the count above from looking wrong.
                     if (givenUpFavorites > 0) context.resources.getQuantityString(
                         R.plurals.auto_download_given_up, givenUpFavorites, givenUpFavorites
                     ) else ""
                 ).filter { it.isNotEmpty() }.joinToString("\n"),
-                isEnabled = ytdlnisInstalled && onUnmeteredNetwork && pendingToSend > 0,
+                isEnabled = onUnmeteredNetwork && pendingToSend > 0,
                 modifier = Modifier.alpha(
-                    if (ytdlnisInstalled && onUnmeteredNetwork && pendingToSend > 0) 1f else 0.5f
+                    if (onUnmeteredNetwork && pendingToSend > 0) 1f else 0.5f
                 ),
                 onClick = {
-                    context.startActivity(Intent(context, AutoDownloadActivity::class.java))
+                    // Not the composition scope: the queueing outlives this click.
+                    CoroutineScope(Dispatchers.IO).launch { downloadPendingFavoritesNow(context) }
                 }
             )
         }

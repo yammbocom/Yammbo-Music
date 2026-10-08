@@ -32,7 +32,8 @@ import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.platform.LocalContext
 import it.fast4x.riplay.enums.PopupType
-import it.fast4x.riplay.extensions.fastshare.shareCollectionToDownloader
+import it.fast4x.riplay.extensions.download.AutoDownloads
+import it.fast4x.riplay.extensions.download.downloadAlbum
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -559,34 +560,17 @@ fun AlbumsItemMenu(
                         )
                     }
 
-                    // The whole thing to the downloader, as one link it can expand by itself.
+                    // The whole album queued for in-app download.
                     MenuEntry(
-                        icon = R.drawable.downloaded,
+                        icon = R.drawable.download,
                         text = stringResource(R.string.download_all_with_ytdlnis),
                         onClick = {
                             onDismiss()
-                            shareCollectionToDownloader(
-                                context = downloadContext,
-                                url = album.shareYTUrl,
-                                songs = emptyList(),
-                                title = album.title.orEmpty(),
-                                onEmpty = {
-                                    SmartMessage(
-                                        downloadContext.resources.getString(R.string.nothing_to_download),
-                                        context = downloadContext,
-                                        type = PopupType.Info,
-                                    )
-                                },
-                                onAppMissing = {
-                                    SmartMessage(
-                                        downloadContext.resources.getString(R.string.ytdlnis_not_installed),
-                                        context = downloadContext,
-                                        type = PopupType.Error,
-                                    )
-                                },
-                            )
+                            downloadAlbum(downloadContext, album.id, album.title)
                         }
                     )
+
+                    AutoDownloadMenuEntry(key = AutoDownloads.albumKey(album.id), onDismiss = onDismiss)
 
                     onBlacklist?.let { onBlacklist ->
                         MenuEntry(

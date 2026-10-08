@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- In-app downloads (extensions/download) -->
+    <string name="download_action">Download</string>
+    <string name="download_channel_name">Downloads</string>
+    <string name="download_in_progress">Downloading</string>
+    <string name="download_summary_offline">Ready to play without internet.</string>
+    <string name="download_already_downloaded">Already downloaded</string>
+    <string name="download_nothing_new">Everything here is already downloaded or on its way</string>
+    <string name="download_preparing">Preparing the download…</string>
+    <string name="download_storage_permission">Allow storage access to save downloads</string>
+    <plurals name="download_queued">
+        <item quantity="one">Downloading %1$d song. We will let you know when it is ready.</item>
+        <item quantity="other">Downloading %1$d songs. We will let you know when they are ready.</item>
+    </plurals>
+    <plurals name="download_remaining">
+        <item quantity="one">%1$d more in the queue</item>
+        <item quantity="other">%1$d more in the queue</item>
+    </plurals>
+    <plurals name="download_summary_done">
+        <item quantity="one">%1$d song downloaded</item>
+        <item quantity="other">%1$d songs downloaded</item>
+    </plurals>
+    <plurals name="download_summary_failed">
+        <item quantity="one">%1$d could not be downloaded:</item>
+        <item quantity="other">%1$d could not be downloaded:</item>
+    </plurals>
+    <string name="auto_download_collection">Download automatically on Wi-Fi</string>
+    <string name="auto_download_collection_on">It will download on its own whenever you are on Wi-Fi, songs added later included.</string>
+    <string name="auto_download_collection_off">Automatic download turned off. What is already downloaded stays on your phone.</string>
+</resources>

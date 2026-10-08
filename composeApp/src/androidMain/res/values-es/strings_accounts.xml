@@ -47,6 +47,7 @@
     <!-- Discord -->
     <string name="accounts_discord_presence_title">Presencia en Discord</string>
     <string name="accounts_discord_presence_subtitle">Muestra en tu perfil lo que estás escuchando.</string>
+    <string name="accounts_discord_session_expired">Tu sesión de Discord caducó. Ve a Cuentas, desconecta Discord y vuelve a entrar.</string>
 
     <!-- Last.fm -->
     <string name="accounts_lastfm_scrobble_title">Enviar escuchas a Last.fm</string>

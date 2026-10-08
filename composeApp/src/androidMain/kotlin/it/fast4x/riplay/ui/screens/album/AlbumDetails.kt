@@ -139,7 +139,9 @@ import me.bush.translator.Language
 import me.bush.translator.Translator
 import it.fast4x.riplay.utils.colorPalette
 import it.fast4x.riplay.enums.PopupType
-import it.fast4x.riplay.extensions.fastshare.shareSongsToDownloader
+import it.fast4x.riplay.extensions.download.downloadSongs
+import it.fast4x.riplay.ui.components.themed.downloadIconFor
+import it.fast4x.riplay.utils.isLocal
 import it.fast4x.riplay.extensions.fastshare.FastShare
 import it.fast4x.riplay.data.models.SongAlbumMap
 import it.fast4x.riplay.data.models.defaultQueue
@@ -751,44 +753,23 @@ fun AlbumDetails(
                                     }
                                 )
 
+                                // The whole album, queued for in-app download. It replaces the old
+                                // get_app button, whose sheet by now only held this same action.
                                 MediaActionButton(
-                                    icon = R.drawable.get_app,
+                                    icon = downloadIconFor(songs.filterNot { it.isLocal }.map { it.id }),
                                     enabled = songs.isNotEmpty(),
                                     tint = if (songs.isNotEmpty()) colorPalette().text else colorPalette().textDisabled,
-                                    onClick = {
-                                        showFastShare = true
-                                        showDirectFastShare = true
-                                    },
                                     onLongClick = {
                                         SmartMessage(
-                                            context.resources.getString(R.string.share_with_external_app),
+                                            context.resources.getString(R.string.download_all_with_ytdlnis),
                                             context = context
                                         )
-                                    }
-                                )
-
-                                // The whole album to the downloader (moved from the old top corner).
-                                MediaActionButton(
-                                    icon = R.drawable.downloaded,
+                                    },
                                     onClick = {
-                                        shareSongsToDownloader(
+                                        downloadSongs(
                                             context = context,
                                             songs = songs,
-                                            title = album?.title.orEmpty(),
-                                            onEmpty = {
-                                                SmartMessage(
-                                                    context.resources.getString(R.string.nothing_to_download),
-                                                    context = context,
-                                                    type = PopupType.Info,
-                                                )
-                                            },
-                                            onAppMissing = {
-                                                SmartMessage(
-                                                    context.resources.getString(R.string.ytdlnis_not_installed),
-                                                    context = context,
-                                                    type = PopupType.Error,
-                                                )
-                                            },
+                                            albumTitle = album?.title,
                                         )
                                     }
                                 )

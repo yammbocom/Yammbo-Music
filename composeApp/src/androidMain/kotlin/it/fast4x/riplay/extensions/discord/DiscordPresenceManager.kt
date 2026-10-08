@@ -43,6 +43,8 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.JsonArray
@@ -71,6 +73,7 @@ class DiscordPresenceManager(
         private const val TEMP_FILE_HOST = "https://litterbox.catbox.moe/resources/internals/api.php"
         private const val MAX_DIMENSION = 1024                           // Per Discord's guidelines
         private const val MAX_FILE_SIZE_BYTES = 2L * 1024 * 1024     // 2 MB in bytes
+        private const val PAUSE_CLEAR_TIMEOUT_MS = 5 * 60 * 1000L    // from upstream RiPlay f67397726
     }
 
     private var rpc: KizzyRPC? = null
@@ -88,6 +91,18 @@ class DiscordPresenceManager(
     private var smallImage: String? = null
     @Volatile
     private var largeImage: String? = null
+
+    // The token used to be checked against /users/@me before EVERY activity update (every
+    // state change plus every 15 s). A burst of those at startup earns a 429, and any non-2xx
+    // was reported as "invalid token". Now a token is checked at most every 30 min, and only a
+    // 401 counts as a dead session, reported once.
+    @Volatile
+    private var validatedToken: String? = null
+    @Volatile
+    private var validatedAt: Long = 0L
+    @Volatile
+    private var rejectedToken: String? = null
+    private val tokenRecheckMs = 30 * 60 * 1000L
 
     @OptIn(ExperimentalSerializationApi::class)
     private suspend fun uploadArtwork( artworkUri: Uri? ): Result<Uri> =
@@ -200,7 +215,16 @@ class DiscordPresenceManager(
 
         runCatching {
             client.newCall(request).execute().use { response ->
-                response.isSuccessful
+                when {
+                    response.isSuccessful -> true
+                    // Only 401 means the token is dead. 429 (rate limit), 403 (Cloudflare) and
+                    // 5xx say nothing about the session: retry later.
+                    response.code == 401 -> false
+                    else -> {
+                        Timber.tag("DiscordPresence").w("Token check got HTTP ${response.code}, retrying later")
+                        null
+                    }
+                }
             }
         }.getOrElse { exception ->
             // Handle rate limiting and network errors silently
@@ -231,10 +255,12 @@ class DiscordPresenceManager(
         refreshJob?.cancel()
         refreshJob = null
 
-        if (token != lastToken) {
-            rpc?.closeRPC()
-            rpc = KizzyRPC(token)
-            lastToken = token
+        synchronized(rpcLock) {
+            if (token != lastToken) {
+                rpc?.closeRPC()
+                rpc = KizzyRPC(token)
+                lastToken = token
+            }
         }
 
         lastMediaItem = mediaItem
@@ -297,6 +323,40 @@ class DiscordPresenceManager(
         }
     }
 
+    private val tokenCheckMutex = Mutex()
+    private val rpcLock = Any()
+
+    /** True when presence may be sent with [token]. Must run under [tokenCheckMutex]. */
+    private suspend fun checkToken(token: String): Boolean {
+        if (token == rejectedToken) return false
+        val now = System.currentTimeMillis()
+        if (token == validatedToken && now - validatedAt < tokenRecheckMs) return true
+
+        return when (validateToken(token)) {
+            false -> {
+                Timber.tag("DiscordPresence").e("Discord answered 401, stopping presence updates")
+                rejectedToken = token
+                validatedToken = null
+                SmartMessage(
+                    context.getString(R.string.accounts_discord_session_expired),
+                    PopupType.Error,
+                    context = context
+                )
+                false
+            }
+            // Offline, rate limited or Discord down: keep going if this token was fine before.
+            null -> {
+                Timber.tag("DiscordPresence").w("Could not check the Discord token this time")
+                token == validatedToken
+            }
+            true -> {
+                validatedToken = token
+                validatedAt = now
+                true
+            }
+        }
+    }
+
     /**
      * Send a custom discord activity
      */
@@ -313,23 +373,21 @@ class DiscordPresenceManager(
         val token = getToken() ?: return
         if (token.isEmpty()) return
 
-        when (validateToken(token)) {
-            false -> {
-                Timber.tag("DiscordPresence").e("Invalid token, stopping presence updates")
-                SmartMessage( "Your Discord presence is in error, try to disconnect and login again.", PopupType.Error, context = context)
-                return
-            }
-            null -> {
-                Timber.tag("DiscordPresence").w("Network error while updating presence, skipping.")
-                return
-            }
-            true -> { /* Token is valid, continue */ }
-        }
+        if (token == rejectedToken) return
 
-        if (token != lastToken) {
-            rpc?.closeRPC()
-            rpc = KizzyRPC(token)
-            lastToken = token
+        // Several updates fire together at startup; one check is enough for all of them.
+        val tokenOk = tokenCheckMutex.withLock { checkToken(token) }
+        if (!tokenOk) return
+
+        // Updates run concurrently on discordScope: one connection, never two.
+        synchronized(rpcLock) {
+            if (token != lastToken) {
+                rpc?.closeRPC()
+                rpc = KizzyRPC(token)
+                lastToken = token
+            } else if (rpc == null) {
+                rpc = KizzyRPC(token)   // reconnect after a long pause cleared the presence
+            }
         }
         val largeImageUrl = getLargeImageUrl(mediaItem.mediaMetadata.artworkUri)
         val smallImageUrl = getSmallImageUrl()
@@ -366,6 +424,20 @@ class DiscordPresenceManager(
         }.onFailure {
             // Log the error but don't show it to the user to avoid disturbance
             Timber.tag("DiscordPresence").w("Error setting Discord activity: ${it.message}")
+        }
+    }
+
+    /**
+     * Remove the activity from the profile after a long pause, so it does not say
+     * "Paused" for hours. The next play event reconnects (see sendActivity).
+     */
+    private fun clearPresence() {
+        if (isStopped) return
+        synchronized(rpcLock) {
+            runCatching { rpc?.closeRPC() }.onFailure {
+                Timber.tag("DiscordPresence").w("Error clearing presence: ${it.message}")
+            }
+            rpc = null
         }
     }
 
@@ -436,6 +508,7 @@ class DiscordPresenceManager(
         startTime: Long
     ) {
         refreshJob = discordScope.launch {
+            var pauseStartedAt = -1L
             while (isActive && !isStopped) {
                 delay(15_000L)
                 if (!isNetworkConnected(context)) {
@@ -443,10 +516,17 @@ class DiscordPresenceManager(
                 }
                 val isPlaying = isPlayingProvider()
                 if (isPlaying) {
+                    pauseStartedAt = -1L
                     val pos = getCurrentPosition()
                     sendPlayingPresence(mediaItem, pos, duration, startTime)
                 } else {
-                    sendPausedPresence(duration, System.currentTimeMillis(), pausedPosition)
+                    val now = System.currentTimeMillis()
+                    if (pauseStartedAt < 0L) pauseStartedAt = now
+                    if (now - pauseStartedAt >= PAUSE_CLEAR_TIMEOUT_MS) {
+                        clearPresence()
+                        break
+                    }
+                    sendPausedPresence(duration, now, pausedPosition)
                 }
             }
         }

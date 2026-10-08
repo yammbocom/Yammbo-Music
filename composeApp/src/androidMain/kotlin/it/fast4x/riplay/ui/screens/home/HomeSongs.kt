@@ -104,7 +104,8 @@ import it.fast4x.riplay.commonutils.EXPLICIT_PREFIX
 import it.fast4x.riplay.LocalPlayerServiceBinder
 import it.fast4x.riplay.LocalSelectedQueue
 import com.yambo.music.R
-import it.fast4x.riplay.extensions.fastshare.shareSongsToDownloader
+import it.fast4x.riplay.extensions.download.AutoDownloads
+import it.fast4x.riplay.extensions.download.downloadSongs
 import it.fast4x.riplay.utils.appContext
 import it.fast4x.riplay.utils.isRadio
 import it.fast4x.riplay.utils.colorPalette
@@ -300,27 +301,13 @@ fun HomeSongs(
     var folders: List<Folder> = emptyList()
     var filteredSongs = songs
 
-    // The list the user is actually looking at, handed to the downloader in one file.
+    // The list the user is actually looking at, queued for in-app download.
     val downloadEverythingShown = {
         val shown = if (builtInPlaylist == BuiltInPlaylist.OnDevice) filteredSongs else items
-        shareSongsToDownloader(
+        downloadSongs(
             context = context,
             songs = shown.map { it.song },
-            title = builtInPlaylist.name,
-            onEmpty = {
-                SmartMessage(
-                    context.resources.getString(R.string.nothing_to_download),
-                    context = context,
-                    type = PopupType.Info,
-                )
-            },
-            onAppMissing = {
-                SmartMessage(
-                    context.resources.getString(R.string.ytdlnis_not_installed),
-                    context = context,
-                    type = PopupType.Error,
-                )
-            },
+            albumTitle = null,
         )
     }
     var filteredFolders = folders
@@ -637,7 +624,10 @@ fun HomeSongs(
                     )
 
                     // 3. Play / shuffle pills
-                    val hasPlayableSongs = remember(items) { items.any { it.song.likedAt != -1L } }
+                    // The list on screen: on the device tab that is filteredSongs, not items, which
+                    // can still be empty there and left both pills greyed out over a full list.
+                    val hasPlayableSongs = (if (builtInPlaylist == BuiltInPlaylist.OnDevice) filteredSongs else items)
+                        .any { it.song.likedAt != -1L }
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                         modifier = Modifier
@@ -812,6 +802,8 @@ fun HomeSongs(
                                         onDownloadAllSongs = {
                                             downloadEverythingShown()
                                         },
+                                        autoDownloadKey = AutoDownloads.FAVORITES
+                                            .takeIf { builtInPlaylist == BuiltInPlaylist.Favorites },
                                         onSelectUnselect = {
                                             selectItems = !selectItems; if (!selectItems) listMediaItems.clear()
                                         },
@@ -1268,27 +1260,13 @@ fun HomeSongs(
 
     var filteredSongs = songs
 
-    // The list the user is actually looking at, handed to the downloader in one file.
+    // The list the user is actually looking at, queued for in-app download.
     val downloadEverythingShown = {
         val shown = if (builtInPlaylist == BuiltInPlaylist.OnDevice) filteredSongs else items
-        shareSongsToDownloader(
+        downloadSongs(
             context = context,
             songs = shown.map { it.song },
-            title = builtInPlaylist.name,
-            onEmpty = {
-                SmartMessage(
-                    context.resources.getString(R.string.nothing_to_download),
-                    context = context,
-                    type = PopupType.Info,
-                )
-            },
-            onAppMissing = {
-                SmartMessage(
-                    context.resources.getString(R.string.ytdlnis_not_installed),
-                    context = context,
-                    type = PopupType.Error,
-                )
-            },
+            albumTitle = null,
         )
     }
 

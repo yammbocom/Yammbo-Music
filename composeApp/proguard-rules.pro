@@ -107,6 +107,9 @@
 
 ## Rules for NewPipeExtractor
 -keep class org.schabi.newpipe.extractor.timeago.patterns.** { *; }
+# NewPipeExtractor 0.26+ ships protobuf-lite messages; lite reads fields by reflection.
+-keep class org.schabi.newpipe.extractor.services.youtube.protos.** { *; }
+-keep class * extends com.google.protobuf.GeneratedMessageLite { <fields>; }
 -keep class org.mozilla.javascript.** { *; }
 -keep class org.mozilla.classfile.ClassFileWriter
 -dontwarn org.mozilla.javascript.JavaToJSONConverters

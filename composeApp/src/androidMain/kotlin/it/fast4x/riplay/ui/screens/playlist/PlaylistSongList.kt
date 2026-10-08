@@ -136,6 +136,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import it.fast4x.riplay.utils.colorPalette
+import it.fast4x.riplay.extensions.download.downloadSongs
+import it.fast4x.riplay.ui.components.themed.downloadIconFor
 import it.fast4x.riplay.extensions.fastshare.FastShare
 import it.fast4x.riplay.data.models.defaultQueue
 import it.fast4x.riplay.utils.typography
@@ -672,17 +674,20 @@ fun PlaylistSongList(
                                     }
                                 )
 
-                                // Hands the playlist to an external app (the old get_app button).
+                                // The whole playlist (loaded with all its continuations) queued for
+                                // in-app download; playlistSongs, so parental control applies too.
                                 MediaActionButton(
-                                    icon = R.drawable.get_app,
+                                    icon = downloadIconFor(playlistSongs.map { it.asSong.id }),
                                     enabled = playlistPage?.songs?.isNotEmpty() == true,
                                     onClick = {
-                                        showFastShare = true
-                                        showDirectFastShare = true
+                                        downloadSongs(
+                                            context = context,
+                                            songs = playlistSongs.map { it.asSong },
+                                        )
                                     },
                                     onLongClick = {
                                         SmartMessage(
-                                            context.resources.getString(R.string.share_with_external_app),
+                                            context.resources.getString(R.string.download_all_with_ytdlnis),
                                             context = context
                                         )
                                     }

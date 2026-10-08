@@ -1522,9 +1522,8 @@
     <string name="cast_youtube_mode_info">Apagado, el televisor reproduce la radio en vivo. Encendido, reproduce canciones de YouTube. Todavía no hay un receptor gratuito que haga las dos cosas.</string>
     <string name="cast_mode_changed">Reinicia la app para aplicar el nuevo modo de Cast</string>
     <string name="cast_receiver_cannot_play_this">Este dispositivo Cast no puede reproducir esto. Cambia el modo de Cast en Ajustes.</string>
-    <string name="download_all_with_ytdlnis">Descargar todo con YTDLnis</string>
+    <string name="download_all_with_ytdlnis">Descargar todo</string>
     <string name="nothing_to_download">Aquí no hay nada que se pueda descargar</string>
-    <string name="ytdlnis_not_installed">YTDLnis no está instalado</string>
     <string name="radio_cannot_be_queued">Las emisoras no se pueden añadir a la cola de canciones. Tócala para escucharla.</string>
     <string name="android_auto_radio">Radio</string>
     <string name="content_country">País del contenido</string>
@@ -1534,29 +1533,14 @@
     <string name="play_local_copy">Reproducir la copia descargada</string>
     <string name="play_local_copy_description">Si una canción está descargada en el móvil, suena desde el archivo y no gasta datos.</string>
     <string name="auto_download_favorites">Descargar favoritas automáticamente con Wi-Fi</string>
-    <string name="auto_download_favorites_description">Cuando tengas Wi-Fi te avisaremos de las favoritas que aún no están descargadas; con un toque se envían a YTDLnis y se descargan en segundo plano. Android no permite hacerlo sin ese toque.</string>
-    <string name="auto_download_install_ytdlnis">Las descargas pasan por YTDLnis. Toca para abrir su página e instalarlo.</string>
+    <string name="auto_download_favorites_description">Cuando tengas Wi-Fi, las favoritas que aún no están descargadas se descargan en segundo plano.</string>
     <string name="auto_download_now">Descargar favoritas pendientes ahora (%1$d)</string>
     <string name="auto_download_needs_wifi">Solo con Wi-Fi</string>
     <string name="auto_download_nothing_pending">No hay favoritas pendientes de descargar</string>
-    <string name="auto_download_channel_name">Descargas</string>
-    <string name="auto_download_notification_title">Favoritas listas para descargar</string>
-    <plurals name="auto_download_notification_text">
-        <item quantity="one">%d canción sin descargar. Toca para descargarla con Wi-Fi.</item>
-        <item quantity="other">%d canciones sin descargar. Toca para descargarlas con Wi-Fi.</item>
-    </plurals>
-    <string name="auto_download_progress">Enviando a YTDLnis: %1$d de %2$d</string>
-    <string name="auto_download_preparing">Buscando favoritas pendientes</string>
-    <plurals name="auto_download_done">
-        <item quantity="one">%d canción enviada a YTDLnis</item>
-        <item quantity="other">%d canciones enviadas a YTDLnis</item>
-    </plurals>
-    <string name="auto_download_stopped_metered">Envío detenido: ya no estás con Wi-Fi</string>
     <plurals name="auto_download_given_up">
         <item quantity="one">%d no se pudo descargar</item>
         <item quantity="other">%d no se pudieron descargar</item>
     </plurals>
-    <string name="auto_download_no_notification_permission">Sin permiso de notificaciones no podremos avisarte; usa el botón «Descargar favoritas pendientes ahora» en Ajustes › Datos.</string>
     <string name="data_usage_title">Consumo de datos de la app</string>
     <string name="data_usage_loading">Calculando</string>
     <string name="data_usage_since_boot">Desde que se encendió el teléfono (datos móviles y Wi-Fi)</string>

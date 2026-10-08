@@ -47,6 +47,7 @@
     <!-- Discord -->
     <string name="accounts_discord_presence_title">Discord presence</string>
     <string name="accounts_discord_presence_subtitle">Show what you are listening to on your profile.</string>
+    <string name="accounts_discord_session_expired">Your Discord session expired. Go to Accounts, disconnect Discord and sign in again.</string>
 
     <!-- Last.fm -->
     <string name="accounts_lastfm_scrobble_title">Send listens to Last.fm</string>

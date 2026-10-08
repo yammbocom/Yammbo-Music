@@ -57,6 +57,7 @@ import it.fast4x.riplay.LocalSelectedQueue
 import it.fast4x.riplay.commonutils.MODIFIED_PREFIX
 import it.fast4x.riplay.commonutils.MONTHLY_PREFIX
 import it.fast4x.riplay.commonutils.PINNED_PREFIX
+import it.fast4x.riplay.commonutils.cleanPrefix
 import it.fast4x.riplay.commonutils.PIPED_PREFIX
 import com.yambo.music.R
 import it.fast4x.riplay.utils.appContext
@@ -68,6 +69,11 @@ import it.fast4x.riplay.data.models.Info
 import it.fast4x.riplay.data.models.Playlist
 import it.fast4x.riplay.data.models.SongPlaylistMap
 import it.fast4x.riplay.utils.isLocal
+import it.fast4x.riplay.utils.isRadio
+import it.fast4x.riplay.utils.asSong
+import it.fast4x.riplay.extensions.ads.PremiumFeature
+import it.fast4x.riplay.extensions.ads.PremiumGuard
+import it.fast4x.riplay.extensions.download.downloadSong
 import it.fast4x.riplay.ui.items.SongItem
 import it.fast4x.riplay.ui.styling.Dimensions
 import it.fast4x.riplay.ui.styling.favoritesIcon
@@ -722,27 +728,15 @@ fun MediaItemGridMenu (
                 Database.getPlaylistsWithSong(mediaItem.mediaId)
             }.collectAsState(initial = emptyList(), context = Dispatchers.IO)
 
-            val pinnedPlaylists = playlistPreviews.filter {
-                it.playlist.name.startsWith(PINNED_PREFIX, 0, true)
-            }
-
-            val unpinnedPlaylists = playlistPreviews.filter {
-                !it.playlist.name.startsWith(PINNED_PREFIX, 0, true) &&
-                !it.playlist.name.startsWith(MONTHLY_PREFIX, 0, true) //&&
-                //!it.playlist.name.startsWith(PIPED_PREFIX, 0, true)
-            }
 
             var isCreatingNewPlaylist by rememberSaveable {
                 mutableStateOf(false)
             }
 
             if (isCreatingNewPlaylist && onAddToPlaylist != null) {
-                InputTextDialog(
+                CreatePlaylistDialog(
                     onDismiss = { isCreatingNewPlaylist = false },
-                    title = stringResource(R.string.enter_the_playlist_name),
-                    value = "",
-                    placeholder = stringResource(R.string.enter_the_playlist_name),
-                    setValue = { text ->
+                    onCreate = { text ->
                         onDismiss()
                         onAddToPlaylist(Playlist(name = text), 0)
                     }
@@ -758,118 +752,34 @@ fun MediaItemGridMenu (
                     .fillMaxWidth()
                     .fillMaxHeight(0.5f)
             ) {
-                Row(
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                        .fillMaxWidth()
-                ) {
-                    IconButton(
-                        onClick = { isViewingPlaylists = false },
-                        icon = R.drawable.chevron_back,
-                        color = colorPalette().textSecondary,
-                        modifier = Modifier
-                            .padding(all = 4.dp)
-                            .size(20.dp)
-                    )
+                AddToPlaylistHeader(onBack = { isViewingPlaylists = false })
 
-                    if (onAddToPlaylist != null) {
-                        SecondaryTextButton(
-                            text = stringResource(R.string.new_playlist),
-                            onClick = { isCreatingNewPlaylist = true },
-                            alternative = true
-                        )
-                    }
-                }
+                onAddToPlaylist?.let { onAddToPlaylist ->
+                    NewPlaylistEntry(onClick = { isCreatingNewPlaylist = true })
 
-                if (pinnedPlaylists.isNotEmpty()) {
-                    BasicText(
-                        text = stringResource(R.string.pinned_playlists),
-                        style = typography().m.semiBold,
-                        modifier = modifier.padding(start = 20.dp, top = 5.dp)
-                    )
-
-                    onAddToPlaylist?.let { onAddToPlaylist ->
-                        pinnedPlaylists.forEach { playlistPreview ->
-                            MenuEntry(
-                                icon = if (playlistIds.contains(playlistPreview.playlist.id)) R.drawable.checkmark else R.drawable.add_in_playlist,
-                                text = playlistPreview.playlist.name.substringAfter(PINNED_PREFIX),
-                                secondaryText = "${playlistPreview.songCount} " + stringResource(R.string.songs),
-                                onClick = {
-                                    onDismiss()
-                                    onAddToPlaylist(
-                                        playlistPreview.playlist,
-                                        playlistPreview.songCount
-                                    )
-                                },
-                                trailingContent = {
-                                    IconButton(
-                                        icon = R.drawable.open,
-                                        color = colorPalette().text,
-                                        onClick = {
-                                            if (onGoToPlaylist != null) {
-                                                onGoToPlaylist(playlistPreview.playlist.id)
-                                                onDismiss()
-                                            }
-                                            navController.navigate(route = "${NavRoutes.localPlaylist.name}/${playlistPreview.playlist.id}")
-                                        },
-                                        modifier = Modifier
-                                            .size(24.dp)
-                                    )
-                                }
-                            )
+                    PlaylistPickerSections(
+                        playlists = playlistPreviews,
+                        containing = playlistIds,
+                        onPick = { preview ->
+                            // Already there: say so and keep the sheet open instead of adding it twice.
+                            if (preview.playlist.id in playlistIds)
+                                SmartMessage(
+                                    context.getString(R.string.song_already_in_playlist, cleanPrefix(preview.playlist.name)),
+                                    context = context
+                                )
+                            else {
+                                onDismiss()
+                                onAddToPlaylist(preview.playlist, preview.songCount)
+                            }
+                        },
+                        onOpen = { preview ->
+                            if (onGoToPlaylist != null) {
+                                onGoToPlaylist(preview.playlist.id)
+                                onDismiss()
+                            }
+                            navController.navigate(route = "${NavRoutes.localPlaylist.name}/${preview.playlist.id}")
                         }
-                    }
-                }
-
-                if (unpinnedPlaylists.isNotEmpty()) {
-                    BasicText(
-                        text = stringResource(R.string.playlists),
-                        style = typography().m.semiBold,
-                        modifier = modifier.padding(start = 20.dp, top = 5.dp)
                     )
-
-                    onAddToPlaylist?.let { onAddToPlaylist ->
-                        unpinnedPlaylists.forEach { playlistPreview ->
-                            MenuEntry(
-                                icon = if (playlistIds.contains(playlistPreview.playlist.id)) R.drawable.checkmark else R.drawable.add_in_playlist,
-                                text = playlistPreview.playlist.name,
-                                secondaryText = "${playlistPreview.songCount} " + stringResource(R.string.songs),
-                                onClick = {
-                                    onDismiss()
-                                    onAddToPlaylist(
-                                        playlistPreview.playlist,
-                                        playlistPreview.songCount
-                                    )
-                                },
-                                trailingContent = {
-                                    if (playlistPreview.playlist.name.startsWith(PIPED_PREFIX, 0, true))
-                                        Image(
-                                            painter = painterResource(R.drawable.piped_logo),
-                                            contentDescription = null,
-                                            colorFilter = ColorFilter.tint(colorPalette().red),
-                                            modifier = Modifier
-                                                .size(18.dp)
-                                        )
-
-                                    IconButton(
-                                        icon = R.drawable.open,
-                                        color = colorPalette().text,
-                                        onClick = {
-                                            if (onGoToPlaylist != null) {
-                                                onGoToPlaylist(playlistPreview.playlist.id)
-                                                onDismiss()
-                                            }
-                                            navController.navigate(route = "${NavRoutes.localPlaylist.name}/${playlistPreview.playlist.id}")
-                                        },
-                                        modifier = Modifier
-                                            .size(24.dp)
-                                    )
-                                }
-                            )
-                        }
-                    }
                 }
             }
         } else {
@@ -939,6 +849,20 @@ fun MediaItemGridMenu (
                                 showLinks = false,
                                 showShareWith = false
                             )
+                        }
+                    )
+                }
+
+                if (!isLocal && !mediaItem.isRadio) {
+                    GridMenuItem(
+                        icon = R.drawable.download,
+                        title = R.string.download_action,
+                        colorIcon = colorPalette.text,
+                        colorText = colorPalette.text,
+                        onClick = {
+                            onDismiss()
+                            if (PremiumGuard.checkFeature(context, PremiumFeature.Download))
+                                downloadSong(context, mediaItem.asSong)
                         }
                     )
                 }

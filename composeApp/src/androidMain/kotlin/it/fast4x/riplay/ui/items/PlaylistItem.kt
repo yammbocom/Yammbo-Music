@@ -399,19 +399,7 @@ fun PlaylistItem(
                 }
 
             }
-            if ((browseId?.isNotEmpty() == true && name?.startsWith(PIPED_PREFIX) == false) || isYoutubePlaylist) {
-                Image(
-                    painter = painterResource(R.drawable.internet),
-                    colorFilter = ColorFilter.tint(if (isYoutubePlaylist) colorPalette().background0 else colorPalette().textDisabled),
-                    modifier = Modifier
-                        .padding(all = 5.dp)
-                        .background(colorPalette().text, CircleShape)
-                        .size(localIconSize)
-                        .padding(all = 5.dp),
-                    contentDescription = "Background Image",
-                    contentScale = ContentScale.Fit
-                )
-            }
+            // No YouTube badge on the cover: the library chips already say where it comes from.
 
             if (isPodcast) {
                 Image(

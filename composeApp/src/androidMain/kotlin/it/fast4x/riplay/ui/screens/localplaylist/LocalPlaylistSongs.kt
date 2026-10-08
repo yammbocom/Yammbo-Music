@@ -168,6 +168,8 @@ import it.fast4x.riplay.data.models.Playlist
 import it.fast4x.riplay.utils.appContext
 import it.fast4x.riplay.utils.colorPalette
 import it.fast4x.riplay.enums.PlaylistSongsTypeFilter
+import it.fast4x.riplay.extensions.download.downloadSongs
+import it.fast4x.riplay.ui.components.themed.downloadIconFor
 import it.fast4x.riplay.extensions.fastshare.FastShare
 import it.fast4x.riplay.ui.components.themed.NowPlayingSongIndicator
 import it.fast4x.riplay.ui.screens.settings.isYtSyncEnabled
@@ -1274,6 +1276,26 @@ fun LocalPlaylistSongs(
                                         onLongClick = {
                                             SmartMessage(
                                                 context.resources.getString(R.string.info_lock_unlock_reorder_songs),
+                                                context = context
+                                            )
+                                        }
+                                    )
+                            )
+
+                            // The songs on screen queued for in-app download.
+                            HeaderIconButton(
+                                icon = downloadIconFor(playlistSongs.map { it.song }.filterNot { it.isLocal }.map { it.id }),
+                                enabled = playlistSongs.isNotEmpty(),
+                                color = if (playlistSongs.isNotEmpty()) colorPalette.text else colorPalette.textDisabled,
+                                onClick = {},
+                                modifier = Modifier
+                                    .combinedClickable(
+                                        onClick = {
+                                            downloadSongs(context = context, songs = playlistSongs.map { it.song })
+                                        },
+                                        onLongClick = {
+                                            SmartMessage(
+                                                context.resources.getString(R.string.download_all_with_ytdlnis),
                                                 context = context
                                             )
                                         }

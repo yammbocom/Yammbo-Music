@@ -139,7 +139,9 @@ fun HomeScreen(
     val leaveOnDeviceSelection = {
         if (preferences.getEnum(builtInPlaylistKey, BuiltInPlaylist.Favorites) == BuiltInPlaylist.OnDevice)
             preferences.edit { putEnum(builtInPlaylistKey, BuiltInPlaylist.Favorites) }
-        if (preferences.getEnum(playlistTypeKey, PlaylistType.Playlist) == PlaylistType.OnDevicePlaylist)
+        // The card counts every playlist, so it opens on all of them, never on a sub-tab
+        // (pinned, monthly...) left selected from an earlier visit that may well be empty.
+        if (preferences.getEnum(playlistTypeKey, PlaylistType.Playlist) != PlaylistType.Playlist)
             preferences.edit { putEnum(playlistTypeKey, PlaylistType.Playlist) }
         if (preferences.getEnum(artistTypeKey, ArtistsType.Favorites) == ArtistsType.OnDevice)
             preferences.edit { putEnum(artistTypeKey, ArtistsType.Favorites) }

@@ -78,7 +78,7 @@ import it.fast4x.riplay.utils.colorPalette
 import it.fast4x.riplay.enums.NavRoutes
 import it.fast4x.riplay.enums.NavigationBarPosition
 import it.fast4x.riplay.enums.PopupType
-import it.fast4x.riplay.extensions.fastshare.shareSongsToDownloader
+import it.fast4x.riplay.extensions.download.downloadArtist
 import it.fast4x.riplay.enums.ThumbnailRoundness
 import it.fast4x.riplay.enums.UiType
 import it.fast4x.riplay.extensions.fastshare.FastShare
@@ -395,36 +395,11 @@ fun ArtistOverview(
                         )
                     }
 
-                    // Everything this artist has in the library, in one download.
+                    // Everything this artist has in the library, queued for in-app download.
                     MediaActionButton(
-                        icon = R.drawable.downloaded,
-                        onClick = {
-                            // Not the composition scope: the query outlives this click.
-                            CoroutineScope(Dispatchers.IO).launch {
-                                val songs = Database.artistSongs(browseId).firstOrNull().orEmpty()
-                                withContext(Dispatchers.Main) {
-                                    shareSongsToDownloader(
-                                        context = context,
-                                        songs = songs,
-                                        title = artist?.name.orEmpty(),
-                                        onEmpty = {
-                                            SmartMessage(
-                                                context.resources.getString(R.string.nothing_to_download),
-                                                context = context,
-                                                type = PopupType.Info,
-                                            )
-                                        },
-                                        onAppMissing = {
-                                            SmartMessage(
-                                                context.resources.getString(R.string.ytdlnis_not_installed),
-                                                context = context,
-                                                type = PopupType.Error,
-                                            )
-                                        },
-                                    )
-                                }
-                            }
-                        }
+                        icon = R.drawable.download,
+                        // Resolves the songs off the composition scope: the query outlives this click.
+                        onClick = { downloadArtist(context, browseId) }
                     )
 
                     artistPage?.let {

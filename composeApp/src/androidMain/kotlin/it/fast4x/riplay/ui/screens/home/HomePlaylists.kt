@@ -469,6 +469,30 @@ fun HomePlaylists(
     val showMonthlyPlaylists by rememberPreference(showMonthlyPlaylistsKey, true)
     val showPipedPlaylists by rememberPreference(showPipedPlaylistsKey, true)
 
+    // What the selected chip shows. The count, the empty state and both layouts use this same
+    // list: a chip with nothing in it (no pinned playlists, say) must say so, not stay blank.
+    val tabItems = remember(itemsOnDisplay, playlistType, showPinnedPlaylists, showMonthlyPlaylists) {
+        val listPrefix = when (playlistType) {
+            PlaylistType.PinnedPlaylist -> PINNED_PREFIX
+            PlaylistType.MonthlyPlaylist -> MONTHLY_PREFIX
+            PlaylistType.YTPlaylist -> YTP_PREFIX
+            else -> ""
+        }
+        itemsOnDisplay.filter {
+            when (playlistType) {
+                PlaylistType.YTPlaylist -> it.playlist.isYoutubePlaylist
+                PlaylistType.PodcastPlaylist -> it.playlist.isPodcast
+                PlaylistType.OnDevicePlaylist -> it.isOnDevice
+                PlaylistType.Playlist -> when {
+                    !showPinnedPlaylists -> !it.playlist.isPinned
+                    !showMonthlyPlaylists -> !it.playlist.isMonthly
+                    else -> true
+                }
+                else -> it.playlist.name.startsWith(listPrefix, true)
+            }
+        }
+    }
+
     val buttonsList = mutableListOf(PlaylistType.Playlist to stringResource(R.string.playlists))
     buttonsList += PlaylistType.YTPlaylist to stringResource(R.string.library)
     buttonsList += PlaylistType.PodcastPlaylist to stringResource(R.string.podcasts)
@@ -509,7 +533,7 @@ fun HomePlaylists(
                 // 1. Title block: large title, count and sort pill
                 LibraryTitleBlock(
                     title = stringResource(R.string.playlists),
-                    subtitle = libraryCountText(R.plurals.mymusic_count_playlists, itemsOnDisplay.size),
+                    subtitle = libraryCountText(R.plurals.mymusic_count_playlists, tabItems.size),
                     trailing = {
                         LibrarySortPill(
                             label = stringResource(sortBy.textId),
@@ -545,7 +569,7 @@ fun HomePlaylists(
                 search.SearchBar(this)
 
                 // 5. Contenuto (Lista o Griglia)
-                if (itemsOnDisplay.isEmpty()) {
+                if (tabItems.isEmpty()) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -572,23 +596,7 @@ fun HomePlaylists(
                                 state = lazyListState,
                                 modifier = Modifier.fillMaxSize()
                             ) {
-                                val listPrefix = when (playlistType) {
-                                    PlaylistType.Playlist, PlaylistType.OnDevicePlaylist -> ""
-                                    PlaylistType.PinnedPlaylist -> PINNED_PREFIX
-                                    PlaylistType.MonthlyPlaylist -> MONTHLY_PREFIX
-                                    PlaylistType.PodcastPlaylist -> ""
-                                    PlaylistType.YTPlaylist -> YTP_PREFIX
-                                }
-                                val condition: (PlaylistPreview) -> Boolean = {
-                                    when (playlistType) {
-                                        PlaylistType.YTPlaylist -> it.playlist.isYoutubePlaylist
-                                        PlaylistType.PodcastPlaylist -> it.playlist.isPodcast
-                                        PlaylistType.OnDevicePlaylist -> it.isOnDevice
-                                        else -> it.playlist.name.startsWith(listPrefix, true)
-                                    }
-                                }
-
-                                val filteredItems = itemsOnDisplay.filter(condition)
+                                val filteredItems = tabItems
 
                                 items(
                                     items = filteredItems,
@@ -828,30 +836,7 @@ fun HomePlaylists(
                                     .background(colorPalette().background0)
                                     .fillMaxSize()
                             ) {
-                                val listPrefix = when (playlistType) {
-                                    PlaylistType.Playlist, PlaylistType.OnDevicePlaylist -> ""
-                                    PlaylistType.PinnedPlaylist -> PINNED_PREFIX
-                                    PlaylistType.MonthlyPlaylist -> MONTHLY_PREFIX
-                                    PlaylistType.PodcastPlaylist -> ""
-                                    PlaylistType.YTPlaylist -> YTP_PREFIX
-                                }
-                                val condition: (PlaylistPreview) -> Boolean = {
-                                    when (playlistType) {
-                                        PlaylistType.YTPlaylist -> it.playlist.isYoutubePlaylist
-                                        PlaylistType.PodcastPlaylist -> it.playlist.isPodcast
-                                        PlaylistType.OnDevicePlaylist -> it.isOnDevice
-                                        PlaylistType.Playlist -> {
-                                            when {
-                                                !showPinnedPlaylists -> !it.playlist.isPinned
-                                                !showMonthlyPlaylists -> !it.playlist.isMonthly
-                                                else -> true
-                                            }
-                                        }
-
-                                        else -> it.playlist.name.startsWith(listPrefix, true)
-                                    }
-                                }
-                                val filteredItems = itemsOnDisplay.filter(condition)
+                                val filteredItems = tabItems
 
                                 items(
                                     items = filteredItems,

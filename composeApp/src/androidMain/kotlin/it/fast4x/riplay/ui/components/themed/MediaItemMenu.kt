@@ -3,6 +3,9 @@ package it.fast4x.riplay.ui.components.themed
 
 import android.annotation.SuppressLint
 import it.fast4x.riplay.utils.isRadio
+import it.fast4x.riplay.extensions.ads.PremiumFeature
+import it.fast4x.riplay.extensions.ads.PremiumGuard
+import it.fast4x.riplay.extensions.download.downloadSong
 import android.content.Intent
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
@@ -1071,44 +1074,19 @@ fun MediaItemMenu(
                 Database.getPlaylistsWithSong(mediaItem.mediaId)
             }.collectAsState(initial = emptyList(), context = Dispatchers.IO)
 
-            val pinnedPlaylists = playlistPreviewsFiltered.filter {
-                it.playlist.name.startsWith(PINNED_PREFIX, 0, true)
-                        && if (isNetworkConnected(context)) !(it.playlist.isYoutubePlaylist && !it.playlist.isEditable) else !it.playlist.isYoutubePlaylist
-            }
-            val youtubePlaylists = playlistPreviewsFiltered.filter { it.playlist.isEditable && it.playlist.isYoutubePlaylist && !it.playlist.name.startsWith(PINNED_PREFIX) }
-
-            val unpinnedPlaylists = playlistPreviewsFiltered.filter {
-                !it.playlist.name.startsWith(PINNED_PREFIX, 0, true) &&
-                !it.playlist.name.startsWith(MONTHLY_PREFIX, 0, true) &&
-                        !it.playlist.isYoutubePlaylist //&&
-                //!it.playlist.name.startsWith(PIPED_PREFIX, 0, true)
-            }
 
             var isCreatingNewPlaylist by rememberSaveable {
                 mutableStateOf(false)
             }
 
             if (isCreatingNewPlaylist && onAddToPlaylist != null) {
-                InputTextDialog(
+                CreatePlaylistDialog(
                     onDismiss = { isCreatingNewPlaylist = false },
-                    title = stringResource(R.string.enter_the_playlist_name),
-                    value = "",
-                    placeholder = stringResource(R.string.enter_the_playlist_name),
-                    setValue = { text ->
+                    onCreate = { text ->
                         onDismiss()
                         onAddToPlaylist(Playlist(name = text), 0)
                     }
                 )
-                /*
-                TextFieldDialog(
-                    hintText = "Enter the playlist name",
-                    onDismiss = { isCreatingNewPlaylist = false },
-                    onDone = { text ->
-                        onDismiss()
-                        onAddToPlaylist(Playlist(name = text), 0)
-                    }
-                )
-                 */
             }
 
             BackHandler {
@@ -1126,47 +1104,13 @@ fun MediaItemMenu(
                 modifier = modifier
                     //.requiredHeight(height)
             ) {
-                Row(
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                        .fillMaxWidth()
-                ) {
-                    IconButton(
-                        onClick = { isViewingPlaylists = false },
-                        icon = R.drawable.chevron_back,
-                        color = colorPalette().textSecondary,
-                        modifier = Modifier
-                            .padding(all = 4.dp)
-                            .size(20.dp)
-                    )
+                AddToPlaylistHeader(
+                    onBack = { isViewingPlaylists = false },
+                    onSearch = { searching = !searching }
+                )
 
-                    IconButton(
-                        onClick = { searching = !searching },
-                        icon = R.drawable.search_circle,
-                        color = colorPalette().textSecondary,
-                        modifier = Modifier
-                            .padding(all = 4.dp)
-                            .size(20.dp)
-                    )
-
-                    if (onAddToPlaylist != null) {
-                        SecondaryTextButton(
-                            text = stringResource(R.string.new_playlist),
-                            onClick = { isCreatingNewPlaylist = true },
-                            alternative = true
-                        )
-                    }
-                }
-
-                Row(
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                        .fillMaxWidth()
-                ) {
+                // Empty (no height) until the search is opened.
+                Column(modifier = Modifier.padding(horizontal = 16.dp).fillMaxWidth()) {
                     AnimatedVisibility(visible = searching) {
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -1257,144 +1201,32 @@ fun MediaItemMenu(
                     }
                 }
 
-                if (pinnedPlaylists.isNotEmpty()) {
-                    BasicText(
-                        text = stringResource(R.string.pinned_playlists),
-                        style = typography().m.semiBold,
-                        modifier = modifier.padding(start = 20.dp, top = 5.dp)
-                    )
+                onAddToPlaylist?.let { onAddToPlaylist ->
+                    NewPlaylistEntry(onClick = { isCreatingNewPlaylist = true })
 
-                    onAddToPlaylist?.let { onAddToPlaylist ->
-                        pinnedPlaylists.forEach { playlistPreview ->
-                            MenuEntry(
-                                icon = if (playlistIds.contains(playlistPreview.playlist.id)) R.drawable.checkmark else R.drawable.add_in_playlist,
-                                text = cleanPrefix(playlistPreview.playlist.name),
-                                secondaryText = "${playlistPreview.songCount} " + stringResource(R.string.songs),
-                                onClick = {
-                                    onDismiss()
-                                    onAddToPlaylist(playlistPreview.playlist, playlistPreview.songCount)
-                                },
-                                trailingContent = {
-                                    if (playlistPreview.playlist.name.startsWith(PIPED_PREFIX, 0, true))
-                                        Image(
-                                            painter = painterResource(R.drawable.piped_logo),
-                                            contentDescription = null,
-                                            colorFilter = ColorFilter.tint(colorPalette().red),
-                                            modifier = Modifier
-                                                .size(18.dp)
-                                        )
-                                    if (playlistPreview.playlist.isYoutubePlaylist) {
-                                        Image(
-                                            painter = painterResource(R.drawable.internet),
-                                            contentDescription = null,
-                                            colorFilter = ColorFilter.tint(
-                                                colorPalette().text
-                                            ),
-                                            modifier = Modifier
-                                                .size(18.dp)
-                                        )
-                                    }
-                                    IconButton(
-                                        icon = R.drawable.open,
-                                        color = colorPalette().text,
-                                        onClick = {
-                                            if (onGoToPlaylist != null) {
-                                                onGoToPlaylist(playlistPreview.playlist.id)
-                                                onDismiss()
-                                            }
-                                            navController.navigate(route = "${NavRoutes.localPlaylist.name}/${playlistPreview.playlist.id}")
-                                        },
-                                        modifier = Modifier
-                                            .size(24.dp)
-                                    )
-                                }
-                            )
+                    PlaylistPickerSections(
+                        playlists = playlistPreviewsFiltered,
+                        containing = playlistIds,
+                        onPick = { preview ->
+                            // Already there: say so and keep the sheet open instead of adding it twice.
+                            if (preview.playlist.id in playlistIds)
+                                SmartMessage(
+                                    context.getString(R.string.song_already_in_playlist, cleanPrefix(preview.playlist.name)),
+                                    context = context
+                                )
+                            else {
+                                onDismiss()
+                                onAddToPlaylist(preview.playlist, preview.songCount)
+                            }
+                        },
+                        onOpen = { preview ->
+                            if (onGoToPlaylist != null) {
+                                onGoToPlaylist(preview.playlist.id)
+                                onDismiss()
+                            }
+                            navController.navigate(route = "${NavRoutes.localPlaylist.name}/${preview.playlist.id}")
                         }
-                    }
-                }
-
-                if (youtubePlaylists.isNotEmpty() && isNetworkConnected(context)) {
-                    BasicText(
-                        text = stringResource(R.string.ytm_playlists),
-                        style = typography().m.semiBold,
-                        modifier = Modifier.padding(start = 20.dp, top = 5.dp)
                     )
-
-                    onAddToPlaylist?.let { onAddToPlaylist ->
-                        youtubePlaylists.forEach { playlistPreview ->
-                            MenuEntry(
-                                icon = if (playlistIds.contains(playlistPreview.playlist.id)) R.drawable.checkmark else R.drawable.add_in_playlist,
-                                text = cleanPrefix(playlistPreview.playlist.name),
-                                secondaryText = "${playlistPreview.songCount} " + stringResource(R.string.songs),
-                                onClick = {
-                                    onDismiss()
-                                    onAddToPlaylist(playlistPreview.playlist, playlistPreview.songCount)
-                                },
-                                trailingContent = {
-                                    IconButton(
-                                        icon = R.drawable.open,
-                                        color = colorPalette().text,
-                                        onClick = {
-                                            if (onGoToPlaylist != null) {
-                                                onGoToPlaylist(playlistPreview.playlist.id)
-                                                onDismiss()
-                                            }
-                                            navController.navigate(route = "${NavRoutes.localPlaylist.name}/${playlistPreview.playlist.id}")
-                                        },
-                                        modifier = Modifier
-                                            .size(24.dp)
-                                    )
-                                }
-                            )
-                        }
-                    }
-                }
-
-                if (unpinnedPlaylists.isNotEmpty()) {
-                    BasicText(
-                        text = stringResource(R.string.playlists),
-                        style = typography().m.semiBold,
-                        modifier = modifier.padding(start = 20.dp, top = 5.dp)
-                    )
-
-                    onAddToPlaylist?.let { onAddToPlaylist ->
-                        unpinnedPlaylists.forEach { playlistPreview ->
-                            MenuEntry(
-                                icon = if (playlistIds.contains(playlistPreview.playlist.id)) R.drawable.checkmark else R.drawable.add_in_playlist,
-                                text = cleanPrefix(playlistPreview.playlist.name),
-                                secondaryText = "${playlistPreview.songCount} " + stringResource(R.string.songs),
-                                onClick = {
-                                    onDismiss()
-                                    onAddToPlaylist(playlistPreview.playlist, playlistPreview.songCount)
-                                },
-                                trailingContent = {
-                                    if (playlistPreview.playlist.name.startsWith(PIPED_PREFIX, 0, true))
-                                        Image(
-                                            painter = painterResource(R.drawable.piped_logo),
-                                            contentDescription = null,
-                                            colorFilter = ColorFilter.tint(colorPalette().red),
-                                            modifier = Modifier
-                                                .size(18.dp)
-                                        )
-
-                                    IconButton(
-                                        icon = R.drawable.open,
-                                        color = colorPalette().text,
-                                        onClick = {
-                                            if (onGoToPlaylist != null) {
-                                                onGoToPlaylist(playlistPreview.playlist.id)
-                                                onDismiss()
-                                            }
-                                            navController.navigate(route = "${NavRoutes.localPlaylist.name}/${playlistPreview.playlist.id}")
-                                        },
-                                        modifier = Modifier
-                                            .size(24.dp)
-                                    )
-
-                                }
-                            )
-                        }
-                    }
                 }
             }
         } else {
@@ -1572,6 +1404,18 @@ fun MediaItemMenu(
                                 showLinks = false,
                                 showShareWith = false
                             )
+                        }
+                    )
+                }
+
+                if (!isLocal && !mediaItem.isRadio) {
+                    MenuEntry(
+                        icon = R.drawable.download,
+                        text = stringResource(R.string.download_action),
+                        onClick = {
+                            onDismiss()
+                            if (PremiumGuard.checkFeature(appContext(), PremiumFeature.Download))
+                                downloadSong(appContext(), mediaItem.asSong)
                         }
                     )
                 }
@@ -2194,12 +2038,9 @@ fun AddToPlaylistItemMenu(
     val screenHeight = configuration.screenHeightDp.dp
 
     if (isCreatingNewPlaylist) {
-        InputTextDialog(
+        CreatePlaylistDialog(
             onDismiss = { isCreatingNewPlaylist = false },
-            title = stringResource(R.string.enter_the_playlist_name),
-            value = "",
-            placeholder = stringResource(R.string.enter_the_playlist_name),
-            setValue = { text ->
+            onCreate = { text ->
                 onDismiss()
                 onAddToPlaylist(Playlist(name = text), 0)
             }
@@ -2215,188 +2056,30 @@ fun AddToPlaylistItemMenu(
         Database.getPlaylistsWithSong(mediaItem.mediaId)
     }.collectAsState(initial = emptyList(), context = Dispatchers.IO)
 
-    val pinnedPlaylists = playlistPreviews.filter {
-        it.playlist.name.startsWith(PINNED_PREFIX, 0, true)
-                && if (isNetworkConnected(context)) !(it.playlist.isYoutubePlaylist && !it.playlist.isEditable) else !it.playlist.isYoutubePlaylist
-    }
-
-    val youtubePlaylists = playlistPreviews.filter { it.playlist.isEditable && it.playlist.isYoutubePlaylist && !it.playlist.name.startsWith(PINNED_PREFIX) }
-
-    val unpinnedPlaylists = playlistPreviews.filter {
-        !it.playlist.name.startsWith(PINNED_PREFIX, 0, true) &&
-                !it.playlist.name.startsWith(MONTHLY_PREFIX, 0, true) &&
-                !it.playlist.isYoutubePlaylist
-    }
 
     Menu(
         modifier = Modifier
             .requiredHeight(0.75*screenHeight)
     ) {
-        Row(
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .padding(horizontal = 16.dp, vertical = 8.dp)
-                .fillMaxWidth()
-        ) {
-            IconButton(
-                onClick = onDismiss,
-                icon = R.drawable.chevron_back,
-                color = colorPalette().textSecondary,
-                modifier = Modifier
-                    .padding(all = 4.dp)
-                    .size(20.dp)
-            )
+        AddToPlaylistHeader(onBack = onDismiss)
+        NewPlaylistEntry(onClick = { isCreatingNewPlaylist = true })
 
-            SecondaryTextButton(
-                text = stringResource(R.string.new_playlist),
-                onClick = { isCreatingNewPlaylist = true },
-                alternative = true
-            )
-        }
-
-        if (pinnedPlaylists.isNotEmpty()) {
-            BasicText(
-                text = stringResource(R.string.pinned_playlists),
-                style = typography().m.semiBold,
-                modifier = Modifier.padding(start = 20.dp, top = 5.dp)
-            )
-
-            onAddToPlaylist.let { onAddToPlaylist ->
-                pinnedPlaylists.forEach { playlistPreview ->
-                    MenuEntry(
-                        icon = if (playlistIds.contains(playlistPreview.playlist.id)) R.drawable.checkmark else R.drawable.add_in_playlist,
-                        text = cleanPrefix(playlistPreview.playlist.name),
-                        secondaryText = "${playlistPreview.songCount} " + stringResource(R.string.songs),
-                        onClick = {
-                            if (playlistIds.contains(playlistPreview.playlist.id)){
-                                onRemoveFromPlaylist(playlistPreview.playlist)
-                            } else onAddToPlaylist(playlistPreview.playlist, playlistPreview.songCount)
-                        },
-                        trailingContent = {
-                            if (playlistPreview.playlist.name.startsWith(PIPED_PREFIX, 0, true))
-                                Image(
-                                    painter = painterResource(R.drawable.piped_logo),
-                                    contentDescription = null,
-                                    colorFilter = ColorFilter.tint(colorPalette().red),
-                                    modifier = Modifier
-                                        .size(18.dp)
-                                )
-                            if (playlistPreview.playlist.isYoutubePlaylist) {
-                                Image(
-                                    painter = painterResource(R.drawable.internet),
-                                    contentDescription = null,
-                                    colorFilter = ColorFilter.tint(
-                                        colorPalette().text
-                                    ),
-                                    modifier = Modifier
-                                        .size(18.dp)
-                                )
-                            }
-                            IconButton(
-                                icon = R.drawable.open,
-                                color = colorPalette().text,
-                                onClick = {
-                                    if (onGoToPlaylist != null) {
-                                        onGoToPlaylist(playlistPreview.playlist.id)
-                                        onDismiss()
-                                    }
-                                    navController.navigate(route = "${NavRoutes.localPlaylist.name}/${playlistPreview.playlist.id}")
-                                },
-                                modifier = Modifier
-                                    .size(24.dp)
-                            )
-                        }
-                    )
+        // Tapping a playlist that already has the song takes it out again, never adds it twice.
+        PlaylistPickerSections(
+            playlists = playlistPreviews,
+            containing = playlistIds,
+            onPick = { preview ->
+                if (preview.playlist.id in playlistIds) onRemoveFromPlaylist(preview.playlist)
+                else onAddToPlaylist(preview.playlist, preview.songCount)
+            },
+            onOpen = { preview ->
+                if (onGoToPlaylist != null) {
+                    onGoToPlaylist(preview.playlist.id)
+                    onDismiss()
                 }
+                navController.navigate(route = "${NavRoutes.localPlaylist.name}/${preview.playlist.id}")
             }
-        }
-
-        if (youtubePlaylists.isNotEmpty() && isNetworkConnected(context)) {
-            BasicText(
-                text = stringResource(R.string.ytm_playlists),
-                style = typography().m.semiBold,
-                modifier = Modifier.padding(start = 20.dp, top = 5.dp)
-            )
-
-            onAddToPlaylist.let { onAddToPlaylist ->
-                youtubePlaylists.forEach { playlistPreview ->
-                    MenuEntry(
-                        icon = if (playlistIds.contains(playlistPreview.playlist.id)) R.drawable.checkmark else R.drawable.add_in_playlist,
-                        text = cleanPrefix(playlistPreview.playlist.name),
-                        secondaryText = "${playlistPreview.songCount} " + stringResource(R.string.songs),
-                        onClick = {
-                            if (playlistIds.contains(playlistPreview.playlist.id)){
-                                onRemoveFromPlaylist(playlistPreview.playlist)
-                            } else onAddToPlaylist(playlistPreview.playlist, playlistPreview.songCount)
-                        },
-                        trailingContent = {
-                            IconButton(
-                                icon = R.drawable.open,
-                                color = colorPalette().text,
-                                onClick = {
-                                    if (onGoToPlaylist != null) {
-                                        onGoToPlaylist(playlistPreview.playlist.id)
-                                        onDismiss()
-                                    }
-                                    navController.navigate(route = "${NavRoutes.localPlaylist.name}/${playlistPreview.playlist.id}")
-                                },
-                                modifier = Modifier
-                                    .size(24.dp)
-                            )
-                        }
-                    )
-                }
-            }
-        }
-
-        if (unpinnedPlaylists.isNotEmpty()) {
-            BasicText(
-                text = stringResource(R.string.playlists),
-                style = typography().m.semiBold,
-                modifier = Modifier.padding(start = 20.dp, top = 5.dp)
-            )
-
-            onAddToPlaylist.let { onAddToPlaylist ->
-                unpinnedPlaylists.forEach { playlistPreview ->
-                    MenuEntry(
-                        icon = if (playlistIds.contains(playlistPreview.playlist.id)) R.drawable.checkmark else R.drawable.add_in_playlist,
-                        text = cleanPrefix(playlistPreview.playlist.name),
-                        secondaryText = "${playlistPreview.songCount} " + stringResource(R.string.songs),
-                        onClick = {
-                            if (playlistIds.contains(playlistPreview.playlist.id)){
-                                onRemoveFromPlaylist(playlistPreview.playlist)
-                            } else onAddToPlaylist(playlistPreview.playlist, playlistPreview.songCount)
-                        },
-                        trailingContent = {
-                            if (playlistPreview.playlist.name.startsWith(PIPED_PREFIX, 0, true))
-                                Image(
-                                    painter = painterResource(R.drawable.piped_logo),
-                                    contentDescription = null,
-                                    colorFilter = ColorFilter.tint(colorPalette().red),
-                                    modifier = Modifier
-                                        .size(18.dp)
-                                )
-
-                            IconButton(
-                                icon = R.drawable.open,
-                                color = colorPalette().text,
-                                onClick = {
-                                    if (onGoToPlaylist != null) {
-                                        onGoToPlaylist(playlistPreview.playlist.id)
-                                        onDismiss()
-                                    }
-                                    navController.navigate(route = "${NavRoutes.localPlaylist.name}/${playlistPreview.playlist.id}")
-                                },
-                                modifier = Modifier
-                                    .size(24.dp)
-                            )
-
-                        }
-                    )
-                }
-            }
-        }
+        )
     }
 }
 
@@ -2420,12 +2103,9 @@ fun AddToPlaylistArtistSongsMenu(
     val screenHeight = configuration.screenHeightDp.dp
 
     if (isCreatingNewPlaylist) {
-        InputTextDialog(
+        CreatePlaylistDialog(
             onDismiss = { isCreatingNewPlaylist = false },
-            title = stringResource(R.string.enter_the_playlist_name),
-            value = "",
-            placeholder = stringResource(R.string.enter_the_playlist_name),
-            setValue = { text ->
+            onCreate = { text ->
                 onDismiss()
                 Database.asyncTransaction {
                     val playlistId = insert(Playlist(name = text))
@@ -2447,199 +2127,28 @@ fun AddToPlaylistArtistSongsMenu(
         Database.playlistPreviews(sortBy, sortOrder)
     }.collectAsState(initial = emptyList(), context = Dispatchers.IO)
 
-    val pinnedPlaylists = playlistPreviews.filter {
-        it.playlist.name.startsWith(PINNED_PREFIX, 0, true)
-                && if (isNetworkConnected(context)) !(it.playlist.isYoutubePlaylist && !it.playlist.isEditable) else !it.playlist.isYoutubePlaylist
-    }
-
-    val youtubePlaylists = playlistPreviews.filter { it.playlist.isEditable && it.playlist.isYoutubePlaylist && !it.playlist.name.startsWith(PINNED_PREFIX) }
-
-    val unpinnedPlaylists = playlistPreviews.filter {
-        !it.playlist.name.startsWith(PINNED_PREFIX, 0, true) &&
-                !it.playlist.name.startsWith(MONTHLY_PREFIX, 0, true) &&
-                !it.playlist.isYoutubePlaylist
-    }
 
     Menu(
         modifier = Modifier
             .requiredHeight(0.75*screenHeight)
     ) {
-        Row(
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .padding(horizontal = 16.dp, vertical = 8.dp)
-                .fillMaxWidth()
-        ) {
-            IconButton(
-                onClick = onDismiss,
-                icon = R.drawable.chevron_back,
-                color = colorPalette().textSecondary,
-                modifier = Modifier
-                    .padding(all = 4.dp)
-                    .size(20.dp)
-            )
+        AddToPlaylistHeader(onBack = onDismiss)
+        NewPlaylistEntry(onClick = { isCreatingNewPlaylist = true })
 
-            SecondaryTextButton(
-                text = stringResource(R.string.new_playlist),
-                onClick = { isCreatingNewPlaylist = true },
-                alternative = true
-            )
-        }
-
-        if (pinnedPlaylists.isNotEmpty()) {
-            BasicText(
-                text = stringResource(R.string.pinned_playlists),
-                style = typography().m.semiBold,
-                modifier = Modifier.padding(start = 20.dp, top = 5.dp)
-            )
-
-            onAddToPlaylist.let { onAddToPlaylist ->
-                pinnedPlaylists.forEach { playlistPreview ->
-                    MenuEntry(
-                        icon = R.drawable.add_in_playlist,
-                        text = cleanPrefix(playlistPreview.playlist.name),
-                        secondaryText = "${playlistPreview.songCount} " + stringResource(R.string.songs),
-                        onClick = {
-                            onDismiss()
-                            onAddToPlaylist(
-                                PlaylistPreview(
-                                    playlistPreview.playlist,
-                                    playlistPreview.songCount
-                                )
-                            )
-                        },
-                        trailingContent = {
-                            if (playlistPreview.playlist.name.startsWith(PIPED_PREFIX, 0, true))
-                                Image(
-                                    painter = painterResource(R.drawable.piped_logo),
-                                    contentDescription = null,
-                                    colorFilter = ColorFilter.tint(colorPalette().red),
-                                    modifier = Modifier
-                                        .size(18.dp)
-                                )
-                            if (playlistPreview.playlist.isYoutubePlaylist) {
-                                Image(
-                                    painter = painterResource(R.drawable.internet),
-                                    contentDescription = null,
-                                    colorFilter = ColorFilter.tint(
-                                        colorPalette().text
-                                    ),
-                                    modifier = Modifier
-                                        .size(18.dp)
-                                )
-                            }
-                            IconButton(
-                                icon = R.drawable.open,
-                                color = colorPalette().text,
-                                onClick = {
-                                    if (onGoToPlaylist != null) {
-                                        onGoToPlaylist(playlistPreview.playlist.id)
-                                        onDismiss()
-                                    }
-                                    navController.navigate(route = "${NavRoutes.localPlaylist.name}/${playlistPreview.playlist.id}")
-                                },
-                                modifier = Modifier
-                                    .size(24.dp)
-                            )
-                        }
-                    )
+        PlaylistPickerSections(
+            playlists = playlistPreviews,
+            containing = emptyList(),
+            onPick = { preview ->
+                onDismiss()
+                onAddToPlaylist(PlaylistPreview(preview.playlist, preview.songCount))
+            },
+            onOpen = { preview ->
+                if (onGoToPlaylist != null) {
+                    onGoToPlaylist(preview.playlist.id)
+                    onDismiss()
                 }
+                navController.navigate(route = "${NavRoutes.localPlaylist.name}/${preview.playlist.id}")
             }
-        }
-
-        if (youtubePlaylists.isNotEmpty() && isNetworkConnected(context)) {
-            BasicText(
-                text = stringResource(R.string.ytm_playlists),
-                style = typography().m.semiBold,
-                modifier = Modifier.padding(start = 20.dp, top = 5.dp)
-            )
-
-            onAddToPlaylist.let { onAddToPlaylist ->
-                youtubePlaylists.forEach { playlistPreview ->
-                    MenuEntry(
-                        icon = R.drawable.add_in_playlist,
-                        text = cleanPrefix(playlistPreview.playlist.name),
-                        secondaryText = "${playlistPreview.songCount} " + stringResource(R.string.songs),
-                        onClick = {
-                            onDismiss()
-                            onAddToPlaylist(
-                                PlaylistPreview(
-                                    playlistPreview.playlist,
-                                    playlistPreview.songCount
-                                )
-                            )
-                        },
-                        trailingContent = {
-                            IconButton(
-                                icon = R.drawable.open,
-                                color = colorPalette().text,
-                                onClick = {
-                                    if (onGoToPlaylist != null) {
-                                        onGoToPlaylist(playlistPreview.playlist.id)
-                                        onDismiss()
-                                    }
-                                    navController.navigate(route = "${NavRoutes.localPlaylist.name}/${playlistPreview.playlist.id}")
-                                },
-                                modifier = Modifier
-                                    .size(24.dp)
-                            )
-                        }
-                    )
-                }
-            }
-        }
-
-        if (unpinnedPlaylists.isNotEmpty()) {
-            BasicText(
-                text = stringResource(R.string.playlists),
-                style = typography().m.semiBold,
-                modifier = Modifier.padding(start = 20.dp, top = 5.dp)
-            )
-
-            onAddToPlaylist.let { onAddToPlaylist ->
-                unpinnedPlaylists.forEach { playlistPreview ->
-                    MenuEntry(
-                        icon = R.drawable.add_in_playlist,
-                        text = cleanPrefix(playlistPreview.playlist.name),
-                        secondaryText = "${playlistPreview.songCount} " + stringResource(R.string.songs),
-                        onClick = {
-                            onDismiss()
-                            onAddToPlaylist(
-                                PlaylistPreview(
-                                    playlistPreview.playlist,
-                                    playlistPreview.songCount
-                                )
-                            )
-                        },
-                        trailingContent = {
-                            if (playlistPreview.playlist.name.startsWith(PIPED_PREFIX, 0, true))
-                                Image(
-                                    painter = painterResource(R.drawable.piped_logo),
-                                    contentDescription = null,
-                                    colorFilter = ColorFilter.tint(colorPalette().red),
-                                    modifier = Modifier
-                                        .size(18.dp)
-                                )
-
-                            IconButton(
-                                icon = R.drawable.open,
-                                color = colorPalette().text,
-                                onClick = {
-                                    if (onGoToPlaylist != null) {
-                                        onGoToPlaylist(playlistPreview.playlist.id)
-                                        onDismiss()
-                                    }
-                                    navController.navigate(route = "${NavRoutes.localPlaylist.name}/${playlistPreview.playlist.id}")
-                                },
-                                modifier = Modifier
-                                    .size(24.dp)
-                            )
-
-                        }
-                    )
-                }
-            }
-        }
+        )
     }
 }

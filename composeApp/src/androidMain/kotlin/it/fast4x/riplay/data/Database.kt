@@ -943,6 +943,10 @@ interface Database {
     @RewriteQueriesToDropUnusedColumns
     fun songOnDeviceNow(mediaId: String): Song?
 
+    /** Video ids that have a downloaded (local) copy; drives the download buttons' state. */
+    @Query("SELECT DISTINCT mediaId FROM Song WHERE id LIKE '$LOCAL_KEY_PREFIX%' AND mediaId IS NOT NULL")
+    fun downloadedMediaIds(): Flow<List<String>>
+
     /** The video id already stored for a local row, so a rescan does not have to reread the file. */
     @Query("SELECT mediaId FROM Song WHERE id = :id")
     fun mediaIdOfLocalSong(id: String): String?

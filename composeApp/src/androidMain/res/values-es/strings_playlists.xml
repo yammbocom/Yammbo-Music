@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="playlist_name">Nombre de la lista</string>
+    <string name="create_playlist_action">Crear</string>
+    <string name="song_already_in_playlist">Ya está en %1$s</string>
+</resources>

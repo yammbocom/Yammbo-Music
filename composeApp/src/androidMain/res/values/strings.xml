@@ -1520,9 +1520,8 @@
     <string name="cast_tv_not_playing_back_on_phone">The TV is not playing this song, so the sound comes back to the phone</string>
     <string name="cast_show_video">Show the video on the TV</string>
     <string name="cast_show_video_info">Off, the TV shows the cover and the lyrics. On, it plays the YouTube video.</string>
-    <string name="download_all_with_ytdlnis">Download all with YTDLnis</string>
+    <string name="download_all_with_ytdlnis">Download all</string>
     <string name="nothing_to_download">Nothing here can be downloaded</string>
-    <string name="ytdlnis_not_installed">YTDLnis is not installed</string>
     <string name="radio_cannot_be_queued">Stations can\'t be added to the song queue. Tap the station to listen to it.</string>
     <string name="android_auto_radio">Radio</string>
     <string name="content_country">Content country</string>
@@ -1532,29 +1531,14 @@
     <string name="play_local_copy">Play the downloaded copy</string>
     <string name="play_local_copy_description">If a song is downloaded on the phone, it plays from the file and uses no data.</string>
     <string name="auto_download_favorites">Download favorites automatically on Wi-Fi</string>
-    <string name="auto_download_favorites_description">On Wi-Fi we will let you know about favorites that are not downloaded yet; one tap sends them to YTDLnis and they download in the background. Android does not allow doing it without that tap.</string>
-    <string name="auto_download_install_ytdlnis">Downloads go through YTDLnis. Tap to open its page and install it.</string>
+    <string name="auto_download_favorites_description">Whenever you are on Wi-Fi, favorites that are not downloaded yet are downloaded in the background.</string>
     <string name="auto_download_now">Download pending favorites now (%1$d)</string>
     <string name="auto_download_needs_wifi">Only on Wi-Fi</string>
     <string name="auto_download_nothing_pending">No favorites waiting to be downloaded</string>
-    <string name="auto_download_channel_name">Downloads</string>
-    <string name="auto_download_notification_title">Favorites ready to download</string>
-    <plurals name="auto_download_notification_text">
-        <item quantity="one">%d song not downloaded yet. Tap to download it on Wi-Fi.</item>
-        <item quantity="other">%d songs not downloaded yet. Tap to download them on Wi-Fi.</item>
-    </plurals>
-    <string name="auto_download_progress">Sending to YTDLnis: %1$d of %2$d</string>
-    <string name="auto_download_preparing">Looking for pending favorites</string>
-    <plurals name="auto_download_done">
-        <item quantity="one">%d song sent to YTDLnis</item>
-        <item quantity="other">%d songs sent to YTDLnis</item>
-    </plurals>
-    <string name="auto_download_stopped_metered">Stopped: you are no longer on Wi-Fi</string>
     <plurals name="auto_download_given_up">
         <item quantity="one">%d could not be downloaded</item>
         <item quantity="other">%d could not be downloaded</item>
     </plurals>
-    <string name="auto_download_no_notification_permission">Without notification permission we cannot let you know; use the "Download pending favorites now" button in Settings › Data.</string>
     <string name="data_usage_title">App data usage</string>
     <string name="data_usage_loading">Calculating</string>
     <string name="data_usage_since_boot">Since the phone was turned on (mobile data and Wi-Fi)</string>

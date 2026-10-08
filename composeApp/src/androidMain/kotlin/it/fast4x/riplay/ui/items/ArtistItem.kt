@@ -123,20 +123,7 @@ fun ArtistItem(
                     .clip(thumbnailShape())
                     .requiredSize(thumbnailSizeDp)
             )
-            if (isYoutubeArtist) {
-                Image(
-                    painter = painterResource(R.drawable.internet),
-                    colorFilter = ColorFilter.tint(
-                        Color.White
-                    ),
-                    modifier = Modifier
-                        .size(if (smallThumbnail) 30.dp else if (homePage) 0.3*iconSize else 40.dp)
-                        .background(Color.Black.copy(alpha = 0.55f), CircleShape)
-                        .padding(all = 5.dp),
-                    contentDescription = "Background Image",
-                    contentScale = ContentScale.Fit
-                )
-            }
+            // No YouTube badge on the cover: the library chips already say where it comes from.
         }
 
     if (showName)

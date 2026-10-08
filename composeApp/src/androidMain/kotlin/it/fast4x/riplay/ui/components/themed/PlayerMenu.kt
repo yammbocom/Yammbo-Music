@@ -349,8 +349,8 @@ fun AddToPlaylistArtistSongs(
         onAddToPlaylist = { playlistPreview ->
             position = playlistPreview.songCount.minus(1)
             if (position > 0) position++ else position = 0
-            mediaItems.forEachIndexed { index, mediaItem ->
-                if (!isYtSyncEnabled() || !playlistPreview.playlist.isYoutubePlaylist){
+            if (!isYtSyncEnabled() || !playlistPreview.playlist.isYoutubePlaylist) {
+                mediaItems.forEachIndexed { index, mediaItem ->
                     Database.asyncTransaction {
                         insert(mediaItem)
                         insert(
@@ -361,12 +361,12 @@ fun AddToPlaylistArtistSongs(
                             ).default()
                         )
                     }
-                } else {
-                    CoroutineScope(Dispatchers.IO).launch {
-                        addToYtPlaylist(playlistPreview.playlist.id, position, playlistPreview.playlist.browseId ?: "", mediaItems)
-                    }
                 }
-
+            } else {
+                // One call for the whole list: it was sent once per song before.
+                CoroutineScope(Dispatchers.IO).launch {
+                    addToYtPlaylist(playlistPreview.playlist.id, position, playlistPreview.playlist.browseId ?: "", mediaItems)
+                }
             }
             onDismiss()
         },

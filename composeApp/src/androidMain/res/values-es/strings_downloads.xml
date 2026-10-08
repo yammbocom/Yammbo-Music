@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- In-app downloads (extensions/download) -->
+    <string name="download_action">Descargar</string>
+    <string name="download_channel_name">Descargas</string>
+    <string name="download_in_progress">Descargando</string>
+    <string name="download_summary_offline">Listas para escuchar sin internet.</string>
+    <string name="download_already_downloaded">Ya está descargada</string>
+    <string name="download_nothing_new">Todo esto ya está descargado o en camino</string>
+    <string name="download_preparing">Preparando la descarga…</string>
+    <string name="download_storage_permission">Permite el acceso al almacenamiento para guardar las descargas</string>
+    <plurals name="download_queued">
+        <item quantity="one">Descargando %1$d canción. Te avisamos cuando esté lista.</item>
+        <item quantity="many">Descargando %1$d canciones. Te avisamos cuando estén listas.</item>
+        <item quantity="other">Descargando %1$d canciones. Te avisamos cuando estén listas.</item>
+    </plurals>
+    <plurals name="download_remaining">
+        <item quantity="one">Queda %1$d en la cola</item>
+        <item quantity="many">Quedan %1$d en la cola</item>
+        <item quantity="other">Quedan %1$d en la cola</item>
+    </plurals>
+    <plurals name="download_summary_done">
+        <item quantity="one">%1$d canción descargada</item>
+        <item quantity="many">%1$d canciones descargadas</item>
+        <item quantity="other">%1$d canciones descargadas</item>
+    </plurals>
+    <plurals name="download_summary_failed">
+        <item quantity="one">%1$d no se pudo descargar:</item>
+        <item quantity="many">%1$d no se pudieron descargar:</item>
+        <item quantity="other">%1$d no se pudieron descargar:</item>
+    </plurals>
+    <string name="auto_download_collection">Descargar automáticamente con Wi-Fi</string>
+    <string name="auto_download_collection_on">Se descargará sola cuando tengas Wi-Fi, también las canciones que se añadan después.</string>
+    <string name="auto_download_collection_off">Descarga automática desactivada. Lo ya descargado se queda en tu móvil.</string>
+</resources>

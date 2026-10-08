@@ -1347,6 +1347,8 @@ fun InputTextDialog(
     setValue: (String) -> Unit,
     validationType: ValidationType = ValidationType.None,
     prefix: String = "",
+    confirmText: String? = null,
+    singleLine: Boolean = false,
 ) {
 
     var text by remember { mutableStateOf(cleanPrefix(value)) }
@@ -1392,7 +1394,8 @@ fun InputTextDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(min = 56.dp),
-                    maxLines = 5,
+                    singleLine = singleLine,
+                    maxLines = if (singleLine) 1 else 5,
                     keyboardOptions = KeyboardOptions(
                         keyboardType = if (validationType == ValidationType.Ip)
                             KeyboardType.Number else KeyboardType.Text
@@ -1490,7 +1493,7 @@ fun InputTextDialog(
                             }
                         }
                     ) {
-                        Text(stringResource(R.string.confirm), color = colorPalette().background0)
+                        Text(confirmText ?: stringResource(R.string.confirm), color = colorPalette().background0)
                     }
                 }
             }

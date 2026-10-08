@@ -41,8 +41,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.firstOrNull
 import it.fast4x.riplay.enums.PopupType
-import it.fast4x.riplay.extensions.fastshare.shareCollectionToDownloader
-import it.fast4x.riplay.extensions.fastshare.shareSongsToDownloader
+import it.fast4x.riplay.extensions.download.AutoDownloads
+import it.fast4x.riplay.extensions.download.downloadPlaylist
 import it.fast4x.riplay.data.Database
 import it.fast4x.riplay.commonutils.MONTHLY_PREFIX
 import it.fast4x.riplay.commonutils.PINNED_PREFIX
@@ -90,6 +90,8 @@ fun PlaylistsItemMenu(
     onImportOnlinePlaylist: (() -> Unit)? = null,
     // Any list of songs the caller can produce: the Songs tab has no playlist behind it.
     onDownloadAllSongs: (() -> Unit)? = null,
+    // "Download automatically on Wi-Fi" for a list with no playlist behind it (the favorites).
+    autoDownloadKey: String? = null,
     onAddToPlaylist: ((PlaylistPreview) -> Unit)? = null,
     onAddToPreferites: (() -> Unit)? = null,
     showonAddToPreferitesYoutube: Boolean = false,
@@ -719,7 +721,7 @@ fun PlaylistsItemMenu(
 
                     onDownloadAllSongs?.let { download ->
                         MenuEntry(
-                            icon = R.drawable.downloaded,
+                            icon = R.drawable.download,
                             text = stringResource(R.string.download_all_with_ytdlnis),
                             onClick = {
                                 onDismiss()
@@ -728,47 +730,22 @@ fun PlaylistsItemMenu(
                         )
                     }
 
-                    // The whole list to the downloader in one go, instead of song by song
+                    // The whole list queued for in-app download; a YouTube playlist with no
+                    // songs saved yet is fetched online.
                     playlist?.let { preview ->
                         MenuEntry(
-                            icon = R.drawable.downloaded,
+                            icon = R.drawable.download,
                             text = stringResource(R.string.download_all_with_ytdlnis),
                             onClick = {
                                 onDismiss()
-                                // Not the composition scope: the menu closes first and its scope dies mid-query
-                                CoroutineScope(Dispatchers.IO).launch {
-                                    val songs = Database.songsInPlaylist(preview.playlist.id)
-                                        .firstOrNull()
-                                        .orEmpty()
-                                        .map { it.song }
-                                    withContext(Dispatchers.Main) {
-                                        shareCollectionToDownloader(
-                                            context = downloadContext,
-                                            // A YouTube playlist travels as one link and
-                                            // arrives complete; one made here has no url.
-                                            url = preview.playlist.shareYTUrl,
-                                            songs = songs,
-                                            title = preview.playlist.name,
-                                            onEmpty = {
-                                                SmartMessage(
-                                                    downloadContext.resources.getString(R.string.nothing_to_download),
-                                                    context = downloadContext,
-                                                    type = PopupType.Info
-                                                )
-                                            },
-                                            onAppMissing = {
-                                                SmartMessage(
-                                                    downloadContext.resources.getString(R.string.ytdlnis_not_installed),
-                                                    context = downloadContext,
-                                                    type = PopupType.Error
-                                                )
-                                            }
-                                        )
-                                    }
-                                }
+                                downloadPlaylist(downloadContext, preview.playlist)
                             }
                         )
                     }
+
+                    // Folders on the phone are already offline: nothing to keep downloaded.
+                    (autoDownloadKey ?: playlist?.takeIf { !it.isOnDevice }?.let { AutoDownloads.playlistKey(it.playlist.id) })
+                        ?.let { key -> AutoDownloadMenuEntry(key = key, onDismiss = onDismiss) }
 
                     onImport?.let { onImport ->
                         MenuEntry(

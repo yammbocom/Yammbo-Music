@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="playlist_name">Playlist name</string>
+    <string name="create_playlist_action">Create</string>
+    <string name="song_already_in_playlist">Already in %1$s</string>
+</resources>

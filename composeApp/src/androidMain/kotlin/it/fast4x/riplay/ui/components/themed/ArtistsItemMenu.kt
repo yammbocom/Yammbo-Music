@@ -11,7 +11,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import it.fast4x.riplay.enums.PopupType
-import it.fast4x.riplay.extensions.fastshare.shareCollectionToDownloader
+import it.fast4x.riplay.extensions.download.downloadArtist
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onPlaced
@@ -76,32 +76,13 @@ fun ArtistsItemMenu(
                 modifier = Modifier
                     .height(8.dp)
             )
-            // The whole thing to the downloader, as one link it can expand by itself.
+            // The artist's songs queued for in-app download.
             MenuEntry(
-                icon = R.drawable.downloaded,
+                icon = R.drawable.download,
                 text = stringResource(R.string.download_all_with_ytdlnis),
                 onClick = {
                     onDismiss()
-                    shareCollectionToDownloader(
-                        context = downloadContext,
-                        url = artist.shareYTUrl,
-                        songs = emptyList(),
-                        title = artist.name.orEmpty(),
-                        onEmpty = {
-                            SmartMessage(
-                                downloadContext.resources.getString(R.string.nothing_to_download),
-                                context = downloadContext,
-                                type = PopupType.Info,
-                            )
-                        },
-                        onAppMissing = {
-                            SmartMessage(
-                                downloadContext.resources.getString(R.string.ytdlnis_not_installed),
-                                context = downloadContext,
-                                type = PopupType.Error,
-                            )
-                        },
-                    )
+                    downloadArtist(downloadContext, artist.id)
                 }
             )
 
