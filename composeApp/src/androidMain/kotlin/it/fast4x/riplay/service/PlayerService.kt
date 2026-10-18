@@ -447,6 +447,9 @@ class PlayerService : Service(),
     private var playerNetworkCallback: ConnectivityManager.NetworkCallback? = null
     private var resumeOnlineWhenNetworkReturns = false
     private var secondBeforeNetworkLoss = 0f
+    // Last validation the network callback reported, so a song stuck loading is retried
+    // once when the connection comes back and not on every capabilities update after it.
+    private var networkValidated = true
 
     // "Playback is what the user is asking for", which is not the same as isPlayingNow.
     // isPlayingNow tracks the embed's own state, so a stall flips it to false and the
@@ -454,6 +457,14 @@ class PlayerService : Service(),
     // survives BUFFERING and only a real pause, an ENDED, or unplugging the headphones
     // clears it.
     private var onlinePlaybackIntended = false
+
+    // A WebView whose page loads with no connection never gets the IFrame API script, so it
+    // never reaches onReady and _internalOnlinePlayer stays null for good. The library only
+    // retries on onAvailable, a NEW network: Wi-Fi or data that stays up while its upstream
+    // drops and comes back never raises one, and every play and song tap went nowhere until
+    // the app was killed. True while the current view may be such a page; onReady clears it.
+    private var onlineViewMayHaveLoadedOffline = false
+    private var onlineRecoveryJob: Job? = null
 
     // CPU + Wi-Fi locks while an online song (WebView, outside ExoPlayer's wake mode) is wanted:
     // playing, or between two songs / buffering with play still requested. Not after a pause.
@@ -1683,6 +1694,7 @@ class PlayerService : Service(),
         // Captured now so the listener below can tell whether it still belongs to the
         // current view. A replaced WebView keeps delivering callbacks for a while.
         val onlinePlayerView = _internalOnlinePlayerView.value
+        onlineViewMayHaveLoadedOffline = !hasValidatedNetwork()
 
         onlinePlayerView.apply {
             enableAutomaticInitialization = false
@@ -1722,6 +1734,7 @@ class PlayerService : Service(),
                     // loaded, so the current state is sent again now that the page is there.
                     onlinePlayerView.post { OnlineVideoOnScreen.apply(onlinePlayerView) }
 
+                    onlineViewMayHaveLoadedOffline = false
                     _internalOnlinePlayer.value = youTubePlayer
 
                     val customUiController =
@@ -1829,6 +1842,26 @@ class PlayerService : Service(),
                                     delay(500)
 
                                     if (_internalOnlinePlayerState.value == PlayerConstants.PlayerState.UNSTARTED) {
+                                        // The queue may have moved on to a file in the meantime:
+                                        // nothing online to recover, and cueing the file's id would
+                                        // only feed the embed an error.
+                                        val stalled = localMediaItem
+                                        if (stalled == null || stalled.usesLocalPlayer) return@launch
+
+                                        // Without a connection a stuck UNSTARTED is the network,
+                                        // not a dead WebView. A new one would load its page offline
+                                        // and never become ready, while this one still holds a
+                                        // working IFrame API that can load the song once the
+                                        // network is back. Leave it to the network callback.
+                                        if (!hasValidatedNetwork()) {
+                                            if (player.playWhenReady && !resumeOnlineWhenNetworkReturns) {
+                                                secondBeforeNetworkLoss = currentSecond.value
+                                                resumeOnlineWhenNetworkReturns = true
+                                            }
+                                            Timber.d("PlayerService onlinePlayerView: UNSTARTED with no network, waiting for it instead of recreating the WebView")
+                                            return@launch
+                                        }
+
                                         Timber.e("PlayerService onlinePlayerView: Persistent UNSTARTED state. Probably webView killed. Force to re-initialize.")
 
                                         recreateOnlinePlayerView()
@@ -2238,11 +2271,10 @@ class PlayerService : Service(),
         }
         runCatching { flushListen() }
 
-        coroutineScope.launch {
-            withContext(Dispatchers.Main) {
-                player.saveMasterQueue(currentSecond.value.toInt())
-            }
-        }
+        // Called straight, not from coroutineScope: that scope is cancelled a few lines below,
+        // before a launch made here gets to run, so the queue was never saved on the way out.
+        // onDestroy runs on the main thread, and saveMasterQueue posts its own read of the player.
+        runCatching { player.saveMasterQueue(currentSecond.value.toInt()) }
 
         //abandonAudioFocus()
 
@@ -2263,15 +2295,15 @@ class PlayerService : Service(),
             equalizerHelper.release()
         }
 
-        try {
-            coroutineScope.launch {
-                withContext(Dispatchers.Main) {
-                    player.removeListener(this@PlayerService)
-                    player.release()
-                }
-            }
-        } catch (e: Exception) {
-            Timber.e("PlayerService Error in local player release: ${e.message}")
+        // Same trap as the queue above: launched on coroutineScope, this was cancelled with the
+        // scope before it ran, and every service that went away left its ExoPlayer behind,
+        // never released. Posted to the main looper so it runs after the read saveMasterQueue
+        // just posted there.
+        Handler(Looper.getMainLooper()).post {
+            runCatching {
+                player.removeListener(this@PlayerService)
+                player.release()
+            }.onFailure { Timber.e("PlayerService Error in local player release: ${it.message}") }
         }
 
         try {
@@ -2290,7 +2322,13 @@ class PlayerService : Service(),
 
             preferences.unregisterOnSharedPreferenceChangeListener(this)
 
-            cache.release()
+            // The cache is NOT released here. It is one SimpleCache for the whole process
+            // (principalCache), handed again to the next PlayerService; releasing it left that
+            // service with a dead cache, and SimpleCache refuses every read once released
+            // (IllegalStateException, reported as ERROR_CODE_IO_UNSPECIFIED). Every downloaded
+            // song sat loading forever after closing the player, dismissing the notification or
+            // the system stopping the service, until the app was killed. 45 such errors from
+            // 0.7.155 in October, the same files that had played fine minutes earlier.
             loudnessEnhancer?.release()
             audioVolumeObserver.unregister()
             //bluetoothReceiver?.unregister()
@@ -2446,9 +2484,16 @@ class PlayerService : Service(),
         )
         mi?.let {
             val kind = if (it.isRadio) "radio" else "local"
+            // The code alone hides the cause: IO_UNSPECIFIED covers anything from a released
+            // cache to a full disk, and 45 of them arrived in October with nothing else to go
+            // on. The innermost exception goes after the title: the stats page splits the detail
+            // in three on ':', so it shows up at the end of the title column, not as a new code.
+            var root: Throwable = error
+            while (root.cause != null && root.cause !== root) root = root.cause!!
+            val cause = if (root === error) "" else " | ${root.javaClass.simpleName}: ${root.message.orEmpty().take(60)}"
             AppEvents.log(
                 AppEvents.PLAYBACK_ERROR,
-                detail = "$kind:${error.errorCodeName}:${it.mediaMetadata.title ?: ""}",
+                detail = "$kind:${error.errorCodeName}:${(it.mediaMetadata.title ?: "").toString().take(80)}$cause",
                 videoId = statsIdOf(it.mediaId),
             )
         }
@@ -2700,6 +2745,10 @@ class PlayerService : Service(),
                     markOnlineLoadStart(it.mediaId, "transition")
                     _internalOnlinePlayer.value?.pause()
                     _internalOnlinePlayer.value?.loadVideo(it.mediaId, playFromSecond)
+                    // A song tapped while the player is a page that loaded offline went nowhere.
+                    // Only then, not for the page still loading at a normal start.
+                    if (_internalOnlinePlayer.value == null && onlineViewMayHaveLoadedOffline && player.playWhenReady)
+                        playOnlineWithoutPlayer()
                 } else {
                     coroutineScope.launch {
                         riTuneClient.sendCommand(
@@ -3336,11 +3385,11 @@ class PlayerService : Service(),
         val mainThreadHandler = Handler(Looper.getMainLooper())
         val callback = object : ConnectivityManager.NetworkCallback() {
             override fun onLost(network: Network) {
-                mainThreadHandler.post { markOnlineStalledByNetwork() }
+                mainThreadHandler.post { onNetworkGone() }
             }
 
             override fun onUnavailable() {
-                mainThreadHandler.post { markOnlineStalledByNetwork() }
+                mainThreadHandler.post { onNetworkGone() }
             }
 
             override fun onCapabilitiesChanged(
@@ -3350,8 +3399,15 @@ class PlayerService : Service(),
                 val validated = networkCapabilities
                     .hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
                 mainThreadHandler.post {
-                    if (validated) resumeOnlineAfterNetworkReturned()
-                    else markOnlineStalledByNetwork()
+                    if (validated) {
+                        val cameBack = !networkValidated
+                        networkValidated = true
+                        if (cameBack) armResumeIfOnlineStuckLoading()
+                        resumeOnlineAfterNetworkReturned()
+                        // After the resume, which brings a dead player back itself when it has
+                        // a song to put in it; this one only covers the case with nothing to resume.
+                        reviveOnlinePlayerIfDead()
+                    } else onNetworkGone()
                 }
             }
         }
@@ -3359,6 +3415,7 @@ class PlayerService : Service(),
         // registerDefaultNetworkCallback throws on some OEMs (a SecurityException over a
         // permission they expect) and once a process has registered enough callbacks. The
         // player works without this; taking the service down with it would be worse.
+        networkValidated = hasValidatedNetwork()
         runCatching { manager.registerDefaultNetworkCallback(callback) }
             .onSuccess { playerNetworkCallback = callback }
             .onFailure { Timber.e("PlayerService initializeNetworkResume failed ${it.message}") }
@@ -3426,28 +3483,144 @@ class PlayerService : Service(),
         // a recreated WebView resets currentSecond to zero.
         val resumeAt = maxOf(secondBeforeNetworkLoss, currentSecond.value)
 
-        coroutineScope.launch {
+        onlineRecoveryJob?.cancel()
+        onlineRecoveryJob = coroutineScope.launch {
             withContext(Dispatchers.Main) {
-                // Bounded, for the same reason the UNSTARTED watchdog is: ensureOnlinePlayerInitialized
-                // waits on a WebView that may never come back, and an unbounded wait here
-                // would leave a coroutine suspended for the life of the service.
-                val onlinePlayer = withTimeoutOrNull(10_000) {
-                    runCatching { ensureOnlinePlayerInitialized() }.getOrNull()
-                }
+                // No player means a page that never loaded, most likely because it loaded with
+                // no connection. ensureOnlinePlayerInitialized cannot help there: it initializes
+                // the same view again, which the library defers until onAvailable, a new network
+                // that does not come. A fresh view loads its page now that there is one.
+                val onlinePlayer = _internalOnlinePlayer.value ?: recreateOnlinePlayerAndAwait()
                 if (onlinePlayer == null) {
                     Timber.w("PlayerService network resume: no online player, giving up")
                     return@withContext
                 }
-                Timber.d("PlayerService network back, resuming ${item.mediaId} at ${resumeAt}s")
+                // A new page takes seconds to load. Whatever is current by then is what
+                // resumes, from the stall point only if it is still the same song, and not
+                // at all if playback was stopped meanwhile.
+                val current = localMediaItem
+                if (current == null || current.usesLocalPlayer) return@withContext
+                if (!onlinePlaybackIntended && !player.playWhenReady) return@withContext
+                val at = if (current.mediaId == item.mediaId) resumeAt else 0f
+                Timber.d("PlayerService network back, resuming ${current.mediaId} at ${at}s")
                 // Deliberately NOT written into playFromSecond, tempting as it is so the
                 // UNSTARTED watchdog would recover to the same place. onMediaItemTransition
                 // hands that field to loadVideo before resetting it, so a value left behind
                 // here would start the NEXT song a minute and a half in.
-                markOnlineLoadStart(item.mediaId, "recoveryNetwork")
+                markOnlineLoadStart(current.mediaId, "recoveryNetwork")
                 onlinePlayer.pause()
-                onlinePlayer.cueVideo(item.mediaId, resumeAt)
+                onlinePlayer.cueVideo(current.mediaId, at)
                 onlinePlayer.setVolume(getSystemMediaVolume())
             }
+        }
+    }
+
+    private fun onNetworkGone() {
+        if (networkValidated) Timber.d("PlayerService network no longer validated")
+        networkValidated = false
+        markOnlineStalledByNetwork()
+        // A page still loading when the connection goes is the page that never finishes.
+        if (_internalOnlinePlayer.value == null) onlineViewMayHaveLoadedOffline = true
+    }
+
+    /**
+     * The connection is back and the online song is still loading. That is a song that never
+     * reached PLAYING — tapped just before the drop, or during it — so onlinePlaybackIntended
+     * was never set and markOnlineStalledByNetwork did not arm. The embed does not retry a
+     * load that failed for lack of network: it sits in BUFFERING for good (2026-10-18 16:48
+     * log, 46 s until the user gave up and changed song). Armed here so the normal resume
+     * cues it again. A paused song reports PAUSED and is left alone.
+     */
+    private fun armResumeIfOnlineStuckLoading() {
+        if (resumeOnlineWhenNetworkReturns) return
+        val item = localMediaItem ?: return
+        if (item.usesLocalPlayer || GlobalSharedData.riTuneCastActive) return
+        // No player at all is reviveOnlinePlayerIfDead's case.
+        if (_internalOnlinePlayer.value == null) return
+        val state = _internalOnlinePlayerState.value
+        if (state != PlayerConstants.PlayerState.BUFFERING &&
+            state != PlayerConstants.PlayerState.UNSTARTED) return
+        if (!onlinePlaybackIntended && !player.playWhenReady) return
+
+        secondBeforeNetworkLoss = currentSecond.value
+        resumeOnlineWhenNetworkReturns = true
+        Timber.d("PlayerService network back with ${item.mediaId} stuck in $state, retrying it")
+    }
+
+    /** Whether the default network can actually reach the internet, not merely that one is up. */
+    private fun hasValidatedNetwork(): Boolean {
+        val manager = getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+            ?: return true
+        val capabilities = runCatching { manager.getNetworkCapabilities(manager.activeNetwork) }
+            .getOrNull() ?: return false
+        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+    }
+
+    /**
+     * A new WebView, and the player it brings once its page is ready. Bounded, like the
+     * UNSTARTED watchdog: a page that never loads would otherwise leave the caller suspended
+     * for the life of the service. Main thread only (it inflates the view).
+     */
+    private suspend fun recreateOnlinePlayerAndAwait(): YouTubePlayer? {
+        recreateOnlinePlayerView()
+        return withTimeoutOrNull(20_000) { _internalOnlinePlayer.first { it != null } }
+    }
+
+    /**
+     * The connection is back and the online player is a page that loaded without one. Rebuilt
+     * empty, starting nothing: the next song tapped or play pressed finds a working player.
+     */
+    private fun reviveOnlinePlayerIfDead() {
+        if (_internalOnlinePlayer.value != null || !onlineViewMayHaveLoadedOffline) return
+        if (onlineRecoveryJob?.isActive == true || GlobalSharedData.riTuneCastActive) return
+        Timber.d("PlayerService network back with no online player, rebuilding the WebView")
+        onlineRecoveryJob = coroutineScope.launch(Dispatchers.Main) {
+            val onlinePlayer = recreateOnlinePlayerAndAwait() ?: return@launch
+            // Play pressed or a song tapped while this was rebuilding: playOnlineWithoutPlayer
+            // only records the wish when a rebuild is already running, so it is honoured here.
+            val current = localMediaItem
+            if (onlinePlaybackIntended && current != null && !current.usesLocalPlayer) {
+                markOnlineLoadStart(current.mediaId, "recoveryPlayNoPlayer")
+                onlinePlayer.cueVideo(current.mediaId, currentSecond.value)
+                onlinePlayer.setVolume(getSystemMediaVolume())
+            }
+        }
+    }
+
+    /**
+     * Play pressed on an online song with no player behind it. Before, that did nothing at
+     * all — not even an error — so the button looked broken until the app was restarted.
+     */
+    private fun playOnlineWithoutPlayer() {
+        if (GlobalSharedData.riTuneCastActive) return
+        val item = localMediaItem?.takeIf { !it.usesLocalPlayer } ?: return
+        onlinePlaybackIntended = true
+        val at = currentSecond.value
+        if (!hasValidatedNetwork()) {
+            // A page built now would load offline and be just as dead. The network callback
+            // builds it, and starts this song, as soon as the connection is back.
+            secondBeforeNetworkLoss = at
+            resumeOnlineWhenNetworkReturns = true
+            return
+        }
+        if (onlineRecoveryJob?.isActive == true) return
+        Timber.w("PlayerService play with no online player, rebuilding it for ${item.mediaId}")
+        onlineRecoveryJob = coroutineScope.launch(Dispatchers.Main) {
+            val onlinePlayer = recreateOnlinePlayerAndAwait()
+            if (onlinePlayer == null) {
+                // Still no page: no connection yet. Resume when it comes.
+                if (localMediaItem?.mediaId == item.mediaId) {
+                    secondBeforeNetworkLoss = at
+                    resumeOnlineWhenNetworkReturns = true
+                }
+                return@launch
+            }
+            val current = localMediaItem
+            if (current == null || current.usesLocalPlayer || !onlinePlaybackIntended) return@launch
+            markOnlineLoadStart(current.mediaId, "recoveryPlayNoPlayer")
+            // cue, not load: VIDEO_CUED is what presses play, as in every other recovery
+            onlinePlayer.cueVideo(current.mediaId, if (current.mediaId == item.mediaId) at else 0f)
+            onlinePlayer.setVolume(getSystemMediaVolume())
         }
     }
 
@@ -4721,12 +4894,18 @@ class PlayerService : Service(),
          */
         fun onlinePlayerPlay() {
             if (this@PlayerService.isCasting) CastManager.play()
-            this@PlayerService.internalOnlinePlayer.value?.play()
+            val onlinePlayer = this@PlayerService.internalOnlinePlayer.value
+            if (onlinePlayer != null) onlinePlayer.play()
+            else this@PlayerService.playOnlineWithoutPlayer()
         }
 
         fun onlinePlayerPause() {
             if (this@PlayerService.isCasting) CastManager.pause()
             this@PlayerService.internalOnlinePlayer.value?.pause()
+            // With no player there is no PAUSED state to clear these, and a play pressed
+            // offline would otherwise start the song by itself when the network came back.
+            this@PlayerService.onlinePlaybackIntended = false
+            this@PlayerService.resumeOnlineWhenNetworkReturns = false
         }
 
         val onlinePlayerPlayingState: Boolean
@@ -5121,10 +5300,8 @@ class PlayerService : Service(),
                                     }
                                 } else {
                                     Timber.w("PlayerService onPlayClick: YouTube player is null, reloading current song")
-                                    localMediaItem?.let { item ->
-                                        it.player.playWhenReady = true
-                                        it.player.prepare()
-                                    }
+                                    it.player.playWhenReady = true
+                                    playOnlineWithoutPlayer()
                                 }
                             } else
                                 coroutineScope.launch {

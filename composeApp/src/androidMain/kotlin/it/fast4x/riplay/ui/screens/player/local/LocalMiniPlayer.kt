@@ -496,7 +496,9 @@ fun LocalMiniPlayer(
                            .size(24.dp)
                    )
 
-                if (positionAndDuration.second != C.TIME_UNSET || mediaItem.isRadio) {
+                // A failed item never learns its length either, and this showed the spinner
+                // for it forever. The play button instead: its tap prepares again, a retry.
+                if (positionAndDuration.second != C.TIME_UNSET || mediaItem.isRadio || playerError != null) {
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(playPauseRoundness))
