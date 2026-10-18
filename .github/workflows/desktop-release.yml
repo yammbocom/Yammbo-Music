@@ -2,10 +2,16 @@ name: Desktop Release
 
 # Builds platform-native installers for Yammbo Music Desktop whenever a
 # v* tag is pushed (same trigger as release.yml for the Android APK).
-# All three artifacts attach to the same GitHub Release by tag name:
+# Both artifacts attach to the same GitHub Release by tag name:
 #   Windows → YammboMusic-<tag>-win64.msi
 #   macOS   → YammboMusic-<tag>-macos.dmg
-#   Linux   → YammboMusic-<tag>-amd64.deb
+#
+# Linux (.deb) is not built: scripts/download-vlc-linux-x64.sh pulled a
+# Debian package that no longer exists, so the job failed on every release
+# and never shipped. Even with a working URL, Debian splits libvlc and its
+# plugins across several packages that depend on system ffmpeg etc., so
+# bundling them is not viable. Proper Linux support means depending on the
+# system VLC instead of bundling it.
 #
 # Each matrix job runs on the corresponding OS runner, downloads the
 # platform-specific VLC binaries, and builds the installer via Compose
@@ -44,13 +50,6 @@ jobs:
             gradle_task: packageReleaseDmg
             artifact_glob: '*.dmg'
             asset_suffix: macos.dmg
-
-          - os: ubuntu-latest
-            name: Linux
-            vlc_script: scripts/download-vlc-linux-x64.sh
-            gradle_task: packageReleaseDeb
-            artifact_glob: '*.deb'
-            asset_suffix: amd64.deb
 
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
