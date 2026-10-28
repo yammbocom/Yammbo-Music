@@ -7,6 +7,8 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.jsonPrimitive
 
+const val STATUS_NEEDS_EMAIL_VERIFICATION = "needs_email_verification"
+
 @Serializable
 data class LoginRequest(
     val email: String,
@@ -27,15 +29,45 @@ data class ForgotPasswordRequest(
     val email: String
 )
 
+// Accounts created since e-mail verification came back must confirm a 6-digit code
+// mailed to them before they get a token.
+@Serializable
+data class VerifyEmailCodeRequest(
+    val email: String,
+    val code: String,
+    @SerialName("token_name") val tokenName: String = "yambo_music_android"
+)
+
+@Serializable
+data class ResendEmailCodeRequest(
+    val email: String
+)
+
+// Resend answers the same whether or not the account exists:
+// {"status":"sent","message":"..."}, or {"status":"error","message":"..."} on 422/429
+@Serializable
+data class ResendEmailCodeResponse(
+    val status: String? = null,
+    val message: String? = null,
+    val errors: Map<String, List<String>>? = null
+) {
+    val isSuccess: Boolean get() = status == "sent"
+    val firstError: String? get() =
+        errors?.values?.firstOrNull()?.firstOrNull() ?: message
+}
+
 // Login response: {"status":"success","user":{"id":...,"email":...,"access_token":"..."},...}
 @Serializable
 data class AuthResponse(
     val status: String? = null,
     val message: String? = null,
     val user: YammboUser? = null,
+    // Sent with a 403 when the account has not confirmed its e-mail yet
+    val email: String? = null,
     val errors: Map<String, List<String>>? = null
 ) {
     val isSuccess: Boolean get() = status == "success" && user?.accessToken != null
+    val needsEmailVerification: Boolean get() = status == STATUS_NEEDS_EMAIL_VERIFICATION
     val firstError: String? get() =
         errors?.values?.firstOrNull()?.firstOrNull() ?: message
 }
@@ -68,7 +100,8 @@ data class RegisterResponse(
     } catch (_: Exception) { null }
 
     val resolvedUser: YammboUser? get() = user ?: bootstrapData?.user
-    val isSuccess: Boolean get() = status == "success" || status == "needs_email_verification"
+    val isSuccess: Boolean get() = status == "success" || needsEmailVerification
+    val needsEmailVerification: Boolean get() = status == STATUS_NEEDS_EMAIL_VERIFICATION
     val firstError: String? get() =
         errors?.values?.firstOrNull()?.firstOrNull() ?: message
 }

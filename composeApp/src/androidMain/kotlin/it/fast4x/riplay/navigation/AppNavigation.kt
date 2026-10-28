@@ -87,6 +87,8 @@ import it.fast4x.riplay.ui.screens.auth.ForgotPasswordScreen
 import it.fast4x.riplay.ui.screens.auth.LoginScreen
 import it.fast4x.riplay.ui.screens.auth.LoginScreenTV
 import it.fast4x.riplay.ui.screens.auth.RegisterScreen
+import it.fast4x.riplay.ui.screens.auth.VERIFY_EMAIL_ROUTE
+import it.fast4x.riplay.ui.screens.auth.VerifyEmailScreen
 import it.fast4x.riplay.utils.isTVDevice
 import it.fast4x.riplay.ui.screens.events.EventsScreen
 import it.fast4x.riplay.ui.screens.moodandchip.ChipListScreen
@@ -281,6 +283,21 @@ fun AppNavigation(
 
         composable(route = NavRoutes.forgotPassword.name) {
             ForgotPasswordScreen(navController = navController)
+        }
+
+        composable(
+            route = VERIFY_EMAIL_ROUTE,
+            arguments = listOf(
+                navArgument(name = "email") { type = NavType.StringType; defaultValue = "" },
+                navArgument(name = "newAccount") { type = NavType.BoolType; defaultValue = false }
+            )
+        ) { navBackStackEntry ->
+            VerifyEmailScreen(
+                navController = navController,
+                authManager = authManager,
+                email = navBackStackEntry.arguments?.getString("email").orEmpty(),
+                newAccount = navBackStackEntry.arguments?.getBoolean("newAccount") ?: false
+            )
         }
 
 

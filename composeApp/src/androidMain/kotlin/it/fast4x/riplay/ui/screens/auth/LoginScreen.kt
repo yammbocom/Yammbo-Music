@@ -166,6 +166,10 @@ fun LoginScreen(
                                 navController.navigate(NavRoutes.home.name) {
                                     popUpTo(NavRoutes.login.name) { inclusive = true }
                                 }
+                            } else if (response.needsEmailVerification) {
+                                navController.navigate(
+                                    verifyEmailRoute(response.email ?: email.trim(), newAccount = false)
+                                )
                             } else {
                                 errorMessage = response.firstError ?: loginFailedText
                             }

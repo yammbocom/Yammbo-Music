@@ -63,6 +63,31 @@ object YammboApiService {
         Timber.e("YammboApi register error: ${it.message}")
     }
 
+    // Answers like login: {"status":"success","user":{...,"access_token"}} signs the person
+    // straight in; a wrong or expired code is a 422 and too many tries a 429, both with a
+    // ready-to-show Spanish `message`.
+    suspend fun verifyEmailCode(email: String, code: String): Result<AuthResponse> = runCatching {
+        client.post("$BASE_URL/email/verify-code") {
+            contentType(ContentType.Application.Json)
+            header("Accept", "application/json")
+            header("X-Yammbo-Vpn", VpnState.header())
+            setBody(VerifyEmailCodeRequest(email = email, code = code))
+        }.body<AuthResponse>()
+    }.onFailure {
+        Timber.e("YammboApi verifyEmailCode error: ${it.message}")
+    }
+
+    // Mails a fresh code and voids the previous one.
+    suspend fun resendEmailCode(email: String): Result<ResendEmailCodeResponse> = runCatching {
+        client.post("$BASE_URL/email/resend") {
+            contentType(ContentType.Application.Json)
+            header("Accept", "application/json")
+            setBody(ResendEmailCodeRequest(email = email))
+        }.body<ResendEmailCodeResponse>()
+    }.onFailure {
+        Timber.e("YammboApi resendEmailCode error: ${it.message}")
+    }
+
     suspend fun forgotPassword(email: String): Result<ForgotPasswordResponse> = runCatching {
         client.post("$BASE_URL/password/email") {
             contentType(ContentType.Application.Json)

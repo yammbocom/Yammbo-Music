@@ -213,6 +213,13 @@ fun RegisterScreen(
                                 navController.navigate(NavRoutes.home.name) {
                                     popUpTo(NavRoutes.login.name) { inclusive = true }
                                 }
+                            } else if (response.needsEmailVerification) {
+                                // No token until the mailed code is confirmed; back from
+                                // there returns to login, not to a filled-in sign-up form.
+                                val verifyEmail = response.resolvedUser?.email ?: email.trim()
+                                navController.navigate(verifyEmailRoute(verifyEmail, newAccount = true)) {
+                                    popUpTo(NavRoutes.register.name) { inclusive = true }
+                                }
                             } else {
                                 errorMessage = response.firstError ?: registrationFailedText
                             }
