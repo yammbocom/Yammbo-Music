@@ -33,6 +33,8 @@ fun PlaylistScreen(
         modifier = Modifier,
         navController = navController,
         miniPlayer = miniPlayer,
+        // Cover-led screen: no app bar, the header carries the back button.
+        showTopBar = false,
     ) {
         PlaylistSongList(
             navController = navController,

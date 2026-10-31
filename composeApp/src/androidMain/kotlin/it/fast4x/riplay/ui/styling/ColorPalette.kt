@@ -50,18 +50,23 @@ data class ColorPalette(
 
 
 
+// Yammbo Noir: absolute black, three steps of near-black surface, white ink. The only colour on
+// screen comes from album art. "red" is kept as a field for the error/delete call sites but is a
+// light grey, never red (brand rule).
 val DefaultDarkColorPalette = ColorPalette(
-    background0 = Color(0xff121212),
-    background1 = Color(0xff1E1E1E),
-    background2 = Color(0xff2A2A2A),
-    background3 = Color(0xff3D3D3D),
-    background4 = Color(0xff333333),
+    background0 = Color(0xff000000),
+    background1 = Color(0xff111112),
+    background2 = Color(0xff1A1A1C),
+    background3 = Color(0xff2A2A2D),
+    background4 = Color(0xff232326),
+    red = Color(0xffE6E6E6),
+    blue = Color(0xffFFFFFF),
     text = Color(0xffFFFFFF),
-    textSecondary = Color(0xffB0B0B0),
-    textDisabled = Color(0xff6f6f73),
+    textSecondary = Color(0xff9E9E9E),
+    textDisabled = Color(0xff5C5C60),
     iconButtonPlayer = Color(0xffFFFFFF),
     accent = Color(0xffFFFFFF),
-    onAccent = Color(0xff121212),
+    onAccent = Color(0xff000000),
     isDark = true
 )
 
@@ -77,6 +82,8 @@ val DefaultLightColorPalette = ColorPalette(
     iconButtonPlayer = Color(0xff000000),
     accent = Color(0xff000000),
     onAccent = Color(0xffFFFFFF),
+    red = Color(0xff1A1A1A),
+    blue = Color(0xff000000),
     isDark = false
 )
 
@@ -220,7 +227,7 @@ inline val ColorPalette.favoritesIcon: Color
     get() = accent
 
 inline val ColorPalette.shimmer: Color
-    get() = Color(0xff838383)
+    get() = if (isDark) Color(0xff1A1A1C) else Color(0xffE6E6E6)
 
 inline val ColorPalette.primaryButton: Color
     get() = background2

@@ -15,7 +15,7 @@ object Dimensions {
     val navigationRailIconOffset = 6.dp
     val headerHeight = 140.dp
     val halfheaderHeight = 60.dp
-    val miniPlayerHeight = 64.dp
+    val miniPlayerHeight = 60.dp
     val collapsedPlayer = 84.dp
     val navigationBarHeight = 64.dp
     val contentWidthRightBar = 0.88f

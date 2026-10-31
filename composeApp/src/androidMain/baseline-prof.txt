@@ -1,0 +1,44 @@
+# App baseline profile (hand-written wildcard rules for the startup / Home / player path).
+# H = hot, S = startup, P = post-startup, L = method is loaded. Picked up by AGP from the
+# android main source set root (src/androidMain, next to AndroidManifest.xml).
+
+# Application + activity
+HSPLit/fast4x/riplay/MainApplication;->**(**)**
+HSPLit/fast4x/riplay/MainActivity;->**(**)**
+HSPLit/fast4x/riplay/MainActivity$*;->**(**)**
+HSPLit/fast4x/riplay/Dependencies;->**(**)**
+Lit/fast4x/riplay/MainApplication;
+Lit/fast4x/riplay/MainActivity;
+Lit/fast4x/riplay/MainActivity$*;
+Lit/fast4x/riplay/Dependencies;
+
+# Home
+HSPLit/fast4x/riplay/ui/screens/home/**;->**(**)**
+Lit/fast4x/riplay/ui/screens/home/**;
+
+# Player (online + local + common)
+HSPLit/fast4x/riplay/ui/screens/player/**;->**(**)**
+Lit/fast4x/riplay/ui/screens/player/**;
+
+# Shared UI used by Home and the player
+HSPLit/fast4x/riplay/ui/components/**;->**(**)**
+Lit/fast4x/riplay/ui/components/**;
+HSPLit/fast4x/riplay/ui/items/**;->**(**)**
+Lit/fast4x/riplay/ui/items/**;
+HSPLit/fast4x/riplay/ui/styling/**;->**(**)**
+Lit/fast4x/riplay/ui/styling/**;
+
+# Playback service
+HSPLit/fast4x/riplay/service/PlayerService*;->**(**)**
+Lit/fast4x/riplay/service/PlayerService*;
+Lit/fast4x/riplay/service/**;
+
+# Data layer and image/home helpers
+HSPLit/fast4x/riplay/data/**;->**(**)**
+Lit/fast4x/riplay/data/**;
+HSPLit/fast4x/riplay/utils/**;->**(**)**
+Lit/fast4x/riplay/utils/**;
+HSPLit/fast4x/riplay/commonutils/**;->**(**)**
+Lit/fast4x/riplay/commonutils/**;
+HSPLit/fast4x/riplay/extensions/preferences/**;->**(**)**
+Lit/fast4x/riplay/extensions/preferences/**;

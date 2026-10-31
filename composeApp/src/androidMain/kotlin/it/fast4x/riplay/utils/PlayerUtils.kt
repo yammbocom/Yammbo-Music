@@ -35,6 +35,7 @@ import com.yambo.music.R
 import it.fast4x.riplay.commonutils.durationTextToMillis
 import it.fast4x.riplay.extensions.cast.CastManager
 import it.fast4x.riplay.data.Database
+import it.fast4x.riplay.enums.NavRoutes
 import it.fast4x.riplay.data.models.QueuedMediaItem
 import it.fast4x.riplay.data.models.Queues
 import it.fast4x.riplay.data.models.Song
@@ -149,6 +150,28 @@ val MediaItem.youTubeVideoId: String?
         return id?.takeIf { youTubeVideoIdPattern.matches(it) }
     }
 
+/**
+ * The route to open an artist from a song. Artist rows of local files are `local:<Name>` and
+ * mean nothing to YouTube, so a downloaded copy is resolved through the video it came from and
+ * opens that video's real channel; a plain device file falls back to the on-device artist page.
+ */
+suspend fun artistRouteFor(songMediaId: String, artistId: String, artistName: String?): String {
+    if (!artistId.startsWith(LOCAL_KEY_PREFIX)) return "${NavRoutes.artist.name}/$artistId"
+    val youTubeArtistId = withContext(Dispatchers.IO) {
+        runCatching {
+            val videoId = Database.mediaIdOfLocalSong(songMediaId)
+                ?.takeIf { youTubeVideoIdPattern.matches(it) }
+                ?: return@runCatching null
+            val channels = Database.songArtistInfo(videoId).filter { it.id.startsWith("UC") }
+            (channels.firstOrNull { artistName != null && it.name.equals(artistName, ignoreCase = true) }
+                ?: channels.firstOrNull())?.id
+        }.getOrNull()
+    }
+    return if (youTubeArtistId != null) "${NavRoutes.artist.name}/$youTubeArtistId"
+    // Local artist ids carry the raw tag name, which may contain "/" or "?".
+    else "${NavRoutes.onDeviceArtist.name}/${android.net.Uri.encode(artistId)}"
+}
+
 var GlobalVolume: Float = 0.5f
 
 fun Player.restoreGlobalVolume() {
@@ -240,6 +263,7 @@ fun Player.seamlessQueue(mediaItem: MediaItem) {
 
 
 fun Player.shuffleQueue() {
+    if (mediaItemCount < 2 || currentMediaItemIndex !in 0 until mediaItemCount) return
     val mediaItems = currentTimeline.mediaItems.toMutableList().apply { removeAt(currentMediaItemIndex) }
     if (currentMediaItemIndex > 0) removeMediaItems(0, currentMediaItemIndex)
     if (currentMediaItemIndex < mediaItemCount - 1) removeMediaItems(currentMediaItemIndex + 1, mediaItemCount)

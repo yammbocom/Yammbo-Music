@@ -1,5 +1,6 @@
 package it.fast4x.riplay.ui.components
 
+import androidx.compose.foundation.layout.Column
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
@@ -82,9 +83,9 @@ fun Modifier.pressable(
 @Composable
 fun StaggeredEntry(
     index: Int,
-    delayPerItem: Int = 40,
-    durationMillis: Int = 250,
-    initialOffsetY: Dp = 12.dp,
+    delayPerItem: Int = 35,
+    durationMillis: Int = 420,
+    initialOffsetY: Dp = 14.dp,
     content: @Composable () -> Unit,
 ) {
     var visible by remember { mutableStateOf(false) }
@@ -94,13 +95,14 @@ fun StaggeredEntry(
     val delay = index * delayPerItem
     AnimatedVisibility(
         visible = visible,
-        enter = fadeIn(tween(durationMillis, delayMillis = delay)) +
+        enter = fadeIn(tween(durationMillis, delayMillis = delay, easing = EmphasizedEasing)) +
                 slideInVertically(
-                    animationSpec = tween(durationMillis, delayMillis = delay),
+                    animationSpec = tween(durationMillis, delayMillis = delay, easing = EmphasizedEasing),
                     initialOffsetY = { offsetPx },
                 ),
         exit = fadeOut(tween(120)),
     ) {
-        content()
+        // AnimatedVisibility stacks several children like a Box; a Column keeps them in flow.
+        Column { content() }
     }
 }

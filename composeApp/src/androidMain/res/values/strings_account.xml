@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="account_premium_pitch">No ads, unlimited downloads and high quality audio.</string>
+    <string name="account_view_plans">See plans</string>
+    <string name="account_theme_system">System</string>
+    <string name="settings_search_hint">Search a setting</string>
+    <string name="settings_group_prefs">Preferences</string>
+    <string name="settings_group_data">Data and accounts</string>
+    <string name="settings_group_more">More</string>
+    <string name="settings_no_results">No settings match your search</string>
+</resources>

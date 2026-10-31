@@ -4,8 +4,11 @@ import androidx.annotation.OptIn
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -46,7 +49,14 @@ import it.fast4x.riplay.enums.NavRoutes
 import it.fast4x.riplay.enums.NavigationBarPosition
 import it.fast4x.riplay.ui.components.ShimmerHost
 import it.fast4x.riplay.ui.components.themed.HeaderPlaceholder
-import it.fast4x.riplay.ui.components.themed.HeaderWithIcon
+import it.fast4x.riplay.commonutils.thumbnail
+import it.fast4x.riplay.ui.components.CollapsingTitleEffect
+import it.fast4x.riplay.ui.components.cascadeEntry
+import it.fast4x.riplay.ui.components.rememberNoirLayout
+import it.fast4x.riplay.ui.components.rememberTitleCollapse
+import it.fast4x.riplay.ui.components.themed.NoirSectionHeader
+import it.fast4x.riplay.ui.screens.newreleases.NoirMediaCard
+import it.fast4x.riplay.ui.screens.newreleases.NoirPageTitle
 import it.fast4x.riplay.ui.components.themed.TextPlaceholder
 import it.fast4x.riplay.ui.items.AlbumItem
 import it.fast4x.riplay.ui.items.AlbumItemPlaceholder
@@ -112,6 +122,8 @@ fun ChipList(
     val playlistThumbnailSizePx = playlistThumbnailSizeDp.px
 
     val lazyListState = rememberLazyListState()
+    val titleProgress = rememberTitleCollapse(lazyListState, 0)
+    CollapsingTitleEffect(chip.name, titleProgress)
 
     val endPaddingValues = windowInsets.only(WindowInsetsSides.End).asPaddingValues()
 
@@ -120,7 +132,7 @@ fun ChipList(
         .padding(top = 24.dp, bottom = 8.dp)
         .padding(endPaddingValues)
 
-    val disableScrollingText by rememberPreference(disableScrollingTextKey, false)
+    val disableScrollingText by rememberPreference(disableScrollingTextKey, true)
 
     Column (
         modifier = Modifier
@@ -153,113 +165,90 @@ fun ChipList(
                         key = "header",
                         contentType = 0
                     ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            HeaderWithIcon(
-                                title = chip.name,
-                                iconId = R.drawable.internet,
-                                enabled = true,
-                                showIcon = true,
-                                modifier = Modifier,
-                                onClick = {}
-                            )
-                        }
+                        NoirPageTitle(
+                            text = chip.name,
+                            progress = titleProgress,
+                            modifier = Modifier.cascadeEntry(0)
+                        )
                     }
 
                     moodResult.sections.forEach {
                         if (it.items.isEmpty() || it.items.firstOrNull()?.key == null) return@forEach
                         item {
-                            TitleMiniSection(
-                                it.label ?: "", modifier = Modifier
-                                    .padding(horizontal = 16.dp)
-                                    .padding(top = 14.dp, bottom = 4.dp)
-                            )
-
-                            BasicText(
-                                text = it.title,
-                                style = typography().l.semiBold.color(colorPalette().text),
-                                modifier = Modifier
-                                    .padding(horizontal = 16.dp)
-                                    .padding(vertical = 4.dp)
+                            NoirSectionHeader(
+                                title = it.title,
+                                eyebrow = it.label?.takeIf { label -> label.isNotBlank() }
                             )
                         }
                         item {
-                            LazyRow(contentPadding = endPaddingValues) {
+                            val shelfScale = rememberNoirLayout().shelfScale
+                            LazyRow(
+                                contentPadding = PaddingValues(horizontal = 16.dp),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
                                 items(it.items) { item ->
                                     when (item) {
-                                        is Environment.SongItem -> {
-                                            println("Innertube homePage SongItem: ${item.info?.name}")
-                                            SongItem(
-                                                song = item,
-                                                thumbnailSizePx = albumThumbnailSizePx,
-                                                thumbnailSizeDp = albumThumbnailSizeDp,
-                                                //disableScrollingText = disableScrollingText,
-                                                //isNowPlaying = false,
-                                                modifier = Modifier.clickable(onClick = {
-                                                    binder?.player?.forcePlay(item.asMediaItem)
-                                                    //fastPlay(item.asMediaItem, binder)
-                                                })
-                                            )
-                                        }
+                                        is Environment.SongItem -> NoirMediaCard(
+                                            cover = item.thumbnail?.url.thumbnail(480),
+                                            title = item.info?.name.orEmpty(),
+                                            subtitle = item.authors?.mapNotNull { a -> a.name }
+                                                ?.filter { n -> n.isNotBlank() }?.joinToString(", "),
+                                            onClick = {
+                                                binder?.player?.forcePlay(item.asMediaItem)
+                                            },
+                                            modifier = Modifier.width(150.dp * shelfScale)
+                                        )
 
-                                        is Environment.AlbumItem -> {
-                                            println("Innertube homePage AlbumItem: ${item.info?.name}")
-                                            AlbumItem(
-                                                album = item,
-                                                alternative = true,
-                                                thumbnailSizePx = albumThumbnailSizePx,
-                                                thumbnailSizeDp = albumThumbnailSizeDp,
-                                                disableScrollingText = disableScrollingText,
-                                                modifier = Modifier.clickable(onClick = {
-                                                    navController.navigate("${NavRoutes.album.name}/${item.key}")
-                                                })
+                                        is Environment.AlbumItem -> NoirMediaCard(
+                                            cover = item.thumbnail?.url.thumbnail(480),
+                                            title = item.info?.name.orEmpty(),
+                                            subtitle = listOfNotNull(
+                                                item.authors?.mapNotNull { a -> a.name }
+                                                    ?.filter { n -> n.isNotBlank() }
+                                                    ?.joinToString(", ")?.takeIf { j -> j.isNotEmpty() },
+                                                item.year
+                                            ).joinToString(" · "),
+                                            sharedKey = "chip-album:${item.key}",
+                                            browseId = item.key,
+                                            onClick = {
+                                                navController.navigate("${NavRoutes.album.name}/${item.key}")
+                                            },
+                                            modifier = Modifier.width(150.dp * shelfScale)
+                                        )
 
-                                            )
-                                        }
+                                        is Environment.ArtistItem -> NoirMediaCard(
+                                            cover = item.thumbnail?.url.thumbnail(480),
+                                            title = item.info?.name.orEmpty(),
+                                            subtitle = item.subscribersCountText,
+                                            shape = CircleShape,
+                                            onClick = {
+                                                navController.navigate("${NavRoutes.artist.name}/${item.key}")
+                                            },
+                                            modifier = Modifier.width(150.dp * shelfScale)
+                                        )
 
-                                        is Environment.ArtistItem -> {
-                                            println("Innertube homePage ArtistItem: ${item.info?.name}")
-                                            ArtistItem(
-                                                artist = item,
-                                                thumbnailSizePx = artistThumbnailSizePx,
-                                                thumbnailSizeDp = artistThumbnailSizeDp,
-                                                disableScrollingText = disableScrollingText,
-                                                modifier = Modifier.clickable(onClick = {
-                                                    navController.navigate("${NavRoutes.artist.name}/${item.key}")
-                                                })
-                                            )
-                                        }
+                                        is Environment.PlaylistItem -> NoirMediaCard(
+                                            cover = item.thumbnail?.url.thumbnail(480),
+                                            title = item.info?.name.orEmpty(),
+                                            subtitle = item.channel?.name,
+                                            onClick = {
+                                                openPlaylistOrMix(navController, binder, item.key)
+                                            },
+                                            modifier = Modifier.width(150.dp * shelfScale)
+                                        )
 
-                                        is Environment.PlaylistItem -> {
-                                            println("Innertube homePage PlaylistItem: ${item.info?.name}")
-                                            PlaylistItem(
-                                                playlist = item,
-                                                alternative = true,
-                                                thumbnailSizePx = playlistThumbnailSizePx,
-                                                thumbnailSizeDp = playlistThumbnailSizeDp,
-                                                disableScrollingText = disableScrollingText,
-                                                modifier = Modifier.clickable(onClick = {
-                                                    openPlaylistOrMix(navController, binder, item.key)
-                                                })
-                                            )
-                                        }
-
-                                        is Environment.VideoItem -> {
-                                            println("Innertube homePage VideoItem: ${item.info?.name}")
-                                            VideoItem(
-                                                video = item,
-                                                thumbnailHeightDp = playlistThumbnailSizeDp,
-                                                thumbnailWidthDp = playlistThumbnailSizeDp,
-                                                disableScrollingText = disableScrollingText,
-                                                modifier = Modifier.clickable(onClick = {
-                                                    binder?.stopRadio()
-//                                                if (isVideoEnabled())
-//                                                    binder?.player?.playOnline(item.asMediaItem)
-//                                                else
-                                                    binder?.player?.forcePlay(item.asMediaItem)
-                                                    //fastPlay(item.asMediaItem, binder)
-                                                })
-                                            )
-                                        }
+                                        is Environment.VideoItem -> NoirMediaCard(
+                                            cover = item.thumbnail?.url.thumbnail(480),
+                                            title = item.info?.name.orEmpty(),
+                                            subtitle = item.authors?.mapNotNull { a -> a.name }
+                                                ?.filter { n -> n.isNotBlank() }?.joinToString(", "),
+                                            aspect = 16f / 9f,
+                                            onClick = {
+                                                binder?.stopRadio()
+                                                binder?.player?.forcePlay(item.asMediaItem)
+                                            },
+                                            modifier = Modifier.width(240.dp * shelfScale)
+                                        )
 
                                         null -> {}
                                     }

@@ -32,7 +32,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import coil3.compose.AsyncImage
-import it.fast4x.riplay.ui.components.themed.Switch
+import it.fast4x.riplay.ui.components.themed.NoirSwitch
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -299,7 +299,7 @@ internal fun AccountCard(
                         .clickable(enabled = switchEnabled) { onSwitchChange(!switchChecked) }
                         .padding(start = 10.dp, top = 6.dp, bottom = 6.dp)
                 ) {
-                    Switch(isChecked = switchChecked)
+                    NoirSwitch(checked = switchChecked)
                 }
             }
         }

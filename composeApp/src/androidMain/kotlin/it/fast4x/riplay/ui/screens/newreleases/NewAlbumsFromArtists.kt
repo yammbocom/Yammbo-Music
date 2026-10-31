@@ -5,7 +5,9 @@ import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -14,7 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
@@ -39,8 +41,10 @@ import com.yambo.music.R
 import it.fast4x.riplay.enums.NavRoutes
 import it.fast4x.riplay.enums.NavigationBarPosition
 import it.fast4x.riplay.data.models.Artist
-import it.fast4x.riplay.ui.components.themed.HeaderWithIcon
-import it.fast4x.riplay.ui.items.AlbumItem
+import it.fast4x.riplay.commonutils.thumbnail
+import it.fast4x.riplay.ui.components.cascadeEntry
+import it.fast4x.riplay.ui.components.NoirContentMax
+import it.fast4x.riplay.ui.components.rememberNoirLayout
 import it.fast4x.riplay.ui.styling.Dimensions
 import it.fast4x.riplay.ui.styling.px
 import it.fast4x.riplay.ui.styling.center
@@ -98,7 +102,7 @@ fun NewAlbumsFromArtists(
 
     val lazyGridState = rememberLazyGridState()
 
-    val disableScrollingText by rememberPreference(disableScrollingTextKey, false)
+    val disableScrollingText by rememberPreference(disableScrollingTextKey, true)
 
 
     Column(
@@ -129,10 +133,14 @@ fun NewAlbumsFromArtists(
             LazyListContainer(
                 state = lazyGridState,
             ) {
+                // 150dp cells on phones (as before), 180dp on tablets, capped at grid width.
+                val noirLayout = rememberNoirLayout()
                 LazyVerticalGrid(
                     state = lazyGridState,
-                    columns = GridCells.Adaptive(Dimensions.thumbnails.album + 24.dp),
-                    //contentPadding = LocalPlayerAwareWindowInsets.current.asPaddingValues(),
+                    columns = GridCells.Adaptive(if (noirLayout.isCompact) 150.dp else 180.dp),
+                    contentPadding = PaddingValues(horizontal = noirLayout.sidePadding(NoirContentMax.Grid)),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(18.dp),
                     modifier = Modifier
                         .background(colorPalette().background0)
                     //.fillMaxSize()
@@ -142,30 +150,32 @@ fun NewAlbumsFromArtists(
                         contentType = 0,
                         span = { GridItemSpan(maxLineSpan) }
                     ) {
-                        HeaderWithIcon(
-                            title = stringResource(R.string.new_albums_of_your_artists),
-                            iconId = R.drawable.search,
-                            enabled = true,
-                            showIcon = !showSearchTab,
-                            modifier = Modifier,
-                            onClick = {}
+                        NoirPageTitle(
+                            text = stringResource(R.string.new_albums_of_your_artists),
+                            progress = { 0f },
+                            horizontalPadding = 0.dp
                         )
 
                     }
 
                     if (newReleaseAlbumsFiltered.isNotEmpty()) {
-                        items(
+                        itemsIndexed(
                             items = newReleaseAlbumsFiltered.distinct(),
-                            key = { it.key }) {
-                            AlbumItem(
-                                album = it,
-                                thumbnailSizePx = thumbnailSizePx,
-                                thumbnailSizeDp = thumbnailSizeDp,
-                                alternative = true,
-                                modifier = Modifier.clickable(onClick = {
-                                    navController.navigate(route = "${NavRoutes.album.name}/${it.key}")
-                                }),
-                                disableScrollingText = disableScrollingText
+                            key = { _, album -> album.key }) { index, album ->
+                            NoirMediaCard(
+                                cover = album.thumbnail?.url.thumbnail(480),
+                                title = album.info?.name.orEmpty(),
+                                subtitle = listOfNotNull(
+                                    album.authors?.mapNotNull { it.name }?.filter { name -> name.isNotBlank() }
+                                        ?.joinToString(", ")?.takeIf { it.isNotEmpty() },
+                                    album.year
+                                ).joinToString(" · "),
+                                sharedKey = "new-album-artist:${album.key}",
+                                browseId = album.key,
+                                onClick = {
+                                    navController.navigate(route = "${NavRoutes.album.name}/${album.key}")
+                                },
+                                modifier = Modifier.cascadeEntry(index)
                             )
                         }
                     } else {

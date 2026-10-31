@@ -188,6 +188,9 @@ object HomeDataCache {
     // Token of the next Home page when the continuation chain has not finished yet
     var homeContinuation: String? = null
 
+    // Continuation pages already followed for the current first page (capped, see HomePage)
+    var homeContinuationsFollowed: Int = 0
+
     // True while the value in memory is what was read from disk (painted, but still to be
     // replaced by the network answer).
     var homeFromDisk = false
@@ -214,6 +217,7 @@ object HomeDataCache {
         relatedPage = null
         trending = null
         homeContinuation = null
+        homeContinuationsFollowed = 0
         homeFromDisk = false
         discoverFromDisk = false
         relatedFromDisk = false

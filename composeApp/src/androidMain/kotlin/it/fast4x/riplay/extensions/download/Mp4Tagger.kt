@@ -24,6 +24,11 @@ object Mp4Tagger {
         val album: String?,
         val comment: String?,
         val cover: ByteArray?,
+        /** Album artist; the track artist when null. */
+        val albumArtist: String? = null,
+        /** 1-based position in the album and how many tracks it has (0 = unknown). */
+        val trackNumber: Int = 0,
+        val trackTotal: Int = 0,
     )
 
     private class Box(val type: String, val offset: Long, val headerSize: Int, val size: Long)
@@ -200,7 +205,17 @@ object Mp4Tagger {
         val ilst = ByteArrayOutputStream()
         ilst.write(textItem("©nam", tags.title))
         ilst.write(textItem("©ART", tags.artist))
-        ilst.write(textItem("aART", tags.artist))
+        ilst.write(textItem("aART", tags.albumArtist?.takeIf { it.isNotBlank() } ?: tags.artist))
+        if (tags.trackNumber in 1..0xFFFF) {
+            // trkn payload: 2 reserved bytes, track, total, 2 reserved bytes (implicit type 0).
+            val total = tags.trackTotal.coerceIn(0, 0xFFFF)
+            val trkn = ByteArrayOutputStream(8).apply {
+                DataOutputStream(this).apply {
+                    writeShort(0); writeShort(tags.trackNumber); writeShort(total); writeShort(0)
+                }
+            }.toByteArray()
+            ilst.write(box("trkn", dataAtom(0, trkn)))
+        }
         tags.album?.takeIf { it.isNotBlank() }?.let { ilst.write(textItem("©alb", it)) }
         tags.comment?.takeIf { it.isNotBlank() }?.let { ilst.write(textItem("©cmt", it)) }
         ilst.write(textItem("©too", "Yammbo Music"))

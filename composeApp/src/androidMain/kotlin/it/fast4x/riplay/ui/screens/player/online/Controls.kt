@@ -63,6 +63,8 @@ import it.fast4x.riplay.extensions.preferences.rememberPreference
 import it.fast4x.riplay.extensions.preferences.showlyricsthumbnailKey
 import it.fast4x.riplay.extensions.preferences.showthumbnailKey
 import it.fast4x.riplay.extensions.preferences.transparentBackgroundPlayerActionBarKey
+import it.fast4x.riplay.utils.isPodcast
+import it.fast4x.riplay.utils.isVideo
 import kotlinx.coroutines.flow.distinctUntilChanged
 
 
@@ -108,7 +110,7 @@ fun Controls(
         mutableStateOf<Long?>(null)
     }
 
-    var disableScrollingText by rememberPreference(disableScrollingTextKey, false)
+    var disableScrollingText by rememberPreference(disableScrollingTextKey, true)
 
     val animatedPosition = remember { Animatable(position.toFloat()) }
     var isSeeking by remember { mutableStateOf(false) }
@@ -208,6 +210,7 @@ fun Controls(
                         position = position,
                         duration = duration,
                         mediaId = mediaItem.mediaId,
+                        showAudioQuality = !mediaItem.isVideo && !mediaItem.isPodcast,
                         onSeekTo = onSeekTo,
                         onPlay = onPlay,
                         onPause = onPause,
@@ -295,6 +298,7 @@ fun Controls(
                         position = position,
                         duration = duration,
                         mediaId = mediaItem.mediaId,
+                        showAudioQuality = !mediaItem.isVideo && !mediaItem.isPodcast,
                         onSeekTo = onSeekTo,
                         onPlay = onPlay,
                         onPause = onPause,
@@ -346,6 +350,7 @@ fun Controls(
                         position = position,
                         duration = duration,
                         mediaId = mediaItem.mediaId,
+                        showAudioQuality = !mediaItem.isVideo && !mediaItem.isPodcast,
                         onSeekTo = onSeekTo,
                         onPlay = onPlay,
                         onPause = onPause,
@@ -408,6 +413,7 @@ fun Controls(
                     position = position,
                     duration = duration,
                     mediaId = mediaItem.mediaId,
+                    showAudioQuality = !mediaItem.isVideo && !mediaItem.isPodcast,
                     onSeekTo = onSeekTo,
                     onPlay = onPlay,
                     onPause = onPause,
@@ -465,6 +471,7 @@ fun Controls(
                     position = position,
                     duration = duration,
                     mediaId = mediaItem.mediaId,
+                    showAudioQuality = !mediaItem.isVideo && !mediaItem.isPodcast,
                     onSeekTo = onSeekTo,
                     onPlay = onPlay,
                     onPause = onPause,

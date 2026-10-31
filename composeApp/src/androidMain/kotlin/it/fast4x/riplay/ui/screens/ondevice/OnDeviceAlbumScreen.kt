@@ -1,5 +1,10 @@
 package it.fast4x.riplay.ui.screens.ondevice
 
+import com.yambo.music.R
+import androidx.compose.ui.res.stringResource
+import it.fast4x.riplay.ui.components.themed.openAccountOrSettings
+import androidx.compose.ui.platform.LocalContext
+import it.fast4x.riplay.ui.screens.search.openHomeTab
 import android.annotation.SuppressLint
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedContentTransitionScope
@@ -71,19 +76,22 @@ fun OnDeviceAlbumScreen(
     modifier: Modifier = Modifier,
     miniPlayer: @Composable () -> Unit = {}
 ) {
+    val context = LocalContext.current
 
     PageContainer(
         navController = navController,
         miniPlayer = miniPlayer,
+        noirTopBar = true,
+        topBarTitle = stringResource(R.string.on_device),
     ) {
         OnDeviceAlbumDetails(
             navController = navController,
             albumId = albumId,
             onSearchClick = {
-                navController.navigate(NavRoutes.search.name)
+                openHomeTab(navController, context, 3)
             },
             onSettingsClick = {
-                navController.navigate(NavRoutes.settings.name)
+                navController.openAccountOrSettings()
             }
         )
     }

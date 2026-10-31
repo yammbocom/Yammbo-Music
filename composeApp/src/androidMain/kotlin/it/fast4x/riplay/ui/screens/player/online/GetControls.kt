@@ -43,6 +43,8 @@ import it.fast4x.riplay.LocalPlayerServiceBinder
 import it.fast4x.riplay.utils.colorPalette
 import it.fast4x.riplay.utils.isPodcast
 import it.fast4x.riplay.utils.typography
+import androidx.compose.foundation.layout.height
+import it.fast4x.riplay.ui.components.glassSurface
 
 @OptIn(UnstableApi::class)
 @Composable
@@ -104,11 +106,21 @@ fun GetControls(
     }
 
     Column(modifier = Modifier.fillMaxWidth()) {
+    // Yammbo Noir: the essential controls sit on one glass panel.
+    val noirPanel = playerControlsType == PlayerControlsType.Essential
+    // glassSurface is composable, so it is built here rather than inside applyIf.
+    val panelModifier = if (noirPanel)
+        Modifier
+            .glassSurface(RoundedCornerShape(28.dp), elevation = 0.dp)
+            .height(88.dp)
+            .padding(horizontal = 14.dp)
+    else Modifier
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceEvenly,
+        horizontalArrangement = if (noirPanel) Arrangement.SpaceBetween else Arrangement.SpaceEvenly,
         modifier = Modifier
             .fillMaxWidth()
+            .then(panelModifier)
     ) {
 
         if (playerControlsType == PlayerControlsType.Essential)

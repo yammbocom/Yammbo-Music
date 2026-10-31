@@ -1,5 +1,6 @@
 package it.fast4x.riplay.ui.screens.search
 
+import android.util.LruCache
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
@@ -16,6 +17,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -65,6 +69,7 @@ import androidx.navigation.NavController
 import it.fast4x.riplay.extensions.persist.persistList
 import it.fast4x.environment.Environment
 import it.fast4x.environment.models.bodies.SearchSuggestionsBody
+import it.fast4x.environment.requests.searchSuggestions
 import it.fast4x.environment.requests.searchSuggestionsWithItems
 import it.fast4x.riplay.data.Database
 import it.fast4x.riplay.LocalPlayerAwareWindowInsets
@@ -81,6 +86,11 @@ import it.fast4x.riplay.ui.components.themed.Header
 import it.fast4x.riplay.ui.components.themed.NonQueuedMediaItemMenu
 import it.fast4x.riplay.ui.components.themed.NowPlayingSongIndicator
 import it.fast4x.riplay.ui.components.themed.TitleMiniSection
+import androidx.compose.foundation.layout.Column
+import it.fast4x.riplay.ui.components.themed.NoirChipFlow
+import it.fast4x.riplay.ui.components.themed.NoirChip
+import it.fast4x.riplay.ui.components.themed.NoirTextAction
+import it.fast4x.riplay.ui.components.themed.NoirEyebrow
 import it.fast4x.riplay.ui.items.AlbumItem
 import it.fast4x.riplay.ui.items.ArtistItem
 import it.fast4x.riplay.ui.items.SongItem
@@ -104,6 +114,9 @@ import it.fast4x.riplay.utils.LazyListContainer
 import it.fast4x.riplay.utils.forcePlay
 import it.fast4x.environment.models.NavigationEndpoint
 import androidx.compose.ui.platform.LocalFocusManager
+
+// Suggestions already fetched this process, by query text: typing back and forth does not refetch.
+private val suggestionsCache = LruCache<String, Environment.SearchSuggestions>(64)
 
 @UnstableApi
 @ExperimentalFoundationApi
@@ -146,12 +159,28 @@ fun OnlineSearch(
 
     LaunchedEffect(textFieldValue.text) {
         if (textFieldValue.text.isNotEmpty()) {
+            val cached = suggestionsCache.get(textFieldValue.text)
+            if (cached != null) {
+                suggestionsResult = Result.success(cached)
+                return@LaunchedEffect
+            }
             delay(200)
-            //suggestionsResult =
-            //    Innertube.searchSuggestions(SearchSuggestionsBody(input = textFieldValue.text))
-            suggestionsResult =
-                Environment.searchSuggestionsWithItems(SearchSuggestionsBody(input = textFieldValue.text))
-        }
+            val body = SearchSuggestionsBody(input = textFieldValue.text)
+            val withItems = Environment.searchSuggestionsWithItems(body)
+            // If the rich suggestions can't be parsed, fall back to the plain text ones.
+            suggestionsResult = if (withItems?.isSuccess == true) withItems else
+                Environment.searchSuggestions(body)?.map { queries ->
+                    Environment.SearchSuggestions(
+                        queries = queries.orEmpty(),
+                        recommendedSong = null,
+                        recommendedAlbum = null,
+                        recommendedArtist = null,
+                        recommendedPlaylist = null,
+                        recommendedVideo = null
+                    )
+                }
+            suggestionsResult?.getOrNull()?.let { suggestionsCache.put(textFieldValue.text, it) }
+        } else suggestionsResult = null
     }
 
     val rippleIndication = ripple(bounded = false)
@@ -180,7 +209,7 @@ fun OnlineSearch(
     val hapticFeedback = LocalHapticFeedback.current
     val binder = LocalPlayerServiceBinder.current
 
-    val disableScrollingText by rememberPreference(disableScrollingTextKey, false)
+    val disableScrollingText by rememberPreference(disableScrollingTextKey, true)
 
     Box(
         modifier = Modifier
@@ -276,13 +305,59 @@ fun OnlineSearch(
                 }
                 */
 
-                suggestionsResult?.getOrNull()?.let { suggestions ->
+                // Always offer to search exactly what was typed, whatever the suggestions say.
+                val typedQuery = textFieldValue.text.trim()
+                if (typedQuery.isNotEmpty() && typedQuery != "/") {
+                    item(key = "search-typed") {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onSearch(cleanString(typedQuery)) }
+                                .padding(horizontal = 16.dp, vertical = 14.dp)
+                        ) {
+                            Image(
+                                painter = painterResource(R.drawable.search),
+                                contentDescription = null,
+                                colorFilter = ColorFilter.tint(colorPalette().text),
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(Modifier.width(16.dp))
+                            BasicText(
+                                text = stringResource(R.string.noir_search_for, typedQuery),
+                                style = typography().s.copy(color = colorPalette().text, fontWeight = FontWeight.SemiBold),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+                }
+
+                if (typedQuery.isNotEmpty()) suggestionsResult?.getOrNull()?.let { suggestions ->
 
                     item {
-                        TitleMiniSection(
-                            title = stringResource(R.string.searches_suggestions),
-                            modifier = Modifier.padding(start = 12.dp).padding(vertical = 10.dp)
+                        NoirEyebrow(
+                            text = stringResource(R.string.searches_suggestions),
+                            modifier = Modifier.padding(start = 16.dp, top = 10.dp, bottom = 6.dp)
                         )
+                    }
+
+                    suggestions.recommendedArtist.let {
+                        item {
+                            it?.let { artist ->
+                                ArtistItem(
+                                    artist = artist,
+                                    thumbnailSizePx = songThumbnailSizePx,
+                                    thumbnailSizeDp = songThumbnailSizeDp,
+                                    modifier = Modifier
+                                        .clickable {
+                                            navController.navigate(route = "${NavRoutes.artist.name}/${artist.key}")
+                                        },
+                                    disableScrollingText = disableScrollingText
+                                )
+                            }
+                        }
                     }
 
                     suggestions.recommendedSong.let { songItem ->
@@ -343,23 +418,6 @@ fun OnlineSearch(
                             }
                         }
                     }
-                    suggestions.recommendedArtist.let {
-                        item {
-                            it?.let { artist ->
-                                ArtistItem(
-                                    artist = artist,
-                                    thumbnailSizePx = songThumbnailSizePx,
-                                    thumbnailSizeDp = songThumbnailSizeDp,
-                                    modifier = Modifier
-                                        .clickable {
-                                            navController.navigate(route = "${NavRoutes.artist.name}/${artist.key}")
-                                        },
-                                    disableScrollingText = disableScrollingText
-                                )
-                            }
-                        }
-                    }
-
                     items(items = suggestions.queries) { query ->
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -372,15 +430,18 @@ fun OnlineSearch(
                                 .fillMaxWidth()
                                 .padding(all = 16.dp)
                         ) {
-                            Spacer(
-                                modifier = Modifier
-                                    .padding(horizontal = 8.dp)
-                                    .size(20.dp)
+                            Image(
+                                painter = painterResource(R.drawable.search),
+                                contentDescription = null,
+                                colorFilter = ColorFilter.tint(colorPalette().textSecondary),
+                                modifier = Modifier.size(18.dp)
                             )
 
                             BasicText(
                                 text = query,
-                                style = typography().s.secondary,
+                                style = typography().s.copy(color = colorPalette().text),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier
                                     .padding(horizontal = 8.dp)
                                     .weight(1f)
@@ -412,152 +473,72 @@ fun OnlineSearch(
                             )
                         }
                     }
-                } ?: suggestionsResult?.exceptionOrNull()?.let {
-                    item {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                        ) {
-                            TitleMiniSection(
-                                title = stringResource(R.string.searches_no_suggestions),
-                                modifier = Modifier.padding(start = 12.dp).padding(vertical = 10.dp)
-                            )
-                        }
-                    }
                 }
 
+                // Yammbo Noir: recent searches as chips. Tap searches again, long-press puts the
+                // query back in the field to edit it, "CLEAR" empties the history.
                 val visibleHistory = history.filter { it.query.isNotBlank() }
-                val collapsedHistoryCount = 5
+                val collapsedHistoryCount = 8
                 val displayedHistory =
                     if (showAllHistory) visibleHistory
                     else visibleHistory.take(collapsedHistoryCount)
 
                 if (visibleHistory.isNotEmpty())
-                    item {
-                        TitleMiniSection(
-                            title = stringResource(R.string.searches_saved_searches),
-                            modifier = Modifier.padding(start = 12.dp)
-                        )
-                    }
-
-                items(
-                    items = displayedHistory,
-                    key = SearchQuery::id
-                ) { searchQuery ->
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .clickable(onClick = {
-                                onSearch(searchQuery.query.replace("/", "", true))
-                            })
-                            .fillMaxWidth()
-                            .padding(all = 16.dp)
-                    ) {
-                        Spacer(
+                    item(key = "history") {
+                        Column(
                             modifier = Modifier
-                                .padding(horizontal = 8.dp)
-                                .size(20.dp)
-                                .paint(
-                                    painter = timeIconPainter,
-                                    colorFilter = ColorFilter.tint(colorPalette().textDisabled)
+                                .fillMaxWidth()
+                                .padding(start = 16.dp, end = 10.dp, top = 8.dp, bottom = 8.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                NoirEyebrow(
+                                    text = stringResource(R.string.noir_recent_searches),
+                                    modifier = Modifier.weight(1f)
                                 )
-                        )
-
-                        BasicText(
-                            text = searchQuery.query,
-                            style = typography().s.secondary,
-                            modifier = Modifier
-                                .padding(horizontal = 8.dp)
-                                .weight(1f)
-                        )
-
-                        Image(
-                            painter = closeIconPainter,
-                            contentDescription = null,
-                            colorFilter = ColorFilter.tint(colorPalette().textDisabled),
-                            modifier = Modifier
-                                .combinedClickable(
-                                    indication = rippleIndication,
-                                    interactionSource = remember { MutableInteractionSource() },
+                                NoirTextAction(
+                                    text = stringResource(R.string.clear),
                                     onClick = {
                                         Database.asyncTransaction {
-                                            delete(searchQuery)
-                                        }
-                                    },
-                                    onLongClick = {
-                                        Database.asyncTransaction {
-                                            history.forEach {
-                                                delete(it)
-                                            }
+                                            history.forEach { delete(it) }
                                         }
                                         reloadHistory = !reloadHistory
                                     }
                                 )
-                                .padding(horizontal = 8.dp)
-                                .size(20.dp)
-                        )
-
-                        Image(
-                            painter = painterResource(R.drawable.pencil),
-                            contentDescription = null,
-                            colorFilter = ColorFilter.tint(colorPalette().textDisabled),
-                            modifier = Modifier
-                                .clickable(
-                                    indication = rippleIndication,
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    onClick = {
-                                        onTextFieldValueChanged(
-                                            TextFieldValue(
-                                                text = searchQuery.query,
-                                                selection = TextRange(searchQuery.query.length)
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            NoirChipFlow(modifier = Modifier.padding(end = 6.dp)) {
+                                displayedHistory.forEach { searchQuery ->
+                                    NoirChip(
+                                        text = searchQuery.query,
+                                        selected = false,
+                                        icon = R.drawable.history,
+                                        onClick = { onSearch(searchQuery.query.replace("/", "", true)) },
+                                        onLongClick = {
+                                            onTextFieldValueChanged(
+                                                TextFieldValue(
+                                                    text = searchQuery.query,
+                                                    selection = TextRange(searchQuery.query.length)
+                                                )
                                             )
-                                        )
-                                        coroutineScope.launch {
-                                            lazyListState.animateScrollToItem(0)
+                                            coroutineScope.launch {
+                                                lazyListState.animateScrollToItem(0)
+                                            }
                                         }
-                                    }
-                                )
-                                //.rotate(310f)
-                                .padding(horizontal = 8.dp)
-                                .size(22.dp)
-                        )
-                    }
-                }
-
-                if (visibleHistory.size > collapsedHistoryCount) {
-                    item(key = "history-toggle") {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .clickable { showAllHistory = !showAllHistory }
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 12.dp)
-                        ) {
-                            Image(
-                                painter = painterResource(
-                                    if (showAllHistory) R.drawable.chevron_up
-                                    else R.drawable.chevron_down
-                                ),
-                                contentDescription = null,
-                                colorFilter = ColorFilter.tint(colorPalette().textSecondary),
-                                modifier = Modifier
-                                    .padding(horizontal = 8.dp)
-                                    .size(18.dp)
-                            )
-                            BasicText(
-                                text = if (showAllHistory)
-                                    stringResource(R.string.searches_show_less)
-                                else
-                                    stringResource(
-                                        R.string.searches_show_more,
-                                        visibleHistory.size - collapsedHistoryCount
-                                    ),
-                                style = typography().s.secondary,
-                                modifier = Modifier.padding(horizontal = 8.dp)
-                            )
+                                    )
+                                }
+                                if (visibleHistory.size > collapsedHistoryCount)
+                                    NoirChip(
+                                        text = if (showAllHistory) stringResource(R.string.searches_show_less)
+                                        else stringResource(
+                                            R.string.searches_show_more,
+                                            visibleHistory.size - collapsedHistoryCount
+                                        ),
+                                        selected = false,
+                                        onClick = { showAllHistory = !showAllHistory }
+                                    )
+                            }
                         }
                     }
-                }
 
                 // Empty-query browse: a curated row of categories that pre-fill the
                 // search box. Placed after saved searches so recent queries stay on top.

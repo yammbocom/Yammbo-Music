@@ -172,7 +172,7 @@ object Environment {
                 followRedirects(true)
                 followSslRedirects(true)
                 retryOnConnectionFailure(true)
-                pingInterval(1, TimeUnit.SECONDS)
+                pingInterval(30, TimeUnit.SECONDS)
             }
 
         }

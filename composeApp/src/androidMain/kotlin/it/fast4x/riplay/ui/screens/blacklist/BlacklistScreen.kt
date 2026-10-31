@@ -38,6 +38,7 @@ fun BlacklistScreen(
         modifier = Modifier,
         navController = navController,
         miniPlayer = miniPlayer,
+        noirTopBar = true,
     ) {
         Blacklist(
             navController = navController,

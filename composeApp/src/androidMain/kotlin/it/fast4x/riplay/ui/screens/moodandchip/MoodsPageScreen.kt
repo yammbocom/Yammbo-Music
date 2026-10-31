@@ -34,6 +34,7 @@ fun MoodsPageScreen(
         //modifier = modifier,
         navController = navController,
         miniPlayer = miniPlayer,
+        noirTopBar = true,
     ) {
         MoodsPage(
             navController = navController

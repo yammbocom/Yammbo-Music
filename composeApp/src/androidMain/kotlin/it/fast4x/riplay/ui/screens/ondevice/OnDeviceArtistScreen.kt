@@ -1,5 +1,7 @@
 package it.fast4x.riplay.ui.screens.ondevice
 
+import com.yambo.music.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.material.ExperimentalMaterialApi
@@ -27,11 +29,13 @@ fun OnDeviceArtistScreen(
     miniPlayer: @Composable () -> Unit = {},
 ) {
 
-    val disableScrollingText by rememberPreference(disableScrollingTextKey, false)
+    val disableScrollingText by rememberPreference(disableScrollingTextKey, true)
 
     PageContainer(
         navController = navController,
         miniPlayer = miniPlayer,
+        noirTopBar = true,
+        topBarTitle = stringResource(R.string.on_device),
     ) {
         OnDeviceArtistDetails(
             navController = navController,

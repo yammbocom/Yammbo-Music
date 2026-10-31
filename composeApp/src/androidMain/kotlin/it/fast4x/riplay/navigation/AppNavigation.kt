@@ -1,9 +1,13 @@
 package it.fast4x.riplay.navigation
 
+import it.fast4x.riplay.extensions.cast.CastButton
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.ExperimentalAnimationApi
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.tween
@@ -13,6 +17,9 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.ExperimentalMaterialApi
@@ -21,6 +28,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -33,6 +41,7 @@ import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.media3.common.util.UnstableApi
+import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -81,14 +90,23 @@ import it.fast4x.riplay.extensions.preferences.transitionEffectKey
 import it.fast4x.riplay.extensions.rewind.RewindListScreen
 import it.fast4x.riplay.extensions.rewind.RewindScreen
 import it.fast4x.riplay.extensions.ritune.improved.RiTuneSelector
+import it.fast4x.riplay.ui.components.CoverHandoff
+import it.fast4x.riplay.ui.components.CoverTransitionMillis
+import it.fast4x.riplay.ui.components.EmphasizedAccelerateEasing
+import it.fast4x.riplay.ui.components.EmphasizedDecelerateEasing
+import it.fast4x.riplay.ui.components.EmphasizedEasing
 import it.fast4x.riplay.ui.components.LocalGlobalSheetState
+import it.fast4x.riplay.ui.components.LocalNavAnimatedVisibilityScope
+import it.fast4x.riplay.ui.components.LocalSharedTransitionScope
 import it.fast4x.riplay.ui.components.themed.SmartMessage
 import it.fast4x.riplay.ui.screens.auth.ForgotPasswordScreen
+import it.fast4x.riplay.utils.LOCAL_KEY_PREFIX
 import it.fast4x.riplay.ui.screens.auth.LoginScreen
 import it.fast4x.riplay.ui.screens.auth.LoginScreenTV
 import it.fast4x.riplay.ui.screens.auth.RegisterScreen
 import it.fast4x.riplay.ui.screens.auth.VERIFY_EMAIL_ROUTE
 import it.fast4x.riplay.ui.screens.auth.VerifyEmailScreen
+import it.fast4x.riplay.ui.screens.auth.FORGOT_PASSWORD_ROUTE
 import it.fast4x.riplay.utils.isTVDevice
 import it.fast4x.riplay.ui.screens.events.EventsScreen
 import it.fast4x.riplay.ui.screens.moodandchip.ChipListScreen
@@ -101,8 +119,31 @@ import it.fast4x.riplay.utils.MusicIdentifier
 import android.util.Base64
 import java.net.URLDecoder
 
+private val PushEasing = CubicBezierEasing(0.32f, 0.72f, 0f, 1f)
+
+private val sheetRoutes = listOf(
+    NavRoutes.ritunecontroller, NavRoutes.controller, NavRoutes.rewind, NavRoutes.listenerLevel,
+    NavRoutes.videoOrSongInfo, NavRoutes.queue, NavRoutes.player, NavRoutes.musicIdentifier
+).map { it.name }
+
+private val coverPageRoutes = listOf(
+    NavRoutes.album, NavRoutes.artist, NavRoutes.playlist, NavRoutes.podcast
+).map { it.name }
+
+private fun NavBackStackEntry.isSheet(): Boolean {
+    val route = destination.route ?: return false
+    return sheetRoutes.any { route == it || route.startsWith("$it/") }
+}
+
+// A page opened from a tapped cover: the cover flies in, so the page itself only fades.
+private fun NavBackStackEntry.isCoverPage(): Boolean {
+    val route = destination.route ?: return false
+    return coverPageRoutes.any { route.startsWith("$it/") } &&
+            CoverHandoff.forPage(arguments?.getString("id")) != null
+}
+
 @OptIn(ExperimentalFoundationApi::class, ExperimentalAnimationApi::class,
-    ExperimentalMaterialApi::class, ExperimentalTextApi::class, ExperimentalComposeUiApi::class,
+    ExperimentalSharedTransitionApi::class, ExperimentalMaterialApi::class, ExperimentalTextApi::class, ExperimentalComposeUiApi::class,
     ExperimentalMaterial3Api::class
 )
 @UnstableApi
@@ -115,7 +156,7 @@ fun AppNavigation(
     openTabFromShortcut: Int,
     authManager: YammboAuthManager
 ) {
-    val transitionEffect by rememberPreference(transitionEffectKey, TransitionEffect.Scale)
+    val transitionEffect by rememberPreference(transitionEffectKey, TransitionEffect.SharedAxis)
 
     @Composable
     fun modalBottomSheetPage(
@@ -154,465 +195,558 @@ fun AppNavigation(
 
     val startDest = if (authManager.isLoggedIn()) NavRoutes.home.name else NavRoutes.login.name
 
-    NavHost(
-        navController = navController,
-        startDestination = startDest,
-        enterTransition = {
-            when (transitionEffect) {
-                TransitionEffect.None -> EnterTransition.None
-                TransitionEffect.Expand -> expandIn(animationSpec = tween(350, easing = LinearOutSlowInEasing), expandFrom = Alignment.TopStart)
-                TransitionEffect.Fade -> fadeIn(animationSpec = tween(350))
-                TransitionEffect.Scale -> scaleIn(animationSpec = tween(350))
-                TransitionEffect.SlideVertical -> slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Up)
-                TransitionEffect.SlideHorizontal -> slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Left)
-            }
-        },
-        exitTransition = {
-            when (transitionEffect) {
-                TransitionEffect.None -> ExitTransition.None
-                TransitionEffect.Expand -> shrinkOut(animationSpec = tween(350, easing = FastOutSlowInEasing),shrinkTowards = Alignment.TopStart)
-                TransitionEffect.Fade -> fadeOut(animationSpec = tween(350))
-                TransitionEffect.Scale -> scaleOut(animationSpec = tween(350))
-                TransitionEffect.SlideVertical -> slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Down)
-                TransitionEffect.SlideHorizontal -> slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Right)
-            }
-        },
-        popEnterTransition = {
-            when (transitionEffect) {
-                TransitionEffect.None -> EnterTransition.None
-                TransitionEffect.Expand -> expandIn(animationSpec = tween(350, easing = LinearOutSlowInEasing), expandFrom = Alignment.TopStart)
-                TransitionEffect.Fade -> fadeIn(animationSpec = tween(350))
-                TransitionEffect.Scale -> scaleIn(animationSpec = tween(350))
-                TransitionEffect.SlideVertical -> slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Up)
-                TransitionEffect.SlideHorizontal -> slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Left)
-            }
-        },
-        popExitTransition = {
-            when (transitionEffect) {
-                TransitionEffect.None -> ExitTransition.None
-                TransitionEffect.Expand -> shrinkOut(animationSpec = tween(350, easing = FastOutSlowInEasing),shrinkTowards = Alignment.TopStart)
-                TransitionEffect.Fade -> fadeOut(animationSpec = tween(350))
-                TransitionEffect.Scale -> scaleOut(animationSpec = tween(350))
-                TransitionEffect.SlideVertical -> slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Down)
-                TransitionEffect.SlideHorizontal -> slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Right)
-            }
-        }
-    ) {
-        val navigateToAlbum =
-            { browseId: String -> navController.navigate(route = "${NavRoutes.album.name}/$browseId") }
-        val navigateToArtist =
-            { browseId: String -> navController.navigate("${NavRoutes.artist.name}/$browseId") }
-        val navigateToPlaylist =
-            { browseId: String -> navController.navigate("${NavRoutes.playlist.name}/$browseId") }
-        val pop = {
-            if (navController.currentBackStackEntry?.lifecycle?.currentState == Lifecycle.State.RESUMED) navController.popBackStack()
-        }
-
-        composable(route = NavRoutes.home.name) {
-            HomeScreen(
+    SharedTransitionLayout {
+        CompositionLocalProvider(LocalSharedTransitionScope provides this) {
+            NavHost(
                 navController = navController,
-                onPlaylistUrl = navigateToPlaylist,
-                miniPlayer = miniPlayer,
-                openTabFromShortcut = openTabFromShortcut
-            )
-        }
-
-        composable(route = NavRoutes.onBoarding.name) {
-            OnboardingScreen(){
-                SmartMessage("Permissions completed", context = context)
-            }
-        }
-
-        composable(route = NavRoutes.ritunecontroller.name) {
-            modalBottomSheetPage {
-                RiTuneControllerScreen()
-            }
-        }
-
-        composable(route = NavRoutes.controller.name) {
-            modalBottomSheetPage {
-                PlayerScreen()
-            }
-        }
-
-        composable(route = NavRoutes.rewind.name) {
-            modalBottomSheetPage {
-                RewindListScreen(navController)
-            }
-        }
-
-        composable(
-            route = "${NavRoutes.rewind.name}/{year}",
-            arguments = listOf(
-                navArgument(
-                    name = "year",
-                    builder = { type = NavType.StringType }
-                )
-            )
-        ) { navBackStackEntry ->
-            val year = navBackStackEntry.arguments?.getString("year") ?: ""
-            modalBottomSheetPage {
-                RewindScreen(year.toIntOrNull())
-            }
-        }
-
-
-        composable(route = NavRoutes.listenerLevel.name) {
-            modalBottomSheetPage {
-                ListenerLevelCharts()
-            }
-        }
-
-        composable(route = NavRoutes.login.name) {
-            if (isTVDevice()) {
-                LoginScreenTV(
-                    navController = navController,
-                    authManager = authManager
-                )
-            } else {
-                LoginScreen(
-                    navController = navController,
-                    authManager = authManager
-                )
-            }
-        }
-
-        composable(route = NavRoutes.register.name) {
-            RegisterScreen(navController = navController, authManager = authManager)
-        }
-
-        composable(route = NavRoutes.forgotPassword.name) {
-            ForgotPasswordScreen(navController = navController)
-        }
-
-        composable(
-            route = VERIFY_EMAIL_ROUTE,
-            arguments = listOf(
-                navArgument(name = "email") { type = NavType.StringType; defaultValue = "" },
-                navArgument(name = "newAccount") { type = NavType.BoolType; defaultValue = false }
-            )
-        ) { navBackStackEntry ->
-            VerifyEmailScreen(
-                navController = navController,
-                authManager = authManager,
-                email = navBackStackEntry.arguments?.getString("email").orEmpty(),
-                newAccount = navBackStackEntry.arguments?.getBoolean("newAccount") ?: false
-            )
-        }
-
-
-        composable(
-            route = "${NavRoutes.videoOrSongInfo.name}/{id}",
-            arguments = listOf(
-                navArgument(
-                    name = "id",
-                    builder = { type = NavType.StringType }
-                )
-            )
-        ) { navBackStackEntry ->
-            val id = navBackStackEntry.arguments?.getString("id") ?: ""
-            modalBottomSheetPage {
-                ShowVideoOrSongInfo(id)
-            }
-        }
-
-        composable(route = NavRoutes.queue.name) {
-            val showModalBottomSheetPage = rememberSaveable { mutableStateOf(true) }
-            modalBottomSheetPage(showSheet = showModalBottomSheetPage.value) {
-                Queue(
-                    navController = navController,
-                    showPlayer = {},
-                    hidePlayer = {},
-                    onDismiss = {
-                        showModalBottomSheetPage.value = false
-                        navController.popBackStack()
-                    },
-                    onDiscoverClick = {}
-                )
-            }
-        }
-
-        composable(route = NavRoutes.player.name) {
-            modalBottomSheetPage {
-                LocalPlayer(
-                    navController = navController,
-                    onDismiss = {}
-                )
-            }
-        }
-
-        composable(
-            route = "${NavRoutes.artist.name}/{id}",
-            arguments = listOf(
-                navArgument(
-                    name = "id",
-                    builder = { type = NavType.StringType }
-                )
-            )
-        ) { navBackStackEntry ->
-            val id = navBackStackEntry.arguments?.getString("id") ?: ""
-            ArtistScreen(
-                navController = navController,
-                browseId = id,
-                miniPlayer = miniPlayer,
-            )
-        }
-
-        composable(
-            route = "${NavRoutes.onDeviceArtist.name}/{id}",
-            arguments = listOf(
-                navArgument(
-                    name = "id",
-                    builder = { type = NavType.StringType }
-                )
-            )
-        ) { navBackStackEntry ->
-            val id = navBackStackEntry.arguments?.getString("id") ?: ""
-            OnDeviceArtistScreen(
-                navController = navController,
-                artistId = id,
-                miniPlayer = miniPlayer,
-            )
-        }
-
-        composable(
-            route = "${NavRoutes.album.name}/{id}",
-            arguments = listOf(
-                navArgument(
-                    name = "id",
-                    builder = { type = NavType.StringType }
-                )
-            )
-        ) { navBackStackEntry ->
-            val id = navBackStackEntry.arguments?.getString("id") ?: ""
-            AlbumScreen(
-                navController = navController,
-                browseId = id,
-                miniPlayer = miniPlayer,
-            )
-        }
-
-        composable(
-            route = "${NavRoutes.onDeviceAlbum.name}/{id}",
-            arguments = listOf(
-                navArgument(
-                    name = "id",
-                    builder = { type = NavType.StringType }
-                )
-            )
-        ) { navBackStackEntry ->
-            val id = navBackStackEntry.arguments?.getString("id") ?: ""
-            OnDeviceAlbumScreen(
-                navController = navController,
-                albumId = id,
-                miniPlayer = miniPlayer,
-            )
-        }
-
-        composable(
-            route = "${NavRoutes.playlist.name}/{id}",
-            arguments = listOf(
-                navArgument(
-                    name = "id",
-                    builder = { type = NavType.StringType }
-                )
-            )
-        ) { navBackStackEntry ->
-            val id = navBackStackEntry.arguments?.getString("id") ?: ""
-            PlaylistScreen(
-                navController = navController,
-                browseId = id,
-                miniPlayer = miniPlayer,
-            )
-        }
-
-        composable(
-            route = "${NavRoutes.podcast.name}/{id}",
-            arguments = listOf(
-                navArgument(
-                    name = "id",
-                    builder = { type = NavType.StringType }
-                )
-            )
-        ) { navBackStackEntry ->
-            val id = navBackStackEntry.arguments?.getString("id") ?: ""
-            PodcastScreen(
-                navController = navController,
-                browseId = id,
-                miniPlayer = miniPlayer,
-            )
-        }
-
-        composable(route = NavRoutes.settings.name) {
-            SettingsScreen(
-                navController = navController,
-                miniPlayer = miniPlayer,
-            )
-        }
-
-        composable(route = NavRoutes.statistics.name) {
-            StatisticsScreen(
-                navController = navController,
-                statisticsType = StatisticsType.Today,
-                miniPlayer = miniPlayer,
-            )
-        }
-
-        composable(route = NavRoutes.history.name) {
-            HistoryScreen(
-                navController = navController,
-                miniPlayer = miniPlayer,
-
-                )
-        }
-
-        composable(route = NavRoutes.musicIdentifier.name) {
-            modalBottomSheetPage {
-                MusicIdentifier(navController)
-            }
-        }
-
-        // Reached from the account icon in the top bar; PageContainer keeps the top bar,
-        // mini player and bottom nav around it like the other full screens.
-        composable(route = NavRoutes.myAccount.name) {
-            PageContainer(
-                navController = navController,
-                miniPlayer = miniPlayer,
-            ) {
-                MyAccountTab(navController = navController)
-            }
-        }
-
-        composable(route = NavRoutes.blacklist.name) {
-            BlacklistScreen(navController, miniPlayer)
-        }
-
-        composable(
-            route = "${NavRoutes.search.name}?text={text}",
-            arguments = listOf(
-                navArgument(
-                    name = "text",
-                    builder = {
-                        type = NavType.StringType
-                        defaultValue = ""
+                startDestination = startDest,
+                enterTransition = {
+                    when (transitionEffect) {
+                        TransitionEffect.SharedAxis -> when {
+                            targetState.isSheet() || initialState.isSheet() -> fadeIn(tween(200))
+                            targetState.isCoverPage() -> fadeIn(
+                                tween(CoverTransitionMillis * 7 / 10, delayMillis = CoverTransitionMillis * 3 / 10, easing = EmphasizedDecelerateEasing)
+                            ) + slideInVertically(tween(CoverTransitionMillis, easing = EmphasizedEasing)) { it / 30 }
+                            else -> slideInHorizontally(tween(420, easing = PushEasing)) { it }
+                        }
+                        TransitionEffect.None -> EnterTransition.None
+                        TransitionEffect.Expand -> expandIn(animationSpec = tween(350, easing = LinearOutSlowInEasing), expandFrom = Alignment.TopStart)
+                        TransitionEffect.Fade -> fadeIn(animationSpec = tween(350))
+                        TransitionEffect.Scale -> scaleIn(animationSpec = tween(350))
+                        TransitionEffect.SlideVertical -> slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Up)
+                        TransitionEffect.SlideHorizontal -> slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Left)
                     }
-                )
-            )
-        ) { navBackStackEntry ->
-            val context = LocalContext.current
-            val text = navBackStackEntry.arguments?.getString("text") ?: ""
-            SearchScreen(
-                navController = navController,
-                miniPlayer = miniPlayer,
-                initialTextInput = text,
-            )
-        }
+                },
+                exitTransition = {
+                    when (transitionEffect) {
+                        TransitionEffect.SharedAxis -> when {
+                            targetState.isSheet() || initialState.isSheet() -> fadeOut(tween(200))
+                            targetState.isCoverPage() -> fadeOut(tween(CoverTransitionMillis * 4 / 10, easing = EmphasizedAccelerateEasing))
+                            else -> slideOutHorizontally(tween(420, easing = PushEasing)) { -it / 4 } +
+                                    fadeOut(tween(420), targetAlpha = 0.5f)
+                        }
+                        TransitionEffect.None -> ExitTransition.None
+                        TransitionEffect.Expand -> shrinkOut(animationSpec = tween(350, easing = FastOutSlowInEasing),shrinkTowards = Alignment.TopStart)
+                        TransitionEffect.Fade -> fadeOut(animationSpec = tween(350))
+                        TransitionEffect.Scale -> scaleOut(animationSpec = tween(350))
+                        TransitionEffect.SlideVertical -> slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Down)
+                        TransitionEffect.SlideHorizontal -> slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Right)
+                    }
+                },
+                popEnterTransition = {
+                    when (transitionEffect) {
+                        TransitionEffect.SharedAxis -> when {
+                            targetState.isSheet() || initialState.isSheet() -> fadeIn(tween(200))
+                            initialState.isCoverPage() -> fadeIn(tween(260, delayMillis = 110, easing = EmphasizedDecelerateEasing))
+                            else -> slideInHorizontally(tween(380, easing = PushEasing)) { -it / 4 } +
+                                    fadeIn(tween(380), initialAlpha = 0.5f)
+                        }
+                        TransitionEffect.None -> EnterTransition.None
+                        TransitionEffect.Expand -> expandIn(animationSpec = tween(350, easing = LinearOutSlowInEasing), expandFrom = Alignment.TopStart)
+                        TransitionEffect.Fade -> fadeIn(animationSpec = tween(350))
+                        TransitionEffect.Scale -> scaleIn(animationSpec = tween(350))
+                        TransitionEffect.SlideVertical -> slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Up)
+                        TransitionEffect.SlideHorizontal -> slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Left)
+                    }
+                },
+                popExitTransition = {
+                    when (transitionEffect) {
+                        TransitionEffect.SharedAxis -> when {
+                            targetState.isSheet() || initialState.isSheet() -> fadeOut(tween(200))
+                            initialState.isCoverPage() -> fadeOut(tween(200, easing = EmphasizedAccelerateEasing)) +
+                                    scaleOut(tween(300, easing = EmphasizedEasing), targetScale = 0.92f)
+                            else -> scaleOut(tween(300, easing = EmphasizedEasing), targetScale = 0.9f) +
+                                    fadeOut(tween(300, easing = EmphasizedAccelerateEasing)) +
+                                    slideOutHorizontally(tween(300, easing = EmphasizedEasing)) { it / 10 }
+                        }
+                        TransitionEffect.None -> ExitTransition.None
+                        TransitionEffect.Expand -> shrinkOut(animationSpec = tween(350, easing = FastOutSlowInEasing),shrinkTowards = Alignment.TopStart)
+                        TransitionEffect.Fade -> fadeOut(animationSpec = tween(350))
+                        TransitionEffect.Scale -> scaleOut(animationSpec = tween(350))
+                        TransitionEffect.SlideVertical -> slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Down)
+                        TransitionEffect.SlideHorizontal -> slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Right)
+                    }
+                }
+            ) {
+                val navigateToAlbum =
+                    { browseId: String -> navController.navigate(route = "${NavRoutes.album.name}/$browseId") }
+                val navigateToArtist =
+                    { browseId: String -> navController.navigate("${NavRoutes.artist.name}/$browseId") }
+                val navigateToPlaylist =
+                    { browseId: String -> navController.navigate("${NavRoutes.playlist.name}/$browseId") }
+                val pop = {
+                    if (navController.currentBackStackEntry?.lifecycle?.currentState == Lifecycle.State.RESUMED) navController.popBackStack()
+                }
 
-        composable(
-            route = "${NavRoutes.localPlaylist.name}/{id}",
-            arguments = listOf(
-                navArgument(
-                    name = "id",
-                    builder = { type = NavType.LongType }
-                )
-            )
-        ) { navBackStackEntry ->
-            val id = navBackStackEntry.arguments?.getLong("id") ?: 0L
+                composable(route = NavRoutes.home.name) {
+                    CompositionLocalProvider(LocalNavAnimatedVisibilityScope provides this) {
+                        HomeScreen(
+                            navController = navController,
+                            onPlaylistUrl = navigateToPlaylist,
+                            miniPlayer = miniPlayer,
+                            openTabFromShortcut = openTabFromShortcut
+                        )
+                    }
+                }
 
-            LocalPlaylistScreen(
-                navController = navController,
-                playlistId = id,
-                miniPlayer = miniPlayer
-            )
-        }
+                composable(route = NavRoutes.onBoarding.name) {
+                    OnboardingScreen(){
+                        SmartMessage("Permissions completed", context = context)
+                    }
+                }
 
-        composable(
-            route = "${NavRoutes.onDevicePlaylist.name}/{folder}",
-            arguments = listOf(
-                navArgument(
-                    name = "folder",
-                    builder = { type = NavType.StringType }
-                )
-            )
-        ) { navBackStackEntry ->
-            val folder = navBackStackEntry.arguments?.getString("folder") ?: ""
+                composable(route = NavRoutes.ritunecontroller.name) {
+                    modalBottomSheetPage {
+                        RiTuneControllerScreen()
+                    }
+                }
 
-            OnDevicePlaylistScreen (
-                navController = navController,
-                folder = folder,
-                miniPlayer = miniPlayer
-            )
-        }
+                composable(route = NavRoutes.controller.name) {
+                    modalBottomSheetPage {
+                        PlayerScreen()
+                    }
+                }
 
-        composable(
-            route = NavRoutes.mood.name,
-        ) { navBackStackEntry ->
-            val mood: Mood? = navController.previousBackStackEntry?.savedStateHandle?.get("mood")
-            if (mood != null) {
-                MoodListScreen(
-                    navController = navController,
-                    mood = mood,
-                    miniPlayer = miniPlayer,
-                )
+                composable(route = NavRoutes.rewind.name) {
+                    modalBottomSheetPage {
+                        RewindListScreen(navController)
+                    }
+                }
+
+                composable(
+                    route = "${NavRoutes.rewind.name}/{year}",
+                    arguments = listOf(
+                        navArgument(
+                            name = "year",
+                            builder = { type = NavType.StringType }
+                        )
+                    )
+                ) { navBackStackEntry ->
+                    val year = navBackStackEntry.arguments?.getString("year") ?: ""
+                    modalBottomSheetPage {
+                        RewindScreen(year.toIntOrNull())
+                    }
+                }
+
+
+                composable(route = NavRoutes.listenerLevel.name) {
+                    modalBottomSheetPage {
+                        ListenerLevelCharts()
+                    }
+                }
+
+                composable(route = NavRoutes.login.name) {
+                    if (isTVDevice()) {
+                        LoginScreenTV(
+                            navController = navController,
+                            authManager = authManager
+                        )
+                    } else {
+                        LoginScreen(
+                            navController = navController,
+                            authManager = authManager
+                        )
+                    }
+                }
+
+                composable(route = NavRoutes.register.name) {
+                    RegisterScreen(navController = navController, authManager = authManager)
+                }
+
+                composable(
+                    route = FORGOT_PASSWORD_ROUTE,
+                    arguments = listOf(
+                        navArgument(name = "email") {
+                            type = NavType.StringType
+                            nullable = true
+                            defaultValue = null
+                        }
+                    )
+                ) { navBackStackEntry ->
+                    ForgotPasswordScreen(
+                        navController = navController,
+                        authManager = authManager,
+                        initialEmail = navBackStackEntry.arguments?.getString("email").orEmpty()
+                    )
+                }
+
+                composable(
+                    route = VERIFY_EMAIL_ROUTE,
+                    arguments = listOf(
+                        navArgument(name = "email") { type = NavType.StringType; defaultValue = "" },
+                        navArgument(name = "newAccount") { type = NavType.BoolType; defaultValue = false }
+                    )
+                ) { navBackStackEntry ->
+                    VerifyEmailScreen(
+                        navController = navController,
+                        authManager = authManager,
+                        email = navBackStackEntry.arguments?.getString("email").orEmpty(),
+                        newAccount = navBackStackEntry.arguments?.getBoolean("newAccount") ?: false
+                    )
+                }
+
+
+                composable(
+                    route = "${NavRoutes.videoOrSongInfo.name}/{id}",
+                    arguments = listOf(
+                        navArgument(
+                            name = "id",
+                            builder = { type = NavType.StringType }
+                        )
+                    )
+                ) { navBackStackEntry ->
+                    val id = navBackStackEntry.arguments?.getString("id") ?: ""
+                    modalBottomSheetPage {
+                        ShowVideoOrSongInfo(id)
+                    }
+                }
+
+                composable(route = NavRoutes.queue.name) {
+                    val showModalBottomSheetPage = rememberSaveable { mutableStateOf(true) }
+                    modalBottomSheetPage(showSheet = showModalBottomSheetPage.value) {
+                        Queue(
+                            navController = navController,
+                            showPlayer = {},
+                            hidePlayer = {},
+                            onDismiss = {
+                                showModalBottomSheetPage.value = false
+                                navController.popBackStack()
+                            },
+                            onDiscoverClick = {}
+                        )
+                    }
+                }
+
+                composable(route = NavRoutes.player.name) {
+                    modalBottomSheetPage {
+                        LocalPlayer(
+                            navController = navController,
+                            onDismiss = {}
+                        )
+                    }
+                }
+
+                composable(
+                    route = "${NavRoutes.artist.name}/{id}",
+                    arguments = listOf(
+                        navArgument(
+                            name = "id",
+                            builder = { type = NavType.StringType }
+                        )
+                    )
+                ) { navBackStackEntry ->
+                    CompositionLocalProvider(LocalNavAnimatedVisibilityScope provides this) {
+                        val id = navBackStackEntry.arguments?.getString("id") ?: ""
+                        // `local:<Name>` is a device artist, not a YouTube channel.
+                        if (id.startsWith(LOCAL_KEY_PREFIX)) {
+                            OnDeviceArtistScreen(
+                                navController = navController,
+                                artistId = id,
+                                miniPlayer = miniPlayer,
+                            )
+                        } else {
+                            ArtistScreen(
+                                navController = navController,
+                                browseId = id,
+                                miniPlayer = miniPlayer,
+                            )
+                        }
+                    }
+                }
+
+                composable(
+                    route = "${NavRoutes.onDeviceArtist.name}/{id}",
+                    arguments = listOf(
+                        navArgument(
+                            name = "id",
+                            builder = { type = NavType.StringType }
+                        )
+                    )
+                ) { navBackStackEntry ->
+                    CompositionLocalProvider(LocalNavAnimatedVisibilityScope provides this) {
+                        val id = navBackStackEntry.arguments?.getString("id") ?: ""
+                        OnDeviceArtistScreen(
+                            navController = navController,
+                            artistId = id,
+                            miniPlayer = miniPlayer,
+                        )
+                    }
+                }
+
+                composable(
+                    route = "${NavRoutes.album.name}/{id}",
+                    arguments = listOf(
+                        navArgument(
+                            name = "id",
+                            builder = { type = NavType.StringType }
+                        )
+                    )
+                ) { navBackStackEntry ->
+                    CompositionLocalProvider(LocalNavAnimatedVisibilityScope provides this) {
+                        val id = navBackStackEntry.arguments?.getString("id") ?: ""
+                        AlbumScreen(
+                            navController = navController,
+                            browseId = id,
+                            miniPlayer = miniPlayer,
+                        )
+                    }
+                }
+
+                composable(
+                    route = "${NavRoutes.onDeviceAlbum.name}/{id}",
+                    arguments = listOf(
+                        navArgument(
+                            name = "id",
+                            builder = { type = NavType.StringType }
+                        )
+                    )
+                ) { navBackStackEntry ->
+                    CompositionLocalProvider(LocalNavAnimatedVisibilityScope provides this) {
+                        val id = navBackStackEntry.arguments?.getString("id") ?: ""
+                        OnDeviceAlbumScreen(
+                            navController = navController,
+                            albumId = id,
+                            miniPlayer = miniPlayer,
+                        )
+                    }
+                }
+
+                composable(
+                    route = "${NavRoutes.playlist.name}/{id}",
+                    arguments = listOf(
+                        navArgument(
+                            name = "id",
+                            builder = { type = NavType.StringType }
+                        )
+                    )
+                ) { navBackStackEntry ->
+                    CompositionLocalProvider(LocalNavAnimatedVisibilityScope provides this) {
+                        val id = navBackStackEntry.arguments?.getString("id") ?: ""
+                        PlaylistScreen(
+                            navController = navController,
+                            browseId = id,
+                            miniPlayer = miniPlayer,
+                        )
+                    }
+                }
+
+                composable(
+                    route = "${NavRoutes.podcast.name}/{id}",
+                    arguments = listOf(
+                        navArgument(
+                            name = "id",
+                            builder = { type = NavType.StringType }
+                        )
+                    )
+                ) { navBackStackEntry ->
+                    CompositionLocalProvider(LocalNavAnimatedVisibilityScope provides this) {
+                        val id = navBackStackEntry.arguments?.getString("id") ?: ""
+                        PodcastScreen(
+                            navController = navController,
+                            browseId = id,
+                            miniPlayer = miniPlayer,
+                        )
+                    }
+                }
+
+                composable(route = NavRoutes.settings.name) {
+                    CompositionLocalProvider(LocalNavAnimatedVisibilityScope provides this) {
+                        SettingsScreen(
+                            navController = navController,
+                            miniPlayer = miniPlayer,
+                        )
+                    }
+                }
+
+                composable(route = NavRoutes.statistics.name) {
+                    CompositionLocalProvider(LocalNavAnimatedVisibilityScope provides this) {
+                        StatisticsScreen(
+                            navController = navController,
+                            statisticsType = StatisticsType.Today,
+                            miniPlayer = miniPlayer,
+                        )
+                    }
+                }
+
+                composable(route = NavRoutes.history.name) {
+                    CompositionLocalProvider(LocalNavAnimatedVisibilityScope provides this) {
+                        HistoryScreen(
+                            navController = navController,
+                            miniPlayer = miniPlayer,
+
+                            )
+                    }
+                }
+
+                composable(route = NavRoutes.musicIdentifier.name) {
+                    modalBottomSheetPage {
+                        MusicIdentifier(navController)
+                    }
+                }
+
+                // Reached from the account icon in the top bar; PageContainer keeps the top bar,
+                // mini player and bottom nav around it like the other full screens.
+                composable(route = NavRoutes.myAccount.name) {
+                    CompositionLocalProvider(LocalNavAnimatedVisibilityScope provides this) {
+                        PageContainer(
+                            navController = navController,
+                            miniPlayer = miniPlayer,
+                            noirTopBar = true,
+                            topBarActions = { CastButton() },
+                        ) {
+                            MyAccountTab(navController = navController)
+                        }
+                    }
+                }
+
+                composable(route = NavRoutes.blacklist.name) {
+                    CompositionLocalProvider(LocalNavAnimatedVisibilityScope provides this) {
+                        BlacklistScreen(navController, miniPlayer)
+                    }
+                }
+
+                composable(
+                    route = "${NavRoutes.search.name}?text={text}",
+                    arguments = listOf(
+                        navArgument(
+                            name = "text",
+                            builder = {
+                                type = NavType.StringType
+                                defaultValue = ""
+                            }
+                        )
+                    )
+                ) { navBackStackEntry ->
+                    CompositionLocalProvider(LocalNavAnimatedVisibilityScope provides this) {
+                        val context = LocalContext.current
+                        val text = navBackStackEntry.arguments?.getString("text") ?: ""
+                        SearchScreen(
+                            navController = navController,
+                            miniPlayer = miniPlayer,
+                            initialTextInput = text,
+                        )
+                    }
+                }
+
+                composable(
+                    route = "${NavRoutes.localPlaylist.name}/{id}",
+                    arguments = listOf(
+                        navArgument(
+                            name = "id",
+                            builder = { type = NavType.LongType }
+                        )
+                    )
+                ) { navBackStackEntry ->
+                    CompositionLocalProvider(LocalNavAnimatedVisibilityScope provides this) {
+                        val id = navBackStackEntry.arguments?.getLong("id") ?: 0L
+
+                        LocalPlaylistScreen(
+                            navController = navController,
+                            playlistId = id,
+                            miniPlayer = miniPlayer
+                        )
+                    }
+                }
+
+                composable(
+                    route = "${NavRoutes.onDevicePlaylist.name}/{folder}",
+                    arguments = listOf(
+                        navArgument(
+                            name = "folder",
+                            builder = { type = NavType.StringType }
+                        )
+                    )
+                ) { navBackStackEntry ->
+                    CompositionLocalProvider(LocalNavAnimatedVisibilityScope provides this) {
+                        val folder = navBackStackEntry.arguments?.getString("folder") ?: ""
+
+                        OnDevicePlaylistScreen (
+                            navController = navController,
+                            folder = folder,
+                            miniPlayer = miniPlayer
+                        )
+                    }
+                }
+
+                composable(
+                    route = NavRoutes.mood.name,
+                ) { navBackStackEntry ->
+                    CompositionLocalProvider(LocalNavAnimatedVisibilityScope provides this) {
+                        val mood: Mood? = navController.previousBackStackEntry?.savedStateHandle?.get("mood")
+                        if (mood != null) {
+                            MoodListScreen(
+                                navController = navController,
+                                mood = mood,
+                                miniPlayer = miniPlayer,
+                            )
+                        }
+                    }
+                }
+
+                composable(
+                    route = NavRoutes.moodsPage.name
+                ) { navBackStackEntry ->
+                    CompositionLocalProvider(LocalNavAnimatedVisibilityScope provides this) {
+                        MoodsPageScreen(
+                            navController = navController,
+                            miniPlayer = miniPlayer,
+                        )
+
+                    }
+                }
+
+                composable(
+                    route = NavRoutes.chip.name,
+                ) { navBackStackEntry ->
+                    CompositionLocalProvider(LocalNavAnimatedVisibilityScope provides this) {
+                        val chip: Chip? = navController.previousBackStackEntry?.savedStateHandle?.get("chip")
+                        if (chip != null) {
+                            ChipListScreen(
+                                navController = navController,
+                                chip = chip,
+                                miniPlayer = miniPlayer,
+                            )
+                        }
+                    }
+                }
+
+                composable(
+                    route = NavRoutes.newAlbums.name
+                ) { navBackStackEntry ->
+                    CompositionLocalProvider(LocalNavAnimatedVisibilityScope provides this) {
+                        NewreleasesScreen(
+                            navController = navController,
+                            miniPlayer = miniPlayer,
+                        )
+                    }
+                }
+
+
+                composable(
+                    route = NavRoutes.welcome.name
+                ) { navBackStackEntry ->
+                    WelcomeScreen(
+                        navController = navController
+                    )
+                }
+
+                composable(
+                    route = "${NavRoutes.webview.name}/{encodedUrl}",
+                    arguments = listOf(
+                        navArgument(
+                            name = "encodedUrl",
+                            builder = { type = NavType.StringType }
+                        )
+                    )
+                ) { navBackStackEntry ->
+                    val encodedUrl = navBackStackEntry.arguments?.getString("encodedUrl") ?: ""
+                    val url = String(Base64.decode(encodedUrl, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING))
+                    YammboWebViewScreen(
+                        url = url,
+                        onBack = { navController.popBackStack() }
+                    )
+                }
             }
-        }
-
-        composable(
-            route = NavRoutes.moodsPage.name
-        ) { navBackStackEntry ->
-            MoodsPageScreen(
-                navController = navController,
-                miniPlayer = miniPlayer,
-            )
-
-        }
-
-        composable(
-            route = NavRoutes.chip.name,
-        ) { navBackStackEntry ->
-            val chip: Chip? = navController.previousBackStackEntry?.savedStateHandle?.get("chip")
-            if (chip != null) {
-                ChipListScreen(
-                    navController = navController,
-                    chip = chip,
-                    miniPlayer = miniPlayer,
-                )
-            }
-        }
-
-        composable(
-            route = NavRoutes.newAlbums.name
-        ) { navBackStackEntry ->
-            NewreleasesScreen(
-                navController = navController,
-                miniPlayer = miniPlayer,
-            )
-        }
-
-
-        composable(
-            route = NavRoutes.welcome.name
-        ) { navBackStackEntry ->
-            WelcomeScreen(
-                navController = navController
-            )
-        }
-
-        composable(
-            route = "${NavRoutes.webview.name}/{encodedUrl}",
-            arguments = listOf(
-                navArgument(
-                    name = "encodedUrl",
-                    builder = { type = NavType.StringType }
-                )
-            )
-        ) { navBackStackEntry ->
-            val encodedUrl = navBackStackEntry.arguments?.getString("encodedUrl") ?: ""
-            val url = String(Base64.decode(encodedUrl, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING))
-            YammboWebViewScreen(
-                url = url,
-                onBack = { navController.popBackStack() }
-            )
         }
     }
 }

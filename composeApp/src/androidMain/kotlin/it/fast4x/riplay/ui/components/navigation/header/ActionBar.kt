@@ -27,6 +27,8 @@ import it.fast4x.riplay.extensions.preferences.castToRiTuneDeviceEnabledKey
 import it.fast4x.riplay.extensions.preferences.enableMusicIdentifierKey
 import it.fast4x.riplay.extensions.preferences.enablePictureInPictureKey
 import it.fast4x.riplay.extensions.preferences.equalizerTypeKey
+import it.fast4x.riplay.extensions.preferences.homeScreenTabIndexKey
+import it.fast4x.riplay.ui.screens.home.AccountAvatarButton
 import it.fast4x.riplay.extensions.preferences.offlineModeEnabledKey
 import it.fast4x.riplay.extensions.preferences.rememberObservedPreference
 import it.fast4x.riplay.extensions.preferences.rememberPreference
@@ -36,6 +38,7 @@ import it.fast4x.riplay.ui.components.SheetBody
 import it.fast4x.riplay.utils.colorPalette
 import it.fast4x.riplay.utils.thumbnailShape
 import it.fast4x.riplay.ui.screens.events.EventsScreen
+import it.fast4x.riplay.ui.screens.search.openHomeTab
 import it.fast4x.riplay.ui.screens.settings.isYtLoggedIn
 import it.fast4x.riplay.utils.MusicIdentifier
 import timber.log.Timber
@@ -95,6 +98,12 @@ fun HamburgerMenu(
         ) {
             Column(modifier = Modifier.padding(horizontal = 8.dp)) {
 
+                ModernMenuItem(
+                    index = 0,
+                    iconRes = R.drawable.person,
+                    textRes = R.string.my_account,
+                    onClick = { onItemClick(NavRoutes.myAccount) }
+                )
 
                 ModernMenuItem(
                     index = 0,
@@ -543,38 +552,24 @@ fun ActionBar(
     CastButton()
 
     // Search Icon
+    // Search is a Home tab: from Home it switches in place, from anywhere else it goes back to Home on it
+    val searchContext = LocalContext.current
     HeaderIcon( R.drawable.search, tint = colorPalette().text) {
-        navController.navigate(NavRoutes.search.name)
+        openHomeTab(navController, searchContext, 3)
     }
 
-    // Account, to the right of search; hidden while the account screen itself is open
+    // Account, to the right of search; hidden while the account screen itself is open, and on
+    // Home, whose greeting already carries the avatar.
+    // Home tabs 0 (greeting) and 2 (My Music) carry AccountAvatarButton in their own header.
     val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
-    if (currentRoute != NavRoutes.myAccount.name) {
-        val context = LocalContext.current
-        val avatarUrl = remember { YammboAuthManager(context).getUserAvatar() }
-        if (avatarUrl.isNotEmpty()) {
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .clickable { navController.navigate(NavRoutes.myAccount.name) },
-                contentAlignment = Alignment.Center
-            ) {
-                AsyncImage(
-                    model = avatarUrl,
-                    contentDescription = stringResource(R.string.my_account),
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .size(26.dp)
-                        .clip(CircleShape)
-                        .background(colorPalette().background2)
-                )
-            }
-        } else {
-            HeaderIcon(R.drawable.person, tint = colorPalette().text) {
-                navController.navigate(NavRoutes.myAccount.name)
-            }
-        }
+    val homeTabIndex by rememberObservedPreference(homeScreenTabIndexKey, 0)
+    val pageHasOwnAvatar = currentRoute == NavRoutes.home.name && (homeTabIndex == 0 || homeTabIndex == 2)
+    if (currentRoute != NavRoutes.myAccount.name && !pageHasOwnAvatar) {
+        AccountAvatarButton(
+            navController = navController,
+            modifier = Modifier.padding(start = 4.dp, end = 4.dp),
+            size = 34.dp
+        )
     }
 
     // Nothing else lives here: the tools menu moved to the Yammbo profile on Home, so the top

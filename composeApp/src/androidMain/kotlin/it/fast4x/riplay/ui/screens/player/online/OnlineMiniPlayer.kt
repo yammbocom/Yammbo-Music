@@ -1,5 +1,10 @@
 package it.fast4x.riplay.ui.screens.player.online
 
+import coil.request.ImageRequest
+import coil.compose.rememberAsyncImagePainter
+import coil.compose.AsyncImagePainter
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateDp
 import androidx.compose.animation.core.animateFloatAsState
@@ -85,6 +90,7 @@ import it.fast4x.riplay.data.models.Song
 import it.fast4x.riplay.utils.thumbnailShape
 import it.fast4x.riplay.utils.typography
 import it.fast4x.riplay.ui.components.glassSurface
+import it.fast4x.riplay.ui.components.likeBounce
 import it.fast4x.riplay.ui.components.themed.IconButton
 import it.fast4x.riplay.ui.components.themed.NowPlayingSongIndicator
 import it.fast4x.riplay.ui.components.themed.SmartMessage
@@ -284,7 +290,7 @@ fun OnlineMiniPlayer(
     )
     val disableClosingPlayerSwipingDown by rememberPreference(disableClosingPlayerSwipingDownKey, false)
 
-    val disableScrollingText by rememberPreference(disableScrollingTextKey, false)
+    val disableScrollingText by rememberPreference(disableScrollingTextKey, true)
 
     /******* new player */
     var updateStatisticsEverySeconds by remember { mutableIntStateOf(0) }
@@ -301,7 +307,7 @@ fun OnlineMiniPlayer(
     SwipeToDismissBox(
         modifier = Modifier
             .padding(horizontal = 12.dp)
-            .clip(RoundedCornerShape(22.dp)),
+            .clip(RoundedCornerShape(20.dp)),
         state = dismissState,
         backgroundContent = {
             /*
@@ -403,14 +409,14 @@ fun OnlineMiniPlayer(
                 // Opaque (alpha = 1): at 0.82 the list behind showed through and its text
                 // overlapped the title. Border, sheen and shadow stay.
                 .glassSurface(
-                    shape = RoundedCornerShape(22.dp),
+                    shape = RoundedCornerShape(20.dp),
                     alpha = 1f,
                     elevation = 12.dp,
                     // White card in the light theme: the palette's F5F5F5 read as a grey slab
                     // over the white page. Dark keeps its own surface.
                     fill = if (colorPalette().isDark) null else Color.White
                 )
-                .clip(RoundedCornerShape(22.dp))
+                .clip(RoundedCornerShape(20.dp))
                 .fillMaxWidth()
                 .drawBehind {
                     if (backgroundProgress == BackgroundProgress.Both || backgroundProgress == BackgroundProgress.MiniPlayer) {
@@ -418,13 +424,12 @@ fun OnlineMiniPlayer(
                                 positionAndDuration.second.absoluteValue)
                             .takeUnless { it.isNaN() }?.coerceIn(0f, 1f) ?: 0f
                         if (colorPalette.isDark) {
+                            // Yammbo Noir: a 2dp white line along the bottom edge.
+                            val barHeight = 2.dp.toPx()
                             drawRect(
-                                color = colorPalette.favoritesOverlay,
-                                topLeft = Offset.Zero,
-                                size = Size(
-                                    width = fraction * size.width,
-                                    height = size.maxDimension
-                                )
+                                color = Color.White,
+                                topLeft = Offset(0f, size.height - barHeight),
+                                size = Size(width = fraction * size.width, height = barHeight)
                             )
                         } else {
                             // Light theme: the 40 % black fill turned the white card grey as the
@@ -456,13 +461,11 @@ fun OnlineMiniPlayer(
                 modifier = Modifier
                     .height(Dimensions.miniPlayerHeight)
             ) {
-                AsyncImage(
+                SteadyArtwork(
                     model = mediaItem.mediaMetadata.artworkUri.toString().thumbnail(Dimensions.thumbnails.song.px),
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .clip(thumbnailShape())
-                        .size(48.dp)
+                        .size(44.dp)
                 )
                 NowPlayingSongIndicator(mediaItem.mediaId, binder.player)
             }
@@ -561,7 +564,7 @@ fun OnlineMiniPlayer(
                                 }
                                 if (effectRotationEnabled) isRotated = !isRotated
                             }
-                            .background(if (colorPalette().isDark) colorPalette().background2 else colorPalette().text)
+                            .background(if (colorPalette().isDark) Color.Transparent else colorPalette().text)
                             .size(42.dp)
                     ) {
                         Image(
@@ -612,6 +615,7 @@ fun OnlineMiniPlayer(
                             .rotate(rotationAngle)
                             .padding(horizontal = 2.dp, vertical = 8.dp)
                             .size(24.dp)
+                            .likeBounce((likedAt ?: 0L) > 0L, colorPalette().favoritesIcon, key = mediaItem.mediaId)
                     )
 
             }
@@ -723,5 +727,38 @@ fun OnlineMiniPlayer(
          */
         /******* */
 
+    }
+}
+
+/**
+ * Mini player cover that never blanks: while a new artwork loads (a video frame swapped for the
+ * song's square art) the previous image stays under it, and the new one crossfades in.
+ */
+@Composable
+private fun SteadyArtwork(model: Any?, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    val painter = rememberAsyncImagePainter(
+        model = remember(model) { ImageRequest.Builder(context).data(model).build() },
+        contentScale = ContentScale.Crop
+    )
+    val state = painter.state
+    var previous by remember { mutableStateOf<Painter?>(null) }
+    val loaded = state as? AsyncImagePainter.State.Success
+    LaunchedEffect(loaded) { loaded?.let { previous = it.painter } }
+    val alpha by animateFloatAsState(
+        targetValue = if (loaded != null) 1f else 0f,
+        animationSpec = tween(250),
+        label = "steadyArtworkAlpha"
+    )
+    Box(modifier) {
+        previous?.let {
+            Image(painter = it, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+        }
+        Image(
+            painter = painter,
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize().graphicsLayer { this.alpha = alpha }
+        )
     }
 }

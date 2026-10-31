@@ -2,6 +2,7 @@ package it.fast4x.riplay.ui.components.themed
 
 
 import android.annotation.SuppressLint
+import it.fast4x.riplay.utils.artistRouteFor
 import it.fast4x.riplay.utils.isRadio
 import it.fast4x.riplay.extensions.ads.PremiumFeature
 import it.fast4x.riplay.extensions.ads.PremiumGuard
@@ -731,7 +732,9 @@ fun BaseMediaItemMenu(
             }
         },
         onGoToArtist = {
-            navController.navigate(route = "${NavRoutes.artist.name}/${it}")
+            CoroutineScope(Dispatchers.Main).launch {
+                navController.navigate(route = artistRouteFor(mediaItem.mediaId, it, null))
+            }
             if (onClosePlayer != null) {
                 onClosePlayer()
             }
@@ -1242,81 +1245,56 @@ fun MediaItemMenu(
                 val menuState = LocalGlobalSheetState.current
 
                 // The sheet's drag-handle pill replaces the old chevron close button.
-                // SongItem already pads 16.dp, so start = 4.dp lines the artwork up
-                // with the 20.dp inset of the menu rows.
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .padding(start = 4.dp, end = 16.dp)
+                MenuMediaHeader(
+                    mediaItem = mediaItem,
+                    thumbnailUrl = mediaItem.mediaMetadata.artworkUri.toString().thumbnail(thumbnailSizePx)
+                        ?.toString(),
                 ) {
-                    SongItem(
-                        mediaItem = mediaItem,
-                        thumbnailUrl = mediaItem.mediaMetadata.artworkUri.toString().thumbnail(thumbnailSizePx)
-                            ?.toString(),
-                        thumbnailSizeDp = thumbnailSizeDp,
-                        highlightNowPlaying = false,
-                        modifier = Modifier
-                            .weight(1f),
-                        //disableScrollingText = disableScrollingText
+                    MenuHeaderAction(
+                        //icon = if (likedAt == null) R.drawable.heart_outline else R.drawable.heart,
+                        icon = getLikeState(mediaItem.mediaId),
+                        //icon = R.drawable.heart,
+                        tint = colorPalette().favoritesIcon,
+                        //color = if (likedAt == null) colorPalette().textDisabled else colorPalette().text,
+                        onClick = {
+                            if (!it.fast4x.riplay.extensions.ads.PremiumGuard.checkFeature(
+                                it.fast4x.riplay.utils.globalContext(),
+                                it.fast4x.riplay.extensions.ads.PremiumFeature.Like
+                            )) return@MenuHeaderAction
+                            if (!isNetworkConnected(appContext()) && isYtSyncEnabled()) {
+                                SmartMessage(appContext().resources.getString(R.string.no_connection), context = appContext(), type = PopupType.Error)
+                            } else if (!isYtSyncEnabled()){
+                                Database.asyncTransaction {
+                                    mediaItemToggleLike(mediaItem)
+                                }
+                            } else {
+                                CoroutineScope(Dispatchers.IO).launch {
+                                    addToOnlineLikedSong(mediaItem)
+                                }
+                            }
+                        },
+                        onLongClick = {
+                            if (!isNetworkConnected(appContext()) && isYtSyncEnabled()) {
+                                SmartMessage(appContext().resources.getString(R.string.no_connection), context = appContext(), type = PopupType.Error)
+                            } else if (!isYtSyncEnabled()){
+                                Database.asyncTransaction {
+                                    if (like(mediaItem.mediaId, setDisLikeState(likedAt)) == 0) {
+                                        insert(mediaItem, Song::toggleDislike)
+                                    }
+                                }
+                            } else {
+                                CoroutineScope(Dispatchers.IO).launch {
+                                    // currently disliking can not be implemented for syncing so just unliking songs
+                                    removeFromOnlineLikedSong(mediaItem)
+                                }
+                            }
+                        }
                     )
 
-
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        IconButton(
-                            //icon = if (likedAt == null) R.drawable.heart_outline else R.drawable.heart,
-                            icon = getLikeState(mediaItem.mediaId),
-                            //icon = R.drawable.heart,
-                            color = colorPalette().favoritesIcon,
-                            //color = if (likedAt == null) colorPalette().textDisabled else colorPalette().text,
-                            onClick = {
-                                if (!it.fast4x.riplay.extensions.ads.PremiumGuard.checkFeature(
-                                    it.fast4x.riplay.utils.globalContext(),
-                                    it.fast4x.riplay.extensions.ads.PremiumFeature.Like
-                                )) return@IconButton
-                                if (!isNetworkConnected(appContext()) && isYtSyncEnabled()) {
-                                    SmartMessage(appContext().resources.getString(R.string.no_connection), context = appContext(), type = PopupType.Error)
-                                } else if (!isYtSyncEnabled()){
-                                    Database.asyncTransaction {
-                                        mediaItemToggleLike(mediaItem)
-                                    }
-                                } else {
-                                    CoroutineScope(Dispatchers.IO).launch {
-                                        addToOnlineLikedSong(mediaItem)
-                                    }
-                                }
-                            },
-                            onLongClick = {
-                                if (!isNetworkConnected(appContext()) && isYtSyncEnabled()) {
-                                    SmartMessage(appContext().resources.getString(R.string.no_connection), context = appContext(), type = PopupType.Error)
-                                } else if (!isYtSyncEnabled()){
-                                    Database.asyncTransaction {
-                                        if (like(mediaItem.mediaId, setDisLikeState(likedAt)) == 0) {
-                                            insert(mediaItem, Song::toggleDislike)
-                                        }
-                                    }
-                                } else {
-                                    CoroutineScope(Dispatchers.IO).launch {
-                                        // currently disliking can not be implemented for syncing so just unliking songs
-                                        removeFromOnlineLikedSong(mediaItem)
-                                    }
-                                }
-                            },
-                            modifier = Modifier
-                                .padding(all = 4.dp)
-                                .size(24.dp)
-                        )
-
-                        if (!isLocal && !mediaItem.isRadio) IconButton(
-                            icon = R.drawable.share_social,
-                            color = colorPalette().text,
-                            onClick = { onShare?.invoke() },
-                            modifier = Modifier
-                                .padding(all = 4.dp)
-                                .size(24.dp)
-                        )
-
-                    }
-
+                    if (!isLocal && !mediaItem.isRadio) MenuHeaderAction(
+                        icon = R.drawable.share_social,
+                        onClick = { onShare?.invoke() }
+                    )
                 }
 
                 MenuHeaderDivider()

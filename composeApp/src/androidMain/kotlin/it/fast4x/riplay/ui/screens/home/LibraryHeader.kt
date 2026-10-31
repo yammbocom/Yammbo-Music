@@ -34,7 +34,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.border
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
+import it.fast4x.riplay.ui.components.themed.NoirChip
+import it.fast4x.riplay.ui.components.themed.NoirEyebrow
+import it.fast4x.riplay.ui.styling.tight
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
@@ -94,19 +100,13 @@ fun LibraryTitleBlock(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
-                style = typography().xxl.bold,
+                style = typography().xxl.tight.copy(fontWeight = FontWeight.Bold, fontSize = 34.sp),
                 color = colors.text,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = subtitle,
-                style = typography().xs,
-                color = colors.textSecondary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+            Spacer(modifier = Modifier.height(6.dp))
+            NoirEyebrow(subtitle)
         }
         trailing()
     }
@@ -142,51 +142,12 @@ fun <T> LibraryChipsRow(
             key = { index, _ -> index },
             contentType = { _, _ -> "chip" }
         ) { _, option ->
-            LibraryChip(
-                label = option.second,
+            NoirChip(
+                text = option.second,
                 selected = option.first == selected,
                 onClick = { onSelect(option.first) }
             )
         }
-    }
-}
-
-@Composable
-private fun LibraryChip(
-    label: String,
-    selected: Boolean,
-    onClick: () -> Unit
-) {
-    val colors = colorPalette()
-    val shape = RoundedCornerShape(20.dp)
-    val fill by animateColorAsState(
-        targetValue = if (selected) colors.text else Color.Transparent,
-        label = "library-chip-fill"
-    )
-    val content by animateColorAsState(
-        targetValue = if (selected) colors.background0 else colors.text,
-        label = "library-chip-content"
-    )
-    val source = remember { MutableInteractionSource() }
-    val scale = rememberPressScale(source, enabled = true, pressedScale = 0.96f)
-
-    Box(
-        modifier = Modifier
-            .height(36.dp)
-            .graphicsLayer { scaleX = scale; scaleY = scale }
-            .glassSurface(shape = shape, elevation = 2.dp)
-            .background(fill)
-            .combinedClickableCompat(source, enabled = true, onClick = onClick, onLongClick = null)
-            .padding(horizontal = 16.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = label,
-            style = typography().xs.semiBold,
-            color = content,
-            maxLines = 1,
-            softWrap = false
-        )
     }
 }
 
@@ -291,7 +252,7 @@ fun LibraryGlassPill(
     }
 }
 
-/** 40dp floating glass circle. [active] inverts it to flag an on state (e.g. auto shuffle). */
+/** 40dp outlined circle (same look as a NoirChip). [active] inverts it to flag an on state (e.g. auto shuffle). */
 @Composable
 fun LibraryCircleButton(
     iconId: Int,
@@ -315,12 +276,9 @@ fun LibraryCircleButton(
         modifier = modifier
             .size(40.dp)
             .graphicsLayer { scaleX = scale; scaleY = scale }
-            .glassSurface(
-                shape = CircleShape,
-                alpha = if (active) 1f else 0.82f,
-                elevation = 6.dp,
-                fill = if (active) colors.text else null
-            )
+            .clip(CircleShape)
+            .background(if (active) colors.text else colors.background0)
+            .border(1.dp, colors.text.copy(alpha = if (active) 0f else 0.16f), CircleShape)
             .combinedClickableCompat(source, enabled, onClick, onLongClick),
         contentAlignment = Alignment.Center
     ) {
@@ -346,30 +304,44 @@ fun LibrarySortPill(
     modifier: Modifier = Modifier
 ) {
     val colors = colorPalette()
-    val shape = RoundedCornerShape(20.dp)
+    val shape = RoundedCornerShape(percent = 50)
     val labelSource = remember { MutableInteractionSource() }
     val arrowSource = remember { MutableInteractionSource() }
 
+    // Same look as a NoirChip (hairline outline, 40dp), split in two tap zones.
     Row(
         modifier = modifier
-            .height(36.dp)
-            .glassSurface(shape = shape, elevation = 4.dp),
+            .height(40.dp)
+            .clip(shape)
+            .background(colors.background0)
+            .border(1.dp, colors.text.copy(alpha = 0.16f), shape),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = label,
-            style = typography().xs.semiBold,
-            color = colors.text,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
-                .widthIn(max = 140.dp)
                 .combinedClickableCompat(labelSource, true, onOpenMenu, null)
-                .padding(start = 14.dp, end = 6.dp, top = 8.dp, bottom = 8.dp)
-        )
+                .padding(start = 16.dp, end = 6.dp, top = 8.dp, bottom = 8.dp)
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.sort),
+                contentDescription = null,
+                tint = colors.text.copy(alpha = 0.7f),
+                modifier = Modifier.size(16.dp)
+            )
+            Spacer(modifier = Modifier.size(8.dp))
+            Text(
+                text = label,
+                style = typography().xs.copy(fontWeight = FontWeight.Medium, fontSize = 15.sp),
+                color = colors.text,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.widthIn(max = 140.dp)
+            )
+        }
         Box(
             modifier = Modifier
-                .size(36.dp)
+                .size(40.dp)
                 .combinedClickableCompat(arrowSource, true, onToggleOrder, onOpenMenu),
             contentAlignment = Alignment.Center
         ) {
@@ -402,7 +374,7 @@ fun LibraryToolbarDock(
     }
 }
 
-/** Centered icon in a soft circle, a title, one helpful line and an optional action. */
+/** Centered title, one helpful secondary line and an optional solid white action. */
 @Composable
 fun LibraryEmptyState(
     iconId: Int,
@@ -419,31 +391,16 @@ fun LibraryEmptyState(
             .padding(horizontal = 32.dp, vertical = 48.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Box(
-            modifier = Modifier
-                .size(96.dp)
-                .clip(CircleShape)
-                .background(colors.background1),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                painter = painterResource(iconId),
-                contentDescription = null,
-                tint = colors.textSecondary,
-                modifier = Modifier.size(40.dp)
-            )
-        }
-        Spacer(modifier = Modifier.height(20.dp))
         Text(
             text = title,
-            style = typography().m.semiBold,
+            style = typography().m.semiBold.copy(fontSize = 20.sp),
             color = colors.text,
             textAlign = TextAlign.Center
         )
-        Spacer(modifier = Modifier.height(6.dp))
+        Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = message,
-            style = typography().xs,
+            style = typography().xs.copy(fontSize = 15.sp),
             color = colors.textSecondary,
             textAlign = TextAlign.Center
         )

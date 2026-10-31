@@ -1,5 +1,9 @@
 package it.fast4x.riplay.ui.screens.search
 
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
+import it.fast4x.riplay.commonutils.thumbnail
+import it.fast4x.riplay.ui.styling.tight
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -38,7 +42,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.util.UnstableApi
 import androidx.navigation.NavController
-import coil.compose.AsyncImage
 import com.yambo.music.R
 import it.fast4x.environment.Environment
 import it.fast4x.environment.requests.chartsPageComplete
@@ -47,10 +50,17 @@ import it.fast4x.riplay.enums.Countries
 import it.fast4x.riplay.enums.NavRoutes
 import it.fast4x.riplay.extensions.preferences.rememberPreference
 import it.fast4x.riplay.extensions.preferences.selectedCountryCodeKey
+import it.fast4x.riplay.ui.components.CoverHandoff
+import it.fast4x.riplay.ui.components.RevealImage
+import it.fast4x.riplay.ui.components.NoirContentMax
+import it.fast4x.riplay.ui.components.noirContentWidth
 import it.fast4x.riplay.ui.components.pressable
+import it.fast4x.riplay.ui.components.rememberNoirLayout
+import it.fast4x.riplay.ui.components.sharedCover
 import it.fast4x.riplay.ui.styling.secondary
 import it.fast4x.riplay.ui.styling.semiBold
 import it.fast4x.riplay.utils.colorPalette
+import it.fast4x.riplay.utils.isPersonalMix
 import it.fast4x.riplay.utils.openPlaylistOrMix
 import it.fast4x.riplay.utils.typography
 import kotlinx.coroutines.Dispatchers
@@ -65,7 +75,7 @@ private const val POPULAR_PLAYLISTS = 4
  * request. Held at process level: the search tab is opened often and the chart barely moves,
  * so re-fetching on every visit would be wasteful.
  */
-private object ChartsCache {
+internal object ChartsCache {
     var page: Environment.ChartsPage? = null
     var countryCode: String? = null
 }
@@ -76,7 +86,7 @@ private object ChartsCache {
  * heading over a blank row looks broken.
  */
 @Composable
-private fun rememberChartsPage(): Environment.ChartsPage? {
+internal fun rememberChartsPage(): Environment.ChartsPage? {
     val selectedCountryCode by rememberPreference(selectedCountryCodeKey, Countries.ZZ)
 
     // ZZ means "Global", and the global YouTube Music chart is dominated by the highest
@@ -120,11 +130,14 @@ private fun rememberChartsPage(): Environment.ChartsPage? {
 @Composable
 fun PopularArtistsRow(navController: NavController) {
     val colors = colorPalette()
-    val artists = rememberChartsPage()?.artists?.take(POPULAR_ARTISTS).orEmpty()
+    val layout = rememberNoirLayout()
+    // 4 on phones (as before), up to 8 on tablets.
+    val artistCount = layout.columns(minItem = 96.dp, spacing = 14.dp, min = POPULAR_ARTISTS, max = 8)
+    val artists = rememberChartsPage()?.artists?.take(artistCount).orEmpty()
 
     if (artists.isEmpty()) return
 
-    Column(modifier = Modifier.fillMaxWidth()) {
+    Column(modifier = Modifier.noirContentWidth(NoirContentMax.Grid)) {
         SearchSectionTitle(stringResource(R.string.search_popular_artists))
 
         Row(
@@ -134,20 +147,25 @@ fun PopularArtistsRow(navController: NavController) {
             horizontalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             artists.forEachIndexed { index, artist ->
+                val cover = artist.thumbnail?.url.thumbnail(240)
+                val sharedKey = "search-popular-artist:${artist.key}"
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier
                         .weight(1f)
                         .clip(RoundedCornerShape(14.dp))
                         .pressable(onClick = {
-                            if (artist.key.isNotEmpty())
+                            if (artist.key.isNotEmpty()) {
+                                CoverHandoff.set(key = sharedKey, browseId = artist.key, url = cover, title = artist.info?.name)
                                 navController.navigate("${NavRoutes.artist.name}/${artist.key}")
+                            }
                         })
                         .padding(vertical = 6.dp)
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(72.dp)
+                            .size(72.dp * layout.shelfScale)
+                            .sharedCover(sharedKey, CircleShape)
                             .clip(CircleShape)
                             .background(colors.background2)
                             // The reference rings each avatar in green; the accent is the
@@ -157,8 +175,8 @@ fun PopularArtistsRow(navController: NavController) {
                     ) {
                         val url = artist.thumbnail?.url
                         if (!url.isNullOrEmpty()) {
-                            AsyncImage(
-                                model = url,
+                            RevealImage(
+                                model = cover,
                                 contentDescription = null,
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier
@@ -194,6 +212,7 @@ fun PopularArtistsRow(navController: NavController) {
                     )
                 }
             }
+            repeat(artistCount - artists.size) { Spacer(modifier = Modifier.weight(1f)) }
         }
     }
 }
@@ -203,11 +222,14 @@ fun PopularArtistsRow(navController: NavController) {
 @Composable
 fun PopularPlaylistsGrid(navController: NavController) {
     val binder = LocalPlayerServiceBinder.current
-    val playlists = rememberChartsPage()?.playlists?.take(POPULAR_PLAYLISTS).orEmpty()
+    // 2 columns x 2 rows on phones (as before); more columns, still 2 rows, on tablets.
+    val cols = rememberNoirLayout().columns(minItem = 170.dp, max = 4)
+    val playlists = rememberChartsPage()?.playlists
+        ?.take(if (cols > 2) cols * 2 else POPULAR_PLAYLISTS).orEmpty()
 
     if (playlists.isEmpty()) return
 
-    Column(modifier = Modifier.fillMaxWidth()) {
+    Column(modifier = Modifier.noirContentWidth(NoirContentMax.Grid)) {
         SearchSectionTitle(stringResource(R.string.search_popular_playlists))
 
         Column(
@@ -216,7 +238,7 @@ fun PopularPlaylistsGrid(navController: NavController) {
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            playlists.chunked(2).forEach { row ->
+            playlists.chunked(cols).forEach { row ->
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -226,14 +248,25 @@ fun PopularPlaylistsGrid(navController: NavController) {
                             title = playlist.title.orEmpty(),
                             subtitle = playlist.channel?.name.orEmpty(),
                             thumbnailUrl = playlist.thumbnail?.url,
+                            sharedKey = "search-popular-playlist:${playlist.key}",
                             modifier = Modifier.weight(1f)
                         ) {
-                            if (playlist.key.isNotEmpty())
+                            if (playlist.key.isNotEmpty()) {
+                                // Personal mixes start playing instead of opening a page.
+                                if (!isPersonalMix(playlist.key)) {
+                                    CoverHandoff.set(
+                                        key = "search-popular-playlist:${playlist.key}",
+                                        browseId = playlist.key,
+                                        url = playlist.thumbnail?.url.thumbnail(544),
+                                        title = playlist.title
+                                    )
+                                }
                                 openPlaylistOrMix(navController, binder, playlist.key)
+                            }
                         }
                     }
-                    // Keep a lone last card at half width instead of stretching it.
-                    if (row.size == 1) Spacer(modifier = Modifier.weight(1f))
+                    // Keep the last cards at cell width instead of stretching them.
+                    repeat(cols - row.size) { Spacer(modifier = Modifier.weight(1f)) }
                 }
             }
         }
@@ -245,6 +278,7 @@ private fun PlaylistCard(
     title: String,
     subtitle: String,
     thumbnailUrl: String?,
+    sharedKey: String,
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
@@ -252,13 +286,14 @@ private fun PlaylistCard(
     Box(
         modifier = modifier
             .aspectRatio(0.92f)
+            .sharedCover(sharedKey, RoundedCornerShape(18.dp))
             .clip(RoundedCornerShape(18.dp))
             .background(colors.background2)
             .pressable(onClick = onClick)
     ) {
         if (!thumbnailUrl.isNullOrEmpty()) {
-            AsyncImage(
-                model = thumbnailUrl,
+            RevealImage(
+                model = thumbnailUrl.thumbnail(544),
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
@@ -310,9 +345,9 @@ private fun PlaylistCard(
 private fun SearchSectionTitle(title: String) {
     BasicText(
         text = title,
-        style = typography().m.semiBold.copy(color = colorPalette().text),
+        style = typography().xl.tight.copy(color = colorPalette().text, fontWeight = FontWeight.Bold, fontSize = 22.sp),
         modifier = Modifier
             .padding(horizontal = 16.dp)
-            .padding(top = 20.dp, bottom = 12.dp)
+            .padding(top = 22.dp, bottom = 12.dp)
     )
 }

@@ -6,6 +6,7 @@ import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -63,8 +64,12 @@ import it.fast4x.riplay.data.models.Song
 import it.fast4x.riplay.enums.BlacklistType
 import it.fast4x.riplay.enums.HomePageSection
 import it.fast4x.riplay.enums.HomeType
+import it.fast4x.riplay.ui.components.CollapsingTitleEffect
 import it.fast4x.riplay.ui.components.LocalGlobalSheetState
 import it.fast4x.riplay.ui.components.PullToRefreshBox
+import it.fast4x.riplay.ui.components.cascadeEntry
+import it.fast4x.riplay.ui.components.collapsingTitle
+import it.fast4x.riplay.ui.components.rememberTitleCollapse
 import it.fast4x.riplay.ui.components.themed.HeaderWithIcon
 import it.fast4x.riplay.ui.components.themed.MultiFloatingActionsContainer
 import it.fast4x.riplay.ui.styling.Dimensions
@@ -341,6 +346,8 @@ fun HomePageExtended(
     val playlistThumbnailSizePx = playlistThumbnailSizeDp.px
 
     val scrollState = rememberScrollState()
+    val titleProgress = rememberTitleCollapse(scrollState)
+    CollapsingTitleEffect(stringResource(R.string.home), titleProgress)
     val quickPicksLazyGridState = rememberLazyGridState()
     val moodAngGenresLazyGridState = rememberLazyGridState()
     val chartsPageSongLazyGridState = rememberLazyGridState()
@@ -358,7 +365,7 @@ fun HomePageExtended(
 
     val hapticFeedback = LocalHapticFeedback.current
 
-    val disableScrollingText by rememberPreference(disableScrollingTextKey, false)
+    val disableScrollingText by rememberPreference(disableScrollingTextKey, true)
 
     val buttonsList = listOf(
         HomePageSection.Home to HomePageSection.Home.textName
@@ -486,28 +493,33 @@ fun HomePageExtended(
                         navController = navController
                     )
 
-                HomeGreetingHeader(
-                    navController = navController,
-                    onSettingsClick = onSettingsClick,
-                    extraActions = {
-                        HomeCircleButton(
-                            iconId = when (homeType) {
-                                HomeType.Tabbed -> R.drawable.singlepage
-                                else -> R.drawable.multipage
-                            },
-                            contentDescription = stringResource(R.string.home),
-                            onClick = {
-                                homeType = when (homeType) {
-                                    HomeType.Tabbed -> HomeType.Classic
-                                    else -> HomeType.Tabbed
+                Box(Modifier.cascadeEntry(0)) {
+                    HomeGreetingHeader(
+                        navController = navController,
+                        onSettingsClick = onSettingsClick,
+                        titleModifier = Modifier.collapsingTitle(titleProgress),
+                        extraActions = {
+                            HomeCircleButton(
+                                iconId = when (homeType) {
+                                    HomeType.Tabbed -> R.drawable.singlepage
+                                    else -> R.drawable.multipage
+                                },
+                                contentDescription = stringResource(R.string.home),
+                                onClick = {
+                                    homeType = when (homeType) {
+                                        HomeType.Tabbed -> HomeType.Classic
+                                        else -> HomeType.Tabbed
+                                    }
                                 }
-                            }
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                    }
-                )
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                        }
+                    )
+                }
 
-                JumpBackInSection()
+                Box(Modifier.cascadeEntry(1)) {
+                    JumpBackInSection()
+                }
 
                 if (homeType == HomeType.Tabbed) {
                     ButtonsRow(
@@ -516,7 +528,7 @@ fun HomePageExtended(
                         onValueUpdate = {
                             homePageSection = it
                         },
-                        modifier = Modifier.padding(all = 12.dp)
+                        modifier = Modifier.cascadeEntry(2).padding(all = 12.dp)
                     )
                 }
 
@@ -525,7 +537,8 @@ fun HomePageExtended(
 
 
     AnimatedVisibility(
-        visible = homePageSection == HomePageSection.Home || homeType == HomeType.Classic
+        visible = homePageSection == HomePageSection.Home || homeType == HomeType.Classic,
+        modifier = Modifier.cascadeEntry(3)
     ) {
         HomePageExtendedSections(
             navController = navController,
@@ -572,7 +585,8 @@ fun HomePageExtended(
 //START SECTION MOOD AND GENRES
 
     AnimatedVisibility(
-        visible = homePageSection == HomePageSection.Other || homeType == HomeType.Classic
+        visible = homePageSection == HomePageSection.Other || homeType == HomeType.Classic,
+        modifier = Modifier.cascadeEntry(4)
     ) {
         MoodAndGenresPart(
             homePageInit = homePageInit,
@@ -613,7 +627,8 @@ fun HomePageExtended(
 // START SECTION FOR YOU
 
                 AnimatedVisibility(
-                    visible = homePageSection == HomePageSection.ForYou || homeType == HomeType.Classic
+                    visible = homePageSection == HomePageSection.ForYou || homeType == HomeType.Classic,
+                    modifier = Modifier.cascadeEntry(5)
                 ) {
                     ForYouPart(
                         homePageInit = homePageInit,

@@ -17,13 +17,20 @@ import androidx.core.content.ContextCompat
 import it.fast4x.environment.utils.AudioStreamData
 import it.fast4x.environment.utils.NewPipeUtils
 import it.fast4x.riplay.commonutils.LOCAL_KEY_PREFIX
-import it.fast4x.riplay.commonutils.thumbnail
+import it.fast4x.riplay.commonutils.thumbnailExact
 import it.fast4x.riplay.data.Database
 import it.fast4x.riplay.data.models.Format
 import it.fast4x.riplay.data.models.Song
+import com.yambo.music.R
+import it.fast4x.riplay.data.models.Album
+import it.fast4x.riplay.data.models.SongAlbumMap
+import it.fast4x.riplay.extensions.preferences.preferences
 import it.fast4x.riplay.utils.isAtLeastAndroid10
+import it.fast4x.riplay.utils.isAtLeastAndroid11
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -33,6 +40,7 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.IOException
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.resume
 
 /**
@@ -80,6 +88,8 @@ object SongDownloader {
         context: Context,
         song: Song,
         albumTitle: String?,
+        trackNumber: Int = 0,
+        trackTotal: Int = 0,
         onProgress: (Float) -> Unit,
     ): Outcome = withContext(Dispatchers.IO) {
         val videoId = song.id
@@ -90,7 +100,7 @@ object SongDownloader {
         if (!isAtLeastAndroid10 && ContextCompat.checkSelfPermission(
                 context, Manifest.permission.WRITE_EXTERNAL_STORAGE
             ) != PackageManager.PERMISSION_GRANTED
-        ) return@withContext Outcome.Failed("No storage permission")
+        ) return@withContext Outcome.Failed(context.getString(R.string.download_storage_permission))
 
         val partDir = File(context.cacheDir, "downloads").apply { mkdirs() }
         val part = File(partDir, "$videoId.part")
@@ -103,6 +113,13 @@ object SongDownloader {
 
             val title = song.title.ifBlank { videoId }
             val artist = song.artistsText.orEmpty()
+            val albumArtist = artist.split(", ", " & ").first().trim().ifBlank { artist }
+            // The album this song belongs to; a single (or a song without a known album) is its own
+            // album. Never null: without it MediaStore files the song under the folder name.
+            val album = albumTitle?.takeIf { it.isNotBlank() }
+                ?: runCatching { Database.albumTitleOfSong(videoId) }.getOrNull()?.takeIf { it.isNotBlank() }
+                ?: title
+            val track = if (albumTitle.isNullOrBlank()) 0 else trackNumber
             var fileToStore = part
             if (stream.extension == "m4a") {
                 val cover = downloadCover(song.thumbnailUrl)
@@ -113,9 +130,12 @@ object SongDownloader {
                             Mp4Tagger.Tags(
                                 title = title,
                                 artist = artist,
-                                album = albumTitle,
+                                album = album,
                                 comment = "https://music.youtube.com/watch?v=$videoId",
                                 cover = cover,
+                                albumArtist = albumArtist,
+                                trackNumber = track,
+                                trackTotal = if (track > 0) trackTotal else 0,
                             )
                         )
                     }
@@ -126,14 +146,16 @@ object SongDownloader {
             }
 
             val displayName = fileNameFor(artist, title, videoId, stream.extension)
-            val uri = store(context, fileToStore, displayName, stream.mimeType, title, artist, albumTitle)
+            // Last chance to stop cleanly: once storing starts a half-written file is the risk.
+            currentCoroutineContext().ensureActive()
+            val uri = store(context, fileToStore, displayName, stream.mimeType, title, artist, album, albumArtist, track)
                 ?: return@withContext Outcome.Failed("Could not write to Music/$FOLDER_NAME")
 
-            register(context, uri, song, stream, fileToStore.length())
+            register(context, uri, song, stream, fileToStore.length(), album)
             Outcome.Done(uri)
         } catch (e: SecurityException) {
             Timber.e(e, "SongDownloader: storage permission")
-            Outcome.Failed("No storage permission")
+            Outcome.Failed(context.getString(R.string.download_storage_permission))
         } catch (e: IOException) {
             Timber.w(e, "SongDownloader: I/O while saving $videoId")
             Outcome.Retry(e.message ?: "I/O error")
@@ -165,6 +187,8 @@ object SongDownloader {
 
         part.outputStream().use { out ->
             while (true) {
+                // Cancelling the download must stop between chunks, not after the whole song.
+                currentCoroutineContext().ensureActive()
                 if (stream == null) {
                     if (extractions >= MAX_EXTRACTIONS) {
                         return FetchResult.Error(Outcome.Retry("YouTube kept refusing the audio"))
@@ -258,12 +282,11 @@ object SongDownloader {
 
     /** Square JPEG for the tags; null when there is no cover or it cannot be decoded. */
     private fun downloadCover(url: String?): ByteArray? = runCatching {
-        val sized = url.thumbnail(COVER_PX) ?: return null
+        val sized = url.thumbnailExact(COVER_PX) ?: return null
         if (!sized.startsWith("http")) return null
-        val bytes = client.newCall(Request.Builder().url(sized).build()).execute().use { response ->
-            if (!response.isSuccessful) return null
-            response.body?.bytes()
-        } ?: return null
+        // Not every video has hq720; mqdefault always exists.
+        val bytes = (fetchBytes(sized) ?: sized.takeIf { "/hq720." in it }
+            ?.let { fetchBytes(it.replace("/hq720.", "/mqdefault.")) }) ?: return null
         val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: return null
         // Video thumbnails are 16:9 with the art in the middle.
         val side = minOf(bitmap.width, bitmap.height)
@@ -274,6 +297,11 @@ object SongDownloader {
             out.toByteArray()
         }
     }.onFailure { Timber.w(it, "SongDownloader: cover failed") }.getOrNull()
+
+    private fun fetchBytes(url: String): ByteArray? =
+        client.newCall(Request.Builder().url(url).build()).execute().use { response ->
+            if (response.isSuccessful) response.body?.bytes() else null
+        }
 
     // ---- storing ----
 
@@ -291,19 +319,39 @@ object SongDownloader {
         mimeType: String,
         title: String,
         artist: String,
-        album: String?,
+        album: String,
+        albumArtist: String,
+        track: Int,
     ): Uri? {
         if (isAtLeastAndroid10) {
             val resolver = context.contentResolver
             val collection = MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
-            val values = ContentValues().apply {
+            val metadata = ContentValues().apply {
+                put(MediaStore.Audio.Media.TITLE, title)
+                put(MediaStore.Audio.Media.ARTIST, artist)
+                put(MediaStore.Audio.Media.ALBUM, album)
+                if (isAtLeastAndroid11) put(MediaStore.Audio.Media.ALBUM_ARTIST, albumArtist)
+                if (track > 0) put(MediaStore.Audio.Media.TRACK, track)
+                put(MediaStore.Audio.Media.IS_MUSIC, 1)
+            }
+
+            // Same song downloaded again with its file still there: overwrite it instead of
+            // letting MediaStore create "name (1).m4a". Not ours any more (reinstall): insert a new one.
+            findExisting(resolver, collection, displayName)?.let { existing ->
+                try {
+                    resolver.openOutputStream(existing, "wt")?.use { out -> file.inputStream().use { it.copyTo(out) } }
+                        ?: throw IOException("No output stream for $existing")
+                    resolver.update(existing, metadata, null, null)
+                    return existing
+                } catch (e: SecurityException) {
+                    Timber.w("SongDownloader: cannot overwrite $displayName, saving a new copy")
+                }
+            }
+
+            val values = ContentValues(metadata).apply {
                 put(MediaStore.Audio.Media.DISPLAY_NAME, displayName)
                 put(MediaStore.Audio.Media.MIME_TYPE, mimeType)
                 put(MediaStore.Audio.Media.RELATIVE_PATH, "${AndroidEnvironment.DIRECTORY_MUSIC}/$FOLDER_NAME")
-                put(MediaStore.Audio.Media.TITLE, title)
-                put(MediaStore.Audio.Media.ARTIST, artist)
-                album?.let { put(MediaStore.Audio.Media.ALBUM, it) }
-                put(MediaStore.Audio.Media.IS_MUSIC, 1)
                 put(MediaStore.Audio.Media.IS_PENDING, 1)
             }
             val uri = resolver.insert(collection, values) ?: return null
@@ -331,13 +379,83 @@ object SongDownloader {
         }
     }
 
+    private fun findExisting(resolver: android.content.ContentResolver, collection: Uri, displayName: String): Uri? =
+        runCatching {
+            resolver.query(
+                collection,
+                arrayOf(MediaStore.Audio.Media._ID),
+                "${MediaStore.Audio.Media.RELATIVE_PATH}=? AND ${MediaStore.Audio.Media.DISPLAY_NAME}=?",
+                arrayOf("${AndroidEnvironment.DIRECTORY_MUSIC}/$FOLDER_NAME/", displayName),
+                null
+            )?.use { c -> if (c.moveToFirst()) ContentUris.withAppendedId(collection, c.getLong(0)) else null }
+        }.getOrNull()
+
+    // ---- one-time repair of earlier downloads ----
+
+    private const val REPAIR_DONE_KEY = "downloadsAlbumRepairDone"
+    private val repairRunning = AtomicBoolean(false)
+    private val idInName = Regex("\\[([^\\[\\]]+)\\]\\.[A-Za-z0-9]+$")
+
+    /**
+     * Songs downloaded before the album tag existed show the folder name ("Yammbo Music") as album.
+     * Sets their MediaStore ALBUM to the song's album (or its title) once. Files this install does
+     * not own (after a reinstall) cannot be updated: they are skipped, never an error.
+     */
+    @WorkerThread
+    fun repairAlbumTags(context: Context) {
+        val prefs = context.preferences
+        if (prefs.getBoolean(REPAIR_DONE_KEY, false)) return
+        // Updating MediaStore wakes the on-device scan, which asks for this again.
+        if (!repairRunning.compareAndSet(false, true)) return
+        try {
+            val collection =
+                if (isAtLeastAndroid10) MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL)
+                else MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
+            val resolver = context.contentResolver
+            val selection = if (isAtLeastAndroid10)
+                "${MediaStore.Audio.Media.ALBUM}=? AND ${MediaStore.Audio.Media.RELATIVE_PATH} LIKE ?"
+            else "${MediaStore.Audio.Media.ALBUM}=? AND ${MediaStore.Audio.Media.DISPLAY_NAME} LIKE ?"
+            val args = if (isAtLeastAndroid10) arrayOf(FOLDER_NAME, "${AndroidEnvironment.DIRECTORY_MUSIC}/$FOLDER_NAME/%")
+            else arrayOf(FOLDER_NAME, "% [%].%")
+
+            val rows = mutableListOf<Triple<Long, String, String>>()
+            resolver.query(
+                collection,
+                arrayOf(MediaStore.Audio.Media._ID, MediaStore.Audio.Media.DISPLAY_NAME, MediaStore.Audio.Media.TITLE),
+                selection, args, null
+            )?.use { c ->
+                while (c.moveToNext()) rows += Triple(c.getLong(0), c.getString(1).orEmpty(), c.getString(2).orEmpty())
+            } ?: return   // query failed: try again next time
+
+            rows.forEach { (id, name, title) ->
+                val videoId = idInName.find(name)?.groupValues?.get(1)
+                val album = videoId?.let { runCatching { Database.albumTitleOfSong(it) }.getOrNull() }
+                    ?.takeIf { it.isNotBlank() }
+                    ?: title.takeIf { it.isNotBlank() }
+                    ?: return@forEach
+                runCatching {
+                    resolver.update(
+                        ContentUris.withAppendedId(collection, id),
+                        ContentValues().apply { put(MediaStore.Audio.Media.ALBUM, album) },
+                        null, null
+                    )
+                }.onFailure { Timber.w("SongDownloader: album repair skipped for $name: ${it.message}") }
+            }
+            prefs.edit().putBoolean(REPAIR_DONE_KEY, true).apply()
+            Timber.i("SongDownloader: album repair checked ${rows.size} files")
+        } finally {
+            repairRunning.set(false)
+        }
+    }
+
     /**
      * Writes the local row right away, so the song plays offline without waiting for the next
      * on-device scan. The scan later rewrites the same row from the same tags.
      */
-    private fun register(context: Context, uri: Uri, song: Song, stream: AudioStreamData, size: Long) {
+    private fun register(context: Context, uri: Uri, song: Song, stream: AudioStreamData, size: Long, album: String) {
         val mediaStoreId = runCatching { ContentUris.parseId(uri) }.getOrNull() ?: return
         var albumArt: String? = null
+        var mediaAlbumId = 0L
         val relativePath: String? = if (isAtLeastAndroid10) "${AndroidEnvironment.DIRECTORY_MUSIC}/$FOLDER_NAME/" else null
         runCatching {
             context.contentResolver.query(
@@ -347,6 +465,7 @@ object SongDownloader {
             )?.use { c ->
                 if (c.moveToFirst()) {
                     val albumId = c.getLong(0)
+                    mediaAlbumId = albumId
                     if (albumId != 0L) albumArt = "content://media/external/audio/albumart/$albumId"
                 }
             }
@@ -372,6 +491,20 @@ object SongDownloader {
                 lastModified = System.currentTimeMillis() / 1000,
             )
         )
+        // Same rows the on-device scan writes for this file, so the album shows right away.
+        if (mediaAlbumId != 0L) runCatching {
+            val localAlbumId = "$LOCAL_KEY_PREFIX$mediaAlbumId"
+            Database.upsert(
+                Album(
+                    id = localAlbumId,
+                    title = album,
+                    thumbnailUrl = albumArt,
+                    authorsText = song.artistsText,
+                    timestamp = System.currentTimeMillis() / 1000,
+                ),
+                SongAlbumMap(songId = local.id, albumId = localAlbumId, position = 0)
+            )
+        }.onFailure { Timber.w(it, "SongDownloader: album row failed for ${song.id}") }
     }
 
     private fun isReadable(context: Context, local: Song): Boolean = runCatching {

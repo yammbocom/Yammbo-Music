@@ -170,6 +170,15 @@ import it.fast4x.riplay.commonutils.durationTextToMillis
 import it.fast4x.riplay.commonutils.setDisLikeState
 import it.fast4x.riplay.commonutils.PLAYER_COVER_PX
 import it.fast4x.riplay.commonutils.thumbnail
+import it.fast4x.riplay.ui.screens.player.common.noirCoverBackdrop
+import it.fast4x.riplay.ui.screens.player.common.NoirPlayerTopBar
+import it.fast4x.riplay.ui.screens.player.common.NoirKindChips
+import it.fast4x.riplay.ui.screens.player.common.NoirAction
+import it.fast4x.riplay.ui.screens.player.common.NoirActionRow
+import it.fast4x.riplay.ui.screens.player.common.NoirUpNextBar
+import it.fast4x.riplay.ui.screens.player.common.NoirCoverShape
+import it.fast4x.riplay.extensions.cast.CastButton
+import it.fast4x.riplay.extensions.cast.CastManager
 import it.fast4x.riplay.data.Database
 import it.fast4x.riplay.data.models.Info
 import it.fast4x.riplay.data.models.Song
@@ -705,7 +714,7 @@ fun OnlinePlayer(
     )
     val showButtonPlayerVideo by rememberObservedPreference(showButtonPlayerVideoKey, true)
 
-    val showTotalTimeQueue by rememberObservedPreference(showTotalTimeQueueKey, true)
+    val showTotalTimeQueue by rememberObservedPreference(showTotalTimeQueueKey, false)
     val backgroundProgress by rememberObservedPreference(
         backgroundProgressKey,
         BackgroundProgress.MiniPlayer
@@ -986,16 +995,12 @@ fun OnlinePlayer(
     val brushMask by animateBrushRotation(shaderMask, sizeShader, 15_000, true)
     /*  */
 
+    // Capped for tablets: min(screenH, screenW) would size the Noir cover far past what is useful.
     val (thumbnailSizeDp, thumbnailSizePx) = Dimensions.thumbnails.player.song.let {
-        it to (it - 64.dp).px
+        val capped = minOf(it, 420.dp)
+        capped to (capped - 64.dp).px
     }
 
-    // Stable cache key per video so navigating away and coming back avoids a
-    // fresh network round-trip + transformation cost (which was causing the
-    // perceptible cover delay after selecting a song from Search).
-    val playerCoverCacheKey = remember(mediaItem.mediaId) {
-        "player-cover:${mediaItem.mediaId}"
-    }
     val painter = rememberAsyncImagePainter(
         model = ImageRequest.Builder(LocalContext.current)
             .data(
@@ -1003,8 +1008,6 @@ fun OnlinePlayer(
             )
             .size(PLAYER_COVER_PX, PLAYER_COVER_PX)
             .crossfade(true)
-            .memoryCacheKey(playerCoverCacheKey)
-            .diskCacheKey(playerCoverCacheKey)
             .transformations(LandscapeToSquareTransformation(PLAYER_COVER_PX))
             .transformations(
                 listOf(
@@ -1342,7 +1345,10 @@ fun OnlinePlayer(
                 }
             }
 
-            else -> {
+            // Yammbo Noir: the blurred cover fills the player and fades to the page colour.
+            else -> if (playerBackgroundColors == PlayerBackgroundColors.CoverColorGradient) {
+                containerModifier = containerModifier.noirCoverBackdrop(painter, lightTheme, veil = isShowingLyrics)
+            } else {
                 containerModifier = containerModifier
                     .background(
                         Brush.verticalGradient(
@@ -1355,7 +1361,6 @@ fun OnlinePlayer(
                             endY = 1500.0f
                         )
                     )
-
             }
         }
 
@@ -1758,16 +1763,14 @@ fun OnlinePlayer(
                                                     AsyncImage(
                                                         model = ImageRequest.Builder(LocalContext.current)
                                                             .data(
-                                                                binder.player.getMediaItemAt(index).mediaMetadata.artworkUri.toString().thumbnail(
-                                                                    1200
-                                                                )
+                                                                binder.player.getMediaItemAt(index).mediaMetadata.artworkUri.toString().thumbnail(PLAYER_COVER_PX)
                                                             )
                                                             .size(1200, 1200)
                                                             .transformations(LandscapeToSquareTransformation(1200)).build(),
 //                                                        model = binder.player.getMediaItemAt(
 //                                                            index
 //                                                            //if (it + 1 <= mediaItems.size - 1) it + 1 else it
-//                                                        ).mediaMetadata.artworkUri.toString().thumbnail(1200),
+//                                                        ).mediaMetadata.artworkUri.toString().thumbnail(PLAYER_COVER_PX),
                                                         contentDescription = null,
                                                         contentScale = ContentScale.Crop,
                                                         modifier = Modifier
@@ -2323,9 +2326,7 @@ fun OnlinePlayer(
                             AsyncImage(
                                 model = ImageRequest.Builder(LocalContext.current)
                                     .data(
-                                        binder.player.getMediaItemAt(it).mediaMetadata.artworkUri.toString().thumbnail(
-                                            1200
-                                        )
+                                        binder.player.getMediaItemAt(it).mediaMetadata.artworkUri.toString().thumbnail(PLAYER_COVER_PX)
                                     )
                                     .size(1200, 1200)
                                     .transformations(
@@ -2599,9 +2600,7 @@ fun OnlinePlayer(
                                                 val coverPainter = rememberAsyncImagePainter(
                                                     model = ImageRequest.Builder(LocalContext.current)
                                                         .data(
-                                                            binder.player.getMediaItemAt(it).mediaMetadata.artworkUri.toString().thumbnail(
-                                                                1200
-                                                            )
+                                                            binder.player.getMediaItemAt(it).mediaMetadata.artworkUri.toString().thumbnail(PLAYER_COVER_PX)
                                                         )
                                                         .size(1200, 1200)
                                                         .transformations(LandscapeToSquareTransformation(1200))
@@ -2830,6 +2829,7 @@ fun OnlinePlayer(
                                     },
                                     onSeekTo = { binder.onlinePlayerSeekTo(it) },
                                     onNext = { binder.player.playNext() },
+                                    onToggleShuffleMode = { binder.player.shuffleQueue() },
                                     onPrevious = {
                                         if (jumpPrevious == "") jumpPrevious = "0"
                                         if(!binder.player.hasPreviousMediaItem() || (jumpPrevious != "0" && positionAndDuration.first > jumpPrevious.toFloat())){
@@ -2968,9 +2968,7 @@ fun OnlinePlayer(
                             AsyncImage(
                                 model = ImageRequest.Builder(LocalContext.current)
                                     .data(
-                                        binder.player.getMediaItemAt(it).mediaMetadata.artworkUri.toString().thumbnail(
-                                            1200
-                                        )
+                                        binder.player.getMediaItemAt(it).mediaMetadata.artworkUri.toString().thumbnail(PLAYER_COVER_PX)
                                     )
                                     .size(1200, 1200)
                                     .transformations(LandscapeToSquareTransformation(1200))
@@ -3194,76 +3192,40 @@ fun OnlinePlayer(
 
 
                     if (showTopActionsBar && !it.fast4x.riplay.utils.isLandscape) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            modifier = Modifier
-                                .padding(
-                                    windowInsets
-                                        .only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)
-                                        .asPaddingValues()
-                                )
-                                //.padding(top = 5.dp)
-                                .fillMaxWidth(0.9f)
-                                .height(30.dp)
-                        ) {
-
-                            Image(
-                                painter = painterResource(R.drawable.chevron_down),
-                                contentDescription = null,
-                                colorFilter = ColorFilter.tint(if (playerBackgroundColors == PlayerBackgroundColors.MidnightOdyssey) dynamicColorPalette.background2 else colorPalette().collapsedPlayerProgressBar),
-                                modifier = Modifier
-                                    .clickable {
-                                        onDismiss()
+                        // Yammbo Noir: minimize, where the music comes from, and the menu.
+                        NoirPlayerTopBar(
+                            onLogo = {
+                                onDismiss()
+                                navController.navigate(NavRoutes.home.name)
+                            },
+                            source = selectedQueue?.title
+                                ?.takeUnless { it.isBlank() || it.equals("Default", ignoreCase = true) },
+                            onDismiss = onDismiss,
+                            onMenu = if (showButtonPlayerMenu) null else {
+                                {
+                                    menuState.display {
+                                        PlayerMenu(
+                                            navController = navController,
+                                            onDismiss = menuState::hide,
+                                            mediaItem = mediaItem,
+                                            binder = binder,
+                                            onClosePlayer = {
+                                                onDismiss()
+                                            },
+                                            onInfo = {
+                                                navController.navigate("${NavRoutes.videoOrSongInfo.name}/${mediaItem.mediaId}")
+                                            },
+                                            disableScrollingText = disableScrollingText
+                                        )
                                     }
-                                    .rotate(rotationAngle)
-                                    //.padding(10.dp)
-                                    .size(24.dp)
+                                }
+                            },
+                            modifier = Modifier.padding(
+                                windowInsets
+                                    .only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)
+                                    .asPaddingValues()
                             )
-
-                            Image(
-                                painter = painterResource(R.drawable.yambo_icon),
-                                contentDescription = null,
-                                colorFilter = ColorFilter.tint(if (playerBackgroundColors == PlayerBackgroundColors.MidnightOdyssey) dynamicColorPalette.background2 else colorPalette().collapsedPlayerProgressBar),
-                                modifier = Modifier
-                                    .clickable {
-                                        onDismiss()
-                                        navController.navigate(NavRoutes.home.name)
-                                    }
-                                    .rotate(rotationAngle)
-                                    .size(24.dp)
-                            )
-
-                            if (!showButtonPlayerMenu)
-                                Image(
-                                    painter = painterResource(R.drawable.ellipsis_vertical),
-                                    contentDescription = null,
-                                    colorFilter = ColorFilter.tint(if (playerBackgroundColors == PlayerBackgroundColors.MidnightOdyssey) dynamicColorPalette.background2 else colorPalette().collapsedPlayerProgressBar),
-                                    modifier = Modifier
-                                        .clickable {
-                                            menuState.display {
-                                                PlayerMenu(
-                                                    navController = navController,
-                                                    onDismiss = menuState::hide,
-                                                    mediaItem = mediaItem,
-                                                    binder = binder,
-                                                    onClosePlayer = {
-                                                        onDismiss()
-                                                    },
-                                                    onInfo = {
-                                                        navController.navigate("${NavRoutes.videoOrSongInfo.name}/${mediaItem.mediaId}")
-                                                    },
-                                                    disableScrollingText = disableScrollingText
-                                                )
-                                            }
-                                        }
-                                        .rotate(rotationAngle)
-                                        //.padding(10.dp)
-                                        .size(24.dp)
-
-                                )
-
-                        }
+                        )
 
 //                        Spacer(
 //                            modifier = Modifier
@@ -3396,9 +3358,7 @@ fun OnlinePlayer(
                                         val coverPainter = rememberAsyncImagePainter(
                                             model = ImageRequest.Builder(LocalContext.current)
                                                 .data(
-                                                    binder.player.getMediaItemAt(index).mediaMetadata.artworkUri.toString().thumbnail(
-                                                        1200
-                                                    )
+                                                    binder.player.getMediaItemAt(index).mediaMetadata.artworkUri.toString().thumbnail(PLAYER_COVER_PX)
                                                 )
                                                 .size(1200, 1200)
                                                 .transformations(LandscapeToSquareTransformation(1200))
@@ -3433,22 +3393,18 @@ fun OnlinePlayer(
                                                     )
                                                 }
                                             }
-                                            .conditional(thumbnailType == ThumbnailType.Modern) {
-                                                padding(
-                                                    all = 10.dp
-                                                )
-                                            }
+                                            // Yammbo Noir: the cover runs 20 dp from the edges with 28 dp corners.
                                             .conditional(thumbnailType == ThumbnailType.Modern) {
                                                 doubleShadowDrop(
                                                     if (showCoverThumbnailAnimation && !binder.player.getMediaItemAt(
                                                             index
                                                         ).isVideo
-                                                    ) CircleShape else thumbnailRoundness.shape(),
+                                                    ) CircleShape else NoirCoverShape,
                                                     4.dp,
                                                     8.dp
                                                 )
                                             }
-                                            .clip(thumbnailRoundness.shape())
+                                            .clip(NoirCoverShape)
                                             .combinedClickable(
                                                 interactionSource = remember { MutableInteractionSource() },
                                                 indication = null,
@@ -3546,7 +3502,7 @@ fun OnlinePlayer(
 
                                     val coverPainter = rememberAsyncImagePainter(
                                         model = ImageRequest.Builder(LocalContext.current)
-                                            .data(mediaItem.mediaMetadata.artworkUri.toString().thumbnail(1200))
+                                            .data(mediaItem.mediaMetadata.artworkUri.toString().thumbnail(PLAYER_COVER_PX))
                                             .size(1200, 1200)
                                             .transformations(LandscapeToSquareTransformation(1200))
                                             .build()
@@ -3563,12 +3519,12 @@ fun OnlinePlayer(
                                          }
                                          .conditional(thumbnailType == ThumbnailType.Modern) {
                                              doubleShadowDrop(
-                                                 if (showCoverThumbnailAnimation && !mediaItem.isVideo) CircleShape else thumbnailRoundness.shape(),
+                                                 if (showCoverThumbnailAnimation && !mediaItem.isVideo) CircleShape else NoirCoverShape,
                                                  4.dp,
                                                  8.dp
                                              )
                                          }
-                                         .clip(thumbnailRoundness.shape())
+                                         .clip(NoirCoverShape)
 
                                     if (!mediaItem.isVideo)
                                         Image(
@@ -3655,16 +3611,13 @@ fun OnlinePlayer(
                             }
                             //.padding(all = animatePadding)
                             .conditional(thumbnailType == ThumbnailType.Modern) {
-                                padding(
-                                    all = 10.dp
-                                )
                                 doubleShadowDrop(
-                                    if (showCoverThumbnailAnimation && !mediaItem.isVideo) CircleShape else thumbnailRoundness.shape(),
+                                    if (showCoverThumbnailAnimation && !mediaItem.isVideo) CircleShape else NoirCoverShape,
                                     4.dp,
                                     8.dp
                                 )
                             }
-                            .clip(thumbnailRoundness.shape())
+                            .clip(NoirCoverShape)
 
                         // Exact 16:9 window for the video; padding goes before the ratio so the
                         // picture itself, not the padded box, is 16:9.
@@ -3673,7 +3626,7 @@ fun OnlinePlayer(
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp)
                             .aspectRatio(16f / 9f)
-                            .clip(thumbnailRoundness.shape())
+                            .clip(RoundedCornerShape(20.dp))
 
                         //use online player core in portrait mpode
                         if (!mediaItem.isVideo || isShowingVisualizer || it.fast4x.riplay.utils.isLandscape)
@@ -3693,6 +3646,25 @@ fun OnlinePlayer(
                             ) {
                                 thumbnailContent(videoModifier)
                             }
+
+                        // Yammbo Noir: song / video switch over the cover's top-left corner.
+                        if (!isLandscape && showthumbnail && !isShowingLyrics && !isShowingVisualizer && !expandedplayer) {
+                            val coverSide = minOf(maxWidth, maxHeight)
+                            val chipStart = if (mediaItem.isVideo) 16.dp + 12.dp else playerThumbnailSize.padding.dp + 14.dp
+                            // The video sits at 75 % bias in the slot (see above); the cover is centred.
+                            val chipTop = if (mediaItem.isVideo) (maxHeight - videoSlotHeight) * 0.875f + 12.dp
+                                else (maxHeight - coverSide) / 2 + playerThumbnailSize.padding.dp + 14.dp
+                            NoirKindChips(
+                                isVideo = mediaItem.isVideo,
+                                onSwitch = {
+                                    binder.callPause {}
+                                    showSearchEntity = true
+                                },
+                                modifier = Modifier
+                                    .align(Alignment.TopStart)
+                                    .padding(start = chipStart, top = chipTop)
+                            )
+                        }
 
                     }
 
@@ -3913,6 +3885,7 @@ fun OnlinePlayer(
                                     },
                                     onSeekTo = { binder.onlinePlayerSeekTo(it) },
                                     onNext = { binder.player.playNext() },
+                                    onToggleShuffleMode = { binder.player.shuffleQueue() },
                                     onPrevious = {
                                         if (jumpPrevious == "") jumpPrevious = "0"
                                         if(!binder.player.hasPreviousMediaItem() || (jumpPrevious != "0" && positionAndDuration.first > jumpPrevious.toFloat())){
@@ -3936,8 +3909,87 @@ fun OnlinePlayer(
                             }
                         }
 
-                        if (showPlayerActionsBar)
-                            actionsBarContent()
+                        if (showPlayerActionsBar) {
+                            // Yammbo Noir: labelled actions, then the next song as the edge of the queue sheet.
+                            val castAvailable = remember { CastManager.isAvailable(context) }
+                            NoirActionRow(
+                                actions = listOfNotNull(
+                                    NoirAction(
+                                        icon = R.drawable.song_lyrics,
+                                        label = stringResource(R.string.noir_action_lyrics),
+                                        active = isShowingLyrics,
+                                        onClick = {
+                                            if (isShowingVisualizer) isShowingVisualizer = false
+                                            if (isShowingLyrics || PremiumGuard.isPremium(context)) {
+                                                isShowingLyrics = !isShowingLyrics
+                                            } else {
+                                                PremiumGuard.checkFeature(context, PremiumFeature.Lyrics)
+                                            }
+                                        }
+                                    ),
+                                    NoirAction(
+                                        icon = R.drawable.playlist,
+                                        label = stringResource(R.string.noir_action_queue),
+                                        onClick = { showQueue = true }
+                                    ),
+                                    if (castAvailable) NoirAction(
+                                        icon = R.drawable.cast_disconnected,
+                                        label = stringResource(R.string.noir_action_cast),
+                                        content = { CastButton() }
+                                    ) else null,
+                                    NoirAction(
+                                        icon = R.drawable.sleep,
+                                        label = sleepTimerMillisLeft?.let { formatAsDuration(it) }
+                                            ?: stringResource(R.string.noir_action_sleep),
+                                        active = sleepTimerMillisLeft != null,
+                                        onClick = { isShowingSleepTimerDialog = true }
+                                    ),
+                                    NoirAction(
+                                        icon = R.drawable.add_in_playlist,
+                                        label = stringResource(R.string.noir_action_save),
+                                        active = songPlaylist > 0,
+                                        onClick = {
+                                            menuState.display {
+                                                AddToPlaylistPlayerMenu(
+                                                    navController = navController,
+                                                    onDismiss = {
+                                                        menuState.hide()
+                                                        Database.asyncTransaction {
+                                                            songPlaylist =
+                                                                songUsedInPlaylists(mediaItem.mediaId)
+                                                        }
+                                                    },
+                                                    mediaItem = mediaItem,
+                                                    binder = binder,
+                                                    onClosePlayer = {
+                                                        onDismiss()
+                                                    },
+                                                )
+                                            }
+                                        }
+                                    ),
+                                    NoirAction(
+                                        icon = R.drawable.share_social,
+                                        label = stringResource(R.string.noir_action_share),
+                                        onClick = { showPlayerShare = true }
+                                    )
+                                ),
+                                modifier = Modifier.padding(top = 4.dp, bottom = 10.dp)
+                            )
+                            if (!isShowingLyrics)
+                                NoirUpNextBar(
+                                    next = nextmedia,
+                                    bottomInset = bottomInset,
+                                    onClick = { showQueue = true },
+                                    modifier = Modifier.pointerInput(Unit) {
+                                        detectVerticalDragGestures { _, dragAmount ->
+                                            if (dragAmount < 0) showQueue = true
+                                        }
+                                    }
+                                )
+                            else
+                                Spacer(Modifier.height(bottomInset))
+                        }
                     }
                 }
             }
@@ -3946,20 +3998,10 @@ fun OnlinePlayer(
         CustomModalBottomSheet(
             showSheet = showQueue,
             onDismissRequest = { showQueue = false },
-            containerColor = if (queueType == QueueType.Modern) Color.Transparent else colorPalette().background2,
-            contentColor = if (queueType == QueueType.Modern) Color.Transparent else colorPalette().background2,
+            // Yammbo Noir: the queue is a plain dark sheet with the default handle and corners.
             modifier = Modifier
-                .fillMaxWidth()
-                .conditional(queueType == QueueType.Modern) { hazeChild(state = hazeState) },
-            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-            dragHandle = {
-                Surface(
-                    modifier = Modifier.padding(vertical = 0.dp),
-                    color = colorPalette().background0,
-                    shape = thumbnailShape()
-                ) {}
-            },
-            shape = thumbnailRoundness.shape()
+                .fillMaxWidth(),
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         ) {
             Queue(
                 navController = navController,

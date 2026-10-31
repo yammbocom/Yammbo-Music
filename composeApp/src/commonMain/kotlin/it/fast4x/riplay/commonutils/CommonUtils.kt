@@ -2,6 +2,7 @@ package it.fast4x.riplay.commonutils
 
 import coil3.Uri
 import coil3.toUri
+import kotlin.concurrent.Volatile
 
 const val PINNED_PREFIX = "pinned:"
 const val MODIFIED_PREFIX = "modified:"
@@ -81,11 +82,47 @@ fun cleanString(text: String): String {
  */
 const val PLAYER_COVER_PX = 800
 
+/**
+ * Process-wide knobs for the CDN image size. Set from MainApplication:
+ * [densityFactor] = displayDensity / 3 (clamped), because the px values passed to
+ * thumbnail() were tuned for ~3x screens; [dataSaver] is true only while the
+ * "Ahorro de datos" preference is on AND the connection is metered.
+ */
+object ThumbnailSizing {
+    @Volatile var densityFactor: Float = 1f
+    @Volatile var dataSaver: Boolean = false
+
+    private val buckets = intArrayOf(96, 160, 240, 320, 480, 640, 800, 1200)
+
+    /** Scales [px] for this screen / mode and snaps UP to a shared bucket so the cached URL is reused. */
+    fun effective(px: Int): Int {
+        val scaled = px * densityFactor * (if (dataSaver) 0.75f else 1f)
+        return buckets.firstOrNull { it >= scaled } ?: buckets.last()
+    }
+}
+
+private val googleCdnSized = Regex("(https://(?:lh3|yt3)\\.googleusercontent\\.com/[^=]+)=[^/]*")
+private val ytimgVideoThumb = Regex("^(https://i\\.ytimg\\.com/vi/[^/?#]+/)[A-Za-z0-9_]+\\.jpg(?:[?#].*)?$")
+
+/** Size-adapted (density / data saver aware, bucketed) thumbnail URL. */
 fun String?.thumbnail(size: Int): String? {
     val s = this ?: return null
-    val googleCdnSized = Regex("(https://(?:lh3|yt3)\\.googleusercontent\\.com/[^=]+)=w\\d+-h\\d+.*")
+    return s.thumbnailExact(ThumbnailSizing.effective(size))
+}
+
+/** Thumbnail URL at exactly [size] px (no density / data saver scaling). */
+fun String?.thumbnailExact(size: Int): String? {
+    val s = this ?: return null
+    // Any size/crop suffix the CDN already carries (=s576, =w544-h544-l90-rj,
+    // =w544-c-h544-k-c0x00ffffff-no-l90-rj...) is replaced: a second "=..." answers 400.
     googleCdnSized.matchEntire(s)?.let { match ->
         return "${match.groupValues[1]}=w$size-h$size-p-l90-rj"
+    }
+    // Video thumbnails: pick the variant by size. mqdefault (320x180) and hq720 are
+    // 16:9 without letterbox; hqdefault/sddefault are 4:3 with black bars that show up
+    // in square crops, so they are never produced here.
+    ytimgVideoThumb.matchEntire(s)?.let { match ->
+        return match.groupValues[1] + (if (size <= 320) "mqdefault.jpg" else "hq720.jpg")
     }
     return when {
         s.startsWith("https://lh3.googleusercontent.com") ||

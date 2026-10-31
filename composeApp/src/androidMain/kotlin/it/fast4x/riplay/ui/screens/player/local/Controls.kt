@@ -100,7 +100,7 @@ fun Controls(
         mutableStateOf<Long?>(null)
     }
 
-    var disableScrollingText by rememberPreference(disableScrollingTextKey, false)
+    var disableScrollingText by rememberPreference(disableScrollingTextKey, true)
 
     val animatedPosition = remember { Animatable(position.toFloat()) }
     var isSeeking by remember { mutableStateOf(false) }

@@ -73,6 +73,9 @@ const val skipSilenceKey = "skipSilence"
 const val skipMediaOnErrorKey = "skipMediaOnError"
 const val preloadNextSongKey = "preloadNextSong"
 const val preloadOnMobileDataKey = "preloadOnMobileData"
+const val dataSaverMobileKey = "dataSaverMobile"
+// Manual downloads wait for an unmetered network (Wi-Fi) instead of using mobile data.
+const val downloadWifiOnlyKey = "downloadWifiOnly"
 // Plays the file YTDLnis already downloaded instead of streaming the same song again.
 const val playLocalCopyKey = "playLocalCopy"
 // Periodically offers to send not-yet-downloaded favorites to YTDLnis while on Wi-Fi.

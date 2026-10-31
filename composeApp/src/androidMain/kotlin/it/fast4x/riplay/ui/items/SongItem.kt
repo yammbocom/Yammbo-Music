@@ -1,5 +1,8 @@
 package it.fast4x.riplay.ui.items
 
+import it.fast4x.riplay.utils.mayHaveSongVersion
+import it.fast4x.riplay.utils.SongVersion
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -165,12 +168,21 @@ fun SongItem(
     highlightNowPlaying: Boolean = true,
 ) {
     val binder = LocalPlayerServiceBinder.current
+    val sizePx = with(LocalDensity.current) { thumbnailSizeDp.roundToPx() }
+    // A video whose song version is already resolved (session cache, no network) shows the
+    // song's square art, so the row matches what the player will swap to.
+    val shownUrl = remember(mediaItem.mediaId, thumbnailUrl, sizePx) {
+        if (mediaItem.mayHaveSongVersion)
+            SongVersion.cachedSongFor(mediaItem.mediaId)?.mediaMetadata?.artworkUri?.toString()
+                ?.thumbnail(sizePx)?.toString() ?: thumbnailUrl
+        else thumbnailUrl
+    }
 
     SongItem(
         thumbnailSizeDp = thumbnailSizeDp,
         thumbnailContent = {
             AsyncImage(
-                model = thumbnailUrl,
+                model = shownUrl,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
@@ -226,7 +238,7 @@ fun SongItem(
     val binder = LocalPlayerServiceBinder.current
     val isNowPlaying = binder?.player?.isNowPlaying(mediaItem.mediaId)
 
-    val disableScrollingText by rememberPreference(disableScrollingTextKey, false)
+    val disableScrollingText by rememberPreference(disableScrollingTextKey, true)
 
     val context = LocalContext.current
     val colorPalette = LocalAppearance.current.colorPalette
@@ -479,16 +491,16 @@ fun SongItem(
 
             Row(verticalAlignment = Alignment.CenterVertically) {
 
+                // Ellipsis, not a marquee: the scrolling artists left stray letters next to the
+                // duration mid-animation.
                 BasicText(
                     text = authors,
                     style = typography().xs.semiBold.secondary,
                     maxLines = 1,
-                    overflow = TextOverflow.Clip,
+                    overflow = TextOverflow.Ellipsis,
                     modifier = Modifier
-                        //.weight(1f)
-                        .fillMaxWidth(.6f)
                         .weight(1f)
-                        .applyIf(!disableScrollingText) { basicMarquee(iterations = Int.MAX_VALUE) }
+                        .padding(end = 8.dp)
                 )
 
                 duration?.let {

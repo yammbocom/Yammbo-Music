@@ -116,7 +116,7 @@ fun LocalSongSearch(
         ThumbnailRoundness.Heavy
     )
 
-    val disableScrollingText by rememberPreference(disableScrollingTextKey, false)
+    val disableScrollingText by rememberPreference(disableScrollingTextKey, true)
 
     val focusRequester = remember {
         FocusRequester()

@@ -56,6 +56,21 @@ data class ResendEmailCodeResponse(
         errors?.values?.firstOrNull()?.firstOrNull() ?: message
 }
 
+// Mails a 6-digit password reset code; answers the same whether or not the account exists.
+@Serializable
+data class PasswordResetCodeRequest(
+    val email: String
+)
+
+@Serializable
+data class ResetPasswordWithCodeRequest(
+    val email: String,
+    val code: String,
+    val password: String,
+    @SerialName("password_confirmation") val passwordConfirmation: String,
+    @SerialName("token_name") val tokenName: String = "yambo_music_android"
+)
+
 // Login response: {"status":"success","user":{"id":...,"email":...,"access_token":"..."},...}
 @Serializable
 data class AuthResponse(

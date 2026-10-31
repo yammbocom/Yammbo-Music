@@ -138,6 +138,8 @@ import it.fast4x.riplay.ui.components.LocalGlobalSheetState
 import it.fast4x.riplay.ui.components.tab.ToolbarMenuButton
 import it.fast4x.riplay.ui.components.themed.EnumsMenu
 import it.fast4x.riplay.ui.components.themed.HeaderIconButton
+import it.fast4x.riplay.ui.components.themed.MenuEntry
+import it.fast4x.riplay.ui.components.themed.MenuToggleEntry
 import it.fast4x.riplay.ui.components.themed.PlaylistsItemMenu
 import it.fast4x.riplay.ui.styling.px
 import it.fast4x.riplay.utils.CheckAndCreateMonthlyPlaylist
@@ -187,7 +189,7 @@ fun HomePlaylists(
     // Non-vital
     var plistId by remember { mutableLongStateOf(0L) }
     var playlistType by rememberPreference(playlistTypeKey, PlaylistType.Playlist)
-    val disableScrollingText by rememberPreference(disableScrollingTextKey, false)
+    val disableScrollingText by rememberPreference(disableScrollingTextKey, true)
 
     var items by persistList<PlaylistPreview>("home/playlists")
     var itemsOnDisplay by persistList<PlaylistPreview>("home/playlists/on_display")
@@ -553,20 +555,48 @@ fun HomePlaylists(
                     onSelect = { playlistType = it }
                 )
 
-                // 3. Toolbar
-                val buttons = mutableListOf(
-                    sync, search, shuffle, newPlaylistDialog, importButton, itemSize, viewType
-                ).apply {
-                    if (playlistType == PlaylistType.OnDevicePlaylist)
-                        add(toggleOndeviceFolderName)
-                }
-                // Glass dock keeps the shared toolbar buttons consistent with the new header
-                LibraryToolbarDock {
-                    TabToolBar.Buttons(buttons)
-                }
+                // 3. Noir tools row: search, shuffle and a "more" sheet with the rest
+                LibraryToolsRow(
+                    search = search,
+                    onShuffle = { shuffle.onShortClick() },
+                    onMore = {
+                        menuState.display {
+                            LibraryMoreMenu(
+                                menuState = menuState,
+                                sync = sync,
+                                itemSize = itemSize,
+                                viewType = viewType,
+                                extra = {
+                                    MenuEntry(
+                                        icon = newPlaylistDialog.iconId,
+                                        text = newPlaylistDialog.menuIconTitle,
+                                        onClick = {
+                                            menuState.hide()
+                                            newPlaylistDialog.onShortClick()
+                                        }
+                                    )
+                                    MenuEntry(
+                                        icon = importButton.iconId,
+                                        text = importButton.menuIconTitle,
+                                        onClick = { importButton.onShortClick() }
+                                    )
+                                    if (playlistType == PlaylistType.OnDevicePlaylist) {
+                                        val shortFolderName by rememberPreference(shortOnDeviceFolderNameKey, false)
+                                        MenuToggleEntry(
+                                            icon = toggleOndeviceFolderName.iconId,
+                                            text = stringResource(R.string.library_tools_folder_names),
+                                            checked = shortFolderName,
+                                            onClick = { toggleOndeviceFolderName.onShortClick() }
+                                        )
+                                    }
+                                }
+                            )
+                        }
+                    }
+                )
 
-                // 4. Search Bar
-                search.SearchBar(this)
+                // 4. Search field
+                LibrarySearchField(search)
 
                 // 5. Contenuto (Lista o Griglia)
                 if (tabItems.isEmpty()) {
@@ -1155,7 +1185,7 @@ fun HomePlaylists(
     // Non-vital
     var plistId by remember { mutableLongStateOf( 0L ) }
     var playlistType by rememberPreference(playlistTypeKey, PlaylistType.Playlist)
-    val disableScrollingText by rememberPreference(disableScrollingTextKey, false)
+    val disableScrollingText by rememberPreference(disableScrollingTextKey, true)
 
     var items by persistList<PlaylistPreview>("home/playlists")
 

@@ -15,10 +15,10 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
 import com.yambo.music.R
 import it.fast4x.riplay.commonutils.cleanPrefix
 import it.fast4x.riplay.commonutils.thumbnail
+import it.fast4x.riplay.ui.components.RevealImage
 import it.fast4x.riplay.ui.styling.secondary
 import it.fast4x.riplay.ui.styling.semiBold
 import it.fast4x.riplay.utils.colorPalette
@@ -65,7 +65,7 @@ fun HomeShelfCard(
                     .padding(24.dp)
             )
         else
-            AsyncImage(
+            RevealImage(
                 model = thumbnailUrl.thumbnail(thumbnailSizePx)?.let { cleanPrefix(it) },
                 contentDescription = null,
                 contentScale = ContentScale.Crop,

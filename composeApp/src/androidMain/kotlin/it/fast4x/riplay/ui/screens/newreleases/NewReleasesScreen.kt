@@ -42,6 +42,9 @@ fun NewreleasesScreen(
                 tabIndex,
                 onTabChanged = { tabIndex = it },
                 miniPlayer,
+                // One tab only: the main nav pill (NoirBottomChrome) replaces the legacy bar.
+                sharedChrome = true,
+                noirTopBar = true,
                 navBarContent = { item ->
                     item(0, stringResource(R.string.new_albums), R.drawable.music_album)
                 }

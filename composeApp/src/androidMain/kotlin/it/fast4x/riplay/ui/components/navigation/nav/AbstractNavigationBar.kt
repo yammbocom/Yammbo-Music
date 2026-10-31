@@ -1,5 +1,6 @@
 package it.fast4x.riplay.ui.components.navigation.nav
 
+import it.fast4x.riplay.ui.components.themed.openAccountOrSettings
 import android.annotation.SuppressLint
 import androidx.compose.foundation.clickable
 import androidx.compose.runtime.Composable
@@ -39,12 +40,15 @@ abstract class AbstractNavigationBar(
     @ReadOnlyComposable
     @Composable
     internal open fun SettingsButton(): NavigationButton {
-        return NavigationButton(
+        // The gear opens the account page (which links to the settings); on the account page
+        // itself it goes to the settings.
+        val button = NavigationButton(
             navController,
             R.drawable.settings,
-            colorPalette().favoritesIcon,
-            NavRoutes.settings.name
+            colorPalette().favoritesIcon
         )
+        button.clickEvent { navController.openAccountOrSettings() }
+        return button
     }
 
     @ReadOnlyComposable

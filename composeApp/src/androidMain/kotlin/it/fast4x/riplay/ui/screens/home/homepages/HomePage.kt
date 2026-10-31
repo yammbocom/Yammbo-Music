@@ -77,15 +77,24 @@ import it.fast4x.riplay.enums.NavRoutes
 import it.fast4x.riplay.ui.screens.home.HomePodcastsSection
 import it.fast4x.riplay.ui.screens.home.HomeLiveRadioSection
 import it.fast4x.riplay.extensions.listenerlevel.HomepageListenerLevelBadges
+import it.fast4x.riplay.ui.components.CollapsingTitleEffect
 import it.fast4x.riplay.ui.components.LocalGlobalSheetState
 import it.fast4x.riplay.ui.components.PullToRefreshBox
 import it.fast4x.riplay.ui.components.ShimmerHost
+import it.fast4x.riplay.ui.components.cascadeEntry
+import it.fast4x.riplay.ui.components.collapsingTitle
+import it.fast4x.riplay.ui.components.rememberTitleCollapse
 import it.fast4x.riplay.ui.components.themed.HeaderWithIcon
 import it.fast4x.riplay.ui.components.themed.MultiFloatingActionsContainer
 import it.fast4x.riplay.ui.styling.Dimensions
 import it.fast4x.riplay.ui.styling.px
 import it.fast4x.riplay.ui.screens.home.HomeGreetingHeader
 import it.fast4x.riplay.ui.screens.home.JumpBackInSection
+import it.fast4x.riplay.ui.screens.home.HomeBecauseYouListened
+import it.fast4x.riplay.ui.screens.home.HomeMoodChipStrip
+import it.fast4x.riplay.ui.screens.home.HomePlaylistsForYou
+import it.fast4x.riplay.ui.screens.home.HomeSimilarArtists
+import it.fast4x.riplay.ui.screens.home.HomeTopCharts
 import it.fast4x.riplay.ui.screens.home.isHomeSong
 import it.fast4x.riplay.ui.screens.home.isHomeShelfItem
 import it.fast4x.riplay.ui.screens.home.onlySongs
@@ -124,6 +133,11 @@ import it.fast4x.riplay.ui.components.themed.NonQueuedMediaItemMenu
 import it.fast4x.riplay.ui.components.themed.TextPlaceholder
 import it.fast4x.riplay.ui.components.themed.Title
 import it.fast4x.riplay.ui.components.themed.Title2Actions
+import it.fast4x.riplay.ui.components.themed.NoirSectionHeader
+import it.fast4x.riplay.commonutils.ThumbnailSizing
+import it.fast4x.riplay.commonutils.thumbnail
+import it.fast4x.riplay.ui.components.themed.NoirHeroCard
+import it.fast4x.riplay.ui.components.themed.NoirPlayCircle
 import it.fast4x.riplay.ui.components.themed.TitleMiniSection
 import it.fast4x.riplay.ui.items.AlbumItem
 import it.fast4x.riplay.ui.items.AlbumItemPlaceholder
@@ -137,6 +151,9 @@ import it.fast4x.riplay.ui.items.VideoItem
 import it.fast4x.riplay.ui.styling.color
 import it.fast4x.riplay.ui.styling.secondary
 import it.fast4x.riplay.ui.styling.semiBold
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.font.FontWeight
+import it.fast4x.riplay.ui.styling.tight
 import it.fast4x.riplay.utils.HomeDataCache
 import it.fast4x.riplay.utils.SkeletonSwap
 import it.fast4x.riplay.utils.resolveFallbackTopSongId
@@ -237,8 +254,12 @@ fun HomePage(
         }
     }
 
+    // The whole chain was walked on every cold open: a few pages are enough, none on data saver.
+    fun maxHomeContinuations(): Int = if (ThumbnailSizing.dataSaver) 0 else 2
+
     fun startHomeContinuations() {
         if (continuationJob?.isActive == true || HomeDataCache.homeContinuation == null) return
+        if (HomeDataCache.homeContinuationsFollowed >= maxHomeContinuations()) return
 
         continuationJob = refreshScope.launch(Dispatchers.IO) {
             // Seen tokens guard against a feed that points back to a page already walked
@@ -246,6 +267,7 @@ fun HomePage(
             var token = HomeDataCache.homeContinuation
             while (true) {
                 val currentToken = token ?: break
+                if (HomeDataCache.homeContinuationsFollowed >= maxHomeContinuations()) break
                 if (!seen.add(currentToken)) break
                 val next = withTimeoutOrNull(20_000L) {
                     EnvironmentExt.getHomePageContinuation(currentToken)
@@ -260,6 +282,7 @@ fun HomePage(
                 homePage = merged
                 HomeDataCache.homePage = merged
                 HomeDataCache.homeContinuation = next.continuation
+                HomeDataCache.homeContinuationsFollowed++
                 token = next.continuation
             }
             saveHomeToDisk()
@@ -298,6 +321,7 @@ fun HomePage(
                 homePage = result
                 HomeDataCache.homePage = result
                 HomeDataCache.homeContinuation = result.continuation
+                HomeDataCache.homeContinuationsFollowed = 0
                 HomeDataCache.homeFromDisk = false
                 saveHomeToDisk()
             }
@@ -530,6 +554,8 @@ fun HomePage(
     val playlistThumbnailSizePx = playlistThumbnailSizeDp.px
 
     val scrollState = rememberScrollState()
+    val titleProgress = rememberTitleCollapse(scrollState)
+    CollapsingTitleEffect(stringResource(R.string.home), titleProgress)
     val quickPicksLazyGridState = rememberLazyGridState()
     val moodAngGenresLazyGridState = rememberLazyGridState()
     val chipsLazyGridState = rememberLazyGridState()
@@ -545,7 +571,7 @@ fun HomePage(
 
     val hapticFeedback = LocalHapticFeedback.current
 
-    val disableScrollingText by rememberPreference(disableScrollingTextKey, false)
+    val disableScrollingText by rememberPreference(disableScrollingTextKey, true)
 
 
     PullToRefreshBox(
@@ -593,32 +619,70 @@ fun HomePage(
                         navController = navController
                     )
 
-                HomeGreetingHeader(
-                    navController = navController,
-                    onSettingsClick = onSettingsClick
-                )
+                Box(Modifier.cascadeEntry(0)) {
+                    HomeGreetingHeader(
+                        navController = navController,
+                        onSettingsClick = onSettingsClick,
+                        titleModifier = Modifier.collapsingTitle(titleProgress)
+                    )
+                }
 
-                JumpBackInSection()
+                if (showMoodsAndGenres)
+                    Box(Modifier.cascadeEntry(1)) {
+                        HomeMoodChipStrip(chips = homePage?.chips, onChipClick = onChipClick)
+                    }
+
+                Box(Modifier.cascadeEntry(2)) {
+                    JumpBackInSection()
+                }
 
                 // Listener levels (Monthly/Annual badges) hidden — Yammbo Music customization
                 // if (showListenerLevels)
                 //     HomepageListenerLevelBadges(navController)
 
-                HomepageRewind(
-                    showIfEndOfYear = true,
-                    navController = navController,
-                    playlistThumbnailSizeDp = playlistThumbnailSizeDp,
-                    endPaddingValues = endPaddingValues,
-                    disableScrollingText = disableScrollingText
-                )
+                Box(Modifier.cascadeEntry(3)) {
+                    HomepageRewind(
+                        showIfEndOfYear = true,
+                        navController = navController,
+                        playlistThumbnailSizeDp = playlistThumbnailSizeDp,
+                        endPaddingValues = endPaddingValues,
+                        disableScrollingText = disableScrollingText
+                    )
+                }
 
                 // Nothing to show once loading is over (e.g. a brand-new account whose seed
                 // found no picks): hide the whole section instead of a header over an empty gap.
                 val hasQuickPicks = trending != null || !relatedPage?.songs.isNullOrEmpty()
                 if (showTips && (hasQuickPicks || quickPicksLoading)) {
-                    Title2Actions(
+                    // Yammbo Noir: the picks open on a hero card over the first pick's cover. The
+                    // sort order is the eyebrow, tapping the title changes it, the circle plays.
+                    val heroImage = (trending?.thumbnailUrl
+                        ?: relatedPage?.songs?.firstOrNull()?.thumbnail?.url).thumbnail(720)
+                    val heroArtists = (listOfNotNull(trending?.artistsText) +
+                            relatedPage?.songs.orEmpty().mapNotNull { song ->
+                                song.authors?.firstOrNull()?.name
+                            })
+                        .flatMap { it.split(", ") }
+                        .map { it.trim() }
+                        .filter { it.isNotEmpty() }
+                        .distinct()
+                    val heroSubtitle = when {
+                        heroArtists.size > 3 ->
+                            stringResource(R.string.noir_and_more, heroArtists.take(3).joinToString(", "))
+                        heroArtists.isNotEmpty() -> heroArtists.joinToString(", ")
+                        else -> null
+                    }
+                    NoirHeroCard(
+                        modifier = Modifier.cascadeEntry(4),
+                        image = heroImage,
+                        subtitle = heroSubtitle,
                         title = stringResource(R.string.quick_picks),
-                        onClick1 = {
+                        eyebrow = when (playEventType) {
+                            PlayEventsType.MostPlayed -> stringResource(R.string.by_most_played_song)
+                            PlayEventsType.LastPlayed -> stringResource(R.string.by_last_played_song)
+                            PlayEventsType.CasualPlayed -> stringResource(R.string.by_casual_played_song)
+                        },
+                        onTitleClick = {
                             menuState.display {
                                 Menu {
                                     MenuEntry(
@@ -648,28 +712,12 @@ fun HomePage(
                                 }
                             }
                         },
-                        icon2 = R.drawable.play_now,
-                        onClick2 = {
-                            //trending?.let { fastPlay(it.asMediaItem, binder, relatedInit?.songs?.map { it.asMediaItem }) }
+                        onPlay = {
                             binder?.stopRadio()
                             trending?.let { binder?.player?.forcePlay(it.asMediaItem) }
                             binder?.player?.addMediaItems(relatedPage?.songs?.map { it.asMediaItem }
                                 ?: emptyList())
                         }
-
-                        //modifier = Modifier.fillMaxWidth(0.7f)
-                    )
-
-                    BasicText(
-                        text = when (playEventType) {
-                            PlayEventsType.MostPlayed -> stringResource(R.string.by_most_played_song)
-                            PlayEventsType.LastPlayed -> stringResource(R.string.by_last_played_song)
-                            PlayEventsType.CasualPlayed -> stringResource(R.string.by_casual_played_song)
-                        },
-                        style = typography().xxs.secondary,
-                        modifier = Modifier
-                            .padding(horizontal = 16.dp)
-                            .padding(bottom = 8.dp)
                     )
 
 
@@ -685,6 +733,7 @@ fun HomePage(
                                 ?.coerceAtLeast(0) ?: 0)
                     val quickPicksRows = if (quickPicksPending) 3 else quickPicksCount.coerceIn(1, 3)
 
+                    Box(Modifier.cascadeEntry(5)) {
                     SkeletonSwap(
                         loading = quickPicksPending && trending == null,
                         skeleton = {
@@ -851,8 +900,18 @@ fun HomePage(
                             }
                         }
                     }
+                    }
 
                 }
+
+                // From the same related page as the quick picks: what it says beyond songs.
+                HomeBecauseYouListened(
+                    seedArtist = trending?.artistsText,
+                    albums = relatedPage?.albums,
+                    navController = navController
+                )
+
+                HomeSimilarArtists(artists = relatedPage?.artists, navController = navController)
 
                 SkeletonSwap(
                     loading = discoverPage == null && discoverLoading && showNewAlbums,
@@ -895,7 +954,7 @@ fun HomePage(
 
                                 BasicText(
                                     text = stringResource(R.string.new_albums_of_your_artists),
-                                    style = typography().l.semiBold,
+                                    style = typography().xl.tight.copy(color = colorPalette().text, fontWeight = FontWeight.Bold, fontSize = 22.sp),
                                     modifier = sectionTextModifier
                                 )
 
@@ -949,6 +1008,8 @@ fun HomePage(
                     }
                 }
 
+                HomeTopCharts()
+
                 // Outside the discover block: it has its own request and skeleton
                 HomePodcastsSection(
                     navController = navController,
@@ -957,6 +1018,8 @@ fun HomePage(
                     disableScrollingText = disableScrollingText,
                     contentPadding = endPaddingValues
                 )
+
+                HomePlaylistsForYou(playlists = relatedPage?.playlists, navController = navController)
 
                 HomeLiveRadioSection(
                     thumbnailSizeDp = albumThumbnailSizeDp,
@@ -990,7 +1053,7 @@ fun HomePage(
 
                             BasicText(
                                 text = it.title,
-                                style = typography().l.semiBold.color(colorPalette().text),
+                                style = typography().xl.tight.copy(color = colorPalette().text, fontWeight = FontWeight.Bold, fontSize = 22.sp),
                                 modifier = Modifier
                                     .padding(horizontal = 16.dp)
                                     .padding(vertical = 4.dp)
@@ -1113,47 +1176,6 @@ fun HomePage(
                         }
 
                         if (showMoodsAndGenres) {
-                            // Sorted once per data change instead of on every recomposition
-                            val sortedChips = remember(page.chips) {
-                                page.chips?.sortedBy { it.title } ?: emptyList()
-                            }
-                            if (page.chips?.isNotEmpty() == true) {
-                                Title(
-                                    title = stringResource(R.string.mood),
-                                    //onClick = { navController.navigate(NavRoutes.moodsPage.name) },
-                                    //modifier = Modifier.fillMaxWidth(0.7f)
-                                )
-
-                                LazyHorizontalGrid(
-                                    state = chipsLazyGridState,
-                                    rows = GridCells.Fixed(4),
-                                    flingBehavior = ScrollableDefaults.flingBehavior(),
-                                    //flingBehavior = rememberSnapFlingBehavior(snapLayoutInfoProvider),
-                                    contentPadding = endPaddingValues,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        //.height((thumbnailSizeDp + Dimensions.itemsVerticalPadding * 8) * 8)
-                                        .height(Dimensions.itemsVerticalPadding * 4 * 8)
-                                ) {
-                                    items(
-                                        items = sortedChips,
-                                        key = { it.endpoint?.params.toString() },
-                                        contentType = { "chip" }
-                                    ) {
-                                        ChipItemColored(
-                                            chip = it,
-                                            onClick = { it.endpoint?.browseId?.let { _ -> onChipClick(it) } },
-                                            modifier = Modifier
-                                                //.width(itemWidth)
-                                                .padding(4.dp)
-                                        )
-                                    }
-                                }
-                            }
-
-
-
-
                             discoverPage?.let { page ->
 
                                 if (page.moods.isNotEmpty()) {

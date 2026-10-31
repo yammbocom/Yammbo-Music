@@ -4,6 +4,7 @@ import it.fast4x.riplay.utils.UpdateDownloader
 import androidx.compose.animation.core.EaseInOut
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
@@ -40,6 +42,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.selection.LocalTextSelectionColors
+import androidx.compose.foundation.text.selection.TextSelectionColors
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.Checkbox
 import androidx.compose.material.CheckboxDefaults
@@ -61,6 +65,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -94,6 +99,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.times
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -131,6 +137,7 @@ import it.fast4x.riplay.utils.getDeviceVolume
 import it.fast4x.riplay.utils.isLandscape
 import it.fast4x.riplay.utils.isValidIP
 import it.fast4x.riplay.ui.styling.medium
+import it.fast4x.riplay.ui.styling.mono
 import it.fast4x.riplay.extensions.preferences.playbackDurationKey
 import it.fast4x.riplay.extensions.preferences.playbackPitchKey
 import it.fast4x.riplay.extensions.preferences.playbackSpeedKey
@@ -182,6 +189,194 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 
 
+// Yammbo Noir dialog kit: a black card with a hairline border, a white primary pill and a ghost
+// secondary pill. Every dialog of this file is built from these so they all read the same.
+private val NoirDialogShape = RoundedCornerShape(28.dp)
+
+@Composable
+private fun NoirDialogSurface(
+    modifier: Modifier = Modifier,
+    contentPadding: PaddingValues = PaddingValues(0.dp),
+    content: @Composable ColumnScope.() -> Unit
+) {
+    val colors = colorPalette()
+    Column(
+        modifier = modifier
+            .clip(NoirDialogShape)
+            .background(colors.background0)
+            .border(1.dp, colors.text.copy(alpha = 0.12f), NoirDialogShape)
+            .padding(contentPadding),
+        content = content
+    )
+}
+
+@Composable
+private fun NoirDialogTitle(
+    title: String,
+    modifier: Modifier = Modifier,
+    eyebrow: String? = null
+) {
+    Column(modifier = modifier) {
+        if (!eyebrow.isNullOrBlank()) {
+            NoirEyebrow(eyebrow)
+            Spacer(Modifier.height(6.dp))
+        }
+        Text(
+            text = title,
+            style = typography().m.semiBold.copy(fontSize = 20.sp),
+            color = colorPalette().text
+        )
+    }
+}
+
+@Composable
+private fun NoirDialogDivider(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(1.dp)
+            .background(colorPalette().text.copy(alpha = 0.08f))
+    )
+}
+
+@Composable
+private fun NoirDialogPill(
+    text: String,
+    filled: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val colors = colorPalette()
+    val shape = RoundedCornerShape(percent = 50)
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = modifier
+            .height(44.dp)
+            .clip(shape)
+            .background(if (filled) colors.text else Color.Transparent)
+            .border(1.dp, colors.text.copy(alpha = if (filled) 0f else 0.16f), shape)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 22.dp)
+    ) {
+        Text(
+            text = text,
+            style = typography().xs.semiBold.copy(fontSize = 15.sp),
+            color = if (filled) colors.background0 else colors.text,
+            maxLines = 1
+        )
+    }
+}
+
+/** Cancel (ghost) on the left, confirm (solid white) on the right. Confirm is optional. */
+@Composable
+private fun NoirDialogButtons(
+    cancelText: String,
+    onCancel: () -> Unit,
+    modifier: Modifier = Modifier,
+    confirmText: String? = null,
+    onConfirm: (() -> Unit)? = null,
+    cancelFilled: Boolean = false,
+    confirmFilled: Boolean = true
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+        modifier = modifier.fillMaxWidth()
+    ) {
+        NoirDialogPill(text = cancelText, filled = cancelFilled, onClick = onCancel)
+        if (confirmText != null && onConfirm != null) {
+            NoirDialogPill(text = confirmText, filled = confirmFilled, onClick = onConfirm)
+        }
+    }
+}
+
+/** A labelled boolean row: the label on the left, a [NoirSwitch] on the right. */
+@Composable
+private fun NoirDialogCheckRow(
+    label: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+    labelColor: Color = colorPalette().text
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable { onCheckedChange(!checked) }
+            .padding(vertical = 8.dp)
+    ) {
+        Text(
+            text = label,
+            style = typography().xs.medium.copy(fontSize = 15.sp),
+            color = labelColor,
+            modifier = Modifier.weight(1f)
+        )
+        Spacer(Modifier.width(12.dp))
+        NoirSwitch(checked = checked)
+    }
+}
+
+/**
+ * Rounded 16dp outlined field with a hairline border, white cursor and no accent colour. Errors
+ * are shown by a stronger border and the message in the text colour (the Noir look never uses red).
+ */
+@Composable
+private fun NoirTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    modifier: Modifier = Modifier,
+    errorMessage: String? = null,
+    singleLine: Boolean = false,
+    maxLines: Int = if (singleLine) 1 else Int.MAX_VALUE,
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default
+) {
+    val colors = colorPalette()
+    CompositionLocalProvider(
+        LocalTextSelectionColors provides TextSelectionColors(
+            handleColor = colors.text,
+            backgroundColor = colors.text.copy(alpha = 0.25f)
+        )
+    ) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            label = { Text(label) },
+            isError = errorMessage != null,
+            singleLine = singleLine,
+            maxLines = maxLines,
+            keyboardOptions = keyboardOptions,
+            shape = RoundedCornerShape(16.dp),
+            textStyle = typography().s.copy(color = colors.text),
+            modifier = modifier.fillMaxWidth(),
+            supportingText = {
+                errorMessage?.let {
+                    Text(text = it, color = colors.text)
+                }
+            },
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = colors.text.copy(alpha = 0.55f),
+                unfocusedBorderColor = colors.text.copy(alpha = 0.14f),
+                errorBorderColor = colors.text,
+                cursorColor = colors.text,
+                errorCursorColor = colors.text,
+                focusedTextColor = colors.text,
+                unfocusedTextColor = colors.text,
+                errorTextColor = colors.text,
+                focusedLabelColor = colors.textSecondary,
+                unfocusedLabelColor = colors.textSecondary,
+                errorLabelColor = colors.textSecondary,
+                focusedContainerColor = Color.Transparent,
+                unfocusedContainerColor = Color.Transparent,
+                errorContainerColor = Color.Transparent,
+                errorSupportingTextColor = colors.text
+            )
+        )
+    }
+}
+
 @Composable
 fun ConfirmationDialog(
     text: String,
@@ -199,112 +394,44 @@ fun ConfirmationDialog(
 
     var checkedState by remember { mutableStateOf(false) }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        modifier = modifier,
-        shape = RoundedCornerShape(20.dp),
-        containerColor = colorPalette().background1,
-        // No Material tonal tint: the surface must stay the exact palette grey.
-        tonalElevation = 0.dp,
-        textContentColor = colorPalette().text,
+    Dialog(onDismissRequest = onDismiss) {
+        NoirDialogSurface(
+            modifier = modifier.widthIn(min = 280.dp),
+            contentPadding = PaddingValues(24.dp)
+        ) {
+            Text(
+                text = text,
+                style = typography().s.copy(fontSize = 16.sp),
+                color = colorPalette().text
+            )
 
-        text = {
-            Column {
-                Text(
-                    text = text,
-                    style = typography().m,
-                    color = colorPalette().text
+            if (checkBoxText.isNotEmpty()) {
+                NoirDialogCheckRow(
+                    label = checkBoxText,
+                    checked = checkedState,
+                    onCheckedChange = {
+                        checkedState = it
+                        onCheckBox(it)
+                    },
+                    modifier = Modifier.padding(top = 16.dp)
                 )
-
-                if (checkBoxText.isNotEmpty()) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(top = 16.dp)
-                    ) {
-                        Checkbox(
-                            checked = checkedState,
-                            onCheckedChange = {
-                                checkedState = it
-                                onCheckBox(it)
-                            },
-                            colors = CheckboxDefaults.colors(
-                                checkedColor = colorPalette().text,
-                                checkmarkColor = colorPalette().background0,
-                                uncheckedColor = colorPalette().textSecondary
-                            )
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            text = checkBoxText,
-                            style = typography().xs.medium,
-                            color = colorPalette().text
-                        )
-                    }
-                }
             }
-        },
 
-        confirmButton = {
-            // Brand-styled buttons: Material defaults render the dynamic
-            // (purple-ish) primary color, off-brand and low-contrast in dark
-            // mode. Filled = palette text on background, so it stays B/W and
-            // readable in both themes.
-            if (confirmBackgroundPrimary) {
+            Spacer(Modifier.height(24.dp))
 
-                Button(
-                    onClick = {
-                        onConfirm()
-                        onDismiss()
-                    },
-                    shape = CircleShape,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = colorPalette().text,
-                        contentColor = colorPalette().background0
-                    )
-                ) {
-                    Text(confirmText)
-                }
-            } else {
-
-                TextButton(
-                    onClick = {
-                        onConfirm()
-                        onDismiss()
-                    },
-                    colors = ButtonDefaults.textButtonColors(
-                        contentColor = colorPalette().text
-                    )
-                ) {
-                    Text(confirmText)
-                }
-            }
-        },
-
-
-        dismissButton = {
-            if (cancelBackgroundPrimary) {
-                Button(
-                    onClick = onCancel,
-                    shape = CircleShape,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = colorPalette().text,
-                        contentColor = colorPalette().background0
-                    )
-                ) {
-                    Text(cancelText)
-                }
-            } else {
-                TextButton(
-                    onClick = onCancel,
-                    colors = ButtonDefaults.textButtonColors(
-                        contentColor = colorPalette().text
-                    )
-                ) {
-                    Text(cancelText)
-                }
-            }
+            NoirDialogButtons(
+                cancelText = cancelText,
+                onCancel = onCancel,
+                confirmText = confirmText,
+                onConfirm = {
+                    onConfirm()
+                    onDismiss()
+                },
+                cancelFilled = cancelBackgroundPrimary,
+                confirmFilled = confirmBackgroundPrimary
+            )
         }
-    )
+    }
 }
 
 /*
@@ -407,9 +534,12 @@ inline fun DefaultDialog(
             horizontalAlignment = horizontalAlignment,
             modifier = modifier
                 .padding(all = 10.dp)
-                .background(
-                    color = colorPalette().background1,
-                    shape = RoundedCornerShape(20.dp)
+                .clip(RoundedCornerShape(28.dp))
+                .background(colorPalette().background0)
+                .border(
+                    1.dp,
+                    colorPalette().text.copy(alpha = 0.12f),
+                    RoundedCornerShape(28.dp)
                 )
                 .padding(all = 24.dp),
             content = content
@@ -417,7 +547,6 @@ inline fun DefaultDialog(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun <T> ValueSelectorDialog(
     modifier: Modifier = Modifier,
@@ -430,94 +559,73 @@ fun <T> ValueSelectorDialog(
     valueText: @Composable (T) -> String = { it.toString() }
 ) {
     Dialog(onDismissRequest = onDismiss) {
-        Surface(
+        NoirDialogSurface(
             modifier = modifier,
-            shape = RoundedCornerShape(20.dp),
-            tonalElevation = 0.dp,
-            color = colorPalette().background1
+            contentPadding = PaddingValues(vertical = 24.dp)
         ) {
+            NoirDialogTitle(
+                title = title,
+                eyebrow = titleSecondary,
+                modifier = Modifier.padding(horizontal = 24.dp)
+            )
+
+            NoirDialogDivider(modifier = Modifier.padding(vertical = 12.dp))
+
+            // List: selected = white check + primary text, the rest secondary.
             Column(
                 modifier = Modifier
-                    .padding(vertical = 24.dp)
+                    .weight(1f, fill = false)
+                    .verticalScroll(rememberScrollState())
             ) {
-                // Header
-                Text(
-                    text = title,
-                    style = typography().m.semiBold,
-                    color = colorPalette().text,
-                    modifier = Modifier.padding(horizontal = 24.dp)
-                )
+                values.forEach { value ->
+                    val isSelected = selectedValue == value
 
-                if (titleSecondary != null) {
-                    Text(
-                        text = titleSecondary,
-                        style = typography().xxs.semiBold,
-                        color = colorPalette().textSecondary,
-                        modifier = Modifier.padding(horizontal = 24.dp).padding(top = 8.dp)
-                    )
-                }
-
-                // Divider
-                HorizontalDivider(
-                    modifier = Modifier.padding(vertical = 12.dp),
-                    thickness = 1.dp,
-                    color = colorPalette().background2
-                )
-
-                // List
-                Column(
-                    modifier = Modifier
-                        .verticalScroll(rememberScrollState())
-                ) {
-                    values.forEach { value ->
-                        val isSelected = selectedValue == value
-
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .selectable(
-                                    selected = isSelected,
-                                    onClick = {
-                                        onValueSelected(value)
-                                        onDismiss()
-                                    },
-                                    role = androidx.compose.ui.semantics.Role.RadioButton
-                                )
-                                .padding(horizontal = 24.dp, vertical = 8.dp)
-                        ) {
-
-                            RadioButton(
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .selectable(
                                 selected = isSelected,
-                                onClick = null,
-                                colors = RadioButtonDefaults.colors(
-                                    selectedColor = colorPalette().accent,
-                                    unselectedColor = colorPalette().text
-                                )
+                                onClick = {
+                                    onValueSelected(value)
+                                    onDismiss()
+                                },
+                                role = androidx.compose.ui.semantics.Role.RadioButton
                             )
+                            .heightIn(min = 48.dp)
+                            .padding(horizontal = 24.dp, vertical = 8.dp)
+                    ) {
+                        Text(
+                            text = valueText(value),
+                            style = typography().s.medium.copy(fontSize = 16.sp),
+                            color = if (isSelected) colorPalette().text else colorPalette().textSecondary,
+                            modifier = Modifier.weight(1f)
+                        )
 
+                        if (isSelected) {
                             Spacer(Modifier.width(12.dp))
-
-                            Text(
-                                text = valueText(value),
-                                style = typography().xs.medium.merge(
-                                    TextStyle(color = if (isSelected) colorPalette().accent else colorPalette().text)
-                                )
+                            Image(
+                                painter = painterResource(R.drawable.checkmark),
+                                contentDescription = null,
+                                colorFilter = ColorFilter.tint(colorPalette().text),
+                                modifier = Modifier.size(20.dp)
                             )
                         }
                     }
                 }
+            }
 
-                // Footer
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.End)
-                        .padding(end = 24.dp, top = 12.dp)
-                ) {
-                    TextButton (onClick = onDismiss) {
-                        Text(stringResource(R.string.cancel), color = colorPalette().text)
-                    }
-                }
+            // Footer
+            Box(
+                modifier = Modifier
+                    .align(Alignment.End)
+                    .padding(end = 24.dp, top = 12.dp)
+            ) {
+                NoirDialogPill(
+                    text = stringResource(R.string.cancel),
+                    filled = false,
+                    onClick = onDismiss
+                )
             }
         }
     }
@@ -641,76 +749,67 @@ fun SelectorDialog(
     showItemsIcon: Boolean = false
 ) {
     Dialog(onDismissRequest = onDismiss) {
-        Surface(
+        NoirDialogSurface(
             modifier = modifier,
-            shape = RoundedCornerShape(20.dp),
-            tonalElevation = 0.dp,
-            color = colorPalette().background1
+            contentPadding = PaddingValues(vertical = 24.dp)
         ) {
+            NoirDialogTitle(
+                title = title,
+                modifier = Modifier.padding(horizontal = 24.dp)
+            )
+
+            NoirDialogDivider(modifier = Modifier.padding(vertical = 12.dp))
+
+            // List
             Column(
-                modifier = Modifier.padding(vertical = 24.dp)
+                modifier = Modifier
+                    .weight(1f, fill = false)
+                    .verticalScroll(rememberScrollState())
             ) {
-                // Title
-                Text(
-                    text = title,
-                    style =  typography().m.semiBold,
-                    color = colorPalette().text,
-                    modifier = Modifier.padding(horizontal = 24.dp)
-                )
-
-                // Divider
-                HorizontalDivider(
-                    modifier = Modifier.padding(vertical = 12.dp),
-                    thickness = 1.dp,
-                    color = colorPalette().background2
-                )
-
-                // List
-                Column(
-                    modifier = Modifier
-                        .verticalScroll(rememberScrollState())
-                ) {
-                    values?.distinct()?.forEach { value ->
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    onValueSelected(value.id)
-                                    onDismiss()
-                                }
-                                .padding(horizontal = 24.dp, vertical = 12.dp)
-                        ) {
-                            if (showItemsIcon) {
-                                Icon(
-                                    painter = painterResource(id = R.drawable.playlist),
-                                    contentDescription = null,
-                                    tint = colorPalette().text,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                                Spacer(Modifier.width(12.dp))
+                values?.distinct()?.forEach { value ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                onValueSelected(value.id)
+                                onDismiss()
                             }
-
-                            Text(
-                                text = value.name ?: "Not selectable",
-                                style = typography().xs.medium,
-                                maxLines = 3,
-                                overflow = TextOverflow.Ellipsis
+                            .heightIn(min = 48.dp)
+                            .padding(horizontal = 24.dp, vertical = 10.dp)
+                    ) {
+                        if (showItemsIcon) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.playlist),
+                                contentDescription = null,
+                                tint = colorPalette().text,
+                                modifier = Modifier.size(24.dp)
                             )
+                            Spacer(Modifier.width(12.dp))
                         }
-                    }
-                }
 
-                // Footer
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.End)
-                        .padding(end = 24.dp, top = 8.dp)
-                ) {
-                    TextButton(onClick = onDismiss) {
-                        Text(stringResource(R.string.cancel), color = colorPalette().text)
+                        Text(
+                            text = value.name ?: "Not selectable",
+                            style = typography().s.medium.copy(fontSize = 16.sp),
+                            color = colorPalette().text,
+                            maxLines = 3,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
                 }
+            }
+
+            // Footer
+            Box(
+                modifier = Modifier
+                    .align(Alignment.End)
+                    .padding(end = 24.dp, top = 12.dp)
+            ) {
+                NoirDialogPill(
+                    text = stringResource(R.string.cancel),
+                    filled = false,
+                    onClick = onDismiss
+                )
             }
         }
     }
@@ -815,10 +914,11 @@ fun SelectorArtistsDialog(
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             modifier = modifier
-                .size(dialogSize)
-                .clip(RoundedCornerShape(20.dp)),
-            color = colorPalette().background1,
-            tonalElevation = 0.dp
+                .size(dialogSize),
+            shape = RoundedCornerShape(28.dp),
+            color = colorPalette().background0,
+            tonalElevation = 0.dp,
+            border = BorderStroke(1.dp, colorPalette().text.copy(alpha = 0.12f))
         ) {
             if (values != null) {
                 val pagerState = rememberPagerState(pageCount = { values.size })
@@ -1103,98 +1203,53 @@ fun InputNumericDialog(
     val errorGreater = stringResource(R.string.value_must_be_greater_than)
 
     Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            modifier = modifier,
-            shape = RoundedCornerShape(20.dp),
-            tonalElevation = 0.dp,
-            color = colorPalette().background1
+        NoirDialogSurface(
+            modifier = modifier.widthIn(min = 280.dp),
+            contentPadding = PaddingValues(24.dp)
         ) {
-            Column(
-                modifier = Modifier
-                    .padding(24.dp)
-                    .widthIn(min = 280.dp)
-            ) {
-                // Title
-                Text(
-                    text = title,
-                    style = typography().m.semiBold,
-                    color = colorPalette().text
-                )
+            NoirDialogTitle(title = title)
 
-                Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-                // Input
-                OutlinedTextField(
-                    value = text,
-                    onValueChange = {
-                        text = it.take(10)
-                        errorMessage = null
-                    },
-                    label = { Text(placeholder) },
-                    isError = errorMessage != null,
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.fillMaxWidth(),
-                    supportingText = {
-                        errorMessage?.let {
-                            Text(
-                                text = it,
-                                color = colorPalette().red,
-                            )
+            NoirTextField(
+                value = text,
+                onValueChange = {
+                    text = it.take(10)
+                    errorMessage = null
+                },
+                label = placeholder,
+                errorMessage = errorMessage,
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            NoirDialogButtons(
+                cancelText = stringResource(R.string.cancel),
+                onCancel = onDismiss,
+                confirmText = stringResource(R.string.confirm),
+                onConfirm = {
+
+                    val numericValue = text.toIntOrNull()
+
+                    when {
+                        text.isEmpty() -> {
+                            errorMessage = errorEmpty
                         }
-                    },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = colorPalette().accent,
-                        unfocusedBorderColor = colorPalette().textDisabled,
-                        cursorColor = colorPalette().text,
-                        focusedTextColor = colorPalette().text,
-                        unfocusedTextColor = colorPalette().text
-                    )
-                )
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    TextButton(onClick = onDismiss) {
-                        Text(stringResource(R.string.cancel), color = colorPalette().text)
-                    }
-
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    Button(
-                        shape = CircleShape,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = colorPalette().text,
-                            contentColor = colorPalette().background0
-                        ),
-                        onClick = {
-
-                            val numericValue = text.toIntOrNull()
-
-                            when {
-                                text.isEmpty() -> {
-                                    errorMessage = errorEmpty
-                                }
-                                numericValue == null -> {
-                                    errorMessage = errorEmpty
-                                }
-                                numericValue < (valueMin.toIntOrNull() ?: 0) -> {
-                                    errorMessage = "$errorGreater $valueMin"
-                                }
-                                else -> {
-                                    setValue(text)
-                                    onDismiss()
-                                }
-                            }
+                        numericValue == null -> {
+                            errorMessage = errorEmpty
                         }
-                    ) {
-                        Text(stringResource(R.string.confirm), color = colorPalette().background0)
+                        numericValue < (valueMin.toIntOrNull() ?: 0) -> {
+                            errorMessage = "$errorGreater $valueMin"
+                        }
+                        else -> {
+                            setValue(text)
+                            onDismiss()
+                        }
                     }
                 }
-            }
+            )
         }
     }
 }
@@ -1362,141 +1417,82 @@ fun InputTextDialog(
     val errorUrl = stringResource(R.string.value_must_be_valid_url)
 
     Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            modifier = modifier,
-            shape = RoundedCornerShape(20.dp),
-            tonalElevation = 0.dp,
-            color = colorPalette().background1
+        NoirDialogSurface(
+            modifier = modifier.widthIn(min = 280.dp),
+            contentPadding = PaddingValues(24.dp)
         ) {
-            Column(
-                modifier = Modifier
-                    .padding(24.dp)
-                    .widthIn(min = 280.dp)
-            ) {
-                // Title
-                Text(
-                    text = title,
-                    style = typography().m.semiBold,
-                    color = colorPalette().text
+            NoirDialogTitle(title = title)
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            NoirTextField(
+                value = text,
+                onValueChange = {
+                    text = it
+                    errorMessage = null
+                },
+                label = placeholder,
+                errorMessage = errorMessage,
+                modifier = Modifier.heightIn(min = 56.dp),
+                singleLine = singleLine,
+                maxLines = if (singleLine) 1 else 5,
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = if (validationType == ValidationType.Ip)
+                        KeyboardType.Number else KeyboardType.Text
                 )
+            )
 
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Input
-                OutlinedTextField(
-                    value = text,
-                    onValueChange = {
-                        text = it
-                        errorMessage = null
-                    },
-                    label = { Text(placeholder) },
-                    isError = errorMessage != null,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 56.dp),
-                    singleLine = singleLine,
-                    maxLines = if (singleLine) 1 else 5,
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = if (validationType == ValidationType.Ip)
-                            KeyboardType.Number else KeyboardType.Text
-                    ),
-                    supportingText = {
-                        errorMessage?.let { error ->
-                            Text(
-                                text = error,
-                                color = colorPalette().red,
-                            )
-                        }
-                    },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = colorPalette().accent,
-                        unfocusedBorderColor = colorPalette().textDisabled,
-                        cursorColor = colorPalette().text,
-                        focusedTextColor = colorPalette().text,
-                        unfocusedTextColor = colorPalette().text
-                    )
+            // Prefix toggle
+            if (prefix.isNotEmpty()) {
+                NoirDialogCheckRow(
+                    label = stringResource(R.string.set_custom_value),
+                    checked = usePrefix,
+                    onCheckedChange = { usePrefix = it },
+                    modifier = Modifier.padding(top = 8.dp),
+                    labelColor = colorPalette().textSecondary
                 )
-
-                // Checkbox
-                if (prefix.isNotEmpty()) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(top = 8.dp)
-                    ) {
-                        Checkbox(
-                            checked = usePrefix,
-                            onCheckedChange = { usePrefix = it },
-                            colors = CheckboxDefaults.colors(
-                                checkedColor = colorPalette().text,
-                                checkmarkColor = colorPalette().background0,
-                                uncheckedColor = colorPalette().textSecondary
-                            )
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            text = stringResource(R.string.set_custom_value),
-                            style = typography().xs.medium,
-                            color = colorPalette().textSecondary
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    TextButton(onClick = onDismiss) {
-                        Text(stringResource(R.string.cancel), color = colorPalette().text)
-                    }
-
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    Button(
-                        shape = CircleShape,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = colorPalette().text,
-                            contentColor = colorPalette().background0
-                        ),
-                        onClick = {
-
-                            val currentValue = text.trim()
-
-                            when {
-                                // 1. Check empty
-                                (currentValue.isEmpty() && setValueRequireNotNull) -> {
-                                    errorMessage = errorEmpty
-                                }
-                                // 2. Check IP
-                                (validationType == ValidationType.Ip && currentValue.isNotEmpty() && !isValidIP(currentValue)) -> {
-                                    errorMessage = errorIp
-                                }
-                                // 3. Check Hex
-                                (validationType == ValidationType.Hex && currentValue.isNotEmpty() && !isValidHex(currentValue)) -> {
-                                    errorMessage = errorHex
-                                }
-                                // 4. Check URL
-                                (validationType == ValidationType.Url && currentValue.isNotEmpty() && !isValidHttpUrl(currentValue)) -> {
-                                    errorMessage = errorUrl
-                                }
-                                // 5. Success
-                                else -> {
-                                    val finalValue = if (usePrefix && prefix.isNotEmpty()) {
-                                        prefix + cleanPrefix(currentValue)
-                                    } else {
-                                        cleanPrefix(currentValue)
-                                    }
-                                    setValue(finalValue)
-                                    onDismiss()
-                                }
-                            }
-                        }
-                    ) {
-                        Text(confirmText ?: stringResource(R.string.confirm), color = colorPalette().background0)
-                    }
-                }
             }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            NoirDialogButtons(
+                cancelText = stringResource(R.string.cancel),
+                onCancel = onDismiss,
+                confirmText = confirmText ?: stringResource(R.string.confirm),
+                onConfirm = {
+
+                    val currentValue = text.trim()
+
+                    when {
+                        // 1. Check empty
+                        (currentValue.isEmpty() && setValueRequireNotNull) -> {
+                            errorMessage = errorEmpty
+                        }
+                        // 2. Check IP
+                        (validationType == ValidationType.Ip && currentValue.isNotEmpty() && !isValidIP(currentValue)) -> {
+                            errorMessage = errorIp
+                        }
+                        // 3. Check Hex
+                        (validationType == ValidationType.Hex && currentValue.isNotEmpty() && !isValidHex(currentValue)) -> {
+                            errorMessage = errorHex
+                        }
+                        // 4. Check URL
+                        (validationType == ValidationType.Url && currentValue.isNotEmpty() && !isValidHttpUrl(currentValue)) -> {
+                            errorMessage = errorUrl
+                        }
+                        // 5. Success
+                        else -> {
+                            val finalValue = if (usePrefix && prefix.isNotEmpty()) {
+                                prefix + cleanPrefix(currentValue)
+                            } else {
+                                cleanPrefix(currentValue)
+                            }
+                            setValue(finalValue)
+                            onDismiss()
+                        }
+                    }
+                }
+            )
         }
     }
 }
@@ -1902,40 +1898,47 @@ fun NewVersionDialog (
         highlights = withContext(Dispatchers.IO) { fetchReleaseHighlights() }
     }
 
-    DefaultDialog(
-        onDismiss = { onDismiss() },
-        horizontalAlignment = Alignment.Start,
-        content = {
+    // Yammbo Noir: black card with a hairline border, mono details, one solid white pill.
+    // Capped at 440 dp so it stays a phone-sized card on tablets.
+    Dialog(
+        onDismissRequest = { onDismiss() },
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        NoirDialogSurface(
+            modifier = Modifier
+                .padding(horizontal = 16.dp, vertical = 10.dp)
+                .widthIn(max = 440.dp)
+                .fillMaxWidth(),
+            contentPadding = PaddingValues(24.dp),
+        ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Image(
                     painter = painterResource(R.drawable.yambo_icon),
                     contentDescription = null,
-                    colorFilter = ColorFilter.tint(colors.onAccent),
+                    colorFilter = ColorFilter.tint(colors.text),
                     modifier = Modifier
                         .size(52.dp)
-                        .clip(androidx.compose.foundation.shape.RoundedCornerShape(14.dp))
-                        .background(colors.accent)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(colors.background0)
+                        .border(1.dp, colors.text.copy(alpha = 0.08f), RoundedCornerShape(14.dp))
                         .padding(12.dp),
                 )
                 Spacer(modifier = Modifier.width(14.dp))
                 Column {
                     BasicText(
-                        text = stringResource(R.string.app_update_headline),
-                        style = typo.m.bold.copy(color = colors.text),
+                        text = stringResource(R.string.app_update_headline_new),
+                        style = typo.m.semiBold.copy(color = colors.text, fontSize = 20.sp),
                     )
-                    Spacer(modifier = Modifier.height(2.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
                     BasicText(
-                        text = stringResource(R.string.app_update_version_line, updatedVersionName),
-                        style = typo.xs.copy(color = colors.textSecondary),
+                        text = "v${updatedVersionName.trim().removePrefix("v")}",
+                        style = typo.xs.mono.copy(color = colors.textSecondary),
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
-            BasicText(
-                text = stringResource(R.string.app_update_whats_new),
-                style = typo.xs.bold.copy(color = colors.textSecondary),
-            )
+            Spacer(modifier = Modifier.height(22.dp))
+            NoirEyebrow(stringResource(R.string.app_update_whats_new))
             Spacer(modifier = Modifier.height(10.dp))
 
             val shown = highlights.ifEmpty {
@@ -1954,8 +1957,8 @@ fun NewVersionDialog (
                     Row(verticalAlignment = Alignment.Top) {
                         Box(
                             modifier = Modifier
-                                .padding(top = 6.dp)
-                                .size(7.dp)
+                                .padding(top = 7.dp)
+                                .size(5.dp)
                                 .clip(CircleShape)
                                 .background(colors.text)
                         )
@@ -1978,8 +1981,9 @@ fun NewVersionDialog (
 
             Spacer(modifier = Modifier.height(22.dp))
 
-            // Primary: download here, with the progress in the dialog; the installer opens by
-            // itself when it is done. Never snoozes: if the user never installs, the prompt returns.
+            // Primary: download here, with the progress in the dialog (or install straight away
+            // when the update was already fetched in the background). Never snoozes: if the user
+            // never installs, the prompt returns.
             val updater = UpdateDownloader
             val thisVersion = updatedVersionName.trim().removePrefix("v")
             val state = downloadState.takeIf { s ->
@@ -1990,13 +1994,6 @@ fun NewVersionDialog (
                     else -> false
                 }
             }
-            val pillModifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(50))
-            val pillText = typo.s.bold.copy(
-                color = colors.onAccent,
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-            )
 
             when (state) {
                 is UpdateDownloader.State.Downloading -> {
@@ -2011,7 +2008,7 @@ fun NewVersionDialog (
                             if (progress != null)
                                 BasicText(
                                     text = "${(progress * 100).toInt()} %",
-                                    style = typo.xs.bold.copy(color = colors.text),
+                                    style = typo.xs.mono.copy(color = colors.text),
                                 )
                         }
                         Spacer(modifier = Modifier.height(10.dp))
@@ -2020,7 +2017,7 @@ fun NewVersionDialog (
                                 .fillMaxWidth()
                                 .height(8.dp)
                                 .clip(RoundedCornerShape(50))
-                                .background(colors.textDisabled.copy(alpha = 0.25f))
+                                .background(colors.text.copy(alpha = 0.12f))
                         ) {
                             Box(
                                 modifier = Modifier
@@ -2032,77 +2029,101 @@ fun NewVersionDialog (
                         }
                         Spacer(modifier = Modifier.height(10.dp))
                         BasicText(
-                            text = stringResource(R.string.app_update_keeps_going),
+                            text = stringResource(R.string.app_update_downloading_hint),
                             style = typo.xxs.copy(color = colors.textSecondary),
                         )
                     }
                 }
 
-                is UpdateDownloader.State.Ready -> BasicText(
-                    text = stringResource(R.string.app_update_install),
-                    style = pillText,
-                    modifier = pillModifier
-                        .background(colors.accent)
-                        .clickable { updater.install(context) }
-                        .padding(vertical = 15.dp),
-                )
+                is UpdateDownloader.State.Ready -> {
+                    BasicText(
+                        text = stringResource(R.string.app_update_ready_hint),
+                        style = typo.xs.copy(color = colors.textSecondary),
+                        modifier = Modifier.padding(bottom = 12.dp),
+                    )
+                    UpdatePrimaryPill(
+                        text = stringResource(R.string.app_update_install),
+                        onClick = { updater.install(context) },
+                    )
+                }
 
-                is UpdateDownloader.State.Failed -> Column {
+                is UpdateDownloader.State.Failed -> {
                     BasicText(
                         text = stringResource(R.string.app_update_failed),
                         style = typo.xs.copy(color = colors.textSecondary),
                         modifier = Modifier.padding(bottom = 12.dp),
                     )
-                    BasicText(
+                    UpdatePrimaryPill(
                         text = stringResource(R.string.app_update_retry),
-                        style = pillText,
-                        modifier = pillModifier
-                            .background(colors.accent)
-                            .clickable { updater.start(context, updatedVersionName) }
-                            .padding(vertical = 15.dp),
+                        onClick = { updater.start(context, updatedVersionName) },
                     )
-                    BasicText(
-                        text = stringResource(R.string.app_update_open_browser),
-                        style = typo.xs.semiBold.copy(
-                            color = colors.text,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                        ),
-                        modifier = pillModifier
-                            .clickable { updater.openInBrowser(context, updatedVersionName) }
-                            .padding(vertical = 12.dp),
+                    UpdateTextAction(
+                        text = stringResource(R.string.app_update_browser),
+                        color = colors.text,
+                        onClick = { updater.openInBrowser(context, updatedVersionName) },
                     )
                 }
 
-                else -> BasicText(
+                else -> UpdatePrimaryPill(
                     text = stringResource(R.string.app_update_install_now),
-                    style = pillText,
-                    modifier = pillModifier
-                        .background(colors.accent)
-                        .clickable { updater.start(context, updatedVersionName) }
-                        .padding(vertical = 15.dp),
+                    onClick = { updater.start(context, updatedVersionName) },
                 )
             }
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // Snooze: stamps the version as seen and closes.
-            BasicText(
+            // Snooze: stamps the version as seen and closes. With the APK fetched in the background
+            // the installer would otherwise open by itself on every start, so it is held too.
+            UpdateTextAction(
                 text = stringResource(R.string.app_update_later),
-                style = typo.xs.semiBold.copy(
-                    color = colors.textSecondary,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(50))
-                    // Once the download is under way it just closes: the installer still opens
-                    // when it finishes, and a snooze would hide the prompt if the user backs out.
-                    .clickable { if (state == null) snoozeAndDismiss() else onDismiss() }
-                    .padding(vertical = 12.dp),
+                color = colors.textSecondary,
+                onClick = {
+                    UpdateDownloader.holdAutoInstall()
+                    snoozeAndDismiss()
+                },
             )
         }
+    }
+}
 
-    )
+/** The one solid white pill of the update dialog: black text on white. */
+@Composable
+private fun UpdatePrimaryPill(text: String, onClick: () -> Unit) {
+    val colors = colorPalette()
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(52.dp)
+            .clip(RoundedCornerShape(50))
+            .background(colors.text)
+            .clickable(onClick = onClick)
+    ) {
+        BasicText(
+            text = text,
+            style = typography().s.bold.copy(color = colors.background0),
+            maxLines = 1,
+        )
+    }
+}
+
+/** A secondary action: plain centered text, no fill. */
+@Composable
+private fun UpdateTextAction(text: String, color: Color, onClick: () -> Unit) {
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(44.dp)
+            .clip(RoundedCornerShape(50))
+            .clickable(onClick = onClick)
+    ) {
+        BasicText(
+            text = text,
+            style = typography().xs.semiBold.copy(color = color),
+            maxLines = 1,
+        )
+    }
 }
 
 /**
@@ -2244,8 +2265,8 @@ fun BlurParamsDialog(
                                 .background(
                                     brush = Brush.linearGradient(
                                         listOf(
-                                            colorPalette.favoritesIcon,
-                                            Color.Red
+                                            colorPalette.text,
+                                            colorPalette.text
                                         )
                                     )
                                 )
@@ -2392,8 +2413,8 @@ fun BlurParamsDialog(
                                     .background(
                                         brush = Brush.linearGradient(
                                             listOf(
-                                                colorPalette.favoritesIcon,
-                                                Color.Red
+                                                colorPalette.text,
+                                                colorPalette.text
                                             )
                                         )
                                     )
@@ -2503,8 +2524,8 @@ fun BlurParamsDialog(
                                     .background(
                                         brush = Brush.linearGradient(
                                             listOf(
-                                                colorPalette.favoritesIcon,
-                                                Color.Red
+                                                colorPalette.text,
+                                                colorPalette.text
                                             )
                                         )
                                     )
@@ -2792,7 +2813,7 @@ fun SongMatchingDialog(
             val binder = LocalPlayerServiceBinder.current
             val songThumbnailSizeDp = Dimensions.thumbnails.song
             val songThumbnailSizePx = songThumbnailSizeDp.px
-            val disableScrollingText by rememberPreference(disableScrollingTextKey, false)
+            val disableScrollingText by rememberPreference(disableScrollingTextKey, true)
 
             LaunchedEffect(Unit,startSearch) {
                 withContext(Dispatchers.IO) {
@@ -3038,8 +3059,8 @@ fun SongMatchingDialog(
                                   .background(
                                       brush = Brush.linearGradient(
                                           listOf(
-                                              colorPalette.favoritesIcon,
-                                              Color.Red
+                                              colorPalette.text,
+                                              colorPalette.text
                                           )
                                       )
                                   )
@@ -3110,7 +3131,7 @@ fun SongMatchingDialog(
                             modifier = Modifier
                                 .progress(sliderPositions = sliderPositions)
                                 .background(
-                                    brush = Brush.linearGradient(listOf(colorPalette.favoritesIcon, Color.Red))
+                                    brush = Brush.linearGradient(listOf(colorPalette.text, colorPalette.text))
                                 )
                         )
                     }
@@ -3234,8 +3255,8 @@ fun PlaybackParamsDialog(
                                 .background(
                                     brush = Brush.linearGradient(
                                         listOf(
-                                            colorPalette.favoritesIcon,
-                                            Color.Red
+                                            colorPalette.text,
+                                            colorPalette.text
                                         )
                                     )
                                 )
@@ -3326,8 +3347,8 @@ fun PlaybackParamsDialog(
                                 .background(
                                     brush = Brush.linearGradient(
                                         listOf(
-                                            colorPalette.favoritesIcon,
-                                            Color.Red
+                                            colorPalette.text,
+                                            colorPalette.text
                                         )
                                     )
                                 )
@@ -3426,8 +3447,8 @@ fun PlaybackParamsDialog(
                                     .background(
                                         brush = Brush.linearGradient(
                                             listOf(
-                                                colorPalette.favoritesIcon,
-                                                Color.Red
+                                                colorPalette.text,
+                                                colorPalette.text
                                             )
                                         )
                                     )
@@ -3527,8 +3548,8 @@ fun PlaybackParamsDialog(
                                     .background(
                                         brush = Brush.linearGradient(
                                             listOf(
-                                                colorPalette.favoritesIcon,
-                                                Color.Red
+                                                colorPalette.text,
+                                                colorPalette.text
                                             )
                                         )
                                     )
@@ -3626,8 +3647,8 @@ fun PlaybackParamsDialog(
                                     .background(
                                         brush = Brush.linearGradient(
                                             listOf(
-                                                colorPalette.favoritesIcon,
-                                                Color.Red
+                                                colorPalette.text,
+                                                colorPalette.text
                                             )
                                         )
                                     )

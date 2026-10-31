@@ -4,7 +4,6 @@ import android.content.Context
 import android.telephony.TelephonyManager
 import com.yambo.music.BuildConfig
 import io.ktor.client.HttpClient
-import io.ktor.client.call.body
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
@@ -12,6 +11,7 @@ import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.parameter
+import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpHeaders
 import io.ktor.http.isSuccess
 import io.ktor.serialization.kotlinx.json.json
@@ -19,10 +19,15 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import it.fast4x.riplay.utils.appContext
 import timber.log.Timber
+import java.io.File
+import java.security.MessageDigest
 import java.net.URLEncoder
 import java.util.Locale
 
@@ -129,29 +134,76 @@ object RadioBrowser {
             // A host that accepts the connection and then stalls would otherwise hold the
             // failover loop for minutes. Cap each attempt instead.
             install(HttpTimeout) {
-                requestTimeoutMillis = 12_000
-                connectTimeoutMillis = 8_000
-                socketTimeoutMillis = 12_000
+                requestTimeoutMillis = 8_000
+                connectTimeoutMillis = 5_000
+                socketTimeoutMillis = 8_000
             }
             defaultRequest { header(HttpHeaders.UserAgent, USER_AGENT) }
         }
     }
 
+    // The directory is, in practice, one server (`all.` and de1 resolve to the same machine)
+    // and it goes down for hours at a time. Every good answer is kept on disk, so an outage
+    // shows the last stations seen instead of an empty tab.
+    private const val NETWORK_BUDGET_MILLIS = 7_000L
+
+    private val cacheDir by lazy { File(appContext().filesDir, "radio-browser") }
+
+    private fun cacheFile(endpoint: String, params: Map<String, String>): File {
+        val query = params.filterValues { it.isNotBlank() }.toSortedMap().entries
+            .joinToString("&") { "${it.key}=${it.value}" }
+        val digest = MessageDigest.getInstance("SHA-1").digest("$endpoint?$query".toByteArray())
+        return File(cacheDir, digest.joinToString("") { "%02x".format(it) } + ".json")
+    }
+
+    private const val CACHE_MAX_FILES = 150
+
+    // Every query, page and typed name gets its own file; keep only the most recent ones.
+    private fun pruneCache() {
+        val files = cacheDir.listFiles() ?: return
+        if (files.size <= CACHE_MAX_FILES) return
+        files.sortedByDescending { it.lastModified() }.drop(CACHE_MAX_FILES).forEach { it.delete() }
+    }
+
     private suspend inline fun <reified T> fetch(endpoint: String, params: Map<String, String>): Result<T> {
+        val cached = cacheFile(endpoint, params)
         var last: Throwable? = null
-        for (host in hosts) {
-            try {
-                val response = client.get("$host/$endpoint") {
-                    params.forEach { (key, value) -> if (value.isNotBlank()) parameter(key, value) }
+        // One budget for all hosts: they are the same server, so waiting on each in turn only
+        // doubles the time before the cached copy is shown.
+        val fresh = withTimeoutOrNull(NETWORK_BUDGET_MILLIS) {
+            for (host in hosts) {
+                try {
+                    val response = client.get("$host/$endpoint") {
+                        params.forEach { (key, value) -> if (value.isNotBlank()) parameter(key, value) }
+                    }
+                    if (!response.status.isSuccess()) error("Radio Browser answered ${response.status.value}")
+                    val text = response.bodyAsText()
+                    val value = json.decodeFromString<T>(text)
+                    withContext(Dispatchers.IO) {
+                        runCatching {
+                            cacheDir.mkdirs()
+                            cached.writeText(text)
+                            pruneCache()
+                        }.onFailure { Timber.d("RadioBrowser cache write failed: ${it.message}") }
+                    }
+                    return@withTimeoutOrNull value
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Throwable) {
+                    Timber.w("RadioBrowser $host/$endpoint failed: ${e.message}")
+                    last = e
                 }
-                if (!response.status.isSuccess()) error("Radio Browser answered ${response.status.value}")
-                return Result.success(response.body<T>())
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Throwable) {
-                Timber.w("RadioBrowser $host/$endpoint failed: ${e.message}")
-                last = e
             }
+            null
+        }
+        if (fresh != null) return Result.success(fresh)
+
+        val stale = withContext(Dispatchers.IO) {
+            runCatching { json.decodeFromString<T>(cached.readText()) }.getOrNull()
+        }
+        if (stale != null) {
+            Timber.i("RadioBrowser $endpoint served from the offline copy")
+            return Result.success(stale)
         }
         return Result.failure(last ?: IllegalStateException("Radio Browser unreachable"))
     }
@@ -164,27 +216,40 @@ object RadioBrowser {
         filters: StationFilters,
         offset: Int = 0,
         limit: Int = PAGE_SIZE,
-    ): Result<StationPage> = fetch<List<RadioStation>>(
-        "stations/search",
-        mapOf(
-            "name" to filters.name.trim(),
-            "tag" to filters.tag.trim(),
-            "countrycode" to filters.countryCode.trim(),
-            "order" to filters.order.apiValue,
-            // name reads naturally ascending; every other order wants biggest first
-            "reverse" to (filters.order != StationOrder.Name).toString(),
-            "offset" to offset.toString(),
-            "limit" to limit.toString(),
-            "hidebroken" to "true",
-        ),
-    ).map { list ->
-        StationPage(
-            stations = list
-                .filter { it.streamUrl.startsWith("http", ignoreCase = true) }
-                .distinctBy { it.stationuuid },
-            apiCount = list.size,
-        )
+    ): Result<StationPage> =
+        fetch<List<RadioStation>>("stations/search", searchParams(filters, offset, limit)).map(::toPage)
+
+    /**
+     * The last answer seen for this exact query, straight from disk and without touching the
+     * network, so a screen can show it at once and refresh behind it. Null when never loaded.
+     */
+    suspend fun cachedStations(
+        filters: StationFilters,
+        offset: Int = 0,
+        limit: Int = PAGE_SIZE,
+    ): StationPage? = withContext(Dispatchers.IO) {
+        val file = cacheFile("stations/search", searchParams(filters, offset, limit))
+        runCatching { toPage(json.decodeFromString<List<RadioStation>>(file.readText())) }.getOrNull()
     }
+
+    private fun searchParams(filters: StationFilters, offset: Int, limit: Int) = mapOf(
+        "name" to filters.name.trim(),
+        "tag" to filters.tag.trim(),
+        "countrycode" to filters.countryCode.trim(),
+        "order" to filters.order.apiValue,
+        // name reads naturally ascending; every other order wants biggest first
+        "reverse" to (filters.order != StationOrder.Name).toString(),
+        "offset" to offset.toString(),
+        "limit" to limit.toString(),
+        "hidebroken" to "true",
+    )
+
+    private fun toPage(list: List<RadioStation>) = StationPage(
+        stations = list
+            .filter { it.streamUrl.startsWith("http", ignoreCase = true) }
+            .distinctBy { it.stationuuid },
+        apiCount = list.size,
+    )
 
     /**
      * Most listened stations for the Home shelf: the listener's country first, topped up with

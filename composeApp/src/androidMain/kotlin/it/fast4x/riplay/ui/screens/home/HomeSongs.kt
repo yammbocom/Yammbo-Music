@@ -139,6 +139,8 @@ import it.fast4x.riplay.ui.components.SwipeablePlaylistItem
 import it.fast4x.riplay.ui.components.themed.ConfirmationDialog
 import it.fast4x.riplay.ui.components.themed.FloatingActionsContainerWithScrollToTop
 import it.fast4x.riplay.ui.components.themed.FolderItemMenu
+import it.fast4x.riplay.ui.components.themed.NoirChip
+import it.fast4x.riplay.ui.screens.album.NoirListSearchField
 import it.fast4x.riplay.ui.components.themed.HeaderIconButton
 import it.fast4x.riplay.ui.components.themed.HeaderInfo
 import it.fast4x.riplay.ui.components.themed.HeaderWithIcon
@@ -359,7 +361,7 @@ fun HomeSongs(
 
     val excludeSongWithDurationLimit by rememberPreference(excludeSongsWithDurationLimitKey, DurationInMinutes.Disabled)
     val hapticFeedback = LocalHapticFeedback.current
-    val disableScrollingText by rememberPreference(disableScrollingTextKey, false)
+    val disableScrollingText by rememberPreference(disableScrollingTextKey, true)
 
     val blacklisted = remember {
         Database.blacklisted(listOf(BlacklistType.Song.name, BlacklistType.Video.name, BlacklistType.Folder.name))
@@ -691,10 +693,10 @@ fun HomeSongs(
                             )
                         }
 
-                        LibraryCircleButton(
-                            iconId = R.drawable.search,
-                            contentDescription = stringResource(R.string.mymusic_action_search),
-                            active = searching,
+                        NoirChip(
+                            text = stringResource(R.string.mymusic_action_search),
+                            selected = false,
+                            icon = R.drawable.search,
                             onClick = { searching = !searching }
                         )
 
@@ -790,9 +792,10 @@ fun HomeSongs(
                             )
                         }
 
-                        LibraryCircleButton(
-                            iconId = R.drawable.ellipsis_horizontal,
-                            contentDescription = stringResource(R.string.mymusic_action_more),
+                        NoirChip(
+                            text = stringResource(R.string.library_tools_more),
+                            selected = false,
+                            icon = R.drawable.ellipsis_horizontal,
                             onClick = {
                                 menuState.display {
                                     PlaylistsItemMenu(
@@ -886,47 +889,30 @@ fun HomeSongs(
                         )
                     }
 
-                    // 4. Search Bar
+                    // 4. Search field (Noir pill)
                     AnimatedVisibility(visible = searching) {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Bottom,
-                            modifier = Modifier.padding(all = 10.dp).fillMaxWidth()
-                        ) {
-                            val focusRequester = remember { FocusRequester() }
-                            val focusManager = LocalFocusManager.current
-                            val keyboardController = LocalSoftwareKeyboardController.current
+                        val focusRequester = remember { FocusRequester() }
+                        val focusManager = LocalFocusManager.current
+                        val keyboardController = LocalSoftwareKeyboardController.current
 
-                            LaunchedEffect(searching) { focusRequester.requestFocus() }
+                        LaunchedEffect(searching) { focusRequester.requestFocus() }
 
-                            BasicTextField(
-                                value = filter ?: "", onValueChange = { filter = it },
-                                textStyle = typography().xs.semiBold, singleLine = true, maxLines = 1,
-                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                                keyboardActions = KeyboardActions(onDone = {
-                                    if (filter.isNullOrBlank()) filter = ""; focusManager.clearFocus()
-                                }),
-                                cursorBrush = SolidColor(colorPalette().text),
-                                decorationBox = { innerTextField ->
-                                    Box(contentAlignment = Alignment.CenterStart, modifier = Modifier.weight(1f).padding(horizontal = 10.dp)) {
-                                        IconButton(onClick = {}, icon = R.drawable.search, color = colorPalette().favoritesIcon, modifier = Modifier.align(Alignment.CenterStart).size(16.dp))
-                                    }
-                                    Box(contentAlignment = Alignment.CenterStart, modifier = Modifier.weight(1f).padding(horizontal = 30.dp)) {
-                                        androidx.compose.animation.AnimatedVisibility(visible = filter?.isEmpty() ?: true, enter = fadeIn(tween(100)), exit = fadeOut(tween(100))) {
-                                            BasicText(text = stringResource(R.string.search), maxLines = 1, overflow = TextOverflow.Ellipsis, style = typography().xs.semiBold.secondary.copy(color = colorPalette().textDisabled))
-                                        }
-                                        innerTextField()
+                        NoirListSearchField(
+                            value = filter ?: "",
+                            onValueChange = { filter = it },
+                            hint = stringResource(R.string.search),
+                            fieldModifier = Modifier
+                                .focusRequester(focusRequester)
+                                .onFocusChanged {
+                                    if (!it.hasFocus) {
+                                        keyboardController?.hide()
+                                        if (filter?.isBlank() == true) { filter = null; searching = false }
                                     }
                                 },
-                                modifier = Modifier
-                                    .height(30.dp).fillMaxWidth().background(colorPalette().background4, shape = thumbnailRoundness.shape())
-                                    .focusRequester(focusRequester).onFocusChanged {
-                                        if (!it.hasFocus) {
-                                            keyboardController?.hide()
-                                            if (filter?.isBlank() == true) { filter = null; searching = false }
-                                        }
-                                    }
-                            )
-                        }
+                            onDone = {
+                                if (filter.isNullOrBlank()) filter = ""; focusManager.clearFocus()
+                            }
+                        )
                     }
                 }
             }
@@ -1350,7 +1336,7 @@ fun HomeSongs(
     val excludeSongWithDurationLimit by rememberPreference(excludeSongsWithDurationLimitKey, DurationInMinutes.Disabled)
     val hapticFeedback = LocalHapticFeedback.current
 
-    val disableScrollingText by rememberPreference(disableScrollingTextKey, false)
+    val disableScrollingText by rememberPreference(disableScrollingTextKey, true)
 
     val blacklisted = remember {
         Database.blacklisted(listOf(BlacklistType.Song.name, BlacklistType.Video.name, BlacklistType.Folder.name))

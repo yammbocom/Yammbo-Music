@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_update_channel_name">Updates</string>
+    <string name="app_update_done_title">Update installed</string>
+    <string name="app_update_done_text">Yammbo Music was updated to %1$s</string>
+    <string name="app_update_headline_new">New version available</string>
+    <string name="app_update_ready_hint">The update is already downloaded.</string>
+    <string name="app_update_downloading_hint">You can close this: the download keeps going in the background.</string>
+    <string name="app_update_browser">Download in the browser</string>
+</resources>

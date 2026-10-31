@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.derivedStateOf
@@ -27,6 +28,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
@@ -36,6 +38,7 @@ import androidx.compose.ui.input.pointer.util.addPointerInputChange
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Velocity
 import androidx.media3.common.util.UnstableApi
 import kotlinx.coroutines.CoroutineScope
@@ -51,6 +54,7 @@ fun BottomSheet(
     onDismiss: (() -> Unit)? = null,
     collapsedContent: @Composable BoxScope.() -> Unit,
     contentAlwaysAvailable: Boolean = false,
+    morphFromMini: Boolean = false,
     content: @Composable BoxScope.() -> Unit,
 ) {
     Box(
@@ -97,7 +101,20 @@ fun BottomSheet(
             Box(
                 modifier = Modifier
                     .graphicsLayer {
-                        alpha = 0f + (state.progress * 16).coerceAtMost(1f)
+                        val progress = state.progress
+                        if (morphFromMini) {
+                            // Grows out of the mini player: fades in slower, scales up from the
+                            // bottom edge and rounds its corners until fully open.
+                            alpha = (progress * 3f).coerceIn(0f, 1f)
+                            val scale = 0.92f + 0.08f * progress
+                            scaleX = scale
+                            scaleY = scale
+                            transformOrigin = TransformOrigin(0.5f, 1f)
+                            clip = progress < 1f
+                            shape = RoundedCornerShape(28.dp.toPx() * (1f - progress).coerceIn(0f, 1f))
+                        } else {
+                            alpha = 0f + (progress * 16).coerceAtMost(1f)
+                        }
                     }
                     //.navigationBarsPadding()
             ) {
@@ -190,12 +207,12 @@ class BottomSheetState(
         expand(SpringSpec())
     }
 
-    fun collapseSoft() {
-        collapse(tween(300))
+    fun collapseSoft(animationSpec: AnimationSpec<Dp> = tween(300)) {
+        collapse(animationSpec)
     }
 
-    fun expandSoft() {
-        expand(tween(300))
+    fun expandSoft(animationSpec: AnimationSpec<Dp> = tween(300)) {
+        expand(animationSpec)
     }
 
     fun dismissSoft() = dismiss(tween(300))

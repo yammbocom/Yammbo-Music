@@ -31,6 +31,8 @@ fun PodcastScreen(
     PageContainer(
         navController = navController,
         miniPlayer = miniPlayer,
+        // Cover-led screen: no app bar, the header carries the back button.
+        showTopBar = false,
     ) { currentTabIndex ->
         when (currentTabIndex) {
             0 -> Podcast(

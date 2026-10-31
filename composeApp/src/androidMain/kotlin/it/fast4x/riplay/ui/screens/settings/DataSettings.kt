@@ -68,6 +68,8 @@ import it.fast4x.riplay.extensions.preferences.coilDiskCacheMaxSizeKey
 import it.fast4x.riplay.extensions.preferences.pauseSearchHistoryKey
 import it.fast4x.riplay.extensions.preferences.rememberPreference
 import it.fast4x.riplay.extensions.preferences.autoDownloadFavoritesKey
+import it.fast4x.riplay.extensions.preferences.dataSaverMobileKey
+import it.fast4x.riplay.extensions.preferences.downloadWifiOnlyKey
 import it.fast4x.riplay.extensions.preferences.playLocalCopyKey
 import it.fast4x.riplay.extensions.ads.PremiumFeature
 import it.fast4x.riplay.extensions.ads.PremiumGuard
@@ -237,7 +239,9 @@ fun DataSettings() {
     var restartService by rememberSaveable { mutableStateOf(false) }
 
     // Data saver: read by the player on every song, so no restart is needed.
+    var dataSaverMobile by rememberPreference(dataSaverMobileKey, true)
     var playLocalCopy by rememberPreference(playLocalCopyKey, true)
+    var downloadWifiOnly by rememberPreference(downloadWifiOnlyKey, false)
     var autoDownloadFavorites by rememberPreference(autoDownloadFavoritesKey, false)
     var onUnmeteredNetwork by remember { mutableStateOf(!context.isConnectionMetered()) }
     var resumeTick by remember { mutableIntStateOf(0) }
@@ -359,10 +363,24 @@ fun DataSettings() {
 
         SettingsCard(title = stringResource(R.string.data_saver)) {
             SwitchSettingEntry(
+                title = stringResource(R.string.data_saver_mobile_title),
+                text = stringResource(R.string.data_saver_mobile_text),
+                isChecked = dataSaverMobile,
+                onCheckedChange = { dataSaverMobile = it }
+            )
+
+            SwitchSettingEntry(
                 title = stringResource(R.string.play_local_copy),
                 text = stringResource(R.string.play_local_copy_description),
                 isChecked = playLocalCopy,
                 onCheckedChange = { playLocalCopy = it }
+            )
+
+            SwitchSettingEntry(
+                title = stringResource(R.string.download_wifi_only_title),
+                text = stringResource(R.string.download_wifi_only_text),
+                isChecked = downloadWifiOnly,
+                onCheckedChange = { downloadWifiOnly = it }
             )
 
             SwitchSettingEntry(

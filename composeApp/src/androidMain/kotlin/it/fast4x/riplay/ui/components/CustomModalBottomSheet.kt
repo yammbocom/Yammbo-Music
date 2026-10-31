@@ -28,6 +28,8 @@ import androidx.core.view.WindowCompat
 import it.fast4x.riplay.enums.ColorPaletteMode
 import it.fast4x.riplay.extensions.preferences.colorPaletteModeKey
 import it.fast4x.riplay.extensions.preferences.rememberPreference
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.unit.dp
 import it.fast4x.riplay.utils.colorPalette
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -40,13 +42,14 @@ fun CustomModalBottomSheet(
         skipPartiallyExpanded = true
     ),
     sheetGestureEnabled: Boolean = true,
-    shape: Shape = BottomSheetDefaults.ExpandedShape,
-    containerColor: Color = colorPalette().background0,
+    // Yammbo Noir: the sheet is a #0D0D0E slab with 28dp top corners and a faint handle.
+    shape: Shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+    containerColor: Color = if (colorPalette().isDark) Color(0xff0D0D0E) else colorPalette().background0,
     contentColor: Color = contentColorFor(containerColor),
     tonalElevation: Dp = BottomSheetDefaults.Elevation,
-    scrimColor: Color = BottomSheetDefaults.ScrimColor,
+    scrimColor: Color = Color.Black.copy(alpha = 0.6f),
     dragHandle: @Composable (() -> Unit)? = {
-        BottomSheetDefaults.DragHandle()
+        BottomSheetDefaults.DragHandle(color = colorPalette().text.copy(alpha = 0.22f))
     },
     content: @Composable ColumnScope.() -> Unit,
 ) {

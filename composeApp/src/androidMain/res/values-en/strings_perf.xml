@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="data_saver_mobile_title">Data saver</string>
+    <string name="data_saver_mobile_text">On mobile data: lighter covers and less preloading. Audio quality does not change.</string>
+</resources>

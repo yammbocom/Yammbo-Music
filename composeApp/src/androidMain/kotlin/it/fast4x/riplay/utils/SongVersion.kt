@@ -69,6 +69,9 @@ object SongVersion {
 
     const val CHOSEN_VIDEO_EXTRA = "videoChosen"
 
+    /** Pure session-cache read (keyed by the video id, as [resolve] stores it): no network. */
+    fun cachedSongFor(videoId: String): MediaItem? = cache[videoId]?.mediaItem
+
     @OptIn(UnstableApi::class)
     suspend fun resolve(video: MediaItem): Match? {
         val videoId = video.mediaId

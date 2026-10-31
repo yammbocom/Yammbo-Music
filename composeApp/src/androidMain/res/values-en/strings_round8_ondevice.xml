@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ondevice_artist_songs_count">%1$d songs on your device</string>
+    <string name="ondevice_artist_song_one">1 song on your device</string>
+    <string name="ondevice_artist_view_profile">View profile on YouTube Music</string>
+    <string name="ondevice_folder_empty_title">No songs in this folder</string>
+    <string name="ondevice_folder_empty_body">Copy music to this folder on your device and open it again.</string>
+    <string name="ondevice_folder_search_hint">Search in this folder</string>
+</resources>

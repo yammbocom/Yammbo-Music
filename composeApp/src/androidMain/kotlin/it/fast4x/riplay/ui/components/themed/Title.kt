@@ -13,6 +13,11 @@ import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import it.fast4x.riplay.ui.styling.mono
+import it.fast4x.riplay.ui.styling.tight
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -45,27 +50,29 @@ fun Title(
                 if (enableClick)
                     onClick?.invoke()
             }
-            .padding(horizontal = 12.dp, vertical = verticalPadding)
+            .padding(start = 16.dp, end = 12.dp, top = verticalPadding + 6.dp, bottom = verticalPadding)
     ) {
+        // Yammbo Noir: big bold section title; the plain "more" arrow becomes a mono "SEE ALL".
         Text(
             text = title,
-            style = TextStyle(
-                fontSize = typography().l.semiBold.fontSize,
-                fontWeight = typography().l.semiBold.fontWeight,
-                color = colorPalette().text,
-                textAlign = TextAlign.Start
-            ),
+            style = noirTitleStyle(),
             modifier = Modifier.weight(1f)
 
         )
 
         if (onClick != null && enableClick) {
-            Icon(
-                painter = painterResource(icon ?: R.drawable.arrow_forward),
-                contentDescription = null,
-                tint = colorPalette().text,
-                modifier = Modifier.size(22.dp)
-            )
+            if (icon == null || icon == R.drawable.arrow_forward)
+                Text(
+                    text = stringResource(R.string.noir_see_all).uppercase(),
+                    style = typography().xxxs.mono.copy(color = colorPalette().text, fontSize = 11.sp)
+                )
+            else
+                Icon(
+                    painter = painterResource(icon),
+                    contentDescription = null,
+                    tint = colorPalette().text,
+                    modifier = Modifier.size(22.dp)
+                )
         }
     }
 }
@@ -89,16 +96,11 @@ fun Title2Actions(
                 if (enableClick)
                     onClick1?.invoke()
             }
-            .padding(horizontal = 12.dp, vertical = 12.dp)
+            .padding(start = 16.dp, end = 12.dp, top = 18.dp, bottom = 12.dp)
     ) {
         Text(
             text = title,
-            style = TextStyle(
-                fontSize = typography().l.semiBold.fontSize,
-                fontWeight = typography().l.semiBold.fontWeight,
-                color = colorPalette().text,
-                textAlign = TextAlign.Start
-            ),
+            style = noirTitleStyle(),
             modifier = Modifier.weight(1f)
 
         )
@@ -139,12 +141,7 @@ fun TitleSection(
 ) {
     Text(
         text = title,
-        style = TextStyle(
-            fontSize = typography().xl.bold.fontSize,
-            fontWeight = typography().xl.bold.fontWeight,
-            color = colorPalette().text,
-            textAlign = TextAlign.Start
-        ),
+        style = noirTitleStyle(),
         modifier = modifier.padding(end = 12.dp)
 
     )
@@ -158,13 +155,15 @@ fun TitleMiniSection(
     modifier: Modifier = Modifier
 ) {
     Text(
-        text = title,
-        style = TextStyle(
-            fontSize = typography().xs.bold.fontSize,
-            fontWeight = typography().xs.bold.fontWeight,
-            color = colorPalette().text,
-            textAlign = TextAlign.Start
-        ),
+        text = title.uppercase(),
+        style = typography().xxxs.mono.copy(color = colorPalette().textSecondary, fontSize = 11.sp),
         modifier = modifier.padding(top = 5.dp)
     )
 }
+@Composable
+private fun noirTitleStyle(): TextStyle = typography().xl.tight.copy(
+    color = colorPalette().text,
+    fontWeight = FontWeight.Bold,
+    fontSize = 22.sp,
+    textAlign = TextAlign.Start
+)

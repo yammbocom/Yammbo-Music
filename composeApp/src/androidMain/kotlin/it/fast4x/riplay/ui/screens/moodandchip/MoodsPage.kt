@@ -3,7 +3,9 @@ package it.fast4x.riplay.ui.screens.moodandchip
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -17,7 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
@@ -41,8 +43,13 @@ import it.fast4x.riplay.enums.NavigationBarPosition
 import it.fast4x.riplay.data.models.toUiMood
 import it.fast4x.riplay.ui.components.ShimmerHost
 import it.fast4x.riplay.ui.components.themed.HeaderPlaceholder
-import it.fast4x.riplay.ui.components.themed.HeaderWithIcon
-import it.fast4x.riplay.ui.components.themed.MoodGridItemColored
+import it.fast4x.riplay.ui.components.CollapsingTitleEffect
+import it.fast4x.riplay.ui.components.NoirContentMax
+import it.fast4x.riplay.ui.components.rememberNoirLayout
+import it.fast4x.riplay.ui.components.cascadeEntry
+import it.fast4x.riplay.ui.components.themed.NoirTile
+import it.fast4x.riplay.ui.screens.newreleases.NoirPageTitle
+import it.fast4x.riplay.ui.screens.newreleases.rememberGridTitleCollapse
 import it.fast4x.riplay.ui.components.themed.TextPlaceholder
 import it.fast4x.riplay.ui.items.AlbumItemPlaceholder
 import it.fast4x.riplay.ui.styling.Dimensions
@@ -67,6 +74,8 @@ fun MoodsPage(
     val thumbnailSizeDp = Dimensions.thumbnails.album + 24.dp
 
     val moodAngGenresLazyGridState = rememberLazyGridState()
+    val titleProgress = rememberGridTitleCollapse(moodAngGenresLazyGridState)
+    CollapsingTitleEffect(stringResource(R.string.moods_and_genres), titleProgress)
 
     val endPaddingValues = windowInsets.only(WindowInsetsSides.End).asPaddingValues()
 
@@ -91,9 +100,14 @@ fun MoodsPage(
             LazyListContainer(
                 state = moodAngGenresLazyGridState,
             ) {
+                // 150dp cells on phones (as before), 180dp on tablets, capped at grid width.
+                val noirLayout = rememberNoirLayout()
                 LazyVerticalGrid(
                     state = moodAngGenresLazyGridState,
-                    columns = GridCells.Adaptive(Dimensions.thumbnails.album + 24.dp),
+                    columns = GridCells.Adaptive(if (noirLayout.isCompact) 150.dp else 180.dp),
+                    contentPadding = PaddingValues(horizontal = noirLayout.sidePadding(NoirContentMax.Grid)),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
                     modifier = Modifier
                         .background(colorPalette().background0)
                         .fillMaxSize()
@@ -103,25 +117,22 @@ fun MoodsPage(
                         contentType = 0,
                         span = { GridItemSpan(maxLineSpan) }
                     ) {
-                        HeaderWithIcon(
-                            title = stringResource(R.string.moods_and_genres),
-                            iconId = R.drawable.search,
-                            enabled = true,
-                            showIcon = false,
-                            modifier = Modifier,
-                            onClick = {}
+                        NoirPageTitle(
+                            text = stringResource(R.string.moods_and_genres),
+                            progress = titleProgress,
+                            horizontalPadding = 0.dp
                         )
                     }
 
                     discoverPage?.getOrNull()?.let { page ->
                         if (page.moods.isNotEmpty()) {
 
-                            items(
+                            itemsIndexed(
                                 items = page.moods.sortedBy { it.title },
-                                key = { it.endpoint.params ?: it.title }
-                            ) {
-                                MoodGridItemColored(
-                                    mood = it,
+                                key = { _, mood -> mood.endpoint.params ?: mood.title }
+                            ) { index, it ->
+                                NoirTile(
+                                    text = it.title,
                                     onClick = {
                                         it.endpoint.browseId?.let { _ ->
                                             navController.currentBackStackEntry?.savedStateHandle?.set(
@@ -131,17 +142,18 @@ fun MoodsPage(
                                             navController.navigate(NavRoutes.mood.name)
                                         }
                                     },
-                                    thumbnailSizeDp = thumbnailSizeDp,
                                     modifier = Modifier
                                         .animateItem()
-
+                                        .cascadeEntry(index + 1)
+                                        .fillMaxWidth()
+                                        .height(84.dp)
                                 )
                             }
                         }
 
                     }
 
-                    item(key = "bottom") {
+                    item(key = "bottom", span = { GridItemSpan(maxLineSpan) }) {
                         Spacer(modifier = Modifier.height(Dimensions.bottomSpacer))
                     }
 

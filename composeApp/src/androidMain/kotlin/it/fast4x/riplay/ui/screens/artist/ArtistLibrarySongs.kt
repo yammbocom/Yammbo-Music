@@ -84,7 +84,7 @@ fun ArtistLibrarySongs(
     var sortBy by rememberPreference(songSortByKey, SongSortBy.DateAdded)
     var sortOrder by rememberPreference(songSortOrderKey, SortOrder.Descending)
 
-    val disableScrollingText by rememberPreference(disableScrollingTextKey, false)
+    val disableScrollingText by rememberPreference(disableScrollingTextKey, true)
 
     LaunchedEffect(Unit, sortBy, sortOrder) {
         Database.listArtistLibrarySongs(browseId, sortBy, sortOrder).collect { songs = it }

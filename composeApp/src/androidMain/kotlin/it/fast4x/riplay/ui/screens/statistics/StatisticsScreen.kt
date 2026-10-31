@@ -6,8 +6,8 @@ import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.media3.common.util.UnstableApi
@@ -16,6 +16,7 @@ import it.fast4x.riplay.extensions.persist.PersistMapCleanup
 import com.yambo.music.R
 import it.fast4x.riplay.enums.StatisticsType
 import it.fast4x.riplay.ui.components.ScreenContainer
+import it.fast4x.riplay.ui.screens.search.openHomeTab
 
 @ExperimentalMaterialApi
 @ExperimentalTextApi
@@ -29,7 +30,7 @@ fun StatisticsScreen(
     statisticsType: StatisticsType,
     miniPlayer: @Composable () -> Unit = {},
 ) {
-    val saveableStateHolder = rememberSaveableStateHolder()
+    val context = LocalContext.current
 
     val (tabIndex, onTabIndexChanged) = rememberSaveable {
         mutableStateOf(when (statisticsType) {
@@ -45,41 +46,39 @@ fun StatisticsScreen(
 
     PersistMapCleanup(tagPrefix = "${statisticsType.name}/")
 
-            ScreenContainer(
-                navController,
-                tabIndex,
-                onTabIndexChanged,
-                miniPlayer,
-                navBarContent = { item ->
-                    item(0, stringResource(R.string.today), R.drawable.stat_today)
-                    item(1, stringResource(R.string._1_week), R.drawable.stat_week)
-                    item(2, stringResource(R.string._1_month), R.drawable.stat_month)
-                    item(3, stringResource(R.string._3_month), R.drawable.stat_3months)
-                    item(4, stringResource(R.string._6_month), R.drawable.stat_6months)
-                    item(5, stringResource(R.string._1_year), R.drawable.stat_year)
-                    item(6, stringResource(R.string.all), R.drawable.calendar_clear)
-                }
-            ) { currentTabIndex ->
-                saveableStateHolder.SaveableStateProvider(key = currentTabIndex) {
-                    val type: StatisticsType =
-                        when( currentTabIndex ) {
-                            0 -> StatisticsType.Today
-                            1 -> StatisticsType.OneWeek
-                            2 -> StatisticsType.OneMonth
-                            3 -> StatisticsType.ThreeMonths
-                            4 -> StatisticsType.SixMonths
-                            5 -> StatisticsType.OneYear
-                            else -> StatisticsType.All
-                        }
-
-                    StatisticsPage( navController, type,
-                        onSwipeToLeft = {
-                            onTabIndexChanged(if (currentTabIndex > 0) currentTabIndex - 1 else currentTabIndex)
-                        },
-                        onSwipeToRight = {
-                            onTabIndexChanged(if (currentTabIndex < 6) currentTabIndex + 1 else currentTabIndex)
-                        }
-                    )
-                }
+    // Yammbo Noir: the bar is the app's own pill; the periods are chips in the page, so the
+    // container's tab stays fixed and changing the period only swaps the lists below the chips.
+    ScreenContainer(
+        navController = navController,
+        tabIndex = 0,
+        miniPlayer = miniPlayer,
+        navBarTabIndex = 2,
+        onNavBarTabChanged = { index -> openHomeTab(navController, context, index) },
+        sharedChrome = true,
+        noirTopBar = true,
+        navBarContent = { item ->
+            item(0, stringResource(R.string.home), R.drawable.home)
+            item(1, stringResource(R.string.live_radio_tab), R.drawable.radio)
+            item(5, stringResource(R.string.podcasts_tab_podcasts), R.drawable.podcasts_tab)
+            item(2, stringResource(R.string.my_music), R.drawable.musical_notes)
+            item(3, stringResource(R.string.search), R.drawable.search)
+        }
+    ) { _ ->
+        val type: StatisticsType =
+            when (tabIndex) {
+                0 -> StatisticsType.Today
+                1 -> StatisticsType.OneWeek
+                2 -> StatisticsType.OneMonth
+                3 -> StatisticsType.ThreeMonths
+                4 -> StatisticsType.SixMonths
+                5 -> StatisticsType.OneYear
+                else -> StatisticsType.All
             }
+
+        StatisticsPage(
+            navController = navController,
+            statisticsType = type,
+            onStatisticsTypeChange = { newType -> onTabIndexChanged(newType.ordinal) }
+        )
+    }
 }

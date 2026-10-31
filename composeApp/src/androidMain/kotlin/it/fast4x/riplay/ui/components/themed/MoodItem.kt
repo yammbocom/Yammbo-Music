@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.BasicText
@@ -42,52 +43,15 @@ fun MoodItemColored(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var thumbnailRoundness by rememberPreference(
-        thumbnailRoundnessKey,
-        ThumbnailRoundness.Heavy
-    )
-
-    val moodColor by remember { derivedStateOf { Color(mood.stripeColor) } }
-
-    Column (
-        verticalArrangement = Arrangement.SpaceAround,
-        horizontalAlignment = Alignment.CenterHorizontally,
+    // Yammbo Noir: an outlined tile. The YouTube stripe colour is ignored, the brand is B/N.
+    NoirTile(
+        text = mood.title,
+        onClick = onClick,
         modifier = Modifier
-            .fillMaxWidth()
-            .padding(5.dp)
-            .clip(thumbnailRoundness.shape())
-            .clickable { onClick() }
-
-    ) {
-        Row(
-            horizontalArrangement = Arrangement.Start,
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .background(color = moodColor)
-                .padding(start = 10.dp)
-                .fillMaxHeight(0.9f)
-        ) {
-            Box(
-                modifier = Modifier
-                    .requiredWidth(150.dp)
-                    .background(color = colorPalette().background4)
-                    .fillMaxSize()
-            ) {
-
-                BasicText(
-                    text = mood.title,
-                    style = TextStyle(
-                        color = colorPalette().text,
-                        fontStyle = typography().xs.semiBold.fontStyle,
-                        fontWeight = typography().xs.semiBold.fontWeight
-                    ),
-                    modifier = Modifier.padding(horizontal = 10.dp).align(Alignment.CenterStart),
-                    maxLines = 2,
-
-                    )
-            }
-        }
-    }
+            .padding(4.dp)
+            .width(156.dp)
+            .fillMaxHeight()
+    )
 }
 
 @Composable
@@ -97,59 +61,13 @@ fun MoodGridItemColored(
     modifier: Modifier = Modifier,
     thumbnailSizeDp: Dp
 ) {
-    var thumbnailRoundness by rememberPreference(
-        thumbnailRoundnessKey,
-        ThumbnailRoundness.Heavy
-    )
-
-    val moodColor by remember { derivedStateOf { Color(mood.stripeColor) } }
-
-    Column (
-        verticalArrangement = Arrangement.SpaceAround,
-        horizontalAlignment = Alignment.CenterHorizontally,
+    NoirTile(
+        text = mood.title,
+        onClick = onClick,
         modifier = modifier
-            .size(thumbnailSizeDp,thumbnailSizeDp)
+            .size(thumbnailSizeDp, thumbnailSizeDp)
             .padding(5.dp)
-            .clickable { onClick() }
-
-    ) {
-        Row(
-            horizontalArrangement = Arrangement.Start,
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .fillMaxSize(0.9f)
-                .clip(thumbnailRoundness.shape())
-
-        ) {
-            Row(
-                horizontalArrangement = Arrangement.Start,
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .background(color = moodColor)
-                    .padding(start = 10.dp)
-                    .fillMaxSize()
-            ) {
-                Box(
-                    modifier = Modifier
-                        .background(color = colorPalette().background4)
-                        .fillMaxSize()
-                ) {
-
-                    BasicText(
-                        text = mood.title,
-                        style = TextStyle(
-                            color = colorPalette().text,
-                            fontStyle = typography().xs.semiBold.fontStyle,
-                            fontWeight = typography().xs.semiBold.fontWeight
-                        ),
-                        modifier = Modifier.padding(horizontal = 10.dp)
-                            .align(Alignment.CenterStart),
-                        maxLines = 2,
-                    )
-                }
-            }
-        }
-    }
+    )
 }
 
 @Composable

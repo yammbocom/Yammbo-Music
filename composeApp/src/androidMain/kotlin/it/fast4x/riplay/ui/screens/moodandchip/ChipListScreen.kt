@@ -30,6 +30,7 @@ fun ChipListScreen(
         //modifier = modifier,
         navController = navController,
         miniPlayer = miniPlayer,
+        noirTopBar = true,
     ) {
         ChipList(
             navController = navController,

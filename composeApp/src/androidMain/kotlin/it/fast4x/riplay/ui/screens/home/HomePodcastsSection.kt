@@ -33,6 +33,24 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 
+/** Process-level cache of the podcast search by seed, so revisiting Home does not refetch. */
+private object HomePodcastsCache {
+    private const val TTL_MS = 6 * 60 * 60 * 1000L
+    private class Entry(val at: Long, val items: List<Environment.PlaylistItem>)
+    private val entries = HashMap<String, Entry>()
+
+    @Synchronized
+    fun get(seed: String): List<Environment.PlaylistItem>? {
+        val e = entries[seed] ?: return null
+        return if (System.currentTimeMillis() - e.at <= TTL_MS) e.items else null
+    }
+
+    @Synchronized
+    fun put(seed: String, items: List<Environment.PlaylistItem>) {
+        entries[seed] = Entry(System.currentTimeMillis(), items)
+    }
+}
+
 /**
  * Shared Home carousel that showcases podcasts. It is used by both the Classic
  * and the Extended Home renderers. When the user has already listened to
@@ -62,9 +80,13 @@ fun HomePodcastsSection(
     val title = if (hasHistory) forYouTitle else popularTitle
 
     // null = still loading (skeleton), empty = answered with nothing or failed (section hidden)
-    var podcasts by remember { mutableStateOf<List<Environment.PlaylistItem>?>(null) }
+    var podcasts by remember { mutableStateOf(HomePodcastsCache.get(seed)) }
 
     LaunchedEffect(seed) {
+        HomePodcastsCache.get(seed)?.let { cached ->
+            podcasts = cached
+            return@LaunchedEffect
+        }
         // A timeout counts as a failure: the skeleton must never spin forever
         val result = withTimeoutOrNull(15_000L) {
             withContext(Dispatchers.IO) {
@@ -84,6 +106,7 @@ fun HomePodcastsSection(
                 ?.distinctBy { p -> p.key }
                 ?.take(15)
                 ?: emptyList()
+            podcasts?.let { HomePodcastsCache.put(seed, it) }
         } else if (podcasts == null) {
             // Keep the previous list when only a re-seed failed
             podcasts = emptyList()

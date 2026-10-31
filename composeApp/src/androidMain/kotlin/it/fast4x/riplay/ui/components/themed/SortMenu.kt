@@ -74,9 +74,10 @@ fun SortMenu (
         )
 
         onTitle?.let {
-            MenuEntry(
+            MenuChoiceEntry(
                 icon = R.drawable.text,
                 text = stringResource(R.string.sort_title),
+                selected = false,
                 onClick = {
                     onDismiss()
                     onTitle()
@@ -84,9 +85,10 @@ fun SortMenu (
             )
         }
         onDatePlayed?.let {
-            MenuEntry(
+            MenuChoiceEntry(
                 icon = R.drawable.up_right_arrow,
                 text = stringResource(R.string.sort_date_played),
+                selected = false,
                 onClick = {
                     onDismiss()
                     onDatePlayed()
@@ -94,9 +96,10 @@ fun SortMenu (
             )
         }
         onDateLiked?.let {
-            MenuEntry(
+            MenuChoiceEntry(
                 icon = R.drawable.heart,
                 text = stringResource(R.string.sort_date_liked),
+                selected = false,
                 onClick = {
                     onDismiss()
                     onDateLiked()
@@ -104,9 +107,10 @@ fun SortMenu (
             )
         }
         onPlayTime?.let {
-            MenuEntry(
+            MenuChoiceEntry(
                 icon = R.drawable.trending,
                 text = stringResource(R.string.sort_listening_time),
+                selected = false,
                 onClick = {
                     onDismiss()
                     onPlayTime()
@@ -114,9 +118,10 @@ fun SortMenu (
             )
         }
         onRelativePlayTime?.let {
-            MenuEntry(
+            MenuChoiceEntry(
                 icon = R.drawable.trending,
                 text = stringResource(R.string.sort_relative_listening_time),
+                selected = false,
                 onClick = {
                     onDismiss()
                     onRelativePlayTime()
@@ -124,9 +129,10 @@ fun SortMenu (
             )
         }
         onName?.let {
-            MenuEntry(
+            MenuChoiceEntry(
                 icon = R.drawable.text,
                 text = stringResource(R.string.sort_name),
+                selected = false,
                 onClick = {
                     onDismiss()
                     onName()
@@ -134,9 +140,10 @@ fun SortMenu (
             )
         }
         onSongNumber?.let {
-            MenuEntry(
+            MenuChoiceEntry(
                 icon = R.drawable.medical,
                 text = stringResource(R.string.sort_songs_number),
+                selected = false,
                 onClick = {
                     onDismiss()
                     onSongNumber()
@@ -144,9 +151,10 @@ fun SortMenu (
             )
         }
         onPosition?.let {
-            MenuEntry(
+            MenuChoiceEntry(
                 icon = R.drawable.position,
                 text = stringResource(R.string.sort_position),
+                selected = false,
                 onClick = {
                     onDismiss()
                     onPosition()
@@ -154,9 +162,10 @@ fun SortMenu (
             )
         }
         onArtist?.let {
-            MenuEntry(
+            MenuChoiceEntry(
                 icon = R.drawable.artist,
                 text = stringResource(R.string.sort_artist),
+                selected = false,
                 onClick = {
                     onDismiss()
                     onArtist()
@@ -164,9 +173,10 @@ fun SortMenu (
             )
         }
         onAlbum?.let {
-            MenuEntry(
+            MenuChoiceEntry(
                 icon = R.drawable.music_album,
                 text = stringResource(R.string.sort_album),
+                selected = false,
                 onClick = {
                     onDismiss()
                     onAlbum()
@@ -174,9 +184,10 @@ fun SortMenu (
             )
         }
         onArtistAndAlbum?.let {
-            MenuEntry(
+            MenuChoiceEntry(
                 icon = R.drawable.artist,
                 text = "${stringResource(R.string.sort_artist)}, ${stringResource(R.string.sort_album)}",
+                selected = false,
                 onClick = {
                     onDismiss()
                     onArtistAndAlbum()
@@ -184,9 +195,10 @@ fun SortMenu (
             )
         }
         onAlbumYear?.let {
-            MenuEntry(
+            MenuChoiceEntry(
                 icon = R.drawable.calendar,
                 text = stringResource(R.string.sort_album_year),
+                selected = false,
                 onClick = {
                     onDismiss()
                     onAlbumYear()
@@ -194,9 +206,10 @@ fun SortMenu (
             )
         }
         onYear?.let {
-            MenuEntry(
+            MenuChoiceEntry(
                 icon = R.drawable.calendar,
                 text = stringResource(R.string.sort_year),
+                selected = false,
                 onClick = {
                     onDismiss()
                     onYear()
@@ -204,9 +217,10 @@ fun SortMenu (
             )
         }
         onDateAdded?.let {
-            MenuEntry(
+            MenuChoiceEntry(
                 icon = R.drawable.time,
                 text = stringResource(R.string.sort_date_added),
+                selected = false,
                 onClick = {
                     onDismiss()
                     onDateAdded()
@@ -215,9 +229,10 @@ fun SortMenu (
         }
 
         onDuration?.let {
-            MenuEntry(
+            MenuChoiceEntry(
                 icon = R.drawable.time,
                 text = stringResource(R.string.sort_duration),
+                selected = false,
                 onClick = {
                     onDismiss()
                     onDuration()
@@ -274,9 +289,10 @@ fun FilterMenu (
         )
 
         onAll?.let {
-            MenuEntry(
+            MenuChoiceEntry(
                 icon = R.drawable.musical_notes,
                 text = stringResource(R.string.all),
+                selected = false,
                 onClick = {
                     onDismiss()
                     onAll()
@@ -284,9 +300,10 @@ fun FilterMenu (
             )
         }
         onOnlineSongs?.let {
-            MenuEntry(
+            MenuChoiceEntry(
                 icon = R.drawable.internet,
                 text = stringResource(R.string.online_songs),
+                selected = false,
                 onClick = {
                     onDismiss()
                     onOnlineSongs()
@@ -294,9 +311,10 @@ fun FilterMenu (
             )
         }
         onYoutubeLibrary?.let {
-            MenuEntry(
+            MenuChoiceEntry(
                 icon = R.drawable.internet,
                 text = stringResource(R.string.ytm_library),
+                selected = false,
                 onClick = {
                     onDismiss()
                     onYoutubeLibrary()
@@ -305,9 +323,10 @@ fun FilterMenu (
         }
 
         onVideos?.let {
-            MenuEntry(
+            MenuChoiceEntry(
                 icon = R.drawable.video,
                 text = stringResource(R.string.videos),
+                selected = false,
                 onClick = {
                     onDismiss()
                     onVideos()
@@ -315,9 +334,10 @@ fun FilterMenu (
             )
         }
         onUnmatched?.let {
-            MenuEntry(
+            MenuChoiceEntry(
                 icon = R.drawable.alert,
                 text = stringResource(R.string.unmatched),
+                selected = false,
                 onClick = {
                     onDismiss()
                     onUnmatched()
@@ -325,9 +345,10 @@ fun FilterMenu (
             )
         }
         onFavorites?.let {
-            MenuEntry(
+            MenuChoiceEntry(
                 icon = R.drawable.heart,
                 text = stringResource(R.string.favorites),
+                selected = false,
                 onClick = {
                     onDismiss()
                     onFavorites()
@@ -335,9 +356,10 @@ fun FilterMenu (
             )
         }
         onLocal?.let {
-            MenuEntry(
+            MenuChoiceEntry(
                 icon = R.drawable.devices,
                 text = stringResource(R.string.on_device),
+                selected = false,
                 onClick = {
                     onDismiss()
                     onLocal()
@@ -346,9 +368,10 @@ fun FilterMenu (
         }
 
         onExplicit?.let {
-            MenuEntry(
+            MenuChoiceEntry(
                 icon = R.drawable.explicit,
                 text = stringResource(R.string.explicit),
+                selected = false,
                 onClick = {
                     onDismiss()
                     onExplicit()

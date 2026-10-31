@@ -1,5 +1,7 @@
 package it.fast4x.riplay.ui.components
 
+import it.fast4x.riplay.ui.components.themed.noirBack
+import it.fast4x.riplay.ui.components.themed.NoirTopBar
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.foundation.background
@@ -19,8 +21,11 @@ import androidx.compose.material.BottomNavigationDefaults.windowInsets
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.TopAppBarDefaults
+import android.os.SystemClock
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -48,27 +53,44 @@ fun ScreenContainer(
     onTabChanged: (Int) -> Unit = {},
     miniPlayer: @Composable (() -> Unit)? = null,
     navBarContent: @Composable (@Composable (Int, String, Int) -> Unit) -> Unit,
+    // False hides the tab bar, for screens that draw their tabs in the page (search results).
+    showNavigationBar: Boolean = true,
+    // The bar can drive something other than the content: Search shows the app's main tabs
+    // while its own modes are chips in the page.
+    navBarTabIndex: Int = tabIndex,
+    onNavBarTabChanged: (Int) -> Unit = onTabChanged,
+    // True for the app's main screens (Home, Search): the bottom nav pill and the bottom mini
+    // player come from the persistent NoirBottomChrome instead of being drawn here.
+    sharedChrome: Boolean = false,
+    // True swaps the legacy logo bar for the Noir minimal top row (back arrow only), for pages
+    // that draw their own Noir title.
+    noirTopBar: Boolean = false,
     content: @Composable AnimatedVisibilityScope.(Int) -> Unit
 ) {
     val navigationBar: AbstractNavigationBar =
         when( NavigationBarPosition.current() ) {
             NavigationBarPosition.Left, NavigationBarPosition.Right ->
-                VerticalNavigationBar( tabIndex, onTabChanged, navController )
+                VerticalNavigationBar( navBarTabIndex, onNavBarTabChanged, navController )
             NavigationBarPosition.Top, NavigationBarPosition.Bottom ->
-                HorizontalNavigationBar( tabIndex, onTabChanged, navController )
+                HorizontalNavigationBar( navBarTabIndex, onNavBarTabChanged, navController )
         }
     navigationBar.add( navBarContent )
+
+    if( sharedChrome )
+        RegisterNoirBottomChrome()
 
     val appHeader: @Composable () -> Unit = {
         Column(
             verticalArrangement = Arrangement.Top,
             modifier = Modifier.fillMaxWidth()
         ) {
-            if( UiType.RiPlay.isCurrent() )
+            if( noirTopBar )
+                NoirTopBar( onBack = { navController.noirBack() } )
+            else if( UiType.RiPlay.isCurrent() )
                 AppHeader( navController ).Draw()
 
 
-            if ( NavigationBarPosition.Top.isCurrent() )
+            if ( NavigationBarPosition.Top.isCurrent() && showNavigationBar )
                 navigationBar.Draw()
         }
     }
@@ -85,7 +107,7 @@ fun ScreenContainer(
         containerColor = colorPalette().background0,
         topBar = appHeader,
         bottomBar = {
-            if ( NavigationBarPosition.Bottom.isCurrent() )
+            if ( NavigationBarPosition.Bottom.isCurrent() && showNavigationBar && !sharedChrome )
                 navigationBar.Draw()
         }
     ) {
@@ -116,7 +138,13 @@ fun ScreenContainer(
                 AnimatedContent(
                     targetState = tabIndex,
                     transitionSpec = transition(),
-                    content = content,
+                    content = { idx ->
+                        // Each target gets its own entry time so the cascade replays per tab.
+                        val enteredAt = remember { SystemClock.uptimeMillis() }
+                        CompositionLocalProvider(LocalScreenEnteredAt provides enteredAt) {
+                            content(idx)
+                        }
+                    },
                     label = "",
                     modifier = Modifier.fillMaxHeight().padding( top = topPadding )
                 )
@@ -132,15 +160,18 @@ fun ScreenContainer(
                 else
                     Alignment.BottomCenter
 
-            Column(
-                Modifier
-                    .padding(bottom = it.calculateBottomPadding())
-                    .padding( vertical = 5.dp )
-                    .align( playerAlignment ),
-            ) {
-                BannerAd()
-                miniPlayer?.invoke()
-            }
+            // The shared chrome owns the bottom mini player; only a top one is drawn here.
+            if( !sharedChrome || playerPosition == PlayerPosition.Top )
+                Column(
+                    Modifier
+                        .padding(bottom = it.calculateBottomPadding())
+                        // Yammbo Noir: the mini player floats 12dp above the nav pill.
+                        .padding(top = 5.dp, bottom = 12.dp)
+                        .align( playerAlignment ),
+                ) {
+                    BannerAd()
+                    miniPlayer?.invoke()
+                }
         }
     }
 }

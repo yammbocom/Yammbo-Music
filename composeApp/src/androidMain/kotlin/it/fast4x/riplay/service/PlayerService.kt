@@ -131,6 +131,7 @@ import it.fast4x.riplay.utils.isAtLeastAndroid6
 import it.fast4x.riplay.utils.isAtLeastAndroid8
 import it.fast4x.riplay.utils.isAtLeastAndroid81
 import it.fast4x.riplay.utils.startFadeAnimator
+import it.fast4x.riplay.commonutils.PLAYER_COVER_PX
 import it.fast4x.riplay.commonutils.thumbnail
 import it.fast4x.riplay.utils.timer
 import com.yambo.music.R
@@ -484,6 +485,10 @@ class PlayerService : Service(),
     // one plays, so the cover swap at the transition does not wait on the network.
     private var preloadedArtworkForMediaId: String? = null
 
+    // Enabled blacklist paths mirrored from the DB flow so a queue advance does not block on a
+    // query. Null until the first emission: until then the transition falls back to the query.
+    @Volatile private var blacklistedPaths: Set<String>? = null
+
     // Same idea for the audio, handled inside the player page: see the comment at the top
     // of ayp_youtube_player.html. This side only decides when it is worth asking.
     private var preloadedOnlineMediaId: String? = null
@@ -666,6 +671,13 @@ class PlayerService : Service(),
         checkAndRestoreTimer()
 
         initializeBitmapProvider()
+        coroutineScope.launch {
+            runCatching {
+                Database.blacklists().collect { list ->
+                    blacklistedPaths = list.filter { it.isEnabled }.map { it.path }.toHashSet()
+                }
+            }.onFailure { Timber.e("PlayerService blacklist mirror ${it.stackTraceToString()}") }
+        }
         initializeAudioManager()
         initializeAudioVolumeObserver()
         initializeAudioEqualizer()
@@ -1593,7 +1605,8 @@ class PlayerService : Service(),
     private fun initializeBitmapProvider() {
         runCatching {
             bitmapProvider = BitmapProvider(
-                bitmapSize = (512 * resources.displayMetrics.density).roundToInt(),
+                // One cover size for player, notification, session artwork and preload (one download).
+                bitmapSize = PLAYER_COVER_PX,
                 colorProvider = { isSystemInDarkMode ->
                     if (isSystemInDarkMode) android.graphics.Color.BLACK else android.graphics.Color.WHITE
                 }
@@ -2615,8 +2628,13 @@ class PlayerService : Service(),
         }
 
         var blacklisted by mutableStateOf(false)
-        runBlocking(Dispatchers.IO) {
-            blacklisted = Database.blacklisted(mediaItem.mediaId) > 0
+        val mirroredBlacklist = blacklistedPaths
+        if (mirroredBlacklist != null) {
+            blacklisted = mediaItem.mediaId in mirroredBlacklist
+        } else {
+            runBlocking(Dispatchers.IO) {
+                blacklisted = Database.blacklisted(mediaItem.mediaId) > 0
+            }
         }
         if (blacklisted) {
             handlePlayNext()
@@ -3054,7 +3072,7 @@ class PlayerService : Service(),
         val bitmap =
             if (isAtLeastAndroid13 || isShowingThumbnailInLockscreen) bitmapProvider?.bitmap else null
 
-        val uri = player.mediaMetadata.artworkUri?.toString()?.thumbnail(512)
+        val uri = player.mediaMetadata.artworkUri?.toString()?.thumbnail(PLAYER_COVER_PX)
         metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ART, bitmap)
         metadataBuilder.putString(MediaMetadataCompat.METADATA_KEY_ART_URI, uri)
         metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, bitmap)
@@ -3625,11 +3643,11 @@ class PlayerService : Service(),
     }
 
     /**
-     * Warms the cover of the song after this one into Coil's cache, in both shapes the app
-     * asks for later: the square bitmap the notification, widgets and lock screen share,
-     * and the 1200px one the full player draws. Cache keys have to match the real requests
-     * byte for byte or the warm copy is never found — hence the same size, transformation
-     * and key as [BitmapProvider.load] and the player's Thumbnail.
+     * Warms the cover of the song after this one into Coil's cache. The notification, widgets,
+     * lock screen and the full player all use the same URL (thumbnail(PLAYER_COVER_PX)), so one
+     * download serves them all: Coil's disk cache is keyed by that URL. Cache keys have to match
+     * the real requests byte for byte or the warm copy is never found — hence the same size,
+     * transformation and key as [BitmapProvider.load].
      */
     private fun preloadNextArtwork() {
         val nextIndex = player.nextMediaItemIndex
@@ -3640,7 +3658,7 @@ class PlayerService : Service(),
         preloadedArtworkForMediaId = next.mediaId
 
         runCatching {
-            val notificationSize = (512 * resources.displayMetrics.density).roundToInt()
+            val notificationSize = PLAYER_COVER_PX
             val notificationUrl = artworkUri.thumbnail(notificationSize) ?: artworkUri
             imageLoader.enqueue(
                 ImageRequest.Builder(this)
@@ -3650,14 +3668,6 @@ class PlayerService : Service(),
                     .allowHardware(false)
                     .diskCacheKey(notificationUrl)
                     .memoryCacheKey(notificationUrl)
-                    .build()
-            )
-
-            val playerUrl = artworkUri.thumbnail(1200) ?: artworkUri
-            imageLoader.enqueue(
-                ImageRequest.Builder(this)
-                    .data(playerUrl)
-                    .size(Size.ORIGINAL)
                     .build()
             )
         }.onFailure {

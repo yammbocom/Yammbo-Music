@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="noir_playlist_options">Opciones de la lista</string>
+    <string name="noir_playlist_reverse_order">Invertir el orden</string>
+    <string name="noir_playlist_search_hint">Buscar en la lista</string>
+    <string name="noir_playlist_empty_title">Esta lista está vacía</string>
+    <string name="noir_playlist_empty_body">Añade canciones desde el menú de cualquier canción.</string>
+    <string name="noir_playlist_no_match_title">Sin resultados</string>
+    <string name="noir_playlist_no_match_body">Ninguna canción coincide con la búsqueda o el filtro.</string>
+</resources>

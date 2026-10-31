@@ -145,7 +145,7 @@ fun HomeArtists(
     var items by persistList<Artist>("")
     var itemsOnDisplay by persistList<Artist>("home/artists/on_display")
 
-    val disableScrollingText by rememberPreference(disableScrollingTextKey, false)
+    val disableScrollingText by rememberPreference(disableScrollingTextKey, true)
     val search = Search.init()
     val itemSize = ItemSize.init(HOME_ARTIST_ITEM_SIZE)
 
@@ -308,13 +308,26 @@ fun HomeArtists(
                     onSelect = { artistType = it }
                 )
 
-                // 3. Toolbar actions (sync, search, random, shuffle, size, view) on a glass dock
-                LibraryToolbarDock {
-                    TabToolBar.Buttons(sync, search, randomizer, shuffle, itemSize, viewType)
-                }
+                // 3. Noir tools row: search, shuffle and a "more" sheet with the rest
+                LibraryToolsRow(
+                    search = search,
+                    onShuffle = { shuffle.onShortClick() },
+                    onMore = {
+                        menuState.display {
+                            LibraryMoreMenu(
+                                menuState = menuState,
+                                sync = sync,
+                                itemSize = itemSize,
+                                viewType = viewType,
+                                onRandom = { randomizer.getItems().size.takeIf { it > 0 }?.let { randomizer.onClick(Randomizer.nextInt(it)) } },
+                                randomEnabled = randomizer.getItems().isNotEmpty()
+                            )
+                        }
+                    }
+                )
 
-                // 4. Search Bar
-                search.SearchBar(this)
+                // 4. Search field
+                LibrarySearchField(search)
 
                 // 5. Contenuto (Lista o Griglia)
                 if (itemsOnDisplay.isEmpty()) {
@@ -478,7 +491,7 @@ fun HomeArtists(
 
     var itemsOnDisplay by persistList<Artist>( "home/artists/on_display" )
 
-    val disableScrollingText by rememberPreference(disableScrollingTextKey, false)
+    val disableScrollingText by rememberPreference(disableScrollingTextKey, true)
 
     val search = Search.init()
 

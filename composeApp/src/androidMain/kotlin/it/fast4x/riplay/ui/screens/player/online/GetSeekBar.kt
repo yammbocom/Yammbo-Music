@@ -66,6 +66,7 @@ import it.fast4x.riplay.ui.components.ModernSeekbar
 import it.fast4x.riplay.ui.components.SeekBarAudioForms
 import it.fast4x.riplay.ui.components.SeekBarSegmentColored
 import it.fast4x.riplay.ui.components.SeekBarSinusoidalWave
+import it.fast4x.riplay.ui.screens.player.common.NoirTimeRow
 import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.painterResource
 import riplay.composeapp.generated.resources.Res
@@ -77,6 +78,8 @@ fun GetSeekBar(
     position: Long,
     duration: Long,
     mediaId: String,
+    // Only audio streams are Opus 160 kbps; videos and podcasts get no quality label.
+    showAudioQuality: Boolean = false,
     onSeekTo: (Float) -> Unit = {},
     onPause: () -> Unit = {},
     onPlay: () -> Unit = {},
@@ -84,7 +87,7 @@ fun GetSeekBar(
 
     val playerTimelineType by rememberObservedPreference(
         playerTimelineTypeKey,
-        PlayerTimelineType.Wavy
+        PlayerTimelineType.Default
     )
     var scrubbingPosition by remember(mediaId) {
         mutableStateOf<Long?>(null)
@@ -128,7 +131,7 @@ fun GetSeekBar(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
-            .padding(horizontal = 10.dp)
+            .padding(horizontal = if (playerTimelineType == PlayerTimelineType.Default) 0.dp else 10.dp)
             .fillMaxWidth()
     ) {
 
@@ -168,24 +171,8 @@ fun GetSeekBar(
             )
 
 
+        // Yammbo Noir: a thick plain bar with no thumb that grows while it is dragged.
         if (playerTimelineType == PlayerTimelineType.Default)
-            /*
-            ModernSeekbar(
-                value = (scrubbingPosition ?: position) / duration.toFloat(),
-                onValueChange = {
-                    val newPosition = (it * duration).toLong()
-                    scrubbingPosition = newPosition
-                },
-                onDragEnd = {
-                    scrubbingPosition = null
-                },
-                totalDurationMs = duration * 1000,
-//                trackHeight = 8.dp,
-//                thumbRadius = 10.dp,
-//                thumbRadiusExpanded = 12.dp,
-//                backgroundColor = if (transparentbar) Color.Transparent else colorPalette().textSecondary,
-            )
-        */
             SeekBar(
                 value = scrubbingPosition ?: position,
                 minimumValue = 0,
@@ -203,9 +190,13 @@ fun GetSeekBar(
                 onDragEnd = {
                     scrubbingPosition = null
                 },
-                color = colorPalette().collapsedPlayerProgressBar,
-                backgroundColor = if (transparentbar) Color.Transparent else colorPalette().textSecondary,
-                shape = RoundedCornerShape(8.dp),
+                color = colorPalette().text,
+                backgroundColor = colorPalette().text.copy(alpha = 0.18f),
+                shape = RoundedCornerShape(percent = 50),
+                barHeight = 6.dp,
+                scrubberRadius = 10.dp,
+                showScrubber = false,
+                showTooltip = false
             )
 
         if (playerTimelineType == PlayerTimelineType.ThinBar)
@@ -306,9 +297,31 @@ fun GetSeekBar(
 
     Spacer(
         modifier = Modifier
-            .height(8.dp)
+            .height(if (playerTimelineType == PlayerTimelineType.Default) 0.dp else 8.dp)
     )
 
+    if (playerTimelineType == PlayerTimelineType.Default) {
+        if (duration != C.TIME_UNSET) {
+            val timeRemaining = (duration - position).coerceAtLeast(0) * 1000
+            if (pauseBetweenSongs != PauseBetweenSongs.`0`)
+                LaunchedEffect(timeRemaining) {
+                    // duration > 0: see the same check in the row below.
+                    if (duration > 0 && timeRemaining < 500) {
+                        onPause()
+                        delay(pauseBetweenSongs.number)
+                        onPlay()
+                    }
+                }
+            NoirTimeRow(
+                elapsed = formatAsDuration((scrubbingPosition ?: position) * 1000),
+                // The online player streams YouTube's Opus audio (itag 251).
+                quality = if (showAudioQuality) "Opus · 160 kbps" else null,
+                remaining = "-${formatAsDuration(timeRemaining)}",
+                modifier = Modifier.offset(y = (-10).dp)
+            )
+        }
+        return
+    }
 
     // fast seek
     Row(

@@ -30,6 +30,7 @@ fun HistoryScreen(
     PageContainer(
         navController = navController,
         miniPlayer = miniPlayer,
+        noirTopBar = true,
     ) { currentTabIndex ->
         when (currentTabIndex) {
             0 -> HistoryList(

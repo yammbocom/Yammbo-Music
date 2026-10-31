@@ -23,8 +23,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.layout.ContentScale
@@ -42,8 +47,10 @@ import it.fast4x.riplay.LocalPlayerServiceBinder
 import it.fast4x.riplay.data.models.Song
 import it.fast4x.riplay.extensions.liveradio.RadioArtwork
 import it.fast4x.riplay.extensions.liveradio.RadioStation
+import it.fast4x.riplay.ui.components.StationArtwork
 import it.fast4x.riplay.ui.styling.Dimensions
 import it.fast4x.riplay.ui.styling.color
+import it.fast4x.riplay.ui.styling.mono
 import it.fast4x.riplay.ui.styling.secondary
 import it.fast4x.riplay.ui.styling.semiBold
 import it.fast4x.riplay.utils.DisposableListener
@@ -103,7 +110,8 @@ fun RadioArtworkBox(
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 filterQuality = FilterQuality.High,
-                alpha = if (showAlternative) 0f else 1f,
+                // Probe only: the chosen icon is drawn by StationArtwork below.
+                alpha = 0f,
                 onSuccess = { primaryWidth = it.result.drawable.intrinsicWidth.coerceAtLeast(1) },
                 onError = { primaryWidth = 0 },
                 modifier = Modifier.fillMaxSize()
@@ -115,11 +123,16 @@ fun RadioArtworkBox(
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 filterQuality = FilterQuality.High,
-                alpha = if (showAlternative) 1f else 0f,
+                alpha = 0f,
                 onSuccess = { alternativeWidth = it.result.drawable.intrinsicWidth.coerceAtLeast(1) },
                 onError = { alternativeWidth = 0 },
                 modifier = Modifier.fillMaxSize()
             )
+        }
+        // A favicon cropped to fill the box is what made logos look blurry: StationArtwork keeps
+        // small icons at a sharp size over a blurred copy of themselves.
+        if (shown != null) {
+            StationArtwork(model = shown, modifier = Modifier.fillMaxSize())
         }
     }
 }
@@ -149,19 +162,33 @@ fun RadioStationCard(
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
+    // Yammbo Noir: stations are round, like a dial, so the radio shelf doesn't read as one more
+    // row of album squares.
     Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
         modifier = modifier
             .width(thumbnailSizeDp)
             .clip(RoundedCornerShape(12.dp))
             .clickable(onClick = onClick)
     ) {
-        RadioStationArtwork(station = station, size = thumbnailSizeDp)
+        RadioStationArtwork(
+            station = station,
+            size = thumbnailSizeDp,
+            modifier = Modifier
+                .clip(CircleShape)
+                .border(
+                    width = if (isPlaying) 2.dp else 1.dp,
+                    color = colorPalette().text.copy(alpha = if (isPlaying) 1f else 0.12f),
+                    shape = CircleShape
+                )
+        )
         BasicText(
             text = station.displayName,
-            style = typography().xs.semiBold.color(if (isPlaying) colorPalette().accent else colorPalette().text),
+            style = typography().xs.semiBold.color(if (isPlaying) colorPalette().accent else colorPalette().text)
+                .copy(textAlign = TextAlign.Center),
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(top = 6.dp)
+            modifier = Modifier.padding(top = 8.dp)
         )
         BasicText(
             // The bitrate is what a station costs in data (128 kbps is about 58 MB an hour)
@@ -169,7 +196,7 @@ fun RadioStationCard(
                 station.country.ifBlank { station.tagList.firstOrNull() ?: "" },
                 if (station.bitrate > 0) "${station.bitrate} kbps" else ""
             ).filter { it.isNotBlank() }.joinToString(" · "),
-            style = typography().xxs.secondary,
+            style = typography().xxs.secondary.copy(textAlign = TextAlign.Center),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(top = 2.dp)
@@ -201,7 +228,7 @@ fun RadioStationRow(
         isPlaying = isPlaying,
         modifier = modifier,
         onClick = onClick,
-        artwork = { RadioStationArtwork(station = station, size = Dimensions.thumbnails.song) }
+        artwork = { RadioStationArtwork(station = station, size = 72.dp, modifier = noirArtworkRing()) }
     )
 }
 
@@ -225,10 +252,45 @@ fun RadioFavoriteRow(
                 letter = song.title.trim().take(1).uppercase(),
                 primary = artworkUrl,
                 alternative = null,
-                size = Dimensions.thumbnails.song
+                size = 72.dp,
+                modifier = noirArtworkRing()
             )
         }
     )
+}
+
+/** Round artwork with the thin Noir ring. */
+@Composable
+private fun noirArtworkRing(): Modifier = Modifier
+    .clip(CircleShape)
+    .border(1.dp, colorPalette().text.copy(alpha = 0.08f), CircleShape)
+
+/** Outlined mono "EN VIVO" badge; inverted (solid white, black text) for the station on air. */
+@Composable
+fun RadioLiveBadge(modifier: Modifier = Modifier, inverted: Boolean = false) {
+    val shape = RoundedCornerShape(8.dp)
+    val content = if (inverted) colorPalette().background0 else colorPalette().text
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = modifier
+            .clip(shape)
+            .background(if (inverted) colorPalette().text else Color.Transparent)
+            .border(1.dp, colorPalette().text.copy(alpha = if (inverted) 0f else 0.30f), shape)
+            .padding(horizontal = 8.dp, vertical = 5.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(6.dp)
+                .clip(CircleShape)
+                .background(content)
+        )
+        BasicText(
+            text = stringResource(R.string.live_radio_badge),
+            style = typography().xxxs.mono.copy(color = content, fontSize = 11.sp),
+            maxLines = 1,
+            modifier = Modifier.padding(start = 6.dp)
+        )
+    }
 }
 
 @Composable
@@ -245,38 +307,35 @@ private fun RadioRow(
         modifier = modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .padding(horizontal = 16.dp, vertical = 10.dp)
     ) {
         artwork()
         Column(
             modifier = Modifier
                 .weight(1f)
-                .padding(start = 12.dp, end = 8.dp)
+                .padding(start = 14.dp, end = 10.dp)
         ) {
             BasicText(
                 text = title,
-                style = typography().xs.semiBold.color(if (isPlaying) colorPalette().accent else colorPalette().text),
+                style = typography().s.copy(
+                    color = colorPalette().text,
+                    fontWeight = if (isPlaying) FontWeight.Bold else FontWeight.SemiBold,
+                    fontSize = 18.sp
+                ),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
             if (subtitle.isNotBlank()) {
                 BasicText(
                     text = subtitle,
-                    style = typography().xxs.secondary,
+                    style = typography().xs.copy(color = colorPalette().textSecondary, fontSize = 14.sp),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.padding(top = 3.dp)
                 )
             }
         }
-        if (isPlaying) {
-            Image(
-                painter = painterResource(R.drawable.radio),
-                contentDescription = null,
-                colorFilter = ColorFilter.tint(colorPalette().accent),
-                modifier = Modifier.size(18.dp)
-            )
-        }
+        RadioLiveBadge(inverted = isPlaying)
     }
 }
 

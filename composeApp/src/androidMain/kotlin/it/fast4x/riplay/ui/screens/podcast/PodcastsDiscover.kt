@@ -8,6 +8,7 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,8 +26,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
@@ -43,17 +44,20 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.media3.common.util.UnstableApi
 import androidx.navigation.NavController
-import coil.compose.AsyncImage
 import com.yambo.music.R
 import it.fast4x.environment.Environment
 import it.fast4x.environment.models.bodies.SearchBody
@@ -64,13 +68,30 @@ import it.fast4x.riplay.data.Database
 import it.fast4x.riplay.data.models.Playlist
 import it.fast4x.riplay.data.models.PlaylistPreview
 import it.fast4x.riplay.data.models.Song
+import it.fast4x.riplay.commonutils.thumbnail
 import it.fast4x.riplay.enums.NavRoutes
+import it.fast4x.riplay.ui.components.CollapsingTitleEffect
+import it.fast4x.riplay.ui.components.CoverHandoff
+import it.fast4x.riplay.ui.components.NoirContentMax
+import it.fast4x.riplay.ui.components.rememberNoirLayout
+import it.fast4x.riplay.ui.components.RevealImage
+import it.fast4x.riplay.ui.components.cascadeEntry
+import it.fast4x.riplay.ui.components.collapsingTitle
 import it.fast4x.riplay.ui.components.glassSurface
+import it.fast4x.riplay.ui.components.pressable
+import it.fast4x.riplay.ui.components.rememberTitleCollapse
+import it.fast4x.riplay.ui.components.sharedCover
+import it.fast4x.riplay.ui.components.themed.NoirChip
+import it.fast4x.riplay.ui.components.themed.NoirEyebrow
+import it.fast4x.riplay.ui.components.themed.NoirSectionHeader
+import it.fast4x.riplay.ui.components.themed.NoirTextAction
 import it.fast4x.riplay.ui.styling.Dimensions
 import it.fast4x.riplay.ui.styling.bold
 import it.fast4x.riplay.ui.styling.color
+import it.fast4x.riplay.ui.styling.mono
 import it.fast4x.riplay.ui.styling.secondary
 import it.fast4x.riplay.ui.styling.semiBold
+import it.fast4x.riplay.ui.styling.tight
 import it.fast4x.riplay.utils.asMediaItem
 import it.fast4x.riplay.utils.colorPalette
 import it.fast4x.riplay.utils.forcePlay
@@ -100,7 +121,6 @@ internal sealed interface PodcastLoad {
 }
 
 private const val SEARCH_TIMEOUT_MS = 12_000L
-private const val FEATURED_COUNT = 5
 
 /**
  * Per-query results kept for the process lifetime, so flipping between category chips (or
@@ -215,10 +235,12 @@ internal fun PodcastCover(
     modifier: Modifier = Modifier,
     sizePx: Int = 512,
     shape: Shape = RoundedCornerShape(14.dp),
+    sharedKey: String? = null,
 ) {
     Box(
         contentAlignment = Alignment.Center,
         modifier = modifier
+            .sharedCover(sharedKey, shape)
             .clip(shape)
             .background(colorPalette().background2)
     ) {
@@ -231,7 +253,7 @@ internal fun PodcastCover(
             )
         } else {
             // Whole cover, no server-side smart crop
-            AsyncImage(
+            RevealImage(
                 model = url.resizeNoCrop(sizePx, sizePx),
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
@@ -248,30 +270,34 @@ internal fun PodcastShowCard(
     subtitle: String?,
     cover: String?,
     modifier: Modifier = Modifier,
+    sharedKey: String? = null,
     onClick: () -> Unit,
 ) {
-    Column(
-        modifier = modifier
-            .clip(RoundedCornerShape(14.dp))
-            .clickable(onClick = onClick)
-    ) {
+    // Not clipped as a whole: only the cover is rounded, so the text is never cut.
+    Column(modifier = modifier.pressable(onClick = onClick)) {
         PodcastCover(
             url = cover,
+            shape = RoundedCornerShape(20.dp),
+            sharedKey = sharedKey,
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(1f)
         )
         BasicText(
             text = title,
-            style = typography().xs.semiBold.color(colorPalette().text),
+            style = typography().xs.copy(
+                color = colorPalette().text,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 15.sp
+            ),
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(top = 8.dp)
+            modifier = Modifier.padding(top = 10.dp)
         )
         if (!subtitle.isNullOrBlank()) {
             BasicText(
                 text = subtitle,
-                style = typography().xxs.secondary,
+                style = typography().xs.copy(color = colorPalette().textSecondary, fontSize = 13.sp),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(top = 2.dp)
@@ -288,12 +314,22 @@ internal fun SavedPodcastCard(
     onClick: () -> Unit,
 ) {
     val thumbs by Database.playlistThumbnailUrls(preview.playlist.id).collectAsState(initial = emptyList())
+    val cover = thumbs.firstOrNull { !it.isNullOrBlank() }
+    // Only shows that kept their browse id open the online page the cover can fly into.
+    val browseId = preview.playlist.browseId?.takeIf { it.isNotBlank() }
+    val sharedKey = browseId?.let { "podcast-saved:$it" }
     PodcastShowCard(
         title = preview.playlist.name,
         subtitle = stringResource(R.string.podcasts_episodes_count, preview.songCount),
-        cover = thumbs.firstOrNull { !it.isNullOrBlank() },
+        cover = cover,
         modifier = modifier,
-        onClick = onClick
+        sharedKey = sharedKey,
+        onClick = {
+            if (browseId != null && sharedKey != null) {
+                CoverHandoff.set(key = sharedKey, browseId = browseId, url = cover?.resizeNoCrop(512, 512), title = preview.playlist.name)
+            }
+            onClick()
+        }
     )
 }
 
@@ -398,67 +434,47 @@ internal fun PodcastSectionHeader(
     }
 }
 
-/** Glass pill; the selected one is inverted (brand rule: emphasis = inversion). */
-@Composable
-internal fun PodcastPill(
-    text: String,
-    selected: Boolean,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit,
-) {
-    val shape = RoundedCornerShape(20.dp)
-    val base = if (selected) {
-        modifier.clip(shape).background(colorPalette().text)
-    } else {
-        modifier.glassSurface(shape, elevation = 0.dp)
-    }
-    BasicText(
-        text = text,
-        style = typography().xs.semiBold.color(
-            if (selected) colorPalette().background0 else colorPalette().text
-        ),
-        maxLines = 1,
-        overflow = TextOverflow.Ellipsis,
-        modifier = base
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 9.dp)
-    )
-}
-
 @Composable
 private fun PodcastSearchField(
     value: String,
     onValueChange: (String) -> Unit,
     hint: String,
 ) {
-    val shape = RoundedCornerShape(14.dp)
+    val shape = RoundedCornerShape(18.dp)
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .padding(horizontal = 16.dp, vertical = 6.dp)
             .fillMaxWidth()
+            .height(52.dp)
             .clip(shape)
-            .background(colorPalette().background2)
-            .padding(horizontal = 12.dp, vertical = 10.dp)
+            .background(colorPalette().background1)
+            .padding(horizontal = 16.dp)
     ) {
         Image(
             painter = painterResource(R.drawable.search),
             contentDescription = null,
             colorFilter = ColorFilter.tint(colorPalette().textSecondary),
-            modifier = Modifier.size(18.dp)
+            modifier = Modifier.size(20.dp)
         )
         Box(
+            contentAlignment = Alignment.CenterStart,
             modifier = Modifier
                 .weight(1f)
-                .padding(start = 10.dp)
+                .padding(start = 12.dp)
         ) {
             if (value.isEmpty()) {
-                BasicText(text = hint, style = typography().xs.secondary)
+                BasicText(
+                    text = hint,
+                    style = typography().s.copy(color = colorPalette().textSecondary, fontSize = 16.sp),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
             BasicTextField(
                 value = value,
                 onValueChange = onValueChange,
-                textStyle = typography().xs.color(colorPalette().text),
+                textStyle = typography().s.copy(color = colorPalette().text, fontSize = 16.sp),
                 singleLine = true,
                 cursorBrush = SolidColor(colorPalette().text),
                 modifier = Modifier.fillMaxWidth()
@@ -478,96 +494,219 @@ private fun PodcastSearchField(
 }
 
 // ---------------------------------------------------------------------------------------------
-// Featured carousel
+// Noir blocks: hero, header, "keep listening" rows
 // ---------------------------------------------------------------------------------------------
 
-private val FeaturedHeight = 176.dp
+private val HeroHeight = 300.dp
+private val HeroShape = RoundedCornerShape(28.dp)
 
+/** The one big card: first show of the list. Only the image is clipped, never the text. */
 @Composable
-private fun FeaturedCarousel(
-    shows: List<PodcastShow>,
-    onClick: (PodcastShow) -> Unit,
-) {
-    val pagerState = rememberPagerState(pageCount = { shows.size })
-    HorizontalPager(
-        state = pagerState,
-        contentPadding = PaddingValues(horizontal = 16.dp),
-        pageSpacing = 12.dp,
-        key = { shows[it].key }
-    ) { page ->
-        FeaturedCard(show = shows[page], onClick = { onClick(shows[page]) })
-    }
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
-        verticalAlignment = Alignment.CenterVertically,
+private fun PodcastHero(show: PodcastShow, model: String?, onClick: () -> Unit) {
+    Box(
         modifier = Modifier
+            .padding(horizontal = 16.dp, vertical = 8.dp)
             .fillMaxWidth()
-            .padding(top = 10.dp)
+            .height(HeroHeight)
+            .pressable(onClick = onClick)
     ) {
-        repeat(shows.size) { index ->
-            val selected = index == pagerState.currentPage
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .sharedCover("podcast-hero:${show.key}", HeroShape)
+                .clip(HeroShape)
+                .background(colorPalette().background1)
+        ) {
+            RevealImage(
+                model = model,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
             Box(
                 modifier = Modifier
-                    .height(6.dp)
-                    .width(if (selected) 18.dp else 6.dp)
-                    .clip(CircleShape)
-                    .background(if (selected) colorPalette().text else colorPalette().textDisabled)
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            0f to Color.Transparent,
+                            1f to Color.Black.copy(alpha = 0.85f)
+                        )
+                    )
             )
+        }
+        BasicText(
+            text = stringResource(R.string.noir_featured_week).uppercase(),
+            style = typography().xxxs.mono.copy(color = Color.White, fontSize = 12.sp),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(16.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(Color.Black.copy(alpha = 0.35f))
+                .border(1.dp, Color.White.copy(alpha = 0.3f), RoundedCornerShape(10.dp))
+                .padding(horizontal = 10.dp, vertical = 6.dp)
+        )
+        Row(
+            verticalAlignment = Alignment.Bottom,
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .fillMaxWidth()
+                .padding(20.dp)
+        ) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier.weight(1f)
+            ) {
+                BasicText(
+                    text = show.title,
+                    style = typography().xxl.tight.copy(
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 30.sp
+                    ),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (!show.author.isNullOrBlank()) {
+                    BasicText(
+                        text = show.author,
+                        style = typography().xs.copy(color = Color.White.copy(alpha = 0.75f), fontSize = 15.sp),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+            Spacer(Modifier.width(12.dp))
+            // Always white over the darkened cover, whatever the theme.
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(64.dp)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(Color.White)
+                    .clickable(onClick = onClick)
+            ) {
+                Image(
+                    painter = painterResource(R.drawable.play),
+                    contentDescription = stringResource(R.string.podcasts_open_show),
+                    colorFilter = ColorFilter.tint(Color.Black),
+                    modifier = Modifier.size(28.dp)
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun FeaturedCard(show: PodcastShow, onClick: () -> Unit) {
+private fun PodcastHeroSkeleton() {
+    Box(
+        modifier = Modifier
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .fillMaxWidth()
+            .height(HeroHeight)
+            .clip(HeroShape)
+            .background(colorPalette().background1)
+    )
+}
+
+/** Big title with the "My podcasts · N" outlined pill on the right. */
+@Composable
+private fun PodcastsHeader(
+    savedCount: Int,
+    onSeeAllMyPodcasts: (() -> Unit)?,
+    titleModifier: Modifier = Modifier
+) {
     Row(
+        verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            .height(FeaturedHeight)
-            .glassSurface(RoundedCornerShape(24.dp), elevation = 8.dp)
-            .clickable(onClick = onClick)
-            .padding(14.dp)
+            .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 6.dp)
+    ) {
+        BasicText(
+            text = stringResource(R.string.podcasts_tab_podcasts),
+            style = typography().xxl.tight.copy(
+                color = colorPalette().text,
+                fontWeight = FontWeight.Bold,
+                fontSize = 40.sp
+            ),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f).then(titleModifier)
+        )
+        if (onSeeAllMyPodcasts != null) {
+            val shape = RoundedCornerShape(percent = 50)
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .padding(start = 12.dp)
+                    .height(44.dp)
+                    .clip(shape)
+                    .border(1.dp, colorPalette().text.copy(alpha = 0.25f), shape)
+                    .clickable(onClick = onSeeAllMyPodcasts)
+                    .padding(horizontal = 16.dp)
+            ) {
+                BasicText(
+                    text = if (savedCount > 0) stringResource(R.string.noir_my_podcasts_count, savedCount)
+                    else stringResource(R.string.podcasts_my),
+                    style = typography().xs.copy(
+                        color = colorPalette().text,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 16.sp
+                    ),
+                    maxLines = 1
+                )
+            }
+        }
+    }
+}
+
+/** One recently played episode: square cover, "show" eyebrow, title and duration. */
+@Composable
+private fun ContinueRow(song: Song, onPlay: () -> Unit, modifier: Modifier = Modifier) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = modifier
+            .fillMaxWidth()
+            .pressable(onClick = onPlay)
+            .padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
         PodcastCover(
-            url = show.cover,
-            modifier = Modifier.size(FeaturedHeight - 28.dp),
-            sizePx = 512,
+            url = song.thumbnailUrl,
+            modifier = Modifier.size(84.dp),
+            sizePx = 256,
             shape = RoundedCornerShape(16.dp)
         )
         Column(
+            verticalArrangement = Arrangement.spacedBy(4.dp),
             modifier = Modifier
                 .weight(1f)
-                .fillMaxSize()
                 .padding(start = 14.dp)
         ) {
             BasicText(
-                text = stringResource(R.string.podcasts_featured_label).uppercase(),
-                style = typography().xxs.semiBold.color(colorPalette().textSecondary)
+                text = (song.artistsText?.takeIf { it.isNotBlank() }
+                    ?: stringResource(R.string.noir_kind_podcast)).uppercase(),
+                style = typography().xxxs.mono.copy(color = colorPalette().textSecondary, fontSize = 12.sp),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
             BasicText(
-                text = show.title,
-                style = typography().m.bold.color(colorPalette().text),
-                maxLines = 3,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(top = 4.dp)
+                text = song.title,
+                style = typography().s.copy(
+                    color = colorPalette().text,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 18.sp
+                ),
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
             )
-            if (!show.author.isNullOrBlank()) {
+            if (!song.durationText.isNullOrBlank()) {
                 BasicText(
-                    text = show.author,
-                    style = typography().xs.secondary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(top = 2.dp)
+                    text = song.durationText.orEmpty(),
+                    style = typography().xs.copy(color = colorPalette().textSecondary, fontSize = 14.sp),
+                    maxLines = 1
                 )
             }
-            Spacer(modifier = Modifier.weight(1f))
-            BasicText(
-                text = stringResource(R.string.podcasts_open_show),
-                style = typography().xs.semiBold.color(colorPalette().background0),
-                modifier = Modifier
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(colorPalette().text)
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-            )
         }
     }
 }
@@ -603,6 +742,10 @@ fun PodcastsDiscover(
     val seed = stringResource(R.string.podcasts_search_seed)
     val categories = PodcastCategory.entries
     val categoryLabels = categories.map { stringResource(it.label) }
+    // The board's first chip reads "Destacados"; its query stays the popular one.
+    val chipLabels = categoryLabels.mapIndexed { index, label ->
+        if (index == 0) stringResource(R.string.podcasts_featured) else label
+    }
     val category = categories.getOrElse(categoryIndex) { PodcastCategory.Popular }
 
     val popularQuery = seed
@@ -610,7 +753,7 @@ fun PodcastsDiscover(
     else "$seed ${categoryLabels[categories.indexOf(category)]}"
     val gridQuery = if (isSearching) search else categoryQuery
 
-    // The featured carousel always shows the popular shows. When the grid is on the same
+    // The popular shows are always loaded (prefetch). When the grid is on the same
     // query it reuses that load, so the request is made once.
     val featuredLoad = rememberPodcastLoad(popularQuery, retryTick)
     val otherLoad = rememberPodcastLoad(gridQuery.takeIf { it != popularQuery }, retryTick)
@@ -619,7 +762,8 @@ fun PodcastsDiscover(
     val recent by Database.lastPlayedPodcasts(12).collectAsState(initial = emptyList())
     val saved by Database.podcastPlaylists().collectAsState(initial = emptyList())
 
-    fun openShow(key: String) {
+    fun openShow(key: String, sharedKey: String, coverUrl: String?, title: String?) {
+        CoverHandoff.set(key = sharedKey, browseId = key, url = coverUrl, title = title)
         navController.navigate("${NavRoutes.podcast.name}/$key")
     }
 
@@ -628,83 +772,134 @@ fun PodcastsDiscover(
         binder?.player?.forcePlay(song.asMediaItem)
     }
 
+    val listState = rememberLazyListState()
+    val titleProgress = rememberTitleCollapse(listState, titleItemIndex = 0)
+    CollapsingTitleEffect(stringResource(R.string.podcasts_tab_podcasts), titleProgress)
+
+    // 2 columns on phones (as before); more on tablets, with the whole page capped at grid width.
+    val noirLayout = rememberNoirLayout()
+    val cols = noirLayout.columns(minItem = 170.dp, max = 4)
+
     LazyColumn(
+        state = listState,
+        contentPadding = PaddingValues(horizontal = noirLayout.sidePadding(NoirContentMax.Grid, minPadding = 0.dp)),
         modifier = modifier
             .fillMaxSize()
             .background(colorPalette().background0)
     ) {
+        item(key = "title") {
+            Box(Modifier.cascadeEntry(0)) {
+                PodcastsHeader(
+                    savedCount = saved.size,
+                    onSeeAllMyPodcasts = onSeeAllMyPodcasts,
+                    titleModifier = Modifier.collapsingTitle(titleProgress)
+                )
+            }
+        }
         item(key = "search") {
-            PodcastSearchField(
-                value = searchInput,
-                onValueChange = { searchInput = it },
-                hint = stringResource(R.string.podcasts_search_hint)
-            )
+            Box(Modifier.cascadeEntry(1)) {
+                PodcastSearchField(
+                    value = searchInput,
+                    onValueChange = { searchInput = it },
+                    hint = stringResource(R.string.podcasts_search_hint)
+                )
+            }
         }
 
         if (!isSearching) {
-            // a) Featured
-            item(key = "featuredHeader") {
-                PodcastSectionHeader(title = stringResource(R.string.podcasts_featured))
-            }
-            item(key = "featured") {
-                when (val load = featuredLoad) {
-                    is PodcastLoad.Done -> {
-                        val featured = load.shows.take(FEATURED_COUNT)
-                        if (featured.isNotEmpty()) {
-                            FeaturedCarousel(featured, onClick = { openShow(it.key) })
-                        }
+            // a) Category chips
+            item(key = "chips") {
+                LazyRow(
+                    modifier = Modifier.cascadeEntry(2),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(count = categories.size, key = { it }) { index ->
+                        NoirChip(
+                            text = chipLabels[index],
+                            selected = index == categoryIndex,
+                            onClick = { categoryIndex = index }
+                        )
                     }
-                    // Failure and empty are reported once, in the grid below
-                    PodcastLoad.Failed -> Unit
-                    PodcastLoad.Loading -> PodcastSkeleton(
-                        shape = RoundedCornerShape(24.dp),
-                        modifier = Modifier
-                            .padding(horizontal = 16.dp)
-                            .fillMaxWidth()
-                            .height(FeaturedHeight)
-                    )
                 }
             }
 
-            // b) Continue listening
+            // b) Featured hero: first show of the selected category
+            item(key = "hero") {
+                Box(Modifier.cascadeEntry(3)) {
+                    when (val load = gridLoad) {
+                        is PodcastLoad.Done -> {
+                            val first = load.shows.firstOrNull()
+                            if (first != null) {
+                                val heroModel = first.cover.thumbnail(720)
+                                PodcastHero(
+                                    show = first,
+                                    model = heroModel,
+                                    onClick = { openShow(first.key, "podcast-hero:${first.key}", heroModel, first.title) }
+                                )
+                            }
+                        }
+                        // Failure and empty are reported once, in the list below
+                        PodcastLoad.Failed -> Unit
+                        PodcastLoad.Loading -> PodcastHeroSkeleton()
+                    }
+                }
+            }
+
+            // c) Continue listening
             if (recent.isNotEmpty()) {
                 item(key = "continueHeader") {
-                    PodcastSectionHeader(title = stringResource(R.string.podcasts_continue))
+                    NoirEyebrow(
+                        text = stringResource(R.string.podcasts_continue),
+                        modifier = Modifier.cascadeEntry(4).padding(start = 16.dp, end = 16.dp, top = 22.dp, bottom = 4.dp)
+                    )
                 }
                 item(key = "continue") {
-                    LazyRow(
-                        contentPadding = PaddingValues(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        items(recent, key = { it.id }) { song ->
-                            PodcastEpisodeRow(
+                    Column {
+                        recent.take(4).forEachIndexed { index, song ->
+                            if (index > 0) {
+                                Box(
+                                    modifier = Modifier
+                                        .padding(horizontal = 16.dp)
+                                        .fillMaxWidth()
+                                        .height(1.dp)
+                                        .background(colorPalette().text.copy(alpha = 0.08f))
+                                )
+                            }
+                            ContinueRow(
                                 song = song,
-                                modifier = Modifier.width(300.dp),
-                                onPlay = { playEpisode(song) }
+                                onPlay = { playEpisode(song) },
+                                modifier = Modifier.cascadeEntry(5 + index)
                             )
                         }
                     }
                 }
             }
 
-            // c) My podcasts
+            // d) My podcasts
             if (saved.isNotEmpty()) {
                 item(key = "myHeader") {
-                    PodcastSectionHeader(
-                        title = stringResource(R.string.podcasts_my),
-                        actionLabel = if (saved.size > 2 || onSeeAllMyPodcasts != null) {
-                            stringResource(
-                                if (myExpanded && onSeeAllMyPodcasts == null) R.string.podcasts_see_less
-                                else R.string.podcasts_see_all
-                            )
-                        } else null,
-                        onAction = {
-                            if (onSeeAllMyPodcasts != null) onSeeAllMyPodcasts() else myExpanded = !myExpanded
-                        }
-                    )
+                    Box(Modifier.cascadeEntry(7)) {
+                        NoirSectionHeader(
+                            title = stringResource(R.string.podcasts_my),
+                            trailing = {
+                                if (saved.size > 2 || onSeeAllMyPodcasts != null) {
+                                    NoirTextAction(
+                                        text = stringResource(
+                                            if (myExpanded && onSeeAllMyPodcasts == null) R.string.podcasts_see_less
+                                            else R.string.podcasts_see_all
+                                        ),
+                                        onClick = {
+                                            if (onSeeAllMyPodcasts != null) onSeeAllMyPodcasts() else myExpanded = !myExpanded
+                                        }
+                                    )
+                                }
+                            }
+                        )
+                    }
                 }
                 if (myExpanded && onSeeAllMyPodcasts == null) {
-                    items(saved.chunked(2), key = { "my_${it.first().playlist.id}" }) { row ->
+                    items(saved.chunked(cols), key = { "my_${it.first().playlist.id}" }) { row ->
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                             modifier = Modifier
@@ -718,7 +913,7 @@ fun PodcastsDiscover(
                                     onClick = { openSavedPodcast(navController, preview.playlist) }
                                 )
                             }
-                            if (row.size == 1) Spacer(modifier = Modifier.weight(1f))
+                            repeat(cols - row.size) { Spacer(modifier = Modifier.weight(1f)) }
                         }
                     }
                 } else {
@@ -730,7 +925,7 @@ fun PodcastsDiscover(
                             items(saved, key = { it.playlist.id }) { preview ->
                                 SavedPodcastCard(
                                     preview = preview,
-                                    modifier = Modifier.width(132.dp),
+                                    modifier = Modifier.width(132.dp * noirLayout.shelfScale),
                                     onClick = { openSavedPodcast(navController, preview.playlist) }
                                 )
                             }
@@ -739,24 +934,11 @@ fun PodcastsDiscover(
                 }
             }
 
-            // d) Category chips
-            item(key = "chips") {
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 18.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(count = categories.size, key = { it }) { index ->
-                        PodcastPill(
-                            text = categoryLabels[index],
-                            selected = index == categoryIndex,
-                            onClick = { categoryIndex = index }
-                        )
-                    }
-                }
-            }
         } else {
             item(key = "resultsHeader") {
-                PodcastSectionHeader(title = stringResource(R.string.podcasts_results))
+                Box(Modifier.cascadeEntry(2)) {
+                    NoirSectionHeader(title = stringResource(R.string.podcasts_results))
+                }
             }
         }
 
@@ -770,9 +952,10 @@ fun PodcastsDiscover(
                     ) {
                         repeat(3) {
                             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                repeat(2) {
+                                repeat(cols) {
                                     Column(modifier = Modifier.weight(1f)) {
                                         PodcastSkeleton(
+                                            shape = RoundedCornerShape(20.dp),
                                             modifier = Modifier
                                                 .fillMaxWidth()
                                                 .aspectRatio(1f)
@@ -826,10 +1009,9 @@ fun PodcastsDiscover(
             }
 
             is PodcastLoad.Done -> {
-                // The featured carousel already shows the first shows of the popular list
-                val shows = if (gridQuery == popularQuery && load.shows.size > FEATURED_COUNT)
-                    load.shows.drop(FEATURED_COUNT) else load.shows
-                if (shows.isEmpty()) {
+                // The hero already shows the first show of the selected category
+                val shows = if (!isSearching) load.shows.drop(1) else load.shows
+                if (load.shows.isEmpty()) {
                     item(key = "gridEmpty") {
                         BasicText(
                             text = stringResource(R.string.podcasts_empty),
@@ -839,11 +1021,19 @@ fun PodcastsDiscover(
                                 .padding(horizontal = 32.dp, vertical = 24.dp)
                         )
                     }
-                } else {
-                    items(shows.chunked(2), key = { "show_${it.first().key}" }) { row ->
+                } else if (shows.isNotEmpty()) {
+                    if (!isSearching) {
+                        item(key = "moreHeader") {
+                            Box(Modifier.cascadeEntry(8)) {
+                                NoirSectionHeader(title = stringResource(R.string.noir_more_shows))
+                            }
+                        }
+                    }
+                    itemsIndexed(shows.chunked(cols), key = { _, row -> "show_${row.first().key}" }) { rowIndex, row ->
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                             modifier = Modifier
+                                .cascadeEntry((if (isSearching) 3 else 9) + rowIndex)
                                 .fillMaxWidth()
                                 .padding(start = 16.dp, end = 16.dp, bottom = 14.dp)
                         ) {
@@ -853,10 +1043,13 @@ fun PodcastsDiscover(
                                     subtitle = show.author,
                                     cover = show.cover,
                                     modifier = Modifier.weight(1f),
-                                    onClick = { openShow(show.key) }
+                                    sharedKey = "podcast-grid:${show.key}",
+                                    onClick = {
+                                        openShow(show.key, "podcast-grid:${show.key}", show.cover?.resizeNoCrop(512, 512), show.title)
+                                    }
                                 )
                             }
-                            if (row.size == 1) Spacer(modifier = Modifier.weight(1f))
+                            repeat(cols - row.size) { Spacer(modifier = Modifier.weight(1f)) }
                         }
                     }
                 }

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="library_tools_more">More</string>
+    <string name="library_tools_random_item">Random item</string>
+    <string name="library_tools_list_view">List view</string>
+    <string name="library_tools_folder_names">Show folder name only</string>
+</resources>

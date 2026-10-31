@@ -1,5 +1,8 @@
 package it.fast4x.riplay.ui.components
 
+import it.fast4x.riplay.ui.components.themed.noirBack
+import it.fast4x.riplay.ui.components.themed.NoirTopBar
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.AnimatedVisibilityScope
@@ -56,41 +59,31 @@ fun PageContainer(
     miniPlayer: @Composable () -> Unit = {},
     /** Set false on artwork-led screens (artist, album) so the cover can run to the top edge. */
     showTopBar: Boolean = true,
+    /** Yammbo Noir minimal top row (back, optional title, actions) instead of the logo bar. */
+    noirTopBar: Boolean = false,
+    topBarTitle: String? = null,
+    topBarActions: @Composable RowScope.() -> Unit = {},
     content: @Composable AnimatedVisibilityScope.(Int) -> Unit
 ) {
-    val transitionEffect by rememberPreference(transitionEffectKey, TransitionEffect.Scale)
+    val transitionEffect by rememberPreference(transitionEffectKey, TransitionEffect.SharedAxis)
     val playerPosition by rememberPreference(playerPositionKey, PlayerPosition.Bottom)
 
-    val context = LocalContext.current
-
-    val navigationBar = HorizontalNavigationBar(
-        tabIndex = -1,
-        onTabChanged = { index ->
-            context.preferences.edit().putInt(homeScreenTabIndexKey, index).apply()
-            navController.navigate(NavRoutes.home.name) {
-                popUpTo(NavRoutes.home.name) { inclusive = true }
-            }
-        },
-        navController = navController
-    )
-    navigationBar.add { Item ->
-        Item(0, stringResource(R.string.home), R.drawable.home)
-        Item(1, stringResource(R.string.live_radio_tab), R.drawable.radio)
-        Item(5, stringResource(R.string.podcasts_tab_podcasts), R.drawable.podcasts_tab)
-        Item(2, stringResource(R.string.my_music), R.drawable.musical_notes)
-        Item(3, stringResource(R.string.search), R.drawable.search)
-    }
+    // The nav pill and the bottom mini player are drawn once by NoirBottomChrome, outside the
+    // NavHost, so they do not move with the page transition.
+    RegisterNoirBottomChrome()
 
     androidx.compose.material3.Scaffold(
         modifier = modifier,
         containerColor = colorPalette().background0,
         topBar = {
-            if( showTopBar && UiType.RiPlay.isCurrent() )
+            if( noirTopBar )
+                NoirTopBar(
+                    onBack = { navController.noirBack() },
+                    title = topBarTitle,
+                    actions = topBarActions
+                )
+            else if( showTopBar && UiType.RiPlay.isCurrent() )
                 AppHeader( navController ).Draw()
-        },
-        bottomBar = {
-            if ( NavigationBarPosition.Bottom.isCurrent() )
-                navigationBar.Draw()
         }
     ) {
         //**
@@ -127,7 +120,7 @@ fun PageContainer(
                                 )
                             )
 
-                            TransitionEffect.Fade -> fadeIn(animationSpec = tween(350)).togetherWith(
+                            TransitionEffect.Fade, TransitionEffect.SharedAxis -> fadeIn(animationSpec = tween(350)).togetherWith(
                                 fadeOut(animationSpec = tween(350))
                             )
 
@@ -170,15 +163,15 @@ fun PageContainer(
                 )
             }
             //**
-            Box(
-                modifier = Modifier
-                    .padding(bottom = it.calculateBottomPadding())
-                    .padding(vertical = 5.dp)
-                    .align(if (playerPosition == PlayerPosition.Top) Alignment.TopCenter
-                    else Alignment.BottomCenter)
-            ) {
-                miniPlayer.invoke()
-            }
+            // A bottom mini player belongs to NoirBottomChrome; only a top one is drawn here.
+            if (playerPosition == PlayerPosition.Top)
+                Box(
+                    modifier = Modifier
+                        .padding(top = 5.dp, bottom = 12.dp)
+                        .align(Alignment.TopCenter)
+                ) {
+                    miniPlayer.invoke()
+                }
         }
     }
 }

@@ -7,6 +7,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.em
 import it.fast4x.riplay.utils.colorPalette
 
 fun TextStyle.style(style: FontStyle) = copy(fontStyle = style)
@@ -39,3 +40,11 @@ inline val TextStyle.secondary: TextStyle
     @Composable
     @ReadOnlyComposable
     get() = color(colorPalette().textSecondary)
+
+// Yammbo Noir: small uppercase technical label (pass text already uppercased).
+inline val TextStyle.mono: TextStyle
+    get() = copy(fontFamily = GeistMonoFamily, letterSpacing = 0.12.em)
+
+// Yammbo Noir: tight tracking for large titles.
+inline val TextStyle.tight: TextStyle
+    get() = copy(letterSpacing = (-0.03).em)

@@ -78,7 +78,10 @@ import it.fast4x.riplay.enums.ThumbnailRoundness
 import it.fast4x.riplay.enums.UiType
 import it.fast4x.riplay.data.models.Playlist
 import it.fast4x.riplay.data.models.SongPlaylistMap
+import it.fast4x.riplay.ui.components.CoverHandoff
 import it.fast4x.riplay.ui.components.LocalGlobalSheetState
+import it.fast4x.riplay.ui.components.NoirContentMax
+import it.fast4x.riplay.ui.components.noirContentWidth
 import it.fast4x.riplay.ui.components.ShimmerHost
 import it.fast4x.riplay.ui.components.SwipeablePlaylistItem
 import it.fast4x.riplay.ui.components.themed.AutoResizeText
@@ -122,7 +125,18 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import it.fast4x.riplay.ui.components.themed.LoadFailed
 import it.fast4x.riplay.ui.components.themed.MediaActionButton
-import it.fast4x.riplay.ui.components.themed.MediaHeader
+import it.fast4x.riplay.ui.components.themed.Menu
+import it.fast4x.riplay.ui.components.themed.MenuEntry
+import it.fast4x.riplay.ui.screens.album.AlbumNoirHeader
+import it.fast4x.riplay.ui.screens.album.AlbumPlayAction
+import it.fast4x.riplay.ui.screens.album.AlbumSquareAction
+import it.fast4x.riplay.ui.screens.album.NoirDescriptionBlock
+import it.fast4x.riplay.ui.screens.album.NoirListSearchField
+import it.fast4x.riplay.ui.screens.album.rememberCoverTint
+import it.fast4x.riplay.utils.httpClient
+import it.fast4x.riplay.utils.languageDestination
+import me.bush.translator.Language
+import me.bush.translator.Translator
 import it.fast4x.riplay.utils.colorPalette
 import it.fast4x.riplay.extensions.fastshare.FastShare
 import it.fast4x.riplay.data.models.defaultQueue
@@ -161,7 +175,12 @@ fun Podcast(
     // Bumped by the retry button to run the fetch again.
     var reloadKey by remember(browseId) { mutableIntStateOf(0) }
 
-    LoaderScreen(show = podcastPage == null && !loadFailed)
+    // Resolved before any early return: while the page loads, the header (which carries the
+    // shared cover) is composed from this handoff so the tapped cover has somewhere to fly to.
+    val handoff = remember(browseId) { CoverHandoff.forPage(browseId) }
+
+    // With a handoff the header is already on screen and the shimmer below it shows the loading.
+    LoaderScreen(show = podcastPage == null && !loadFailed && handoff == null)
 
     LaunchedEffect(browseId, reloadKey) {
         if (podcastPage != null) return@LaunchedEffect
@@ -221,7 +240,7 @@ fun Podcast(
         ThumbnailRoundness.Heavy
     )
 
-    val disableScrollingText by rememberPreference(disableScrollingTextKey, false)
+    val disableScrollingText by rememberPreference(disableScrollingTextKey, true)
 
     var totalPlayTimes = 0L
     podcastPage?.listEpisode?.forEach {
@@ -274,11 +293,141 @@ fun Podcast(
 
     var showFastShare by remember { mutableStateOf(false) }
 
-    FastShare(
-        showFastShare,
-        onDismissRequest = { showFastShare = false},
-        content = podcastPage?.toPlaylist(browseId) ?: return
-    )
+    // Nothing to draw yet and no cover to fly in: keep the full-screen loader alone.
+    if (podcastPage == null && handoff == null) return
+
+    podcastPage?.toPlaylist(browseId)?.let { sharePlaylist ->
+        FastShare(
+            showFastShare,
+            onDismissRequest = { showFastShare = false},
+            content = sharePlaylist
+        )
+    }
+
+    val hasEpisodes = podcastPage?.listEpisode?.isNotEmpty() == true
+
+    val podcastCoverUrl = podcastPage?.thumbnail?.maxByOrNull { (it.width ?: 0) * (it.height ?: 0) }?.url
+    val coverTint = rememberCoverTint(if (isLandscape) null else podcastCoverUrl ?: handoff?.url)
+
+    // Add the episodes to one of the user's playlists (or import them as a new one).
+    val openAddToPlaylist: () -> Unit = {
+        menuState.display {
+            PlaylistsItemMenu(
+                navController = navController,
+                modifier = Modifier.fillMaxHeight(0.4f),
+                onDismiss = menuState::hide,
+                onImportOnlinePlaylist = {
+                    isImportingPlaylist = true
+                },
+
+                //NOT NECESSARY IN ONLINE PLAYLIST USE IMPORT
+                onAddToPlaylist = { playlistPreview ->
+                    position =
+                        playlistPreview.songCount.minus(1)
+                            ?: 0
+                    if (position > 0) position++ else position =
+                        0
+
+                    if (!isYtSyncEnabled() || !playlistPreview.playlist.isYoutubePlaylist) {
+                        podcastPage?.listEpisode?.forEachIndexed { index, song ->
+                            runCatching {
+                                Database.insert(song.asMediaItem)
+                                Database.insert(
+                                    SongPlaylistMap(
+                                        songId = song.asMediaItem.mediaId,
+                                        playlistId = playlistPreview.playlist.id,
+                                        position = position + index
+                                    ).default()
+                                )
+                            }.onFailure {
+                                Timber.e("Failed onAddToPlaylist in PlaylistSongListModern  ${it.stackTraceToString()}")
+                            }
+                        }
+                    } else {
+                        CoroutineScope(Dispatchers.IO).launch {
+                            playlistPreview.playlist.browseId?.let { id ->
+                                addToYtPlaylist(
+                                    playlistPreview.playlist.id,
+                                    position,
+                                    id,
+                                    podcastPage?.listEpisode?.map { it.asMediaItem }
+                                        ?: emptyList())
+                            }
+                        }
+                    }
+
+                    CoroutineScope(Dispatchers.Main).launch {
+                        SmartMessage(
+                            context.resources.getString(
+                                R.string.done
+                            ),
+                            type = PopupType.Success,
+                            context = context
+                        )
+                    }
+                },
+                onGoToPlaylist = {
+                    navController.navigate("${NavRoutes.localPlaylist.name}/$it")
+                },
+                disableScrollingText = disableScrollingText
+            )
+        }
+    }
+
+    // The top-right "...": what the action row has no room for.
+    val openMoreMenu: () -> Unit = {
+        menuState.display {
+            Menu {
+                MenuEntry(
+                    icon = R.drawable.search_circle,
+                    text = stringResource(R.string.noir_list_search_action),
+                    onClick = {
+                        menuState.hide()
+                        searching = !searching
+                    }
+                )
+                MenuEntry(
+                    icon = R.drawable.enqueue,
+                    text = stringResource(R.string.enqueue_all),
+                    enabled = hasEpisodes,
+                    onClick = {
+                        menuState.hide()
+                        podcastPage?.listEpisode?.map(Environment.Podcast.EpisodeItem::asMediaItem)
+                            ?.let { mediaItems ->
+                                binder?.player?.enqueue(mediaItems, context)
+                            }
+                    }
+                )
+                MenuEntry(
+                    icon = R.drawable.radio,
+                    text = stringResource(R.string.start_radio),
+                    enabled = hasEpisodes,
+                    onClick = {
+                        menuState.hide()
+                        if (binder != null) {
+                            binder.stopRadio()
+                            binder.playRadio(
+                                NavigationEndpoint.Endpoint.Watch(
+                                    videoId =
+                                        if (binder.player.currentMediaItem?.mediaId != null)
+                                            binder.player.currentMediaItem?.mediaId
+                                        else podcastPage?.listEpisode?.first()?.asMediaItem?.mediaId
+                                )
+                            )
+                        }
+                    }
+                )
+                MenuEntry(
+                    icon = R.drawable.add_in_playlist,
+                    text = stringResource(R.string.add_to_playlist),
+                    onClick = {
+                        menuState.hide()
+                        openAddToPlaylist()
+                    }
+                )
+            }
+        }
+    }
 
     LayoutWithAdaptiveThumbnail(thumbnailContent = thumbnailContent) {
         Box(
@@ -308,60 +457,53 @@ fun Podcast(
                     item(
                         key = "header"
                     ) {
-                        val hasEpisodes = podcastPage?.listEpisode?.isNotEmpty() == true
+                        // "PODCAST · N episodios", skipping what is missing.
+                        val podcastMeta = listOfNotNull(
+                            stringResource(R.string.noir_kind_podcast),
+                            podcastPage?.listEpisode?.size?.takeIf { it > 0 }
+                                ?.let { stringResource(R.string.mediahdr_episodes_count, it) }
+                        ).joinToString(" · ")
 
-                        MediaHeader(
-                            // Landscape shows the cover in the side panel: only the name is shown here.
-                            imageUrl = if (isLandscape) null
-                            else podcastPage?.thumbnail?.maxByOrNull { (it.width ?: 0) * (it.height ?: 0) }?.url,
-                            title = podcastPage?.title ?: "",
-                            subtitle = podcastPage?.let {
-                                stringResource(R.string.mediahdr_episodes_count, it.listEpisode.size)
-                            },
-                            fullWidthCover = isLandscape,
+                        AlbumNoirHeader(
+                            // Landscape shows the cover in the side panel: no cover here.
+                            coverUrl = if (isLandscape) null else podcastCoverUrl,
+                            previewUrl = if (isLandscape) null else handoff?.url,
+                            sharedKey = if (isLandscape) null else handoff?.key,
+                            showCover = !isLandscape,
+                            title = podcastPage?.title ?: handoff?.title ?: "",
+                            artist = podcastPage?.author ?: "",
+                            meta = podcastMeta,
+                            tint = coverTint,
                             onBack = { navController.popBackStack() },
-                            onPlay = if (!hasEpisodes) null else ({
-                                binder?.stopRadio()
-                                podcastPage?.listEpisode
-                                    ?.map(Environment.Podcast.EpisodeItem::asMediaItem)
-                                    ?.let { binder?.player?.forcePlayFromBeginning(it) }
-                            }),
-                            onShuffle = if (!hasEpisodes) null else ({
-                                binder?.stopRadio()
-                                podcastPage?.listEpisode?.shuffled()
-                                    ?.map(Environment.Podcast.EpisodeItem::asMediaItem)
-                                    ?.let { binder?.player?.forcePlayFromBeginning(it) }
-                            }),
-                        ) {
-                            if (podcastPage != null) {
-
-                                MediaActionButton(
-                                    icon = R.drawable.search_circle,
-                                    onClick = { searching = !searching }
-                                )
-
-                                MediaActionButton(
-                                    icon = R.drawable.enqueue,
-                                    enabled = hasEpisodes,
-                                    tint = if (hasEpisodes) colorPalette().text else colorPalette().textDisabled,
-                                    onClick = {
-                                        podcastPage?.listEpisode?.map(Environment.Podcast.EpisodeItem::asMediaItem)
-                                            ?.let { mediaItems ->
-                                                binder?.player?.enqueue(mediaItems, context)
-                                            }
-                                    },
+                            onMore = if (podcastPage != null) openMoreMenu else null,
+                            actions = {
+                                // There is no podcast library to subscribe to: the left slot adds
+                                // the episodes to one of the user's playlists.
+                                AlbumSquareAction(
+                                    icon = R.drawable.add_in_playlist,
+                                    enabled = podcastPage != null,
+                                    onClick = openAddToPlaylist,
                                     onLongClick = {
                                         SmartMessage(
-                                            context.resources.getString(R.string.info_enqueue_songs),
+                                            context.resources.getString(R.string.info_add_in_playlist),
                                             context = context
                                         )
                                     }
                                 )
 
-                                MediaActionButton(
+                                AlbumPlayAction(
+                                    enabled = hasEpisodes,
+                                    onClick = {
+                                        binder?.stopRadio()
+                                        podcastPage?.listEpisode
+                                            ?.map(Environment.Podcast.EpisodeItem::asMediaItem)
+                                            ?.let { binder?.player?.forcePlayFromBeginning(it) }
+                                    }
+                                )
+
+                                AlbumSquareAction(
                                     icon = R.drawable.shuffle,
                                     enabled = hasEpisodes,
-                                    tint = if (hasEpisodes) colorPalette().text else colorPalette().textDisabled,
                                     onClick = {
                                         if (hasEpisodes) {
                                             binder?.stopRadio()
@@ -382,203 +524,91 @@ fun Podcast(
                                     }
                                 )
 
-                                MediaActionButton(
-                                    icon = R.drawable.radio,
-                                    enabled = hasEpisodes,
-                                    tint = if (hasEpisodes) colorPalette().text else colorPalette().textDisabled,
-                                    onClick = {
-                                        if (binder != null) {
-                                            binder.stopRadio()
-                                            binder.playRadio(
-                                                NavigationEndpoint.Endpoint.Watch(
-                                                    videoId =
-                                                        if (binder.player.currentMediaItem?.mediaId != null)
-                                                            binder.player.currentMediaItem?.mediaId
-                                                        else podcastPage?.listEpisode?.first()?.asMediaItem?.mediaId
-                                                )
-                                            )
-                                        }
-                                    },
-                                    onLongClick = {
-                                        SmartMessage(
-                                            context.resources.getString(R.string.info_start_radio),
-                                            context = context
-                                        )
-                                    }
-                                )
-
-                                MediaActionButton(
-                                    icon = R.drawable.add_in_playlist,
-                                    onClick = {
-                                        menuState.display {
-                                            PlaylistsItemMenu(
-                                                navController = navController,
-                                                modifier = Modifier.fillMaxHeight(0.4f),
-                                                onDismiss = menuState::hide,
-                                                onImportOnlinePlaylist = {
-                                                    isImportingPlaylist = true
-                                                },
-
-                                                //NOT NECESSARY IN ONLINE PLAYLIST USE IMPORT
-                                                onAddToPlaylist = { playlistPreview ->
-                                                    position =
-                                                        playlistPreview.songCount.minus(1)
-                                                            ?: 0
-                                                    if (position > 0) position++ else position =
-                                                        0
-
-                                                    if (!isYtSyncEnabled() || !playlistPreview.playlist.isYoutubePlaylist) {
-                                                        podcastPage?.listEpisode?.forEachIndexed { index, song ->
-                                                            runCatching {
-                                                                Database.insert(song.asMediaItem)
-                                                                Database.insert(
-                                                                    SongPlaylistMap(
-                                                                        songId = song.asMediaItem.mediaId,
-                                                                        playlistId = playlistPreview.playlist.id,
-                                                                        position = position + index
-                                                                    ).default()
-                                                                )
-                                                            }.onFailure {
-                                                                Timber.e("Failed onAddToPlaylist in PlaylistSongListModern  ${it.stackTraceToString()}")
-                                                            }
-                                                        }
-                                                    } else {
-                                                        CoroutineScope(Dispatchers.IO).launch {
-                                                            playlistPreview.playlist.browseId?.let { id ->
-                                                                addToYtPlaylist(
-                                                                    playlistPreview.playlist.id,
-                                                                    position,
-                                                                    id,
-                                                                    podcastPage?.listEpisode?.map { it.asMediaItem }
-                                                                        ?: emptyList())
-                                                            }
-                                                        }
-                                                    }
-
-                                                    CoroutineScope(Dispatchers.Main).launch {
-                                                        SmartMessage(
-                                                            context.resources.getString(
-                                                                R.string.done
-                                                            ),
-                                                            type = PopupType.Success,
-                                                            context = context
-                                                        )
-                                                    }
-                                                },
-                                                onGoToPlaylist = {
-                                                    navController.navigate("${NavRoutes.localPlaylist.name}/$it")
-                                                },
-                                                disableScrollingText = disableScrollingText
-                                            )
-                                        }
-                                    },
-                                    onLongClick = {
-                                        SmartMessage(
-                                            context.resources.getString(R.string.info_add_in_playlist),
-                                            context = context
-                                        )
-                                    }
-                                )
-
-                                // Moved here from the old top-right corner icon.
-                                MediaActionButton(
+                                AlbumSquareAction(
                                     icon = R.drawable.share_social,
+                                    enabled = podcastPage != null,
                                     onClick = { showFastShare = true }
                                 )
                             }
-                        }
+                        )
                     }
 
+                    // The in-list search ("..." > search in this list): a pill under the header.
                     item(
                         key = "actions",
                         contentType = 0
                     ) {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            verticalAlignment = Alignment.Bottom,
-                            modifier = Modifier
-                                .padding(all = 10.dp)
-                                .fillMaxWidth()
+                        Box(modifier = Modifier.noirContentWidth(NoirContentMax.List)) {
+                        AnimatedVisibility(visible = searching) {
+                            val focusRequester = remember { FocusRequester() }
+                            val focusManager = LocalFocusManager.current
+                            val keyboardController = LocalSoftwareKeyboardController.current
+
+                            LaunchedEffect(searching) {
+                                focusRequester.requestFocus()
+                            }
+
+                            NoirListSearchField(
+                                value = filter ?: "",
+                                onValueChange = { filter = it },
+                                hint = stringResource(R.string.noir_list_search_hint),
+                                onDone = {
+                                    if (filter.isNullOrBlank()) filter = ""
+                                    focusManager.clearFocus()
+                                },
+                                fieldModifier = Modifier
+                                    .focusRequester(focusRequester)
+                                    .onFocusChanged {
+                                        if (!it.hasFocus) {
+                                            keyboardController?.hide()
+                                            if (filter?.isBlank() == true) {
+                                                filter = null
+                                                searching = false
+                                            }
+                                        }
+                                    }
+                            )
+                        }
+                        }
+                    }
+
+                    podcastPage?.description?.takeIf { it.isNotBlank() }?.let { description ->
+                        item(
+                            key = "podcastInfo"
                         ) {
-                            AnimatedVisibility(visible = searching) {
-                                val focusRequester = remember { FocusRequester() }
-                                val focusManager = LocalFocusManager.current
-                                val keyboardController = LocalSoftwareKeyboardController.current
+                            var translateEnabled by remember { mutableStateOf(false) }
+                            val translator = remember { Translator(httpClient()) }
+                            val languageDestination = languageDestination()
 
-                                LaunchedEffect(searching) {
-                                    focusRequester.requestFocus()
-                                }
+                            var translatedText by remember(description) { mutableStateOf(description) }
 
-                                BasicTextField(
-                                    value = filter ?: "",
-                                    onValueChange = { filter = it },
-                                    textStyle = typography().xs.semiBold,
-                                    singleLine = true,
-                                    maxLines = 1,
-                                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                                    keyboardActions = KeyboardActions(onDone = {
-                                        if (filter.isNullOrBlank()) filter = ""
-                                        focusManager.clearFocus()
-                                    }),
-                                    cursorBrush = SolidColor(colorPalette().text),
-                                    decorationBox = { innerTextField ->
-                                        Box(
-                                            contentAlignment = Alignment.CenterStart,
-                                            modifier = Modifier
-                                                .weight(1f)
-                                                .padding(horizontal = 10.dp)
-                                        ) {
-                                            IconButton(
-                                                onClick = {},
-                                                icon = R.drawable.search,
-                                                color = colorPalette().favoritesIcon,
-                                                modifier = Modifier
-                                                    .align(Alignment.CenterStart)
-                                                    .size(16.dp)
-                                            )
+                            LaunchedEffect(translateEnabled, description) {
+                                if (translateEnabled) {
+                                    val result = withContext(Dispatchers.IO) {
+                                        try {
+                                            translator.translate(
+                                                description,
+                                                languageDestination,
+                                                Language.AUTO
+                                            ).translatedText
+                                        } catch (e: Exception) {
+                                            e.printStackTrace()
+                                            null
                                         }
-                                        Box(
-                                            contentAlignment = Alignment.CenterStart,
-                                            modifier = Modifier
-                                                .weight(1f)
-                                                .padding(horizontal = 30.dp)
-                                        ) {
-                                            androidx.compose.animation.AnimatedVisibility(
-                                                visible = filter?.isEmpty() ?: true,
-                                                enter = fadeIn(tween(100)),
-                                                exit = fadeOut(tween(100)),
-                                            ) {
-                                                BasicText(
-                                                    text = stringResource(R.string.search),
-                                                    maxLines = 1,
-                                                    overflow = TextOverflow.Ellipsis,
-                                                    style = typography().xs.semiBold.secondary.copy(
-                                                        color = colorPalette().textDisabled
-                                                    )
-                                                )
-                                            }
+                                    }
+                                    translatedText = result?.takeIf { it.isNotBlank() } ?: description
+                                } else translatedText = description
+                            }
 
-                                            innerTextField()
-                                        }
-                                    },
-                                    modifier = Modifier
-                                        .height(30.dp)
-                                        .fillMaxWidth()
-                                        .background(
-                                            colorPalette().background4,
-                                            shape = thumbnailRoundness.shape()
-                                        )
-                                        .focusRequester(focusRequester)
-                                        .onFocusChanged {
-                                            if (!it.hasFocus) {
-                                                keyboardController?.hide()
-                                                if (filter?.isBlank() == true) {
-                                                    filter = null
-                                                    searching = false
-                                                }
-                                            }
-                                        }
-                                )
+                            Box(modifier = Modifier.noirContentWidth(NoirContentMax.List)) {
+                            NoirDescriptionBlock(
+                                eyebrow = stringResource(R.string.noir_podcast_about),
+                                text = translatedText,
+                                translated = translateEnabled,
+                                translateLabel = stringResource(R.string.translate),
+                                originalLabel = stringResource(R.string.noir_translate_original),
+                                onToggleTranslate = { translateEnabled = !translateEnabled }
+                            )
                             }
                         }
                     }
@@ -598,6 +628,7 @@ fun Podcast(
                         } ?: emptyList())
                     { index, song ->
 
+                        Box(modifier = Modifier.noirContentWidth(NoirContentMax.List)) {
                         SwipeablePlaylistItem(
                             mediaItem = song.asMediaItem,
                             onPlayNext = {
@@ -616,6 +647,7 @@ fun Podcast(
                                 thumbnailSizePx = songThumbnailSizePx,
                                 thumbnailSizeDp = songThumbnailSizeDp,
                                 modifier = Modifier
+                                    .padding(start = 4.dp)
                                     .combinedClickable(
                                         onLongClick = {
                                             menuState.display {
@@ -640,9 +672,11 @@ fun Podcast(
                                             podcastPage?.listEpisode?.map(Environment.Podcast.EpisodeItem::asMediaItem)
                                                 ?.let { mediaItems ->
                                                     binder?.stopRadio()
+                                                    // index is into the filtered list; find the episode in the full one.
                                                     binder?.player?.forcePlayAtIndex(
                                                         mediaItems,
-                                                        index
+                                                        mediaItems.indexOfFirst { it.mediaId == song.asMediaItem.mediaId }
+                                                            .coerceAtLeast(0)
                                                     )
                                                 }
                                         }
@@ -651,6 +685,7 @@ fun Podcast(
                                 //isNowPlaying = binder?.player?.isNowPlaying(song.videoId) ?: false,
                                 //forceRecompose = forceRecompose
                             )
+                        }
                         }
                     }
 

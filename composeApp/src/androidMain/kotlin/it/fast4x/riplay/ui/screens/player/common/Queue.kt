@@ -169,7 +169,11 @@ import it.fast4x.riplay.extensions.preferences.excludeSongIfIsVideoKey
 import it.fast4x.riplay.ui.components.themed.EditQueueDialog
 import it.fast4x.riplay.ui.components.themed.QueueItemMenu
 import it.fast4x.riplay.ui.components.themed.Title
-import it.fast4x.riplay.ui.components.themed.Title2Actions
+import it.fast4x.riplay.commonutils.durationTextToMillis
+import it.fast4x.riplay.commonutils.thumbnail
+import it.fast4x.riplay.utils.formatAsDuration
+import it.fast4x.riplay.utils.isRadio
+import androidx.compose.foundation.shape.RoundedCornerShape
 import it.fast4x.riplay.ui.items.QueueItem
 import it.fast4x.riplay.ui.screens.player.local.LocalMiniPlayer
 import it.fast4x.riplay.ui.screens.player.online.OnlineMiniPlayer
@@ -204,8 +208,10 @@ fun Queue(
     val context = LocalContext.current
     val showButtonPlayerArrow by rememberPreference(showButtonPlayerArrowKey, true)
     var queueType by rememberPreference(queueTypeKey, QueueType.Essential)
+    // Yammbo Noir: everything in the queue sits on the sheet's own colour.
+    val noirSheet = if (colorPalette().isDark) Color(0xff0D0D0E) else colorPalette().background0
 
-    val disableScrollingText by rememberPreference(disableScrollingTextKey, false)
+    val disableScrollingText by rememberPreference(disableScrollingTextKey, true)
 
     val binder = LocalPlayerServiceBinder.current
 
@@ -472,7 +478,7 @@ fun Queue(
                     .only(WindowInsetsSides.Horizontal)
                     .asPaddingValues()
             )
-            .background(if (queueType == QueueType.Modern) Color.Transparent else colorPalette().background1)
+            .background(noirSheet)
             .fillMaxSize()
     ) {
 
@@ -551,24 +557,38 @@ fun Queue(
                     )
                 }
 
-                Title2Actions(
+                // Count and total time of what the queue shows (same filter as the list below).
+                val shownWindows = windowsInQueue.filter { item ->
+                    blacklisted.value?.map { it.path }?.contains(item.mediaItem.mediaId) == false
+                        || item.mediaItem.isVideo == !excludeSongsIfAreVideos
+                }
+                val totalMillis = shownWindows.sumOf {
+                    if (it.mediaItem.isRadio) 0L
+                    else durationTextToMillis(
+                        it.mediaItem.mediaMetadata.extras?.getString("durationText").orEmpty()
+                    )
+                }
+                val songsCount = stringResource(R.string.noir_album_songs_count, shownWindows.size)
+
+                NoirQueueHeader(
                     // The built-in queue is called "Default"; it reads better as plain "Up next".
                     title = selectedQueue?.title
                         ?.takeUnless { it.isBlank() || it.equals("Default", ignoreCase = true) }
                         ?.let { stringResource(R.string.queue_queue, it) }
                         ?: stringResource(R.string.queue_up_next),
-                    icon1 = if (showQueues) R.drawable.chevron_up else R.drawable.chevron_down,
-                    icon2 = R.drawable.addqueue,
-                    onClick1 = {
+                    eyebrow = if (totalMillis > 0L) "$songsCount · ${formatAsDuration(totalMillis)}" else songsCount,
+                    queuesExpanded = showQueues,
+                    onToggleQueues = {
                         showQueues = !showQueues
                     },
-                    onClick2 = {
+                    onAddQueue = {
                         editQueue = false
                         addQueue = true
                     },
+                    onClose = { onDismiss(queueLoopType) },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(colorPalette().background1)
+                        .background(noirSheet)
                         .padding(windowInsets
                         .only(WindowInsetsSides.Top )
                         .asPaddingValues())
@@ -583,7 +603,7 @@ fun Queue(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier
                             .height(heightQueues.value)
-                            .background(colorPalette().background0)
+                            .background(noirSheet)
                     ) {
 
                             items(
@@ -633,7 +653,7 @@ fun Queue(
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                         verticalAlignment = Alignment.Bottom,
                         modifier = Modifier
-                            .background(colorPalette().background1)
+                            .background(noirSheet)
                             .padding(all = 10.dp)
                             .fillMaxWidth()
                     ) {
@@ -699,11 +719,11 @@ fun Queue(
                                     }
                                 },
                                 modifier = Modifier
-                                    .height(30.dp)
+                                    .height(40.dp)
                                     .fillMaxWidth()
                                     .background(
-                                        colorPalette().background4,
-                                        shape = thumbnailRoundness.shape()
+                                        colorPalette().text.copy(alpha = 0.08f),
+                                        shape = RoundedCornerShape(percent = 50)
                                     )
                                     .focusRequester(focusRequester)
                                     .onFocusChanged {
@@ -750,37 +770,6 @@ fun Queue(
                         .fillMaxWidth()
                         .animateItem()
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(24.dp)
-                            .zIndex(10f)
-                            .align(Alignment.TopCenter)
-                            .offset(y = (-5).dp)
-                            .draggableHandle(
-                                enabled = !isReorderDisabled,
-                                interactionSource = interactionSource,
-                                onDragStarted = {
-                                    hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                                },
-                                onDragStopped = {
-                                    hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                                }
-                            )
-
-                    ) {
-
-                        if (!isReorderDisabled) {
-                            IconButton(
-                                icon = R.drawable.reorder,
-                                color = colorPalette().accent,
-                                indication = rippleIndication,
-                                onClick = {},
-//                                modifier = Modifier
-//                                    .draggableHandle()
-                            )
-                        }
-                    }
-
                     SwipeableQueueItem (
                         mediaItem = window.mediaItem,
                         onPlayNext = {
@@ -810,55 +799,49 @@ fun Queue(
                             updateWindowsList = !updateWindowsList
                         }
                     ) {
-                        SongItem(
-                            song = window.mediaItem,
-                            thumbnailSizePx = thumbnailSizePx,
-                            thumbnailSizeDp = thumbnailSizeDp,
-                            onThumbnailContent = {
-                                musicBarsTransition.AnimatedVisibility(
-                                    visible = { it == window.firstPeriodIndex },
-                                    enter = fadeIn(tween(800)),
-                                    exit = fadeOut(tween(800)),
-                                ) {
+                        NoirQueueRow(
+                            mediaItem = window.mediaItem,
+                            isCurrent = isPlayingThisMediaItem,
+                            player = binder.player,
+                            thumbnailUrl = window.mediaItem.mediaMetadata.artworkUri.toString()
+                                .thumbnail(thumbnailSizePx),
+                            selectMode = selectQueueItems,
+                            checked = checkedState.value,
+                            onCheckedChange = {
+                                checkedState.value = it
+                                if (it) {
+                                    listMediaItems.add(window.mediaItem)
+                                    listMediaItemsIndex.add(window.firstPeriodIndex)
+                                } else {
+                                    listMediaItems.remove(window.mediaItem)
+                                    listMediaItemsIndex.remove(window.firstPeriodIndex)
+                                }
+                            },
+                            handle = if (isReorderDisabled) null else {
+                                {
                                     Box(
                                         contentAlignment = Alignment.Center,
                                         modifier = Modifier
-                                            .background(
-                                                color = Color.Black.copy(alpha = 0.25f),
-                                                shape = thumbnailShape()
+                                            .size(40.dp)
+                                            .draggableHandle(
+                                                enabled = !isReorderDisabled,
+                                                interactionSource = interactionSource,
+                                                onDragStarted = {
+                                                    hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                },
+                                                onDragStopped = {
+                                                    hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                }
                                             )
-                                            .size(Dimensions.thumbnails.song)
                                     ) {
-                                        NowPlayingSongIndicator(
-                                            window.mediaItem.mediaId,
-                                            binder.player
+                                        Image(
+                                            painter = painterResource(R.drawable.reorder),
+                                            contentDescription = null,
+                                            colorFilter = ColorFilter.tint(colorPalette().textSecondary),
+                                            modifier = Modifier.size(22.dp)
                                         )
                                     }
                                 }
-                            },
-                            trailingContent = {
-                                if (selectQueueItems)
-                                    Checkbox(
-                                        checked = checkedState.value,
-                                        onCheckedChange = {
-                                            checkedState.value = it
-                                            if (it) {
-                                                listMediaItems.add(window.mediaItem)
-                                                listMediaItemsIndex.add(window.firstPeriodIndex)
-                                            } else {
-                                                listMediaItems.remove(window.mediaItem)
-                                                listMediaItemsIndex.remove(window.firstPeriodIndex)
-                                            }
-                                        },
-                                        colors = colors(
-                                            checkedColor = colorPalette().accent,
-                                            uncheckedColor = colorPalette().text
-                                        ),
-                                        modifier = Modifier
-                                            .scale(0.7f)
-                                    )
-                                else checkedState.value = false
-
                             },
                             modifier = Modifier
                                 .combinedClickable(
@@ -899,11 +882,9 @@ fun Queue(
                                         } else checkedState.value = !checkedState.value
                                     }
                                 )
-                                .background(color = if (queueType == QueueType.Modern) Color.Transparent else colorPalette().background0),
-                            //disableScrollingText = disableScrollingText,
-                            //isNowPlaying = binder.player.isNowPlaying(window.mediaItem.mediaId),
-                            //forceRecompose = forceRecompose
                         )
+                        // Leaving select mode clears the ticks.
+                        if (!selectQueueItems) checkedState.value = false
                     }
                 }
             }
@@ -956,7 +937,7 @@ fun Queue(
             Box(
                 modifier = Modifier
                     .clickable(onClick = { onDismiss(queueLoopType) })
-                    .background(colorPalette().background1)
+                    .background(noirSheet)
                     .fillMaxWidth()
                     .align(Alignment.BottomCenter)
                     .height( Dimensions.navigationBarHeight + bottomInset )
@@ -1016,122 +997,59 @@ fun Queue(
 //                    )
 
 
+                // The count now lives in the header eyebrow; the bar is a row of outlined round buttons.
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Start,
+                    horizontalArrangement = Arrangement.SpaceEvenly,
                     modifier = Modifier
-                        .padding(horizontal = 4.dp)
-                        .padding(bottom = 5.dp)
-                        .align(Alignment.CenterStart)
-
+                        .align(Alignment.Center)
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp)
                 ) {
-
-                    BasicText(
-                        text = "${windowsInQueue.filter {
-                                item -> blacklisted.value?.map { it.path }?.contains(item.mediaItem.mediaId) == false
-                                || item.mediaItem.isVideo == !excludeSongsIfAreVideos
-                        }.size} ",
-                        style = typography().xxs.medium,
-                    )
-                    Image(
-                        painter = painterResource(R.drawable.musical_notes),
-                        contentDescription = null,
-                        colorFilter = ColorFilter.tint(colorPalette().textSecondary),
-                        modifier = Modifier
-                            .size(12.dp)
-                    )
-
-                }
-
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.End,
-                    modifier = Modifier
-                        .align(Alignment.CenterEnd)
-                        .padding(horizontal = 4.dp)
-                        .padding(bottom = 5.dp)
-
-                ) {
-                    IconButton(
-                        icon = R.drawable.search_circle,
-                        color = colorPalette().text,
+                    NoirQueueToolButton(
+                        icon = R.drawable.search,
+                        active = searching,
                         onClick = {
                             searching = !searching
                             if (searching)
                                 windowsFiltered = windows
-                        },
-                        modifier = Modifier
-                            .padding(horizontal = 4.dp)
-                            .size(24.dp)
+                        }
                     )
 
                     if (showButtonPlayerDiscover) {
-                        IconButton(
+                        NoirQueueToolButton(
                             icon = R.drawable.star_brilliant,
-                            color = if (discoverIsEnabled) colorPalette().text else colorPalette().textDisabled,
-                            onClick = {},
-                            modifier = Modifier
-                                .padding(horizontal = 4.dp)
-                                .size(24.dp)
-                                .combinedClickable(
-                                    onClick = {
-                                        discoverIsEnabled = !discoverIsEnabled
-                                        onDiscoverClick(discoverIsEnabled)
-                                    },
-                                    onLongClick = {
-                                        SmartMessage(
-                                            context.resources.getString(R.string.discoverinfo),
-                                            context = context
-                                        )
-                                    }
-
+                            active = discoverIsEnabled,
+                            onClick = {
+                                discoverIsEnabled = !discoverIsEnabled
+                                onDiscoverClick(discoverIsEnabled)
+                            },
+                            onLongClick = {
+                                SmartMessage(
+                                    context.resources.getString(R.string.discoverinfo),
+                                    context = context
                                 )
+                            }
                         )
-
-                        Spacer(
-                            modifier = Modifier
-                                .width(12.dp)
-                        )
-
                     }
 
-                    IconButton(
+                    // Active (white) while reordering is unlocked.
+                    NoirQueueToolButton(
                         icon = if (isReorderDisabled) R.drawable.locked else R.drawable.unlocked,
-                        color = if (isReorderDisabled) colorPalette().text else colorPalette().accent,
-                        onClick = { isReorderDisabled = !isReorderDisabled },
-                        modifier = Modifier
-                            .padding(horizontal = 4.dp)
-                            .size(24.dp)
+                        active = !isReorderDisabled,
+                        onClick = { isReorderDisabled = !isReorderDisabled }
                     )
 
-                    Spacer(
-                        modifier = Modifier
-                            .width(12.dp)
-                    )
-                    IconButton(
+                    NoirQueueToolButton(
                         icon = getIconQueueLoopState(queueLoopType),
-                        color = colorPalette().text,
                         onClick = {
                             queueLoopType = setQueueLoopState(queueLoopType)
-                        },
-                        modifier = Modifier
-                            .padding(horizontal = 4.dp)
-                            .size(24.dp)
+                        }
                     )
 
-                    Spacer(
-                        modifier = Modifier
-                            .width(12.dp)
-                    )
-
-                    IconButton(
+                    NoirQueueToolButton(
                         icon = R.drawable.shuffle,
-                        color = colorPalette().text,
                         enabled = !reorderableLazyListState.isAnyItemDragging,
-                        modifier = Modifier
-                            .padding(horizontal = 4.dp)
-                            .size(24.dp),
                         onClick = {
                             coroutineScope.launch {
                                 lazyListState.smoothScrollToTop()
@@ -1142,16 +1060,9 @@ fun Queue(
                         }
                     )
 
-                    Spacer(
-                        modifier = Modifier
-                            .width(12.dp)
-                    )
-                    HeaderIconButton(
+                    NoirQueueToolButton(
                         icon = R.drawable.ellipsis_horizontal,
-                        color = if (windows.isNotEmpty() == true) colorPalette().text else colorPalette().textDisabled,
-                        enabled = windows.isNotEmpty() == true,
-                        modifier = Modifier
-                            .padding(end = 4.dp),
+                        enabled = windows.isNotEmpty(),
                         onClick = {
                             menuState.display {
                                 PlaylistsItemMenu(
@@ -1266,17 +1177,9 @@ fun Queue(
 
 
                     if (showButtonPlayerArrow) {
-                        Spacer(
-                            modifier = Modifier
-                                .width(12.dp)
-                        )
-                        IconButton(
+                        NoirQueueToolButton(
                             icon = R.drawable.chevron_down,
-                            color = colorPalette().text,
-                            onClick = { onDismiss(queueLoopType) },
-                            modifier = Modifier
-                                .padding(horizontal = 4.dp)
-                                .size(24.dp)
+                            onClick = { onDismiss(queueLoopType) }
                         )
                     }
 

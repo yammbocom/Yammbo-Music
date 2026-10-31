@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="stats_title">Estadísticas</string>
+    <string name="stats_period_today">Hoy</string>
+    <string name="stats_period_week">Semana</string>
+    <string name="stats_period_month">Mes</string>
+    <string name="stats_period_3m">3 meses</string>
+    <string name="stats_period_6m">6 meses</string>
+    <string name="stats_period_year">Año</string>
+    <string name="stats_period_all">Todo</string>
+    <string name="stats_range_today">Hoy</string>
+    <string name="stats_range_all">Todo el historial</string>
+    <string name="stats_minutes_listened">Minutos escuchados</string>
+    <string name="stats_songs_played">Canciones</string>
+    <string name="stats_artists_heard">Artistas</string>
+    <string name="stats_albums_heard">Álbumes</string>
+    <string name="stats_cat_songs">Canciones</string>
+    <string name="stats_cat_artists">Artistas</string>
+    <string name="stats_cat_albums">Álbumes</string>
+    <string name="stats_cat_playlists">Listas</string>
+    <string name="stats_top_song">Canción más escuchada</string>
+    <string name="stats_top_artist">Artista más escuchado</string>
+    <string name="stats_top_album">Álbum más escuchado</string>
+    <string name="stats_top_playlist">Lista más escuchada</string>
+    <string name="stats_ranking">Ranking</string>
+    <string name="stats_kind_artist">Artista</string>
+    <string name="stats_empty">Aún no hay escuchas en este periodo.</string>
+</resources>

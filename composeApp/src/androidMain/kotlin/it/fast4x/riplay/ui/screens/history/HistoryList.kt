@@ -68,7 +68,37 @@ import it.fast4x.riplay.enums.NavRoutes
 import it.fast4x.riplay.ui.components.ButtonsRow
 import it.fast4x.riplay.ui.screens.settings.isYtLoggedIn
 import it.fast4x.riplay.extensions.preferences.historyTypeKey
-import it.fast4x.riplay.ui.components.themed.Search
+import it.fast4x.riplay.commonutils.cleanPrefix
+import it.fast4x.riplay.commonutils.thumbnail
+import it.fast4x.riplay.ui.components.CollapsingTitleEffect
+import it.fast4x.riplay.ui.components.NoirContentMax
+import it.fast4x.riplay.ui.components.RevealImage
+import it.fast4x.riplay.ui.components.rememberNoirLayout
+import it.fast4x.riplay.ui.components.cascadeEntry
+import it.fast4x.riplay.ui.components.collapsingTitle
+import it.fast4x.riplay.ui.components.rememberTitleCollapse
+import it.fast4x.riplay.ui.components.themed.NoirChip
+import it.fast4x.riplay.ui.components.themed.NoirEyebrow
+import it.fast4x.riplay.ui.styling.tight
+import it.fast4x.riplay.utils.typography
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.sp
+import java.util.Date
+import java.util.Locale
 import it.fast4x.riplay.utils.LazyListContainer
 import it.fast4x.riplay.utils.forcePlay
 import java.time.temporal.ChronoUnit
@@ -113,7 +143,7 @@ fun HistoryList(
 
 
     val parentalControlEnabled by rememberPreference(parentalControlEnabledKey, false)
-    val disableScrollingText by rememberPreference(disableScrollingTextKey, false)
+    val disableScrollingText by rememberPreference(disableScrollingTextKey, true)
     val thumbnailRoundness by rememberPreference(thumbnailRoundnessKey, ThumbnailRoundness.Light)
 
     var isSelectionMode by remember { mutableStateOf(false) }
@@ -126,7 +156,7 @@ fun HistoryList(
     }
 
 
-    val search = Search.init()
+    var query by rememberSaveable { mutableStateOf("") }
 
 
     val eventsState = Database.events()
@@ -144,6 +174,9 @@ fun HistoryList(
     if (isYtLoggedIn()) buttonsList += HistoryType.OnlineHistory to stringResource(R.string.online_history)
 
     var historyType by rememberPreference(historyTypeKey, HistoryType.History)
+    // A saved "online" choice outlives the YouTube login; without it the chips are hidden, so
+    // fall back to the local history instead of an empty page with no way out.
+    val shownHistoryType = if (buttonsList.any { it.first == historyType }) historyType else HistoryType.History
     var historyPage by persist<HistoryPage>("home/historyPage")
 
     LaunchedEffect(Unit, historyType) {
@@ -155,6 +188,8 @@ fun HistoryList(
     val colorPalette = colorPalette()
 
     val state = rememberLazyListState()
+    val titleProgress = rememberTitleCollapse(state, 0)
+    CollapsingTitleEffect(stringResource(R.string.history), titleProgress)
 
     Column(
         modifier = Modifier
@@ -165,40 +200,65 @@ fun HistoryList(
             )
     ) {
         LazyListContainer(state) {
+            // Rows keep their own 16dp padding; this only centres the column at list width on tablets.
+            val noirLayout = rememberNoirLayout()
             LazyColumn(
                 state = state,
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                    horizontal = noirLayout.sidePadding(NoirContentMax.List, minPadding = 0.dp)
+                ),
                 modifier = Modifier
                     .background(color = colorPalette().background0)
                     .fillMaxSize()
             ) {
                 item(key = "header") {
-                    HeaderWithIcon(
-                        title = stringResource(R.string.history),
-                        iconId = R.drawable.history,
-                        enabled = false,
-                        showIcon = false,
-                        modifier = Modifier,
-                        onClick = {}
+                    BasicText(
+                        text = stringResource(R.string.history),
+                        style = typography().xxl.tight.copy(
+                            color = colorPalette().text,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 40.sp
+                        ),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier
+                            .cascadeEntry(0)
+                            .fillMaxWidth()
+                            .padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 10.dp)
+                            .collapsingTitle(titleProgress)
                     )
                 }
 
-                item(key = "tabList") {
-                    ButtonsRow(
-                        buttons = buttonsList,
-                        currentValue = historyType,
-                        onValueUpdate = { historyType = it },
-                        modifier = Modifier.padding(horizontal = 12.dp)
-                    )
-                }
-
-                item {
-                    Column {
-                        search.ToolBarButton()
-                        search.SearchBar(this)
+                if (buttonsList.size > 1) {
+                    item(key = "tabList") {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier
+                                .cascadeEntry(1)
+                                .padding(horizontal = 16.dp, vertical = 4.dp)
+                        ) {
+                            buttonsList.forEach { (type, label) ->
+                                NoirChip(
+                                    text = label,
+                                    selected = shownHistoryType == type,
+                                    onClick = { historyType = type }
+                                )
+                            }
+                        }
                     }
                 }
 
-                when (historyType) {
+                item(key = "search") {
+                    Box(Modifier.cascadeEntry(2)) {
+                        HistorySearchField(
+                            value = query,
+                            onValueChange = { query = it },
+                            hint = stringResource(R.string.history_search_hint)
+                        )
+                    }
+                }
+
+                when (shownHistoryType) {
                     HistoryType.History -> {
                         eventsState.value.forEach { (dateAgo, events) ->
                             renderHistoryGroup(
@@ -208,18 +268,12 @@ fun HistoryList(
                                     DateAgo.ThisWeek -> context.resources.getString((R.string.this_week))
                                     DateAgo.LastWeek -> context.resources.getString((R.string.last_week))
                                     is DateAgo.Other -> dateAgo.date.format(
-                                        DateTimeFormatter.ofPattern(
-                                            "yyyy/MM"
-                                        )
+                                        DateTimeFormatter.ofPattern("MMMM yyyy", Locale.getDefault())
                                     )
-                                },
-                                modifier = Modifier.background(
-                                    color = colorPalette.background3,
-                                    shape = thumbnailRoundness.shape()
-                                )
+                                }
                             ) {
                                 val filteredEvents = events
-                                    .filter { matchesSearch(it .song.title, it.song.artistsText, search.input) }
+                                    .filter { matchesSearch(it .song.title, it.song.artistsText, query) }
                                     .distinctBy { it.song.id }
 
                                 items(filteredEvents, key = { it.event.id }) { event ->
@@ -242,7 +296,8 @@ fun HistoryList(
                                         },
                                         navController = navController,
                                         menuState = menuState,
-                                        disableScrollingText = disableScrollingText
+                                        disableScrollingText = disableScrollingText,
+                                        playedAt = event.event.timestamp
                                     )
                                 }
                             }
@@ -251,17 +306,15 @@ fun HistoryList(
                     HistoryType.OnlineHistory -> {
                         historyPage?.sections?.forEach { section ->
                             renderHistoryGroup(
-                                headerTitle = section.title,
-                                modifier = Modifier.background(
-                                    color = colorPalette.background3,
-                                    shape = thumbnailRoundness.shape()
-                                )
+                                headerTitle = section.title
                             ) {
                                 val filteredSongs = section.songs
-                                    .filter { matchesSearch(it.title, it.authors?.joinToString { it.name.toString() }, search.input) }
+                                    .filter { matchesSearch(it.title, it.authors?.joinToString { it.name.toString() }, query) }
                                     .map { it.asMediaItem }
+                                    .distinctBy { it.mediaId }
 
-                                items(filteredSongs, key = { it.mediaId }) { song ->
+                                // The same song can show up in two sections: scope the key.
+                                items(filteredSongs, key = { "${section.title}:${it.mediaId}" }) { song ->
                                     HistoryItemRow(
                                         mediaItem = song,
                                         thumbnailSizeDp = thumbnailSizeDp,
@@ -296,16 +349,79 @@ fun HistoryList(
 @OptIn(ExperimentalFoundationApi::class)
 fun LazyListScope.renderHistoryGroup(
     headerTitle: String,
-    modifier: Modifier = Modifier,
     content: LazyListScope.() -> Unit
 ) {
     stickyHeader(key = headerTitle) {
-        Title(
-            title = headerTitle,
-            modifier = modifier
+        // Opaque so the rows scroll under the date label instead of showing through it.
+        NoirEyebrow(
+            text = headerTitle,
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(colorPalette().background0)
+                .padding(start = 16.dp, end = 16.dp, top = 18.dp, bottom = 8.dp)
         )
     }
     content()
+}
+
+/** Pill search field that filters the history by title or artist. */
+@Composable
+private fun HistorySearchField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    hint: String,
+) {
+    val shape = RoundedCornerShape(percent = 50)
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .padding(horizontal = 16.dp, vertical = 6.dp)
+            .fillMaxWidth()
+            .height(46.dp)
+            .clip(shape)
+            .background(colorPalette().background1)
+            .border(1.dp, colorPalette().text.copy(alpha = 0.10f), shape)
+            .padding(horizontal = 16.dp)
+    ) {
+        Image(
+            painter = painterResource(R.drawable.search),
+            contentDescription = null,
+            colorFilter = ColorFilter.tint(colorPalette().textSecondary),
+            modifier = Modifier.size(18.dp)
+        )
+        Box(
+            contentAlignment = Alignment.CenterStart,
+            modifier = Modifier
+                .weight(1f)
+                .padding(start = 12.dp)
+        ) {
+            if (value.isEmpty()) {
+                BasicText(
+                    text = hint,
+                    style = typography().s.copy(color = colorPalette().textSecondary, fontSize = 15.sp),
+                    maxLines = 1
+                )
+            }
+            BasicTextField(
+                value = value,
+                onValueChange = onValueChange,
+                textStyle = typography().s.copy(color = colorPalette().text, fontSize = 15.sp),
+                singleLine = true,
+                cursorBrush = SolidColor(colorPalette().text),
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+        if (value.isNotEmpty()) {
+            Image(
+                painter = painterResource(R.drawable.close),
+                contentDescription = null,
+                colorFilter = ColorFilter.tint(colorPalette().textSecondary),
+                modifier = Modifier
+                    .size(16.dp)
+                    .clickable { onValueChange("") }
+            )
+        }
+    }
 }
 
 @kotlin.OptIn(ExperimentalAnimationApi::class, ExperimentalTextApi::class)
@@ -321,28 +437,24 @@ fun HistoryItemRow(
     onSelectionToggle: (Boolean) -> Unit,
     navController: NavController,
     menuState: GlobalSheetState,
-    disableScrollingText: Boolean
+    disableScrollingText: Boolean,
+    /** When the song was played (local history only); shown next to the artist. */
+    playedAt: Long? = null
 ) {
-    SongItem(
-        song = mediaItem,
-        thumbnailSizeDp = thumbnailSizeDp,
-        thumbnailSizePx = thumbnailSizePx,
-        onThumbnailContent = {
-            NowPlayingSongIndicator(mediaItem.mediaId, binder?.player)
-        },
-        trailingContent = {
-            if (isSelectionMode) {
-                Checkbox(
-                    checked = isSelected,
-                    onCheckedChange = onSelectionToggle,
-                    colors = CheckboxDefaults.colors(
-                        checkedColor = colorPalette().accent,
-                        uncheckedColor = colorPalette().text
-                    )
-                )
-            }
-        },
+    val context = LocalContext.current
+    val coverShape = RoundedCornerShape(12.dp)
+    val coverSize = 52.dp
+    val title = cleanPrefix(mediaItem.mediaMetadata.title?.toString().orEmpty())
+    val artist = cleanPrefix(mediaItem.mediaMetadata.artist?.toString().orEmpty())
+    val time = playedAt?.let { android.text.format.DateFormat.getTimeFormat(context).format(Date(it)) }
+    val subtitle = listOfNotNull(artist.takeIf { it.isNotBlank() }, time).joinToString(" \u00B7 ")
+    val isCurrent = binder?.player?.currentMediaItem?.mediaId == mediaItem.mediaId
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
+            .fillMaxWidth()
+            .background(color = colorPalette().background0)
             .combinedClickable(
                 onLongClick = {
                     menuState.display {
@@ -365,9 +477,64 @@ fun HistoryItemRow(
                     }
                 }
             )
-            .background(color = colorPalette().background0)
-            .animateContentSize()
-    )
+            .padding(horizontal = 16.dp, vertical = 7.dp)
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(coverSize)
+                .clip(coverShape)
+                .background(colorPalette().background2)
+        ) {
+            RevealImage(
+                model = mediaItem.mediaMetadata.artworkUri?.toString().thumbnail(240),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+            if (isCurrent) {
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.45f))
+                )
+            }
+            NowPlayingSongIndicator(mediaItem.mediaId, binder?.player, coverSize)
+        }
+        Spacer(Modifier.width(14.dp))
+        Column(
+            verticalArrangement = Arrangement.spacedBy(3.dp),
+            modifier = Modifier.weight(1f)
+        ) {
+            BasicText(
+                text = title,
+                style = typography().s.copy(
+                    color = colorPalette().text,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 16.sp
+                ),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            if (subtitle.isNotEmpty())
+                BasicText(
+                    text = subtitle,
+                    style = typography().xs.copy(color = colorPalette().textSecondary, fontSize = 13.sp),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+        }
+        if (isSelectionMode) {
+            Checkbox(
+                checked = isSelected,
+                onCheckedChange = onSelectionToggle,
+                colors = CheckboxDefaults.colors(
+                    checkedColor = colorPalette().accent,
+                    uncheckedColor = colorPalette().text
+                )
+            )
+        }
+    }
 }
 
 private fun matchesSearch(title: String?, artists: String?, query: String): Boolean {
@@ -506,7 +673,7 @@ fun HistoryList(
     val thisMonday = today.with(DayOfWeek.MONDAY)
     val lastMonday = thisMonday.minusDays(7)
     val parentalControlEnabled by rememberPreference(parentalControlEnabledKey, false)
-    val disableScrollingText by rememberPreference(disableScrollingTextKey, false)
+    val disableScrollingText by rememberPreference(disableScrollingTextKey, true)
 
     val events = Database.events()
         .map { events ->

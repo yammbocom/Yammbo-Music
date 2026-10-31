@@ -24,8 +24,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import it.fast4x.riplay.utils.colorPalette
 
-// Shared look for every bottom sheet: rounded top edge and a centered handle pill.
-val SheetShape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+// Shared look for every bottom sheet (Yammbo Noir: 28 dp top corners): rounded top edge and a centered handle pill.
+val SheetShape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
 
 @Composable
 fun SheetDragHandle(modifier: Modifier = Modifier) {

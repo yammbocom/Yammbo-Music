@@ -69,7 +69,8 @@ fun HomeLiveRadioSection(
         failed = false
         // A failed fetch stays null on purpose, so the next time Home composes it tries again
         // instead of remembering "no stations" for the rest of the session.
-        stations = withTimeoutOrNull(15_000L) {
+        // Two lookups (country, then worldwide) of up to 7 s each, plus the offline copy.
+        stations = withTimeoutOrNull(20_000L) {
             RadioBrowser.topStations(deviceCountryCode(context), limit = 15).getOrNull()
         }
         if (stations == null) failed = true

@@ -63,6 +63,7 @@ import it.fast4x.riplay.extensions.preferences.transparentbarKey
 import it.fast4x.riplay.ui.components.ModernSeekbar
 import it.fast4x.riplay.ui.components.SeekBarAudioForms
 import it.fast4x.riplay.ui.components.SeekBarSinusoidalWave
+import it.fast4x.riplay.ui.screens.player.common.NoirTimeRow
 import it.fast4x.riplay.utils.typography
 import it.fast4x.riplay.utils.isRadioId
 import it.fast4x.riplay.ui.items.LiveStreamIndicator
@@ -93,7 +94,7 @@ fun GetSeekBar(
     }
     val playerTimelineType by rememberObservedPreference(
         playerTimelineTypeKey,
-        PlayerTimelineType.Wavy
+        PlayerTimelineType.Default
     )
     var scrubbingPosition by remember(mediaId) {
         mutableStateOf<Long?>(null)
@@ -125,7 +126,7 @@ fun GetSeekBar(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
-            .padding(horizontal = 10.dp)
+            .padding(horizontal = if (playerTimelineType == PlayerTimelineType.Default) 0.dp else 10.dp)
             .fillMaxWidth()
     ) {
 
@@ -166,24 +167,8 @@ fun GetSeekBar(
             )
 
 
+        // Yammbo Noir: a thick plain bar with no thumb that grows while it is dragged.
         if (playerTimelineType == PlayerTimelineType.Default)
-            /*
-            ModernSeekbar(
-                value = (scrubbingPosition ?: position) / duration.toFloat(),
-                onValueChange = {
-                    val newPosition = (it * duration).toLong()
-                    newPosition.let(binder.player::seekTo)
-                },
-                onDragEnd = {
-                    scrubbingPosition = null
-                },
-                totalDurationMs = duration,
-//                trackHeight = 8.dp,
-//                thumbRadius = 10.dp,
-//                thumbRadiusExpanded = 12.dp,
-//                backgroundColor = if (transparentbar) Color.Transparent else colorPalette().textSecondary,
-            )
-             */
             SeekBar(
                 value = scrubbingPosition ?: position,
                 minimumValue = 0,
@@ -202,9 +187,13 @@ fun GetSeekBar(
                     scrubbingPosition?.let(binder.player::seekTo)
                     scrubbingPosition = null
                 },
-                color = colorPalette().collapsedPlayerProgressBar,
-                backgroundColor = if (transparentbar) Color.Transparent else colorPalette().textSecondary,
-                shape = RoundedCornerShape(8.dp),
+                color = colorPalette().text,
+                backgroundColor = colorPalette().text.copy(alpha = 0.18f),
+                shape = RoundedCornerShape(percent = 50),
+                barHeight = 6.dp,
+                scrubberRadius = 10.dp,
+                showScrubber = false,
+                showTooltip = false
             )
 
         if (playerTimelineType == PlayerTimelineType.ThinBar)
@@ -315,11 +304,33 @@ fun GetSeekBar(
 
     Spacer(
         modifier = Modifier
-            .height(8.dp)
+            .height(if (playerTimelineType == PlayerTimelineType.Default) 0.dp else 8.dp)
     )
 
     // Unknown length (C.TIME_UNSET is negative): no elapsed / remaining labels to show.
     if (duration < 0) return
+
+    if (playerTimelineType == PlayerTimelineType.Default) {
+        // Positions and durations here are in milliseconds.
+        val timeRemaining = (duration - position).coerceAtLeast(0)
+        if (pauseBetweenSongs != PauseBetweenSongs.`0`)
+            LaunchedEffect(timeRemaining) {
+                // duration > 0: see the same check in the row below.
+                if (duration > 0 && timeRemaining < 500) {
+                    binder.player.pause()
+                    delay(pauseBetweenSongs.number)
+                    binder.player.play()
+                }
+            }
+        NoirTimeRow(
+            elapsed = formatAsDuration(scrubbingPosition ?: position),
+            // No stream quality label for local files.
+            quality = null,
+            remaining = "-${formatAsDuration(timeRemaining)}",
+            modifier = Modifier.offset(y = (-10).dp)
+        )
+        return
+    }
 
     Row(
         horizontalArrangement = Arrangement.SpaceBetween,

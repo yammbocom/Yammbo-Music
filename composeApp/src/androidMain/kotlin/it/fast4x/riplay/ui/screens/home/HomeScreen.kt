@@ -1,5 +1,6 @@
 package it.fast4x.riplay.ui.screens.home
 
+import it.fast4x.riplay.ui.components.themed.openAccountOrSettings
 import android.app.Activity
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.ExperimentalAnimationApi
@@ -72,7 +73,11 @@ import androidx.compose.runtime.snapshotFlow
 import it.fast4x.riplay.utils.spotify.SpotifyImport
 import androidx.compose.runtime.LaunchedEffect
 import it.fast4x.riplay.extensions.yammboapi.YammboAuthManager
+import it.fast4x.riplay.ui.components.NoirChromeState
 import it.fast4x.riplay.ui.components.ScreenContainer
+import androidx.compose.runtime.SideEffect
+import it.fast4x.riplay.ui.screens.search.HomeTabRequest
+import it.fast4x.riplay.ui.screens.search.SearchContent
 import it.fast4x.riplay.ui.components.themed.NotificationPopupData
 import it.fast4x.riplay.ui.components.themed.YammboNotificationPopup
 import it.fast4x.riplay.ui.screens.home.homepages.HomePage
@@ -115,6 +120,17 @@ fun HomeScreen(
         LaunchedEffect(Unit) {
             updateCheckDone = false
             checkAndDownloadNewVersionCode()
+            // Fetch the announced update in the background right away (data saver permitting),
+            // so the dialog can offer "Install" instead of a download.
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                runCatching {
+                    val (name, _, code) = it.fast4x.riplay.utils.getAvailableUpdateInfo()
+                    if (name.isNotBlank() && code > it.fast4x.riplay.utils.getVersionCode())
+                        it.fast4x.riplay.utils.UpdateDownloader.autoStart(
+                            it.fast4x.riplay.utils.appContext(), name, code
+                        )
+                }
+            }
             showNewversionDialog = true
             updateCheckDone = true
         }
@@ -244,10 +260,20 @@ fun HomeScreen(
         if (SpotifyImport.dialogVisible) showOnboarding = false
     }
 
-    if (tabIndex == -2 || tabIndex == 3) {
-        onTabChanged(0)
-        navController.navigate(NavRoutes.search.name)
+    // -2 comes from the search shortcut: it opens the Search tab
+    if (tabIndex == -2) {
+        onTabChanged(3)
     }
+    // The header search icon asks for a tab from outside this screen
+    val requestedTab = HomeTabRequest.requested
+    LaunchedEffect(requestedTab) {
+        if (requestedTab != null) {
+            onTabChanged(requestedTab)
+            HomeTabRequest.requested = null
+        }
+    }
+    // Back action of the Search tab while a query is on screen (clears it); null otherwise
+    var searchBackAction by remember { mutableStateOf<(() -> Unit)?>(null) }
     // Index 4 (My account) is no longer a tab; an old persisted value lands on Home
     if (tabIndex == HomeScreenTabs.MyAccount.index) {
         onTabChanged(0)
@@ -262,11 +288,15 @@ fun HomeScreen(
         }
     }
 
+    // The persistent nav pill (NoirBottomChrome) highlights the tab Home is showing.
+    SideEffect { NoirChromeState.homeTab = tabIndex }
+
     ScreenContainer(
         navController,
         tabIndex,
         onTabChanged,
         miniPlayer,
+        sharedChrome = true,
         navBarContent = { Item ->
             Item(0, stringResource(R.string.home), R.drawable.home)
             Item(1, stringResource(R.string.live_radio_tab), R.drawable.radio)
@@ -289,7 +319,7 @@ fun HomeScreen(
                             openPlaylistOrMix(navController, binder, it)
                         },
                         onSearchClick = {
-                            navController.navigate(NavRoutes.search.name)
+                            onTabChanged(3)
                         },
                         onMoodAndGenresClick = { mood ->
                             navController.currentBackStackEntry?.savedStateHandle?.set(
@@ -306,7 +336,7 @@ fun HomeScreen(
                             navController.navigate(route = NavRoutes.chip.name)
                         },
                         onSettingsClick = {
-                            navController.navigate(NavRoutes.settings.name)
+                            navController.openAccountOrSettings()
                         },
                         onLiveRadioClick = { onTabChanged(HomeScreenTabs.LiveRadio.index) },
                         navController = navController
@@ -323,7 +353,7 @@ fun HomeScreen(
                             openPlaylistOrMix(navController, binder, it)
                         },
                         onSearchClick = {
-                            navController.navigate(NavRoutes.search.name)
+                            onTabChanged(3)
                         },
                         onMoodAndGenresClick = { mood ->
                             navController.currentBackStackEntry?.savedStateHandle?.set(
@@ -340,7 +370,7 @@ fun HomeScreen(
                             navController.navigate(route = NavRoutes.chip.name)
                         },
                         onSettingsClick = {
-                            navController.navigate(NavRoutes.settings.name)
+                            navController.openAccountOrSettings()
                         },
                         onLiveRadioClick = { onTabChanged(HomeScreenTabs.LiveRadio.index) },
                         navController = navController
@@ -355,6 +385,7 @@ fun HomeScreen(
                 )
 
                 2 -> MyMusicTab(
+                    navController = navController,
                     onSongsClick = { subTabsParent = 2; leaveOnDeviceSelection(); onTabChanged(10) },
                     onArtistsClick = { subTabsParent = 2; leaveOnDeviceSelection(); onTabChanged(11) },
                     onAlbumsClick = { subTabsParent = 2; leaveOnDeviceSelection(); onTabChanged(12) },
@@ -364,7 +395,11 @@ fun HomeScreen(
                     onDeviceClick = { onTabChanged(14) }
                 )
 
-                // 3 = Search, handled above (navigates to search screen)
+                3 -> SearchContent(
+                    navController = navController,
+                    onBackAction = { searchBackAction = it }
+                )
+
                 // 4 = My account used to be a tab; now the NavRoutes.myAccount screen opened
                 // from the top bar (a stale 4 falls back to Home above)
 
@@ -372,10 +407,10 @@ fun HomeScreen(
                 10 -> HomeSongs(
                     navController = navController,
                     onSearchClick = {
-                        navController.navigate(NavRoutes.search.name)
+                        onTabChanged(3)
                     },
                     onSettingsClick = {
-                        navController.navigate(NavRoutes.settings.name)
+                        navController.openAccountOrSettings()
                     }
                 )
 
@@ -384,13 +419,13 @@ fun HomeScreen(
                     onArtistClick = {
                         if (!it.id.startsWith(LOCAL_KEY_PREFIX))
                             navController.navigate(route = "${NavRoutes.artist.name}/${it.id}")
-                        else navController.navigate(route = "${NavRoutes.onDeviceArtist.name}/${it.id}")
+                        else navController.navigate(route = "${NavRoutes.onDeviceArtist.name}/${android.net.Uri.encode(it.id)}")
                     },
                     onSearchClick = {
-                        navController.navigate(NavRoutes.search.name)
+                        onTabChanged(3)
                     },
                     onSettingsClick = {
-                        navController.navigate(NavRoutes.settings.name)
+                        navController.openAccountOrSettings()
                     }
                 )
 
@@ -402,10 +437,10 @@ fun HomeScreen(
                         else navController.navigate(route = "${NavRoutes.onDeviceAlbum.name}/${it.id}")
                     },
                     onSearchClick = {
-                        navController.navigate(NavRoutes.search.name)
+                        onTabChanged(3)
                     },
                     onSettingsClick = {
-                        navController.navigate(NavRoutes.settings.name)
+                        navController.openAccountOrSettings()
                     }
                 )
 
@@ -418,10 +453,10 @@ fun HomeScreen(
                             navController.navigate(route = "${NavRoutes.onDevicePlaylist.name}/${it.folder?.replace("/", "$")}")
                     },
                     onSearchClick = {
-                        navController.navigate(NavRoutes.search.name)
+                        onTabChanged(3)
                     },
                     onSettingsClick = {
-                        navController.navigate(NavRoutes.settings.name)
+                        navController.openAccountOrSettings()
                     }
                 )
 
@@ -508,6 +543,15 @@ fun HomeScreen(
         if (tabIndex == 14) {
             onTabChanged(2)
             return@BackHandler
+        }
+
+        // Search with a query on screen → back to the search page first
+        if (tabIndex == 3) {
+            val clearQuery = searchBackAction
+            if (clearQuery != null) {
+                clearQuery()
+                return@BackHandler
+            }
         }
 
         // Any home tab other than Inicio → back to Inicio

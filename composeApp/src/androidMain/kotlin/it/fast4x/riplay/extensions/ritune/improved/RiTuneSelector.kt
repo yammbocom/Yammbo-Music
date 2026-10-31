@@ -111,8 +111,7 @@ fun RiTuneSelector(
                         Spacer(modifier = Modifier.width(16.dp))
                         Text(
                             text = device.name,
-                            color = colorPalette().text,
-                            modifier = Modifier.border(BorderStroke(1.dp, Color.Red))
+                            color = colorPalette().text
                         )
                     }
                 }

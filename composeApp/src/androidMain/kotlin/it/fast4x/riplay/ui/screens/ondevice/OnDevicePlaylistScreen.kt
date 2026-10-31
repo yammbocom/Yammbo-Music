@@ -1,5 +1,7 @@
 package it.fast4x.riplay.ui.screens.ondevice
 
+import com.yambo.music.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.material.ExperimentalMaterialApi
@@ -31,6 +33,8 @@ fun OnDevicePlaylistScreen(
     PageContainer(
         navController = navController,
         miniPlayer = miniPlayer,
+        noirTopBar = true,
+        topBarTitle = stringResource(R.string.on_device),
     ) {
         OnDevicePlaylist(
             navController = navController,

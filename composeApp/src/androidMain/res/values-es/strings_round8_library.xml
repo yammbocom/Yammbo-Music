@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="library_tools_more">Más</string>
+    <string name="library_tools_random_item">Elemento aleatorio</string>
+    <string name="library_tools_list_view">Vista de lista</string>
+    <string name="library_tools_folder_names">Mostrar solo el nombre de la carpeta</string>
+</resources>

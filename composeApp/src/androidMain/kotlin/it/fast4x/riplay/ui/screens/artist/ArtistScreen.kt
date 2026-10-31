@@ -28,7 +28,7 @@ fun ArtistScreen(
     browseId: String,
     miniPlayer: @Composable () -> Unit = {},
 ) {
-    val disableScrollingText by rememberPreference(disableScrollingTextKey, false)
+    val disableScrollingText by rememberPreference(disableScrollingTextKey, true)
 
     PageContainer(
         modifier = Modifier,

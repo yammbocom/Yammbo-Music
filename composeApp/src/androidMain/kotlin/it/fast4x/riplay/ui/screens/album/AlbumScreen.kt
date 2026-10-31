@@ -1,5 +1,8 @@
 package it.fast4x.riplay.ui.screens.album
 
+import it.fast4x.riplay.ui.components.themed.openAccountOrSettings
+import it.fast4x.riplay.utils.appContext
+import it.fast4x.riplay.ui.screens.search.openHomeTab
 import android.annotation.SuppressLint
 import android.content.Intent
 import androidx.compose.animation.ExperimentalAnimationApi
@@ -95,7 +98,7 @@ fun AlbumScreen(
     var loadFailed by remember { mutableStateOf(false) }
     var reloadKey by remember { mutableIntStateOf(0) }
 
-    val disableScrollingText by rememberPreference(disableScrollingTextKey, false)
+    val disableScrollingText by rememberPreference(disableScrollingTextKey, true)
 
     PersistMapCleanup(tagPrefix = "album/$browseId/")
 
@@ -339,10 +342,10 @@ fun AlbumScreen(
             headerContent = headerContent,
             thumbnailContent = thumbnailContent,
             onSearchClick = {
-                navController.navigate(NavRoutes.search.name)
+                openHomeTab(navController, appContext(), 3)
             },
             onSettingsClick = {
-                navController.navigate(NavRoutes.settings.name)
+                navController.openAccountOrSettings()
             }
         )
     }

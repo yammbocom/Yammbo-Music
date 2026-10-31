@@ -60,6 +60,7 @@ import it.fast4x.riplay.commonutils.PINNED_PREFIX
 import it.fast4x.riplay.commonutils.cleanPrefix
 import it.fast4x.riplay.commonutils.PIPED_PREFIX
 import com.yambo.music.R
+import it.fast4x.riplay.utils.artistRouteFor
 import it.fast4x.riplay.utils.appContext
 import it.fast4x.riplay.enums.NavRoutes
 import it.fast4x.riplay.enums.PlaylistSortBy
@@ -221,7 +222,9 @@ fun BaseMediaItemGridMenu(
             }
         }, //albumRoute::global,
         onGoToArtist = {
-            navController.navigate(route = "${NavRoutes.artist.name}/${it}")
+            CoroutineScope(Dispatchers.Main).launch {
+                navController.navigate(route = artistRouteFor(mediaItem.mediaId, it, null))
+            }
             if (onClosePlayer != null) {
                 onClosePlayer()
             }

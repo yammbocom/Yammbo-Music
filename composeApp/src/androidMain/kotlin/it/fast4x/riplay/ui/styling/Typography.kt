@@ -25,6 +25,7 @@ data class Typography(
     val xxl: TextStyle,
     val xxxl: TextStyle,
     val xlxl: TextStyle,
+    val fontType: FontType = FontType.Geist,
 ) {
     fun copy(color: Color) = Typography(
         xxxs = xxxs.copy(color = color),
@@ -37,6 +38,7 @@ data class Typography(
         xxl = xxl.copy(color = color),
         xxxl = xxxl.copy(color = color),
         xlxl = xlxl.copy(color = color),
+        fontType = fontType,
     )
 
     companion object : Saver<Typography, List<Any>> {
@@ -52,7 +54,7 @@ data class Typography(
                 value.xxs.color.value.toLong(),
                 value.xxs.fontFamily == FontFamily.Default,
                 value.xxs.platformStyle?.paragraphStyle?.includeFontPadding ?: false,
-                FontType.Rubik
+                value.fontType
             )
     }
 }
@@ -67,6 +69,7 @@ fun typographyOf(color: Color, useSystemFont: Boolean, applyFontPadding: Boolean
                         resId = when (fontType) {
                             FontType.Rubik -> R.font.rubik_w300
                             FontType.Poppins -> R.font.poppins_w300
+                            FontType.Geist -> R.font.geist_w300
                         },
                         weight = FontWeight.Light
                     ),
@@ -74,6 +77,7 @@ fun typographyOf(color: Color, useSystemFont: Boolean, applyFontPadding: Boolean
                         resId = when (fontType) {
                             FontType.Rubik -> R.font.rubik_w400
                             FontType.Poppins -> R.font.poppins_w400
+                            FontType.Geist -> R.font.geist_w400
                         },
                         weight = FontWeight.Normal
                     ),
@@ -81,6 +85,7 @@ fun typographyOf(color: Color, useSystemFont: Boolean, applyFontPadding: Boolean
                         resId = when (fontType) {
                             FontType.Rubik -> R.font.rubik_w500
                             FontType.Poppins -> R.font.poppins_w500
+                            FontType.Geist -> R.font.geist_w500
                         },
                         weight = FontWeight.Medium
                     ),
@@ -88,6 +93,7 @@ fun typographyOf(color: Color, useSystemFont: Boolean, applyFontPadding: Boolean
                         resId = when (fontType) {
                             FontType.Rubik -> R.font.rubik_w600
                             FontType.Poppins -> R.font.poppins_w600
+                            FontType.Geist -> R.font.geist_w600
                         },
                         weight = FontWeight.SemiBold
                     ),
@@ -95,6 +101,7 @@ fun typographyOf(color: Color, useSystemFont: Boolean, applyFontPadding: Boolean
                         resId = when (fontType) {
                             FontType.Rubik -> R.font.rubik_w700
                             FontType.Poppins -> R.font.poppins_w700
+                            FontType.Geist -> R.font.geist_w700
                         },
                         weight = FontWeight.Bold
                     ),
@@ -116,6 +123,14 @@ fun typographyOf(color: Color, useSystemFont: Boolean, applyFontPadding: Boolean
         xl = textStyle.copy(fontSize = 24.sp),
         xxl = textStyle.copy(fontSize = 28.sp),
         xxxl = textStyle.copy(fontSize = 36.sp),
-        xlxl = textStyle.copy(fontSize = 34.sp)
+        xlxl = textStyle.copy(fontSize = 34.sp),
+        fontType = fontType,
     )
 }
+
+
+// Yammbo Noir: Geist Mono for small technical labels (time, quality, section kickers).
+val GeistMonoFamily = FontFamily(
+    Font(resId = R.font.geist_mono_w400, weight = FontWeight.Normal),
+    Font(resId = R.font.geist_mono_w500, weight = FontWeight.Medium),
+)

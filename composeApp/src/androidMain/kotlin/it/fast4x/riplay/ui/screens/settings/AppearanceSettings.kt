@@ -206,7 +206,7 @@ fun DefaultAppearanceSettings() {
     lastPlayerPlayButtonType = PlayerPlayButtonType.Rectangular
     var disablePlayerHorizontalSwipe by rememberPreference(disablePlayerHorizontalSwipeKey, false)
     disablePlayerHorizontalSwipe = false
-    var disableScrollingText by rememberPreference(disableScrollingTextKey, false)
+    var disableScrollingText by rememberPreference(disableScrollingTextKey, true)
     disableScrollingText = false
     var showLikeButtonBackgroundPlayer by rememberPreference(
         showLikeButtonBackgroundPlayerKey,
@@ -216,7 +216,7 @@ fun DefaultAppearanceSettings() {
 
     var visualizerEnabled by rememberPreference(visualizerEnabledKey, false)
     visualizerEnabled = false
-    var playerTimelineType by rememberPreference(playerTimelineTypeKey, PlayerTimelineType.Wavy)
+    var playerTimelineType by rememberPreference(playerTimelineTypeKey, PlayerTimelineType.Default)
     playerTimelineType = PlayerTimelineType.Wavy
     var playerThumbnailSize by rememberPreference(
         playerThumbnailSizeKey,
@@ -268,7 +268,7 @@ fun DefaultAppearanceSettings() {
     else
         navigationBarPosition = NavigationBarPosition.Left
 
-    var showTotalTimeQueue by rememberPreference(showTotalTimeQueueKey, true)
+    var showTotalTimeQueue by rememberPreference(showTotalTimeQueueKey, false)
     showTotalTimeQueue = true
     var backgroundProgress by rememberPreference(
         backgroundProgressKey,
@@ -390,7 +390,7 @@ fun AppearanceSettings(
     )
     var disablePlayerHorizontalSwipe by rememberPreference(disablePlayerHorizontalSwipeKey, false)
 
-    var disableScrollingText by rememberPreference(disableScrollingTextKey, false)
+    var disableScrollingText by rememberPreference(disableScrollingTextKey, true)
     var showLikeButtonBackgroundPlayer by rememberPreference(
         showLikeButtonBackgroundPlayerKey,
         true
@@ -403,7 +403,7 @@ fun AppearanceSettings(
         PlayerVisualizerType.Disabled
     )
     */
-    var playerTimelineType by rememberPreference(playerTimelineTypeKey, PlayerTimelineType.Wavy)
+    var playerTimelineType by rememberPreference(playerTimelineTypeKey, PlayerTimelineType.Default)
     var playerThumbnailSize by rememberPreference(
         playerThumbnailSizeKey,
         PlayerThumbnailSize.Biggest
@@ -451,7 +451,7 @@ fun AppearanceSettings(
     )
 
     //var isGradientBackgroundEnabled by rememberPreference(isGradientBackgroundEnabledKey, false)
-    var showTotalTimeQueue by rememberPreference(showTotalTimeQueueKey, true)
+    var showTotalTimeQueue by rememberPreference(showTotalTimeQueueKey, false)
     var backgroundProgress by rememberPreference(
         backgroundProgressKey,
         BackgroundProgress.MiniPlayer

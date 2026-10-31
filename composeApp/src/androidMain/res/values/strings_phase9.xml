@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="noir_list_search_hint">Buscar en esta lista</string>
+    <string name="noir_playlist_about">Sobre esta lista</string>
+    <string name="noir_podcast_about">Sobre este podcast</string>
+    <string name="noir_translate_original">Original</string>
+    <string name="noir_list_search_action">Buscar en esta lista</string>
+</resources>

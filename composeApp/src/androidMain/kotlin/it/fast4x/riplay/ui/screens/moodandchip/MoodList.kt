@@ -3,8 +3,9 @@ package it.fast4x.riplay.ui.screens.moodandchip
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -15,10 +16,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -45,12 +48,17 @@ import it.fast4x.riplay.enums.NavigationBarPosition
 import it.fast4x.riplay.data.models.Mood
 import it.fast4x.riplay.ui.components.ShimmerHost
 import it.fast4x.riplay.ui.components.themed.HeaderPlaceholder
-import it.fast4x.riplay.ui.components.themed.HeaderWithIcon
+import it.fast4x.riplay.commonutils.thumbnail
+import it.fast4x.riplay.ui.components.CollapsingTitleEffect
+import it.fast4x.riplay.ui.components.NoirContentMax
+import it.fast4x.riplay.ui.components.rememberNoirLayout
+import it.fast4x.riplay.ui.components.cascadeEntry
+import it.fast4x.riplay.ui.screens.newreleases.NoirGridSectionHeader
+import it.fast4x.riplay.ui.screens.newreleases.NoirMediaCard
+import it.fast4x.riplay.ui.screens.newreleases.NoirPageTitle
+import it.fast4x.riplay.ui.screens.newreleases.rememberGridTitleCollapse
 import it.fast4x.riplay.ui.components.themed.TextPlaceholder
-import it.fast4x.riplay.ui.items.AlbumItem
 import it.fast4x.riplay.ui.items.AlbumItemPlaceholder
-import it.fast4x.riplay.ui.items.ArtistItem
-import it.fast4x.riplay.ui.items.PlaylistItem
 import it.fast4x.riplay.ui.styling.Dimensions
 import it.fast4x.riplay.ui.styling.px
 import it.fast4x.riplay.ui.styling.center
@@ -100,7 +108,9 @@ fun MoodList(
     val thumbnailSizeDp = Dimensions.thumbnails.album
     val thumbnailSizePx = thumbnailSizeDp.px
 
-    val lazyListState = rememberLazyListState()
+    val lazyGridState = rememberLazyGridState()
+    val titleProgress = rememberGridTitleCollapse(lazyGridState)
+    CollapsingTitleEffect(mood.name, titleProgress)
 
     val endPaddingValues = windowInsets.only(WindowInsetsSides.End).asPaddingValues()
 
@@ -109,7 +119,7 @@ fun MoodList(
         .padding(top = 24.dp, bottom = 8.dp)
         .padding(endPaddingValues)
 
-    val disableScrollingText by rememberPreference(disableScrollingTextKey, false)
+    val disableScrollingText by rememberPreference(disableScrollingTextKey, true)
 
     Column (
         modifier = Modifier
@@ -125,111 +135,105 @@ fun MoodList(
     ) {
         moodPage?.getOrNull()?.takeIf { it.items.isNotEmpty() }?.let { moodResult ->
             LazyListContainer(
-                state = lazyListState,
+                state = lazyGridState,
             ) {
-                LazyColumn(
-                    state = lazyListState,
-                    //contentPadding = LocalPlayerAwareWindowInsets.current
-                    //    .only(WindowInsetsSides.Vertical + WindowInsetsSides.End).asPaddingValues(),
+                // 150dp cells on phones (as before), 180dp on tablets, capped at grid width.
+                val noirLayout = rememberNoirLayout()
+                LazyVerticalGrid(
+                    state = lazyGridState,
+                    columns = GridCells.Adaptive(if (noirLayout.isCompact) 150.dp else 180.dp),
+                    contentPadding = PaddingValues(horizontal = noirLayout.sidePadding(NoirContentMax.Grid)),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(18.dp),
                     modifier = Modifier
                         .background(colorPalette().background0)
                         .fillMaxSize()
                 ) {
                     item(
                         key = "header",
-                        contentType = 0
+                        contentType = 0,
+                        span = { GridItemSpan(maxLineSpan) }
                     ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            HeaderWithIcon(
-                                title = mood.name,
-                                iconId = R.drawable.internet,
-                                enabled = true,
-                                showIcon = true,
-                                modifier = Modifier,
-                                onClick = {}
-                            )
-                        }
+                        NoirPageTitle(
+                            text = mood.name,
+                            progress = titleProgress,
+                            modifier = Modifier.cascadeEntry(0),
+                            horizontalPadding = 0.dp
+                        )
                     }
 
-                    moodResult.items.forEach { item ->
-                        item {
-                            BasicText(
-                                text = item.title,
-                                style = typography().m.semiBold,
-                                modifier = sectionTextModifier
-                            )
+                    moodResult.items.forEachIndexed { sectionIndex, section ->
+                        val children = section.items.filter {
+                            it.key != defaultBrowseId &&
+                                (it is Environment.AlbumItem || it is Environment.ArtistItem || it is Environment.PlaylistItem)
                         }
-                        item {
-                            LazyRow {
-                                items(items = item.items, key = { it.key }) { childItem ->
-                                    if (childItem.key == defaultBrowseId) return@items
-                                    when (childItem) {
-                                        is Environment.AlbumItem -> AlbumItem(
-                                            album = childItem,
-                                            thumbnailSizePx = thumbnailSizePx,
-                                            thumbnailSizeDp = thumbnailSizeDp,
-                                            alternative = true,
-                                            modifier = Modifier.clickable {
-                                                childItem.info?.endpoint?.browseId?.let {
-                                                    //albumRoute.global(it)
-                                                    navController.navigate(route = "${NavRoutes.album.name}/$it")
-                                                }
-                                            },
-                                            disableScrollingText = disableScrollingText
-                                        )
+                        if (children.isEmpty()) return@forEachIndexed
 
-                                        is Environment.ArtistItem -> ArtistItem(
-                                            artist = childItem,
-                                            thumbnailSizePx = thumbnailSizePx,
-                                            thumbnailSizeDp = thumbnailSizeDp,
-                                            alternative = true,
-                                            modifier = Modifier.clickable {
-                                                childItem.info?.endpoint?.browseId?.let {
-                                                    navController.navigate(route = "${NavRoutes.artist.name}/$it")
-                                                }
-                                            },
-                                            disableScrollingText = disableScrollingText
-                                        )
+                        item(
+                            key = "section:$sectionIndex",
+                            contentType = 1,
+                            span = { GridItemSpan(maxLineSpan) }
+                        ) {
+                            NoirGridSectionHeader(title = section.title)
+                        }
 
-                                        is Environment.PlaylistItem -> PlaylistItem(
-                                            playlist = childItem,
-                                            thumbnailSizePx = thumbnailSizePx,
-                                            thumbnailSizeDp = thumbnailSizeDp,
-                                            alternative = true,
-                                            modifier = Modifier.clickable {
-                                                childItem.info?.endpoint?.let { endpoint ->
-                                                    /*
-                                                playlistRoute.global(
-                                                    p0 = endpoint.browseId,
-                                                    p1 = endpoint.params,
-                                                    p2 = childItem.songCount?.let { it / 100 }
-                                                )
-                                                 */
-                                                    endpoint.browseId?.let {
-                                                        openPlaylistOrMix(navController, binder, it)
-                                                    }
-                                                }
-                                                /*
-                                            childItem.info?.endpoint?.browseId?.let {
-                                                playlistRoute.global(
-                                                    it,
-                                                    null
+                        itemsIndexed(
+                            items = children,
+                            key = { index, child -> "$sectionIndex:$index:${child.key}" }
+                        ) { index, childItem ->
+                            val cover = childItem.thumbnail?.url.thumbnail(480)
+                            when (childItem) {
+                                is Environment.AlbumItem -> NoirMediaCard(
+                                    cover = cover,
+                                    title = childItem.info?.name.orEmpty(),
+                                    subtitle = listOfNotNull(
+                                        childItem.authors?.mapNotNull { it.name }?.filter { it.isNotBlank() }
+                                            ?.joinToString(", ")?.takeIf { it.isNotEmpty() },
+                                        childItem.year
+                                    ).joinToString(" · "),
+                                    sharedKey = "mood-album:${childItem.key}",
+                                    browseId = childItem.info?.endpoint?.browseId,
+                                    onClick = {
+                                        childItem.info?.endpoint?.browseId?.let {
+                                            navController.navigate(route = "${NavRoutes.album.name}/$it")
+                                        }
+                                    },
+                                    modifier = Modifier.cascadeEntry(index + 1)
+                                )
 
-                                                )
+                                is Environment.ArtistItem -> NoirMediaCard(
+                                    cover = cover,
+                                    title = childItem.info?.name.orEmpty(),
+                                    subtitle = childItem.subscribersCountText,
+                                    shape = CircleShape,
+                                    onClick = {
+                                        childItem.info?.endpoint?.browseId?.let {
+                                            navController.navigate(route = "${NavRoutes.artist.name}/$it")
+                                        }
+                                    },
+                                    modifier = Modifier.cascadeEntry(index + 1)
+                                )
+
+                                is Environment.PlaylistItem -> NoirMediaCard(
+                                    cover = cover,
+                                    title = childItem.info?.name.orEmpty(),
+                                    subtitle = childItem.channel?.name,
+                                    onClick = {
+                                        childItem.info?.endpoint?.let { endpoint ->
+                                            endpoint.browseId?.let {
+                                                openPlaylistOrMix(navController, binder, it)
                                             }
-                                             */
-                                            },
-                                            disableScrollingText = disableScrollingText
-                                        )
+                                        }
+                                    },
+                                    modifier = Modifier.cascadeEntry(index + 1)
+                                )
 
-                                        else -> {}
-                                    }
-                                }
+                                else -> {}
                             }
                         }
                     }
 
-                    item(key = "bottom") {
+                    item(key = "bottom", span = { GridItemSpan(maxLineSpan) }) {
                         Spacer(modifier = Modifier.height(Dimensions.bottomSpacer))
                     }
 

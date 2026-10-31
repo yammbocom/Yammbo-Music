@@ -758,6 +758,10 @@ interface Database {
     @Query("SELECT COUNT(1) FROM Song WHERE likedAt IS NOT NULL")
     fun likedSongsCount(): Flow<Int>
 
+    // Liked music only: stations and podcast episodes are Song rows with likedAt too.
+    @Query("SELECT COUNT(1) FROM Song WHERE likedAt > 0 AND id NOT LIKE 'radio:%' AND isPodcast = 0")
+    fun likedMusicCount(): Flow<Int>
+
     @Query("SELECT COUNT(1) FROM Song WHERE id LIKE '$LOCAL_KEY_PREFIX%'")
     fun onDeviceSongsCount(): Flow<Int>
 
@@ -942,6 +946,12 @@ interface Database {
     @Query("SELECT * FROM Song WHERE mediaId = :mediaId AND id LIKE '$LOCAL_KEY_PREFIX%' LIMIT 1")
     @RewriteQueriesToDropUnusedColumns
     fun songOnDeviceNow(mediaId: String): Song?
+
+    /** Title of the online album a song belongs to (never a on-device one), for tagging downloads. */
+    @Query("SELECT Album.title FROM SongAlbumMap JOIN Album ON Album.id = SongAlbumMap.albumId " +
+            "WHERE SongAlbumMap.songId = :songId AND Album.id NOT LIKE '$LOCAL_KEY_PREFIX%' " +
+            "AND Album.title IS NOT NULL AND Album.title != '' LIMIT 1")
+    fun albumTitleOfSong(songId: String): String?
 
     /** Video ids that have a downloaded (local) copy; drives the download buttons' state. */
     @Query("SELECT DISTINCT mediaId FROM Song WHERE id LIKE '$LOCAL_KEY_PREFIX%' AND mediaId IS NOT NULL")

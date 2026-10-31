@@ -38,6 +38,8 @@
 
     <!-- Required to launch the Package Installer for in-app OTA updates -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- Lets the self-update ask to be the update owner of the app (Android 14+) -->
+    <uses-permission android:name="android.permission.ENFORCE_UPDATE_OWNERSHIP" />
 
     <!-- No advertising ID: the app uses no external ad networks (self-promo only) -->
     <uses-permission android:name="com.google.android.gms.permission.AD_ID" tools:node="remove" />
@@ -73,6 +75,11 @@
         <package android:name="com.yambo.music" />
         <!-- YTDLnis: only to tell whether it is installed before offering auto-downloads -->
         <package android:name="com.deniscerri.ytdl" />
+        <!-- Share sheet: only offer a target that is installed -->
+        <package android:name="com.instagram.android" />
+        <package android:name="com.whatsapp" />
+        <package android:name="com.twitter.android" />
+        <package android:name="com.facebook.katana" />
     </queries>
     <queries>
         <intent>
@@ -301,6 +308,24 @@
                 android:name="autoStoreLocales"
                 android:value="true" />
         </service>
+
+        <!-- Result of the PackageInstaller session that installs a downloaded self-update -->
+        <receiver
+            android:name="it.fast4x.riplay.utils.UpdateInstallReceiver"
+            android:exported="false" />
+
+        <!-- Tells the user the app was updated (MY_PACKAGE_REPLACED reaches only this app) -->
+        <receiver
+            android:name="it.fast4x.riplay.utils.UpdatedReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
+            android:name="it.fast4x.riplay.extensions.download.DownloadCancelReceiver"
+            android:exported="false" />
 
         <receiver
             android:name="it.fast4x.riplay.service.PlayerService$NotificationDismissReceiver"

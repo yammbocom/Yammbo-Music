@@ -29,8 +29,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yambo.music.R
+import it.fast4x.riplay.ui.styling.tight
+import it.fast4x.riplay.ui.styling.mono
 import it.fast4x.riplay.ui.components.StaggeredEntry
+import it.fast4x.riplay.ui.components.NoirContentMax
+import it.fast4x.riplay.ui.components.noirContentWidth
 import it.fast4x.riplay.ui.components.pressable
+import it.fast4x.riplay.ui.components.rememberNoirLayout
 import it.fast4x.riplay.utils.colorPalette
 import it.fast4x.riplay.utils.typography
 
@@ -73,7 +78,7 @@ internal fun BrowseCategoriesGrid(
 ) {
     Column(
         modifier = Modifier
-            .fillMaxWidth()
+            .noirContentWidth(NoirContentMax.Grid)
             .padding(horizontal = 12.dp)
     ) {
         BrowseSectionLabel(stringResource(R.string.browse_section_genres))
@@ -118,25 +123,27 @@ private fun TwoColumnGrid(
     staggerOffset: Int,
     tile: @Composable (BrowseCategory, Int) -> Unit
 ) {
+    // 2 columns on phones (as before); up to 5 on tablets.
+    val cols = rememberNoirLayout().columns(minItem = 160.dp, horizontalPadding = 24.dp, spacing = 10.dp, max = 5)
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        items.chunked(2).forEachIndexed { rowIndex, rowItems ->
+        items.chunked(cols).forEachIndexed { rowIndex, rowItems ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 rowItems.forEachIndexed { colIndex, cat ->
-                    val tileIndex = rowIndex * 2 + colIndex
+                    val tileIndex = rowIndex * cols + colIndex
                     Box(modifier = Modifier.weight(1f)) {
                         StaggeredEntry(index = staggerOffset + tileIndex) {
                             tile(cat, tileIndex)
                         }
                     }
                 }
-                // Pad the final row if it ended up with a single item
-                if (rowItems.size == 1) {
+                // Pad the final row so its tiles keep the cell width
+                repeat(cols - rowItems.size) {
                     Box(modifier = Modifier.weight(1f))
                 }
             }
@@ -148,12 +155,9 @@ private fun TwoColumnGrid(
 private fun BrowseSectionLabel(text: String) {
     BasicText(
         text = text.uppercase(),
-        style = typography().xxs.copy(
-            fontWeight = FontWeight.SemiBold,
-            color = colorPalette().textSecondary,
-            letterSpacing = 1.sp
-        ),
-        modifier = Modifier.padding(start = 4.dp, top = 12.dp, bottom = 10.dp)
+        // Yammbo Noir: mono eyebrow.
+        style = typography().xxxs.mono.copy(color = colorPalette().textSecondary, fontSize = 11.sp),
+        modifier = Modifier.padding(start = 4.dp, top = 16.dp, bottom = 10.dp)
     )
 }
 
@@ -169,36 +173,37 @@ private fun GenreTile(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .aspectRatio(1.9f)
-            .clip(RoundedCornerShape(16.dp))
+            .aspectRatio(1.65f)
+            .clip(RoundedCornerShape(20.dp))
             .background(colors.background1)
             .border(
                 width = 1.dp,
-                color = colors.textDisabled.copy(alpha = 0.28f),
-                shape = RoundedCornerShape(16.dp)
+                color = colors.text.copy(alpha = 0.08f),
+                shape = RoundedCornerShape(20.dp)
             )
             .pressable(onClick = onClick)
     ) {
         Image(
             painter = painterResource(iconRes),
             contentDescription = null,
-            colorFilter = ColorFilter.tint(colors.text.copy(alpha = 0.10f)),
+            colorFilter = ColorFilter.tint(colors.text.copy(alpha = 0.16f)),
             modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .offset(x = 12.dp, y = 12.dp)
-                .size(72.dp)
+                .align(Alignment.TopEnd)
+                .offset(x = 10.dp, y = (-10).dp)
+                .size(76.dp)
         )
         BasicText(
             text = label,
-            style = typography().m.copy(
+            style = typography().m.tight.copy(
                 fontWeight = FontWeight.Bold,
-                color = colors.text
+                color = colors.text,
+                fontSize = 18.sp
             ),
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier
-                .align(Alignment.TopStart)
-                .padding(horizontal = 14.dp, vertical = 12.dp)
+                .align(Alignment.BottomStart)
+                .padding(horizontal = 16.dp, vertical = 14.dp)
         )
     }
 }
@@ -217,9 +222,9 @@ private fun MoodTile(
         verticalArrangement = Arrangement.Center,
         modifier = modifier
             .fillMaxWidth()
-            .aspectRatio(1.5f)
-            .clip(RoundedCornerShape(16.dp))
-            .background(colors.background2)
+            .aspectRatio(2.2f)
+            .clip(RoundedCornerShape(18.dp))
+            .border(1.dp, colors.text.copy(alpha = 0.14f), RoundedCornerShape(18.dp))
             .pressable(onClick = onClick)
             .padding(horizontal = 10.dp)
     ) {
@@ -227,15 +232,16 @@ private fun MoodTile(
             painter = painterResource(iconRes),
             contentDescription = null,
             colorFilter = ColorFilter.tint(colors.text.copy(alpha = 0.55f)),
-            modifier = Modifier.size(28.dp)
+            modifier = Modifier.size(20.dp)
         )
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(6.dp))
         BasicText(
             text = label,
             style = typography().xs.copy(
                 fontWeight = FontWeight.SemiBold,
                 color = colors.text,
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
+                fontSize = 15.sp
             ),
             maxLines = 2,
             overflow = TextOverflow.Ellipsis

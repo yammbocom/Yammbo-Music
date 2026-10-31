@@ -51,7 +51,7 @@ import com.yambo.music.R
 import it.fast4x.riplay.extensions.listenbrainz.ListenBrainzClient
 import it.fast4x.riplay.extensions.listenbrainz.ListenBrainzValidation
 import it.fast4x.riplay.ui.components.glassSurface
-import it.fast4x.riplay.ui.components.themed.Switch
+import it.fast4x.riplay.ui.components.themed.NoirSwitch
 import it.fast4x.riplay.utils.colorPalette
 import it.fast4x.riplay.utils.typography
 import kotlinx.coroutines.launch
@@ -290,7 +290,7 @@ internal fun AccountsSwitchRow(
         modifier = modifier,
         enabled = enabled,
         onClick = { onCheckedChange(!checked) },
-        trailing = { Switch(isChecked = checked) },
+        trailing = { NoirSwitch(checked = checked) },
     )
 }
 

@@ -22,6 +22,7 @@ import it.fast4x.riplay.ui.components.themed.SmartMessage
 import it.fast4x.riplay.utils.OnDeviceBlacklist
 import it.fast4x.riplay.utils.appContext
 import it.fast4x.riplay.utils.globalContext
+import it.fast4x.riplay.extensions.download.SongDownloader
 import it.fast4x.riplay.utils.isAtLeastAndroid10
 import it.fast4x.riplay.utils.isAtLeastAndroid11
 import it.fast4x.riplay.utils.isAtLeastAndroid13
@@ -146,6 +147,8 @@ class OnDeviceViewModel(application: Application) : AndroidViewModel(application
 
             viewModelScope.launch(scanErrorHandler) {
                 withContext(Dispatchers.IO) {
+                    // One-time: downloads made before the album tag existed show the folder as album.
+                    runCatching { SongDownloader.repairAlbumTags(appContext()) }
                     val collection = if (isAtLeastAndroid10) {
                         MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL)
                     } else {

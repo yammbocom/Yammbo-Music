@@ -2,7 +2,9 @@ package it.fast4x.riplay.ui.screens.searchresult
 
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,6 +20,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
@@ -25,7 +28,12 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import com.yambo.music.R
+import it.fast4x.riplay.ui.components.themed.NoirChip
+import kotlinx.coroutines.delay
 import androidx.compose.ui.unit.dp
 import it.fast4x.riplay.extensions.persist.persist
 import it.fast4x.environment.Environment
@@ -99,16 +107,28 @@ inline fun <T : Environment.Item> ItemsPage(
         didPinTop = true
     }
 
-    LaunchedEffect(lazyListState, updatedItemsPageProvider) {
+    // A failed page used to leave the "loading" row on screen forever: nothing scrolled, so the
+    // loader never asked again. Retry a couple of times, then offer a retry button.
+    var loadFailed by remember(tag) { mutableStateOf(false) }
+    var retryKey by remember(tag) { mutableIntStateOf(0) }
+
+    LaunchedEffect(lazyListState, updatedItemsPageProvider, retryKey) {
         val currentItemsPageProvider = updatedItemsPageProvider ?: return@LaunchedEffect
 
         snapshotFlow { lazyListState.layoutInfo.visibleItemsInfo.any { it.key == "loading" } }
             .collect { shouldLoadMore ->
                 if (!shouldLoadMore) return@collect
 
-                withContext(Dispatchers.IO) {
-                    currentItemsPageProvider(itemsPage?.continuation)
-                }?.onSuccess {
+                var result: Result<Environment.ItemsPage<T>?>? = null
+                for (attempt in 0 until 3) {
+                    if (attempt > 0) delay(700L * attempt)
+                    result = withContext(Dispatchers.IO) {
+                        currentItemsPageProvider(itemsPage?.continuation)
+                    }
+                    if (result == null || result.isSuccess) break
+                    result.exceptionOrNull()?.printStackTrace()
+                }
+                result?.onSuccess {
                     if (it == null) {
                         if (itemsPage == null) {
                             itemsPage = Environment.ItemsPage(null, null)
@@ -116,7 +136,8 @@ inline fun <T : Environment.Item> ItemsPage(
                     } else {
                         itemsPage += it
                     }
-                }?.exceptionOrNull()?.printStackTrace()
+                }
+                if (result?.isFailure == true) loadFailed = true
             }
     }
 
@@ -187,7 +208,30 @@ inline fun <T : Environment.Item> ItemsPage(
                     }
                 }
 
-                if (!(itemsPage != null && itemsPage?.continuation == null)) {
+                if (loadFailed) {
+                    item(key = "load-failed") {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(14.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 32.dp)
+                        ) {
+                            BasicText(
+                                text = stringResource(R.string.noir_load_failed),
+                                style = typography().xs.secondary.center
+                            )
+                            NoirChip(
+                                text = stringResource(R.string.noir_retry),
+                                selected = true,
+                                onClick = {
+                                    loadFailed = false
+                                    retryKey++
+                                }
+                            )
+                        }
+                    }
+                } else if (!(itemsPage != null && itemsPage?.continuation == null)) {
                     item(key = "loading") {
                         val isFirstLoad = itemsPage?.items.isNullOrEmpty()
                         ShimmerHost(

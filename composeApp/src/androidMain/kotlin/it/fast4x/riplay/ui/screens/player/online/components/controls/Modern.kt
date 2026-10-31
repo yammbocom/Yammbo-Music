@@ -52,6 +52,7 @@ import androidx.navigation.NavController
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.PlayerConstants
 import it.fast4x.riplay.data.Database
 import com.yambo.music.R
+import it.fast4x.riplay.utils.artistRouteFor
 import it.fast4x.riplay.utils.appContext
 import it.fast4x.riplay.commonutils.cleanPrefix
 import it.fast4x.riplay.utils.colorPalette
@@ -65,6 +66,7 @@ import it.fast4x.riplay.data.models.Info
 import it.fast4x.riplay.data.models.Song
 import it.fast4x.riplay.data.models.UiMedia
 import it.fast4x.riplay.utils.typography
+import it.fast4x.riplay.ui.components.likeBounce
 import it.fast4x.riplay.ui.components.themed.CustomElevatedButton
 import it.fast4x.riplay.ui.components.themed.IconButton
 import it.fast4x.riplay.ui.components.themed.SelectorArtistsDialog
@@ -290,6 +292,7 @@ fun InfoAlbumAndArtistModern(
                         modifier = Modifier
                             .padding(start = 5.dp)
                             .size(24.dp)
+                            .likeBounce((likedAt ?: 0L) > 0L, colorPalette().favoritesIcon, key = mediaItem.mediaId)
                     )
                     if (playerBackgroundColors == PlayerBackgroundColors.CoverColorGradient) {
                         Icon(
@@ -328,7 +331,9 @@ fun InfoAlbumAndArtistModern(
                 values = artistIds,
                 onValueSelected = {
                     //onGoToArtist(it)
-                    navController.navigate(route = "${NavRoutes.artist.name}/${it}")
+                    CoroutineScope(Dispatchers.Main).launch {
+                        navController.navigate(route = artistRouteFor(mediaItem.mediaId, it, artistIds?.firstOrNull { a -> a.id == it }?.name))
+                    }
                     showSelectDialog = false
                     //layoutState.collapseSoft()
                     onCollapse()
@@ -345,7 +350,9 @@ fun InfoAlbumAndArtistModern(
                         showSelectDialog = true
                     if (artistIds?.isNotEmpty() == true && artistIds.size == 1 && artistIds.firstOrNull()?.id != "") {
                         //onGoToArtist( artistIds[0].id )
-                        navController.navigate(route = "${NavRoutes.artist.name}/${artistIds[0].id}")
+                        CoroutineScope(Dispatchers.Main).launch {
+                            navController.navigate(route = artistRouteFor(mediaItem.mediaId, artistIds[0].id, artistIds[0].name))
+                        }
                         //layoutState.collapseSoft()
                         onCollapse()
                     }
@@ -369,7 +376,9 @@ fun InfoAlbumAndArtistModern(
                     if (artistIds?.isNotEmpty() == true && artistIds.size > 1)
                         showSelectDialog = true
                     if (artistIds?.isNotEmpty() == true && artistIds.size == 1 && artistIds.firstOrNull()?.id != "") {
-                        navController.navigate(route = "${NavRoutes.artist.name}/${artistIds[0].id}")
+                        CoroutineScope(Dispatchers.Main).launch {
+                            navController.navigate(route = artistRouteFor(mediaItem.mediaId, artistIds[0].id, artistIds[0].name))
+                        }
                         onCollapse()
                     }
                 },

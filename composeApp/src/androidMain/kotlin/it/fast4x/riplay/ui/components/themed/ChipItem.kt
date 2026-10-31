@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.BasicText
@@ -41,54 +42,15 @@ fun ChipItemColored(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var thumbnailRoundness by rememberPreference(
-        thumbnailRoundnessKey,
-        ThumbnailRoundness.Heavy
-    )
-
-    // The stripe used to be a random colour per chip. The brand is strictly black
-    // and white, so it is now the theme accent: same "coloured edge" cue, no hue.
-    val chipColor = colorPalette().accent
-
-    Column (
-        verticalArrangement = Arrangement.SpaceAround,
-        horizontalAlignment = Alignment.CenterHorizontally,
+    // Yammbo Noir: an outlined tile. No coloured stripe, the brand is B/N.
+    NoirTile(
+        text = chip.title,
+        onClick = onClick,
         modifier = Modifier
-            .fillMaxWidth()
-            .padding(5.dp)
-            .clip(thumbnailRoundness.shape())
-            .clickable { onClick() }
-
-    ) {
-        Row(
-            horizontalArrangement = Arrangement.Start,
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .background(color = chipColor)
-                .padding(start = 10.dp)
-                .fillMaxHeight(0.9f)
-        ) {
-            Box(
-                modifier = Modifier
-                    .requiredWidth(150.dp)
-                    .background(color = colorPalette().background4)
-                    .fillMaxSize()
-            ) {
-
-                BasicText(
-                    text = chip.title,
-                    style = TextStyle(
-                        color = colorPalette().text,
-                        fontStyle = typography().xs.semiBold.fontStyle,
-                        fontWeight = typography().xs.semiBold.fontWeight
-                    ),
-                    modifier = Modifier.padding(horizontal = 10.dp).align(Alignment.CenterStart),
-                    maxLines = 2,
-
-                    )
-            }
-        }
-    }
+            .padding(4.dp)
+            .width(156.dp)
+            .fillMaxHeight()
+    )
 }
 
 @Composable
@@ -98,58 +60,12 @@ fun ChipGridItemColored(
     modifier: Modifier = Modifier,
     thumbnailSizeDp: Dp
 ) {
-    var thumbnailRoundness by rememberPreference(
-        thumbnailRoundnessKey,
-        ThumbnailRoundness.Heavy
-    )
-
-    val chipColor = colorPalette().accent
-
-    Column (
-        verticalArrangement = Arrangement.SpaceAround,
-        horizontalAlignment = Alignment.CenterHorizontally,
+    NoirTile(
+        text = chip.title,
+        onClick = onClick,
         modifier = modifier
-            .size(thumbnailSizeDp,thumbnailSizeDp)
+            .size(thumbnailSizeDp, thumbnailSizeDp)
             .padding(5.dp)
-            .clickable { onClick() }
-
-    ) {
-        Row(
-            horizontalArrangement = Arrangement.Start,
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .fillMaxSize(0.9f)
-                .clip(thumbnailRoundness.shape())
-
-        ) {
-            Row(
-                horizontalArrangement = Arrangement.Start,
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .background(color = chipColor)
-                    .padding(start = 10.dp)
-                    .fillMaxSize()
-            ) {
-                Box(
-                    modifier = Modifier
-                        .background(color = colorPalette().background4)
-                        .fillMaxSize()
-                ) {
-
-                    BasicText(
-                        text = chip.title,
-                        style = TextStyle(
-                            color = colorPalette().text,
-                            fontStyle = typography().xs.semiBold.fontStyle,
-                            fontWeight = typography().xs.semiBold.fontWeight
-                        ),
-                        modifier = Modifier.padding(horizontal = 10.dp)
-                            .align(Alignment.CenterStart),
-                        maxLines = 2,
-                    )
-                }
-            }
-        }
-    }
+    )
 }
 

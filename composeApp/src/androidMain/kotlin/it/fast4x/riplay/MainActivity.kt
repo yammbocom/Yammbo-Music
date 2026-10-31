@@ -218,8 +218,10 @@ import it.fast4x.riplay.navigation.AppNavigation
 import it.fast4x.riplay.service.PlayerService
 import it.fast4x.riplay.utils.usesLocalPlayer
 import it.fast4x.riplay.ui.components.BottomSheet
+import it.fast4x.riplay.ui.components.NoirBottomChrome
 import it.fast4x.riplay.ui.components.BottomSheetState
 import it.fast4x.riplay.ui.components.CustomModalBottomSheet
+import it.fast4x.riplay.ui.components.EmphasizedEasing
 import it.fast4x.riplay.ui.components.LocalGlobalSheetState
 import it.fast4x.riplay.ui.components.SheetDragHandle
 import it.fast4x.riplay.ui.components.SheetShape
@@ -546,6 +548,43 @@ class MainActivity :
             }
         }
 
+        // One-shot migration (0.7.158, Yammbo Noir redesign): dark theme and Geist become the
+        // defaults for everyone. Only an explicit Light choice and Poppins are kept.
+        runCatching {
+            val migrationKey = "noir_theme_migration_v158"
+            if (!preferences.getBoolean(migrationKey, false)) {
+                val editor = preferences.edit()
+                if (preferences.getEnum(colorPaletteModeKey, ColorPaletteMode.System) != ColorPaletteMode.Light)
+                    editor.putString(colorPaletteModeKey, ColorPaletteMode.Dark.name)
+                if (preferences.getEnum(fontTypeKey, FontType.Rubik) != FontType.Poppins)
+                    editor.putString(fontTypeKey, FontType.Geist.name)
+                editor.putBoolean(migrationKey, true).apply()
+            }
+        }
+
+        // One-shot migration (0.7.158): the Noir player is built on the default player styles,
+        // so everyone is moved back onto them once. They can still pick other styles afterwards.
+        runCatching {
+            val migrationKey = "noir_player_migration_v158"
+            if (!preferences.getBoolean(migrationKey, false)) {
+                preferences.edit()
+                    .putString(it.fast4x.riplay.extensions.preferences.playerTypeKey, it.fast4x.riplay.enums.PlayerType.Modern.name)
+                    .putString(it.fast4x.riplay.extensions.preferences.playerTimelineTypeKey, it.fast4x.riplay.enums.PlayerTimelineType.Default.name)
+                    .putString(it.fast4x.riplay.extensions.preferences.playerControlsTypeKey, it.fast4x.riplay.enums.PlayerControlsType.Essential.name)
+                    .putString(it.fast4x.riplay.extensions.preferences.playerInfoTypeKey, it.fast4x.riplay.enums.PlayerInfoType.Essential.name)
+                    .putString(it.fast4x.riplay.extensions.preferences.playerPlayButtonTypeKey, it.fast4x.riplay.enums.PlayerPlayButtonType.Disabled.name)
+                    .putString(it.fast4x.riplay.extensions.preferences.playerBackgroundColorsKey, it.fast4x.riplay.enums.PlayerBackgroundColors.CoverColorGradient.name)
+                    .putString(it.fast4x.riplay.extensions.preferences.lyricsAlignmentKey, it.fast4x.riplay.enums.LyricsAlignment.Left.name)
+                    .putBoolean(it.fast4x.riplay.extensions.preferences.showthumbnailKey, true)
+                    .putBoolean(it.fast4x.riplay.extensions.preferences.expandedplayerKey, false)
+                    .putBoolean(it.fast4x.riplay.extensions.preferences.showTotalTimeQueueKey, false)
+                    .putBoolean(it.fast4x.riplay.extensions.preferences.showTopActionsBarKey, true)
+                    .putBoolean(it.fast4x.riplay.extensions.preferences.showPlayerActionsBarKey, true)
+                    .putBoolean(migrationKey, true)
+                    .apply()
+            }
+        }
+
         // Once a day, which of the data-related settings this person runs with, for the stats
         // page (how many use the data saver, preload on mobile data, automatic downloads).
         runCatching {
@@ -572,9 +611,20 @@ class MainActivity :
         lifecycleScope.launch {
             repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.RESUMED) {
                 UpdateDownloader.state.collect { state ->
-                    if (state is UpdateDownloader.State.Ready) UpdateDownloader.installIfReady(this@MainActivity)
+                    if (state is UpdateDownloader.State.Ready) {
+                        // Do not restart the app under the user's music: with something playing
+                        // the install waits for the dialog button or a later resume.
+                        val playing = binder?.player?.isPlaying == true ||
+                            binder?.onlinePlayerState?.value == PlayerConstants.PlayerState.PLAYING
+                        UpdateDownloader.installIfReady(this@MainActivity, isPlaying = playing)
+                    }
                 }
             }
+        }
+
+        // An update that went through leaves its APK behind: clear it on the first start after.
+        lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            UpdateDownloader.cleanupIfInstalled(applicationContext)
         }
 
         // Force-enable Android Auto support (PlayerMediaBrowserService) on every launch.
@@ -1077,7 +1127,7 @@ class MainActivity :
                     val colorPalette =
                         colorPaletteOf(ColorPaletteName.Default, colorPaletteMode, !lightTheme)
 
-                    val fontType = getEnum(fontTypeKey, FontType.Rubik)
+                    val fontType = getEnum(fontTypeKey, FontType.Geist)
 
                     setSystemBarAppearance(colorPalette.isDark)
 
@@ -1176,7 +1226,7 @@ class MainActivity :
                                 val applyFontPadding =
                                     sharedPreferences.getBoolean(applyFontPaddingKey, false)
                                 val fontType =
-                                    sharedPreferences.getEnum(fontTypeKey, FontType.Rubik)
+                                    sharedPreferences.getEnum(fontTypeKey, FontType.Geist)
 
                                 appearance = appearance.copy(
                                     typography = typographyOf(
@@ -1381,9 +1431,7 @@ class MainActivity :
                                     }
                                 )
                             } else {
-                                AppNavigation(
-                                    navController = navController,
-                                    miniPlayer = {
+                                val appMiniPlayer: @Composable () -> Unit = {
 
                                         // Observe current media item REACTIVELY so this branch
                                         // re-evaluates when the song loads. Previously the read of
@@ -1400,20 +1448,31 @@ class MainActivity :
 
                                         if (currentItem?.usesLocalPlayer == true)
                                             LocalMiniPlayer(
-                                                showPlayer = { localPlayerSheetState.expandSoft() },
-                                                hidePlayer = { localPlayerSheetState.collapseSoft() },
+                                                showPlayer = { localPlayerSheetState.expandSoft(tween(450, easing = EmphasizedEasing)) },
+                                                hidePlayer = { localPlayerSheetState.collapseSoft(tween(380, easing = EmphasizedEasing)) },
                                                 navController = navController,
                                             )
                                         else {
                                             OnlineMiniPlayer(
-                                                showPlayer = { localPlayerSheetState.expandSoft() },
-                                                hidePlayer = { localPlayerSheetState.collapseSoft() },
+                                                showPlayer = { localPlayerSheetState.expandSoft(tween(450, easing = EmphasizedEasing)) },
+                                                hidePlayer = { localPlayerSheetState.collapseSoft(tween(380, easing = EmphasizedEasing)) },
                                                 navController = navController,
                                             )
                                         }
-                                    },
+                                }
+
+                                AppNavigation(
+                                    navController = navController,
+                                    miniPlayer = appMiniPlayer,
                                     openTabFromShortcut = openTabFromShortcut,
                                     authManager = authManager
+                                )
+
+                                // Nav pill + mini player live here, outside the NavHost, so they stay
+                                // still across navigation. Below the full player sheet in z-order.
+                                NoirBottomChrome(
+                                    navController = navController,
+                                    miniPlayer = appMiniPlayer
                                 )
 
                                 SpotifyImportHost()
@@ -1481,7 +1540,7 @@ class MainActivity :
                                         },
                                         playerSheetState = localPlayerSheetState,
                                         onDismiss = {
-                                            localPlayerSheetState.collapseSoft()
+                                            localPlayerSheetState.collapseSoft(tween(380, easing = EmphasizedEasing))
                                         },
                                     )
                                 }
@@ -1495,7 +1554,8 @@ class MainActivity :
                                             //Text(text = "BottomSheet", modifier = Modifier.align(Alignment.Center))
                                         }
                                     },
-                                    contentAlwaysAvailable = true
+                                    contentAlwaysAvailable = true,
+                                    morphFromMini = true
                                 ) {
                                     // Same reactive read as the mini player: the plain getter
                                     // does not recompose on a media item change, so a station
@@ -1601,8 +1661,7 @@ class MainActivity :
                                                             Spacer(modifier = Modifier.width(16.dp))
                                                             Text(
                                                                 text = device.name,
-                                                                color = colorPalette().text,
-                                                                modifier = Modifier.border(BorderStroke(1.dp, Color.Red))
+                                                                color = colorPalette().text
                                                             )
                                                         }
                                                     }

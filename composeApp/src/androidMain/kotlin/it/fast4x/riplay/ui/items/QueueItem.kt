@@ -41,7 +41,7 @@ fun QueueItem(
 ) {
 
     val colorPalette = LocalAppearance.current.colorPalette
-    val disableScrollingText by rememberPreference(disableScrollingTextKey, false)
+    val disableScrollingText by rememberPreference(disableScrollingTextKey, true)
     val thumbnailSizeDp = Dimensions.thumbnails.song
 
     ItemContainer(

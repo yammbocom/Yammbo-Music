@@ -53,12 +53,15 @@ fun Modifier.glassSurface(
     //
     // It also has to stay subtle on light surfaces: at 0.60 it read as a white block inside
     // the panel rather than a highlight, which is what made the nav bar look two-tone.
-    val sheen = if (isDark) Color.White.copy(alpha = 0.08f) else Color.White.copy(alpha = 0.18f)
+    // Yammbo Noir: the dark glass is a flat #18181A pane with an even 12 % white hairline; the
+    // sheen is barely there so the panel reads as one piece.
+    val sheen = if (isDark) Color.White.copy(alpha = 0.04f) else Color.White.copy(alpha = 0.18f)
 
     // The border, on the other hand, has to invert: a white hairline is invisible on a light
     // surface, so there it becomes a soft dark edge instead.
     val edge = if (isDark) Color.White else Color.Black
-    val edgeAlpha = if (isDark) borderAlpha else borderAlpha * 0.45f
+    val edgeAlpha = if (isDark) borderAlpha * 0.55f else borderAlpha * 0.45f
+    val edgeBottomAlpha = if (isDark) edgeAlpha else edgeAlpha * 0.25f
 
     // Elevation shadows are near-invisible on dark backgrounds but ring a light one with a
     // pale halo, which is what haloed every circular button in the light theme.
@@ -69,12 +72,19 @@ fun Modifier.glassSurface(
     // and "empty background behind" reads as a bright band across the bar. Dark themes hide
     // it because everything behind is near-black, so only the light one needs the opacity.
     // An explicitly opaque panel (alpha >= 1) stays opaque in the light theme too.
-    val effectiveAlpha = if (isDark || alpha >= 1f) alpha else (alpha + 0.14f).coerceAtMost(0.96f)
+    // Without a backdrop blur, text scrolling under a see-through dark pane is noise, so the
+    // Noir glass never drops below 90 % opacity.
+    val effectiveAlpha = when {
+        isDark -> alpha.coerceAtLeast(0.9f)
+        alpha >= 1f -> alpha
+        else -> (alpha + 0.14f).coerceAtMost(0.96f)
+    }
+    val baseFill = fill ?: if (isDark) Color(0xff18181A) else colors.background1
 
     return this
         .shadow(elevation = effectiveElevation, shape = shape, clip = false)
         .clip(shape)
-        .background((fill ?: colors.background1).copy(alpha = effectiveAlpha))
+        .background(baseFill.copy(alpha = effectiveAlpha))
         .background(
             Brush.verticalGradient(
                 colors = listOf(sheen, Color.Transparent)
@@ -85,7 +95,7 @@ fun Modifier.glassSurface(
             brush = Brush.verticalGradient(
                 colors = listOf(
                     edge.copy(alpha = edgeAlpha),
-                    edge.copy(alpha = edgeAlpha * 0.25f)
+                    edge.copy(alpha = edgeBottomAlpha)
                 )
             ),
             shape = shape

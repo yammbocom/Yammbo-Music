@@ -6,6 +6,11 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.unit.dp
+import it.fast4x.riplay.ui.components.glassSurface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -89,11 +94,21 @@ fun GetControls(
 //        seconds = if (playbackDuration < 1f) 0 else playbackDuration.roundToInt()
 //    )
 
+    // Yammbo Noir: the essential controls sit on one glass panel.
+    val noirPanel = playerControlsType == PlayerControlsType.Essential
+    // glassSurface is composable, so it is built here rather than inside applyIf.
+    val panelModifier = if (noirPanel)
+        Modifier
+            .glassSurface(RoundedCornerShape(28.dp), elevation = 0.dp)
+            .height(88.dp)
+            .padding(horizontal = 14.dp)
+    else Modifier
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceEvenly,
+        horizontalArrangement = if (noirPanel) Arrangement.SpaceBetween else Arrangement.SpaceEvenly,
         modifier = Modifier
             .fillMaxWidth()
+            .then(panelModifier)
     ) {
 
         if (playerControlsType == PlayerControlsType.Essential)

@@ -49,7 +49,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.yambo.music.R
+import it.fast4x.riplay.ui.components.RevealImage
 import it.fast4x.riplay.ui.components.glassSurface
+import it.fast4x.riplay.ui.components.sharedCover
 import it.fast4x.riplay.ui.styling.center
 import it.fast4x.riplay.ui.styling.color
 import it.fast4x.riplay.ui.styling.secondary
@@ -75,6 +77,9 @@ fun MediaHeader(
     fullWidthCover: Boolean = false,
     // Small "internet" mark on the cover for content that lives on YouTube.
     showOnlineBadge: Boolean = false,
+    // Cover handoff from the screen that opened this page (see CoverHandoff).
+    sharedKey: String? = null,
+    previewUrl: String? = null,
     onPlay: (() -> Unit)? = null,
     onShuffle: (() -> Unit)? = null,
     actions: @Composable RowScope.() -> Unit = {},
@@ -140,7 +145,12 @@ fun MediaHeader(
                 }
             } else {
                 Spacer(Modifier.height(statusBarTop + 52.dp))
-                MediaCover(imageUrl = imageUrl, showOnlineBadge = showOnlineBadge)
+                MediaCover(
+                    imageUrl = imageUrl,
+                    showOnlineBadge = showOnlineBadge,
+                    sharedKey = sharedKey,
+                    previewUrl = previewUrl,
+                )
                 Spacer(Modifier.height(18.dp))
                 MediaTitleBlock(title = title, subtitle = subtitle)
             }
@@ -212,6 +222,8 @@ fun MediaCover(
     imageUrl: String?,
     modifier: Modifier = Modifier,
     showOnlineBadge: Boolean = false,
+    sharedKey: String? = null,
+    previewUrl: String? = null,
 ) {
     val colors = colorPalette()
     val isDark = colors.background1.luminance() < 0.5f
@@ -221,13 +233,18 @@ fun MediaCover(
     Box(
         modifier = modifier
             .size(side)
+            .sharedCover(sharedKey, shape)
             // A deep shadow rings a light page with a grey halo, so it is softer there.
             .shadow(if (isDark) 18.dp else 8.dp, shape, clip = false)
             .clip(shape)
             .background(colors.background2)
     ) {
+        // The tapped cover, already in memory: shows in the first frame while the page loads.
+        if (previewUrl != null) {
+            RevealImage(previewUrl, null, Modifier.fillMaxSize(), ContentScale.Crop)
+        }
         if (imageUrl != null) {
-            AsyncImage(
+            RevealImage(
                 model = imageUrl.resizeNoCrop(800, 800),
                 contentDescription = null,
                 // Fit: a non-square source gets bars instead of being cut.

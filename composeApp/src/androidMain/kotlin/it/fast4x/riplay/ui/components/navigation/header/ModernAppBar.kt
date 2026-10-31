@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -15,10 +16,15 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.IntOffset
 import androidx.navigation.NavController
+import it.fast4x.riplay.ui.components.TopBarTitle
 import it.fast4x.riplay.utils.colorPalette
 import it.fast4x.riplay.utils.isEnabledFullscreen
 
@@ -105,6 +111,20 @@ fun ModernTopAppBar(
 
                 ActionBar(navController)
             }
+
+            // Collapsed page title: alpha is read in the layer so scrolling doesn't recompose the bar
+            Text(
+                text = TopBarTitle.text,
+                color = colorPalette().text,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .padding(horizontal = 96.dp)
+                    .graphicsLayer { this.alpha = TopBarTitle.progress }
+            )
         }
     }
 }

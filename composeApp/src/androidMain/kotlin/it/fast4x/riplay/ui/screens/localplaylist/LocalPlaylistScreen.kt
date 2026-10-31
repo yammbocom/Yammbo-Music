@@ -31,6 +31,8 @@ fun LocalPlaylistScreen(
         modifier = modifier,
         navController = navController,
         miniPlayer = miniPlayer,
+        // Cover-led screen: no app bar, the header runs to the top edge.
+        showTopBar = false,
     ) {
         LocalPlaylistSongs(
             navController = navController,

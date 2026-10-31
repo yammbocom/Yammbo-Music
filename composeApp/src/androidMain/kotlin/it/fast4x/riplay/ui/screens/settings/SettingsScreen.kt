@@ -56,6 +56,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.ExperimentalTextApi
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -70,13 +71,20 @@ import it.fast4x.riplay.ui.components.themed.LocalSettingsCard
 import it.fast4x.riplay.ui.components.themed.Slider
 import it.fast4x.riplay.ui.components.themed.SmartMessage
 import it.fast4x.riplay.ui.components.themed.StringListDialog
-import it.fast4x.riplay.ui.components.themed.Switch
+import it.fast4x.riplay.ui.components.themed.NoirEyebrow
+import it.fast4x.riplay.ui.components.themed.NoirSwitch
+import it.fast4x.riplay.ui.styling.mono
+import it.fast4x.riplay.ui.styling.tight
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.ui.graphics.SolidColor
 import it.fast4x.riplay.ui.components.themed.ValueSelectorDialog
 import it.fast4x.riplay.ui.components.SubscriptionGateOverlay
 import it.fast4x.riplay.ui.styling.color
 import it.fast4x.riplay.ui.styling.secondary
 import it.fast4x.riplay.ui.styling.semiBold
 import it.fast4x.riplay.ui.components.PageContainer
+import it.fast4x.riplay.ui.components.NoirContentMax
+import it.fast4x.riplay.ui.components.noirContentWidth
 import it.fast4x.riplay.ui.components.glassSurface
 import it.fast4x.riplay.ui.styling.Dimensions
 import it.fast4x.riplay.utils.colorPalette
@@ -108,10 +116,12 @@ fun SettingsScreen(
     PageContainer(
         navController = navController,
         miniPlayer = miniPlayer,
-        // A section draws its own header (back + title); the app bar would double it.
-        showTopBar = section == SettingsHomeIndex
+        // The hub gets the Noir top row; a section draws its own header (back + title).
+        showTopBar = false,
+        noirTopBar = section == SettingsHomeIndex
     ) {
         AnimatedContent(
+            modifier = Modifier.noirContentWidth(NoirContentMax.Reading),
             targetState = section,
             transitionSpec = { fadeIn(tween(220)) togetherWith fadeOut(tween(140)) },
             label = "settingsSection"
@@ -182,29 +192,33 @@ private fun settingsSectionTitle(index: Int): String = when (index) {
 private fun SettingsSectionHeader(title: String, onBack: () -> Unit) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .padding(start = 8.dp, end = 20.dp, top = 4.dp, bottom = 4.dp)
     ) {
         val backDescription = stringResource(R.string.back)
         Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier
-                .size(40.dp)
-                .glassSurface(CircleShape, elevation = 6.dp)
+                .size(44.dp)
+                .clip(CircleShape)
                 .clickable(onClickLabel = backDescription, role = Role.Button, onClick = onBack)
         ) {
             Image(
                 painter = painterResource(R.drawable.chevron_back),
                 contentDescription = backDescription,
                 colorFilter = ColorFilter.tint(colorPalette().text),
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(22.dp)
             )
         }
         BasicText(
             text = title,
-            style = typography().l.semiBold.copy(color = colorPalette().text),
+            style = typography().l.tight.copy(
+                fontWeight = FontWeight.Bold,
+                fontSize = 22.sp,
+                color = colorPalette().text
+            ),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f)
@@ -214,8 +228,11 @@ private fun SettingsSectionHeader(title: String, onBack: () -> Unit) {
 
 private class SettingsHubRow(val index: Int, val icon: Int, val title: String, val subtitle: String)
 
+private fun settingsHairline(color: Color) = color.copy(alpha = 0.10f)
+
 @Composable
 private fun SettingsHome(onOpen: (Int) -> Unit) {
+    val colors = colorPalette()
     val rows = listOf(
         SettingsHubRow(0, R.drawable.grid_view, stringResource(R.string.tab_general), stringResource(R.string.settings_sub_general)),
         SettingsHubRow(1, R.drawable.ui, stringResource(R.string.ui_tab), stringResource(R.string.settings_sub_ui)),
@@ -226,38 +243,105 @@ private fun SettingsHome(onOpen: (Int) -> Unit) {
         SettingsHubRow(6, R.drawable.ellipsis_horizontal, stringResource(R.string.settings_title_misc), stringResource(R.string.settings_sub_misc)),
         SettingsHubRow(7, R.drawable.information, stringResource(R.string.about), stringResource(R.string.settings_sub_about)),
     )
-    // Visual groups of the list, by row index.
-    val groups = listOf(listOf(0, 1, 2, 3), listOf(4, 5), listOf(6, 7))
+    // Visual groups of the list (eyebrow + row indexes).
+    val groups = listOf(
+        stringResource(R.string.settings_group_prefs) to listOf(0, 1, 2, 3),
+        stringResource(R.string.settings_group_data) to listOf(4, 5),
+        stringResource(R.string.settings_group_more) to listOf(6, 7),
+    )
+
+    // Filters the section list by title or description; the search never reaches into
+    // individual settings, only the sections that contain them.
+    var query by rememberSaveable { mutableStateOf("") }
+    val needle = query.trim()
+    val visibleGroups = groups
+        .map { (label, indexes) ->
+            label to indexes.map { rows[it] }.filter { row ->
+                needle.isEmpty() ||
+                    row.title.contains(needle, ignoreCase = true) ||
+                    row.subtitle.contains(needle, ignoreCase = true)
+            }
+        }
+        .filter { it.second.isNotEmpty() }
 
     Column(
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp)
+            .padding(horizontal = 20.dp)
     ) {
         BasicText(
             text = stringResource(R.string.settings),
-            style = typography().xxl.semiBold.copy(color = colorPalette().text),
-            modifier = Modifier.padding(start = 4.dp, top = 8.dp, bottom = 4.dp)
+            style = typography().xxl.tight.copy(
+                fontWeight = FontWeight.Bold,
+                fontSize = 34.sp,
+                color = colors.text
+            ),
+            modifier = Modifier.padding(top = 8.dp)
         )
 
-        groups.forEach { group ->
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(46.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(colors.background2)
+                .padding(horizontal = 14.dp)
+        ) {
+            Image(
+                painter = painterResource(R.drawable.search),
+                contentDescription = null,
+                colorFilter = ColorFilter.tint(colors.textSecondary),
+                modifier = Modifier.size(18.dp)
+            )
+            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+                if (query.isEmpty()) {
+                    BasicText(
+                        text = stringResource(R.string.settings_search_hint),
+                        style = typography().s.copy(fontSize = 15.sp, color = colors.textSecondary),
+                        maxLines = 1
+                    )
+                }
+                BasicTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    singleLine = true,
+                    textStyle = typography().s.copy(fontSize = 15.sp, color = colors.text),
+                    cursorBrush = SolidColor(colors.text),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+
+        if (visibleGroups.isEmpty()) {
+            BasicText(
+                text = stringResource(R.string.settings_no_results),
+                style = typography().xs.copy(color = colors.textSecondary),
+                modifier = Modifier.padding(vertical = 8.dp)
+            )
+        }
+
+        visibleGroups.forEach { (label, groupRows) ->
+            NoirEyebrow(text = label, modifier = Modifier.padding(top = 4.dp))
+            val shape = RoundedCornerShape(20.dp)
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .glassSurface(RoundedCornerShape(20.dp), elevation = 4.dp)
+                    .clip(shape)
+                    .background(colors.background1)
+                    .border(1.dp, settingsHairline(colors.text), shape)
             ) {
-                group.forEachIndexed { position, rowIndex ->
-                    val row = rows[rowIndex]
+                groupRows.forEachIndexed { position, row ->
                     if (position > 0) {
-                        // Inset past the icon circle, like a native list.
                         Box(
                             modifier = Modifier
-                                .padding(start = 70.dp)
+                                .padding(start = 64.dp)
                                 .fillMaxWidth()
                                 .height(1.dp)
-                                .background(colorPalette().background2)
+                                .background(settingsHairline(colors.text))
                         )
                     }
                     SettingsHubRowItem(row, onClick = { onOpen(row.index) })
@@ -277,20 +361,20 @@ private fun SettingsHubRowItem(row: SettingsHubRow, onClick: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .clickable(role = Role.Button, onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 14.dp)
+            .padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
         Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier
-                .size(40.dp)
-                .clip(CircleShape)
+                .size(34.dp)
+                .clip(RoundedCornerShape(10.dp))
                 .background(colorPalette().background2)
         ) {
             Image(
                 painter = painterResource(row.icon),
                 contentDescription = null,
                 colorFilter = ColorFilter.tint(colorPalette().text),
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(18.dp)
             )
         }
         Column(
@@ -299,13 +383,13 @@ private fun SettingsHubRowItem(row: SettingsHubRow, onClick: () -> Unit) {
         ) {
             BasicText(
                 text = row.title,
-                style = typography().s.semiBold.copy(color = colorPalette().text),
+                style = typography().s.copy(fontSize = 16.sp, color = colorPalette().text),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
             BasicText(
                 text = row.subtitle,
-                style = typography().xxs.copy(color = colorPalette().textSecondary),
+                style = typography().xxs.copy(fontSize = 13.sp, color = colorPalette().textSecondary),
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
@@ -436,7 +520,7 @@ fun <T> ValueSelectorSettingsEntry(
         trailingContent = {
             BasicText(
                 text = valueText(selectedValue),
-                style = typography().xs.copy(color = colorPalette().textSecondary),
+                style = typography().xs.copy(fontSize = 13.sp, color = colorPalette().textSecondary),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.widthIn(max = 160.dp)
@@ -464,7 +548,7 @@ fun SwitchSettingEntry(
         text = text,
         isEnabled = isEnabled,
         onClick = { onCheckedChange(!isChecked) },
-        trailingContent = { Switch(isChecked = isChecked) },
+        trailingContent = { NoirSwitch(checked = isChecked) },
         modifier = modifier,
         online = online,
         offline = offline
@@ -503,7 +587,7 @@ fun SettingsEntry(
             ) {
                 BasicText(
                     text = title,
-                    style = typography().xs.semiBold.copy(color = colorPalette().text),
+                    style = typography().s.copy(fontSize = 16.sp, color = colorPalette().text),
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -511,7 +595,7 @@ fun SettingsEntry(
                 if (text.isNotEmpty()) {
                     BasicText(
                         text = text,
-                        style = typography().xxs.copy(color = colorPalette().textSecondary),
+                        style = typography().xxs.copy(fontSize = 13.sp, color = colorPalette().textSecondary),
                         maxLines = 3,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -527,6 +611,8 @@ fun SettingsEntry(
                 }
             }
 
+            // No default chevron: most bare rows run an action (clear history, reset...) rather
+            // than open a page, and a chevron would promise navigation.
             trailingContent?.invoke()
         }
     }
@@ -554,7 +640,7 @@ private fun SettingsRowDivider() {
             .padding(horizontal = 12.dp)
             .fillMaxWidth()
             .height(1.dp)
-            .background(colorPalette().background2)
+            .background(colorPalette().text.copy(alpha = 0.08f))
     )
 }
 
@@ -666,11 +752,7 @@ fun SettingsEntryGroupText(
 ) {
     BasicText(
         text = if (uppercase) title.uppercase() else title,
-        style = typography().xxs.copy(
-            color = color,
-            fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
-            letterSpacing = 1.sp
-        ),
+        style = typography().xxxs.mono.copy(color = color, fontSize = 11.sp),
         modifier = modifier
             .padding(start = 20.dp, top = 24.dp, bottom = 8.dp)
     )
@@ -854,6 +936,7 @@ fun SliderSettingsEntry(
         text = "$text (${toDisplay(state)})",
         onClick = manualEnterDialog::onShortClick,
         isEnabled = isEnabled,
+        trailingContent = {},
         //usePadding = usePadding
     )
 

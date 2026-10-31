@@ -25,15 +25,16 @@ fun PrimaryButton(
 ) {
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(18.dp))
             .clickable(enabled = enabled, onClick = onClick)
-            .background(colorPalette().background2)
+            // Yammbo Noir: the one primary action on a screen is solid white.
+            .background(colorPalette().accent)
             .size(62.dp)
     ) {
         Image(
             painter = painterResource(iconId),
             contentDescription = null,
-            colorFilter = ColorFilter.tint(colorPalette().text),
+            colorFilter = ColorFilter.tint(colorPalette().onAccent),
             modifier = Modifier
                 .align(Alignment.Center)
                 .size(20.dp)

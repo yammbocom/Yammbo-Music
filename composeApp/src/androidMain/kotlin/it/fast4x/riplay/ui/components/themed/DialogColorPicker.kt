@@ -140,7 +140,7 @@ fun DialogColorPicker(
                         onDismiss()
                     },
                     icon = R.drawable.checkmark,
-                    color = colorPalette().accent
+                    color = colorPalette().text
                 )
             }
         }

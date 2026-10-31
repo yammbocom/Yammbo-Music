@@ -30,6 +30,7 @@ fun MoodListScreen(
         //modifier = modifier,
         navController = navController,
         miniPlayer = miniPlayer,
+        noirTopBar = true,
     ) {
         MoodList(
             navController = navController,

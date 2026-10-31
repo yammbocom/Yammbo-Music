@@ -109,6 +109,8 @@ import it.fast4x.riplay.data.models.Song
 import it.fast4x.riplay.data.models.SongPlaylistMap
 import it.fast4x.riplay.utils.isLocal
 import it.fast4x.riplay.ui.components.LocalGlobalSheetState
+import it.fast4x.riplay.ui.components.NoirContentMax
+import it.fast4x.riplay.ui.components.noirContentWidth
 import it.fast4x.riplay.ui.components.SwipeableQueueItem
 import it.fast4x.riplay.ui.components.themed.ConfirmationDialog
 import it.fast4x.riplay.ui.components.themed.FloatingActionsContainerWithScrollToTop
@@ -206,6 +208,23 @@ import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 import it.fast4x.riplay.extensions.persist.persistList
 import timber.log.Timber
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.border
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.sp
+import it.fast4x.riplay.ui.components.themed.Menu
+import it.fast4x.riplay.ui.components.themed.MenuEntry
+import it.fast4x.riplay.ui.components.themed.MenuToggleEntry
+import it.fast4x.riplay.ui.components.themed.NoirChip
+import it.fast4x.riplay.ui.screens.album.AlbumNoirHeader
+import it.fast4x.riplay.ui.screens.album.AlbumPlayAction
+import it.fast4x.riplay.ui.screens.album.AlbumSquareAction
+import it.fast4x.riplay.ui.screens.album.rememberCoverTint
 
 @KotlinCsvExperimental
 @ExperimentalMaterialApi
@@ -243,7 +262,7 @@ fun LocalPlaylistSongs(
 
     var filter: String? by rememberSaveable { mutableStateOf(null) }
 
-    val disableScrollingText by rememberPreference(disableScrollingTextKey, false)
+    val disableScrollingText by rememberPreference(disableScrollingTextKey, true)
     var playlistSongsTypeFilter by rememberPreference(playlistSongsTypeFilterKey, PlaylistSongsTypeFilter.All)
 
     LaunchedEffect(Unit, filter, sortOrder, sortBy) {
@@ -1014,435 +1033,133 @@ fun LocalPlaylistSongs(
 
     println("LocalPlaylistSongs playlist browseId ${playlistPreview?.playlist?.browseId}")
 
-    PullToRefreshBox(
-        refreshing = refreshing,
-        onRefresh = { refresh() }
-    ) {
-        Box(
-            modifier = Modifier
-                .background(colorPalette.background0)
-                //.fillMaxSize()
-                .fillMaxHeight()
-                .fillMaxWidth(
-                    if (navigationBarPosition == NavigationBarPosition.Left ||
-                        navigationBarPosition == NavigationBarPosition.Top ||
-                        navigationBarPosition == NavigationBarPosition.Bottom
-                    ) 1f
-                    else Dimensions.contentWidthRightBar
-                )
-        ) {
-            LazyListContainer(
-                state = lazyListState
-            ) {
-                LazyColumn(
-                    state = lazyListState,
-                    modifier = Modifier
-                        .background(colorPalette.background0)
-                        .fillMaxSize()
-                ) {
-                    item(
-                        key = "header",
-                        contentType = 0
-                    ) {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                        ) {
+    // ---- Yammbo Noir playlist page ----
+    LaunchedEffect(scrollToNowPlaying) {
+        if (scrollToNowPlaying)
+            // Songs follow the header, the tools row and (when shown) the empty state.
+            lazyListState.scrollToItem(
+                nowPlayingItem + 1 +
+                        (if (playlistAllSongs.isNotEmpty()) 1 else 0) +
+                        (if (playlistSongs.isEmpty() && !refreshing) 1 else 0),
+                1
+            )
+        scrollToNowPlaying = false
+    }
 
-                            HeaderWithIcon(
-                                title = playlistPreview?.playlist?.name?.let { name ->
-                                    cleanPrefix(name)
-                                } ?: "Unknown",
-                                iconId = R.drawable.playlist,
-                                enabled = true,
-                                showIcon = false,
-                                modifier = Modifier
-                                    .padding(bottom = 8.dp),
-                                onClick = {}
-                            )
+    if (showConfirmMatchAllDialog) {
+        ConfirmationDialog(
+            text = stringResource(R.string.do_you_really_want_to_match_all),
+            onDismiss = { showConfirmMatchAllDialog = false },
+            onConfirm = {
+                getAlbumVersion = true
+                showGetAlbumVersionDialogue = true
+                showConfirmMatchAllDialog = false
+            }
+        )
+    }
 
-                        }
+    val isYtmPlaylist = playlistPreview?.playlist?.isYoutubePlaylist == true ||
+            playlistPreview?.playlist?.name?.startsWith(YTP_PREFIX) == true
+    val isPinned = playlistPreview?.playlist?.name?.startsWith(PINNED_PREFIX, 0, true) == true
+    val hasBrowseId = !playlistPreview?.playlist?.browseId.isNullOrBlank()
+    val canMatchAlbumVersion = playlistSongs.any {
+        (it.song.thumbnailUrl?.startsWith("https://lh3.googleusercontent.com") == false) &&
+                !(it.song.id.startsWith(LOCAL_KEY_PREFIX))
+    }
 
-                        Row(
-                            horizontalArrangement = Arrangement.Start,
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                //.background(colorPalette.background4)
-                                //.fillMaxSize(0.99F)
-                                .fillMaxWidth()
-                                .background(
-                                    color = colorPalette.background1,
-                                    shape = thumbnailRoundness.shape()
-                                )
-                        ) {
+    // Cover: the custom thumbnail, the Liked Music art, or the first song's cover.
+    val playlistCoverUrl: String? = thumbnailUrl.value.takeIf { it.isNotBlank() }
+        ?: if (playlistPreview?.playlist?.browseId == "LM")
+            "https://www.gstatic.com/youtube/media/ytm/images/pbg/liked-music-@1200.png"
+        else playlistSongsSortByPosition
+            .firstOrNull { !it.song.thumbnailUrl.isNullOrBlank() }?.song?.thumbnailUrl
+    val coverTint = rememberCoverTint(playlistCoverUrl)
 
-                            playlistPreview?.let {
-                                Playlist(
-                                    playlist = it,
-                                    thumbnailSizeDp = playlistThumbnailSizeDp,
-                                    thumbnailSizePx = playlistThumbnailSizePx,
-                                    alternative = true,
-                                    showName = false,
-                                    modifier = Modifier
-                                        .padding(top = 14.dp),
-                                    disableScrollingText = disableScrollingText,
-                                    thumbnailUrl = if (thumbnailUrl.value == "") null else thumbnailUrl.value
-                                )
-                            }
+    val sortLabel = when (sortBy) {
+        PlaylistSongSortBy.Album -> stringResource(R.string.sort_album)
+        PlaylistSongSortBy.AlbumYear -> stringResource(R.string.sort_album_year)
+        PlaylistSongSortBy.Position -> stringResource(R.string.sort_position)
+        PlaylistSongSortBy.Title -> stringResource(R.string.sort_title)
+        PlaylistSongSortBy.DatePlayed -> stringResource(R.string.sort_date_played)
+        PlaylistSongSortBy.DateLiked -> stringResource(R.string.sort_date_liked)
+        PlaylistSongSortBy.Artist -> stringResource(R.string.sort_artist)
+        PlaylistSongSortBy.ArtistAndAlbum -> "${stringResource(R.string.sort_artist)}, ${stringResource(R.string.sort_album)}"
+        PlaylistSongSortBy.PlayTime -> stringResource(R.string.sort_listening_time)
+        PlaylistSongSortBy.Duration -> stringResource(R.string.sort_duration)
+        PlaylistSongSortBy.DateAdded -> stringResource(R.string.sort_date_added)
+        PlaylistSongSortBy.RelativePlayTime -> stringResource(R.string.sort_relative_listening_time)
+    }
+    val filterLabel = when (playlistSongsTypeFilter) {
+        PlaylistSongsTypeFilter.All -> stringResource(R.string.all)
+        PlaylistSongsTypeFilter.OnlineSongs -> stringResource(R.string.online_songs)
+        PlaylistSongsTypeFilter.Videos -> stringResource(R.string.videos)
+        PlaylistSongsTypeFilter.Local -> stringResource(R.string.on_device)
+        PlaylistSongsTypeFilter.Favorites -> stringResource(R.string.favorites)
+        PlaylistSongsTypeFilter.Unmatched -> stringResource(R.string.unmatched)
+        PlaylistSongsTypeFilter.Explicit -> stringResource(R.string.explicit)
+    }
 
+    // "LISTA · N canciones · X min", skipping what is missing.
+    val playlistMeta = listOfNotNull(
+        stringResource(R.string.noir_kind_playlist),
+        if (playlistSongs.isNotEmpty())
+            stringResource(R.string.noir_album_songs_count, playlistSongs.size)
+        else null,
+        (totalPlayTimes / 60_000L).toInt().takeIf { it > 0 }
+            ?.let { stringResource(R.string.noir_album_minutes, it) }
+    ).joinToString(" · ")
 
-                            Column(
-                                verticalArrangement = Arrangement.Center,
-                                horizontalAlignment = Alignment.Start,
-                                modifier = Modifier
-                                    //.fillMaxHeight()
-                                    .padding(end = 10.dp)
-                                    //.fillMaxWidth(if (isLandscape) 0.90f else 0.80f)
-                                    .fillMaxWidth()
-                            ) {
-                                Spacer(modifier = Modifier.height(10.dp))
-                                IconInfo(
-                                    title = playlistSongs.size.toString(),
-                                    icon = painterResource(R.drawable.musical_notes)
-                                )
-                                if (unmatchedSongsCount > 0) {
-                                    Spacer(modifier = Modifier.height(5.dp))
-                                    IconInfo(
-                                        title = "($unmatchedSongsCount)",
-                                        icon = painterResource(R.drawable.alert)
-                                    )
-                                }
-//                                Spacer(modifier = Modifier.height(5.dp))
-//                                IconInfo(
-//                                    title = formatAsTime(totalPlayTimes),
-//                                    icon = painterResource(R.drawable.time)
-//                                )
-                                if (isRecommendationEnabled) {
-                                    Spacer(modifier = Modifier.height(5.dp))
-                                    IconInfo(
-                                        title = positionsRecommendationList.distinct().size.toString(),
-                                        icon = painterResource(R.drawable.smart_shuffle)
-                                    )
-                                }
-                                Spacer(modifier = Modifier.height(30.dp))
+    val playAll: () -> Unit = {
+        val playable = playlistSongs.filter { it.song.thumbnailUrl != "" && it.song.likedAt != -1L }
+        if (playable.isNotEmpty()) {
+            val itemsLimited =
+                if (playable.size > maxSongsInQueue.number) playable
+                    .take(maxSongsInQueue.number.toInt()) else playable
+            binder?.stopRadio()
+            binder?.player?.forcePlayFromBeginning(itemsLimited.map(SongEntity::asMediaItem))
+        } else {
+            SmartMessage(
+                context.resources.getString(R.string.disliked_this_collection),
+                type = PopupType.Error,
+                context = context
+            )
+        }
+    }
 
-                                FastPlayActionsBar(
-                                    modifier = Modifier
-                                        .fillMaxWidth(),
-                                    onPlayNowClick = {
-                                        if (playlistSongs.any { it.song.thumbnailUrl != "" && it.song.likedAt != -1L }) {
-                                            playlistSongs.filter { it.song.thumbnailUrl != "" && it.song.likedAt != -1L }
-                                                .let { songs ->
-                                                    if (songs.isNotEmpty()) {
-                                                        val itemsLimited =
-                                                            if (songs.size > maxSongsInQueue.number) songs
-                                                                .take(maxSongsInQueue.number.toInt()) else songs
-                                                        binder?.stopRadio()
-                                                        binder?.player?.forcePlayFromBeginning(
-                                                            itemsLimited
-                                                                .map(SongEntity::asMediaItem)
-                                                        )
-                                                        //fastPlay(binder = binder, mediaItems = itemsLimited.map(SongEntity::asMediaItem), withShuffle = true)
-                                                    }
-                                                }
-                                        } else {
-                                            SmartMessage(
-                                                context.resources.getString(R.string.disliked_this_collection),
-                                                type = PopupType.Error,
-                                                context = context
-                                            )
-                                        }
-                                        //fastPlay(binder = binder, mediaItems = playlistSongs.map(SongEntity::asMediaItem))
-                                    },
-                                    onShufflePlayClick = {
-                                        if (playlistSongs.any { it.song.thumbnailUrl != "" && it.song.likedAt != -1L }) {
-                                            playlistSongs.filter { it.song.thumbnailUrl != "" && it.song.likedAt != -1L }
-                                                .let { songs ->
-                                                    if (songs.isNotEmpty()) {
-                                                        val itemsLimited =
-                                                            if (songs.size > maxSongsInQueue.number) songs.shuffled()
-                                                                .take(maxSongsInQueue.number.toInt()) else songs
-                                                        binder?.stopRadio()
-                                                        binder?.player?.forcePlayFromBeginning(
-                                                            itemsLimited.shuffled()
-                                                                .map(SongEntity::asMediaItem)
-                                                        )
-                                                        //fastPlay(binder = binder, mediaItems = itemsLimited.map(SongEntity::asMediaItem), withShuffle = true)
-                                                    }
-                                                }
-                                        } else {
-                                            SmartMessage(
-                                                context.resources.getString(R.string.disliked_this_collection),
-                                                type = PopupType.Error,
-                                                context = context
-                                            )
-                                        }
-                                    },
-                                    onSmartRecommendationClick = {
-                                        isRecommendationEnabled = !isRecommendationEnabled
-                                    },
-                                    isRecommendationEnabled = isRecommendationEnabled
-                                )
+    val shuffleAll: () -> Unit = {
+        val playable = playlistSongs.filter { it.song.thumbnailUrl != "" && it.song.likedAt != -1L }
+        if (playable.isNotEmpty()) {
+            val itemsLimited =
+                if (playable.size > maxSongsInQueue.number) playable.shuffled()
+                    .take(maxSongsInQueue.number.toInt()) else playable
+            binder?.stopRadio()
+            binder?.player?.forcePlayFromBeginning(
+                itemsLimited.shuffled().map(SongEntity::asMediaItem)
+            )
+        } else {
+            SmartMessage(
+                context.resources.getString(R.string.disliked_this_collection),
+                type = PopupType.Error,
+                context = context
+            )
+        }
+    }
 
-                            }
+    val enqueueAll: () -> Unit = {
+        val playable = playlistSongs.filter { it.song.thumbnailUrl != "" && it.song.likedAt != -1L }
+        if (playable.isNotEmpty()) {
+            binder?.player?.enqueue(playable.map(SongEntity::asMediaItem), context)
+        } else {
+            SmartMessage(
+                context.resources.getString(R.string.disliked_this_collection),
+                type = PopupType.Error,
+                context = context
+            )
+        }
+    }
 
-                        }
-
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        Row(
-                            horizontalArrangement = Arrangement.SpaceEvenly,
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .padding(horizontal = 10.dp)
-                                .fillMaxWidth()
-                        ) {
-                            HeaderIconButton(
-                                onClick = {},
-                                icon = R.drawable.search_circle,
-                                color = colorPalette.text,
-                                modifier = Modifier
-                                    .combinedClickable(
-                                        onClick = {
-                                            searching = !searching
-                                        },
-                                        onLongClick = {
-                                            SmartMessage(
-                                                context.resources.getString(R.string.search),
-                                                context = context
-                                            )
-                                        }
-                                    )
-                            )
-
-                            HeaderIconButton(
-                                icon = R.drawable.pin,
-                                enabled = playlistSongs.isNotEmpty(),
-                                color = if (playlistPreview?.playlist?.name?.startsWith(
-                                        PINNED_PREFIX,
-                                        0,
-                                        true
-                                    ) == true
-                                )
-                                    colorPalette.text else colorPalette.textDisabled,
-                                onClick = {},
-                                modifier = Modifier
-                                    .combinedClickable(
-                                        onClick = {
-                                            Database.asyncTransaction {
-                                                if (playlistPreview?.playlist?.name?.startsWith(
-                                                        PINNED_PREFIX,
-                                                        0,
-                                                        true
-                                                    ) == true
-                                                )
-                                                    Database.unPinPlaylist(playlistId) else
-                                                    Database.pinPlaylist(playlistId)
-                                            }
-                                        },
-                                        onLongClick = {
-                                            SmartMessage(
-                                                context.resources.getString(R.string.info_pin_unpin_playlist),
-                                                context = context
-                                            )
-                                        }
-                                    )
-                            )
-
-                            //if (sortBy == PlaylistSongSortBy.Position && sortOrder == SortOrder.Ascending)
-                            HeaderIconButton(
-                                icon = if (isReorderDisabled) R.drawable.locked else R.drawable.unlocked,
-                                enabled = playlistSongs.isNotEmpty(),
-                                color = if (playlistSongs.isNotEmpty() && isReorderDisabled) colorPalette.text else colorPalette.accent,
-                                onClick = {},
-                                modifier = Modifier
-                                    .combinedClickable(
-                                        onClick = {
-                                            //if (sortBy == PlaylistSongSortBy.Position && sortOrder == SortOrder.Ascending) {
-                                            isReorderDisabled = !isReorderDisabled
-                                            if (!isReorderDisabled) {
-                                                sortBy = PlaylistSongSortBy.Position
-                                                sortOrder = SortOrder.Ascending
-                                            }
-//                                            } else {
-//                                                SmartMessage(
-//                                                    context.resources.getString(R.string.info_reorder_is_possible_only_in_ascending_sort),
-//                                                    type = PopupType.Warning, context = context
-//                                                )
-//                                            }
-                                        },
-                                        onLongClick = {
-                                            SmartMessage(
-                                                context.resources.getString(R.string.info_lock_unlock_reorder_songs),
-                                                context = context
-                                            )
-                                        }
-                                    )
-                            )
-
-                            // The songs on screen queued for in-app download.
-                            HeaderIconButton(
-                                icon = downloadIconFor(playlistSongs.map { it.song }.filterNot { it.isLocal }.map { it.id }),
-                                enabled = playlistSongs.isNotEmpty(),
-                                color = if (playlistSongs.isNotEmpty()) colorPalette.text else colorPalette.textDisabled,
-                                onClick = {},
-                                modifier = Modifier
-                                    .combinedClickable(
-                                        onClick = {
-                                            downloadSongs(context = context, songs = playlistSongs.map { it.song })
-                                        },
-                                        onLongClick = {
-                                            SmartMessage(
-                                                context.resources.getString(R.string.download_all_with_ytdlnis),
-                                                context = context
-                                            )
-                                        }
-                                    )
-                            )
-
-//                        HeaderIconButton(
-//                            icon = R.drawable.downloaded,
-//                            enabled = playlistSongs.any { it.song.likedAt != -1L },
-//                            color = if (playlistSongs.any { it.song.likedAt != -1L }) colorPalette.text else colorPalette.textDisabled,
-//                            onClick = {},
-//                            modifier = Modifier
-//                                .combinedClickable(
-//                                    onClick = {
-//                                        if (playlistSongs.any { it.song.likedAt != -1L }) {
-//                                            showConfirmDownloadAllDialog = true
-//                                        } else {
-//                                            SmartMessage(
-//                                                context.resources.getString(R.string.disliked_this_collection),
-//                                                type = PopupType.Error,
-//                                                context = context
-//                                            )
-//                                        }
-//                                    },
-//                                    onLongClick = {
-//                                        SmartMessage(
-//                                            context.resources.getString(R.string.info_download_all_songs),
-//                                            context = context
-//                                        )
-//                                    }
-//                                )
-//                        )
-
-
-                            if (showConfirmMatchAllDialog) {
-                                ConfirmationDialog(
-                                    text = stringResource(R.string.do_you_really_want_to_match_all),
-                                    onDismiss = { showConfirmMatchAllDialog = false },
-                                    onConfirm = {
-                                        getAlbumVersion = true
-                                        showGetAlbumVersionDialogue = true
-                                        showConfirmMatchAllDialog = false
-                                    }
-                                )
-                            }
-
-//                        HeaderIconButton(
-//                            icon = R.drawable.download,
-//                            enabled = playlistSongs.isNotEmpty(),
-//                            color = if (playlistSongs.isNotEmpty()) colorPalette.text else colorPalette.textDisabled,
-//                            onClick = {},
-//                            modifier = Modifier
-//                                .combinedClickable(
-//                                    onClick = {
-//                                        showConfirmDeleteDownloadDialog = true
-//                                    },
-//                                    onLongClick = {
-//                                        SmartMessage(
-//                                            context.resources.getString(R.string.info_remove_all_downloaded_songs),
-//                                            context = context
-//                                        )
-//                                    }
-//                                )
-//                        )
-
-
-                            if ((playlistPreview?.playlist?.isYoutubePlaylist) == false && unmatchedSongsCount > 0) {
-                                HeaderIconButton(
-                                    icon = R.drawable.alert,
-                                    enabled = playlistSongs.any {
-                                        (it.song.thumbnailUrl?.startsWith("https://lh3.googleusercontent.com") == false) && !(it.song.id.startsWith(
-                                            LOCAL_KEY_PREFIX
-                                        ))
-                                    },
-                                    color = if (playlistSongs.any {
-                                            (it.song.thumbnailUrl?.startsWith("https://lh3.googleusercontent.com") == false) && !(it.song.id.startsWith(
-                                                LOCAL_KEY_PREFIX
-                                            ))
-                                        }) colorPalette.text else colorPalette.textDisabled,
-                                    onClick = {},
-                                    modifier = Modifier
-                                        .combinedClickable(
-                                            onClick = {
-                                                if (!isNetworkConnected(context) && playlistPreview?.playlist?.isYoutubePlaylist == true && (playlistPreview?.playlist?.isEditable == true) && isYtSyncEnabled()) {
-                                                    SmartMessage(
-                                                        context.resources.getString(R.string.no_connection),
-                                                        context = context,
-                                                        type = PopupType.Error
-                                                    )
-                                                } else if (playlistSongs.any {
-                                                        (it.song.thumbnailUrl?.startsWith("https://lh3.googleusercontent.com") == false) && !(it.song.id.startsWith(
-                                                            LOCAL_KEY_PREFIX
-                                                        ))
-                                                    }) {
-                                                    showConfirmMatchAllDialog = true
-                                                } else {
-                                                    SmartMessage(
-                                                        context.resources.getString(R.string.no_videos_found),
-                                                        context = context
-                                                    )
-                                                }
-                                            },
-                                            onLongClick = {
-                                                SmartMessage(
-                                                    context.resources.getString(R.string.get_album_version),
-                                                    context = context
-                                                )
-                                            }
-                                        )
-                                )
-                            }
-
-
-
-                            HeaderIconButton(
-                                icon = R.drawable.update,
-                                color = colorPalette.text,
-                                onClick = {},
-                                modifier = Modifier
-                                    .combinedClickable(
-                                        onClick = { playlistUpdateDialog = true },
-                                        onLongClick = {
-                                            SmartMessage(
-                                                context.resources.getString(R.string.updating_playlist_message),
-                                                context = context
-                                            )
-                                        }
-                                    )
-                            )
-
-                            if (playlistPreview?.playlist?.browseId != null)
-                                HeaderIconButton(
-                                    icon = R.drawable.share_social,
-                                    color = colorPalette().text,
-                                    //iconSize = 24.dp,
-                                    onClick = {
-                                        showFastShare = true
-                                    }
-                                )
-
-                            HeaderIconButton(
-                                icon = R.drawable.ellipsis_horizontal,
-                                color = colorPalette.text, //if (playlistWithSongs?.songs?.isNotEmpty() == true) colorPalette.text else colorPalette.textDisabled,
-                                enabled = true, //playlistWithSongs?.songs?.isNotEmpty() == true,
-                                modifier = Modifier
-                                    .padding(end = 4.dp),
-                                onClick = {
+    // The full playlist menu (enqueue, play next, rename, delete, export, thumbnail, ...).
+    val openPlaylistOptions: () -> Unit = {
                                     menuState.display {
                                         playlistPreview?.let { playlistPreview ->
                                             PlaylistsItemMenu(
@@ -1804,59 +1521,9 @@ fun LocalPlaylistSongs(
                                         }
 
                                     }
-                                }
-                            )
+    }
 
-                        }
-
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        /*        */
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .padding(horizontal = 10.dp)
-                                .fillMaxWidth()
-                        ) {
-
-                            HeaderIconButton(
-                                icon = R.drawable.arrow_up,
-                                color = colorPalette.text,
-                                onClick = {
-                                    sortOrder = !sortOrder
-                                    if (sortBy == PlaylistSongSortBy.Position && sortOrder == SortOrder.Ascending)
-                                        isReorderDisabled = false else isReorderDisabled = true
-                                },
-                                modifier = Modifier
-                                    .graphicsLayer { rotationZ = sortOrderIconRotation }
-                            )
-
-                            BasicText(
-                                text = when (sortBy) {
-                                    PlaylistSongSortBy.Album -> stringResource(R.string.sort_album)
-                                    PlaylistSongSortBy.AlbumYear -> stringResource(R.string.sort_album_year)
-                                    PlaylistSongSortBy.Position -> stringResource(R.string.sort_position)
-                                    PlaylistSongSortBy.Title -> stringResource(R.string.sort_title)
-                                    PlaylistSongSortBy.DatePlayed -> stringResource(R.string.sort_date_played)
-                                    PlaylistSongSortBy.DateLiked -> stringResource(R.string.sort_date_liked)
-                                    PlaylistSongSortBy.Artist -> stringResource(R.string.sort_artist)
-                                    PlaylistSongSortBy.ArtistAndAlbum -> "${stringResource(R.string.sort_artist)}, ${
-                                        stringResource(
-                                            R.string.sort_album
-                                        )
-                                    }"
-
-                                    PlaylistSongSortBy.PlayTime -> stringResource(R.string.sort_listening_time)
-                                    PlaylistSongSortBy.Duration -> stringResource(R.string.sort_duration)
-                                    PlaylistSongSortBy.DateAdded -> stringResource(R.string.sort_date_added)
-                                    PlaylistSongSortBy.RelativePlayTime -> stringResource(R.string.sort_relative_listening_time)
-                                },
-                                style = typography.xs.semiBold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier
-                                    .clickable {
+    val openSortMenu: () -> Unit = {
                                         menuState.display {
                                             SortMenu(
                                                 title = stringResource(R.string.sorting_order),
@@ -1923,38 +1590,9 @@ fun LocalPlaylistSongs(
                                                 },
                                             )
                                         }
+    }
 
-                                    }
-                            )
-                            HeaderIconButton(
-                                icon = R.drawable.playlist,
-                                color = colorPalette.text,
-                                onClick = {},
-                                modifier = Modifier
-                                    .offset(0.dp, 2.5.dp)
-                                    .clickable(
-                                        interactionSource = remember { MutableInteractionSource() },
-                                        indication = null,
-                                        onClick = {}
-                                    )
-                            )
-
-                            BasicText(
-                                text = when (playlistSongsTypeFilter) {
-                                    PlaylistSongsTypeFilter.All -> stringResource(R.string.all)
-                                    PlaylistSongsTypeFilter.OnlineSongs -> stringResource(R.string.online_songs)
-                                    PlaylistSongsTypeFilter.Videos -> stringResource(R.string.videos)
-                                    PlaylistSongsTypeFilter.Local -> stringResource(R.string.on_device)
-                                    PlaylistSongsTypeFilter.Favorites -> stringResource(R.string.favorites)
-                                    PlaylistSongsTypeFilter.Unmatched -> stringResource(R.string.unmatched)
-                                    PlaylistSongsTypeFilter.Explicit -> stringResource(R.string.explicit)
-                                },
-                                style = typography.xs.semiBold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier
-                                    .offset(0.dp, 1.5.dp)
-                                    .clickable {
+    val openFilterMenu: () -> Unit = {
                                         menuState.display {
                                             FilterMenu(
                                                 title = stringResource(R.string.filter_by),
@@ -1989,154 +1627,346 @@ fun LocalPlaylistSongs(
                                                 },
                                             )
                                         }
+    }
 
-                                    }
+    // The top-right "...": every control the old action row and sort bar had, then the full menu.
+    val openMoreMenu: () -> Unit = {
+        menuState.display {
+            Menu {
+                MenuToggleEntry(
+                    icon = R.drawable.search,
+                    text = stringResource(R.string.search),
+                    checked = searching,
+                    onClick = {
+                        menuState.hide()
+                        searching = !searching
+                        if (!searching) filter = null
+                    }
+                )
+                MenuEntry(
+                    icon = R.drawable.sort,
+                    text = stringResource(R.string.sorting_order),
+                    secondaryText = sortLabel,
+                    onClick = { openSortMenu() }
+                )
+                MenuEntry(
+                    icon = R.drawable.refresh,
+                    text = stringResource(R.string.noir_playlist_reverse_order),
+                    onClick = {
+                        menuState.hide()
+                        sortOrder = !sortOrder
+                        isReorderDisabled =
+                            !(sortBy == PlaylistSongSortBy.Position && sortOrder == SortOrder.Ascending)
+                    }
+                )
+                MenuEntry(
+                    icon = R.drawable.list_view,
+                    text = stringResource(R.string.filter_by),
+                    secondaryText = filterLabel,
+                    onClick = { openFilterMenu() }
+                )
+                MenuToggleEntry(
+                    icon = if (isReorderDisabled) R.drawable.locked else R.drawable.unlocked,
+                    text = stringResource(R.string.info_lock_unlock_reorder_songs),
+                    checked = !isReorderDisabled,
+                    enabled = playlistSongs.isNotEmpty(),
+                    onClick = {
+                        isReorderDisabled = !isReorderDisabled
+                        if (!isReorderDisabled) {
+                            sortBy = PlaylistSongSortBy.Position
+                            sortOrder = SortOrder.Ascending
+                        }
+                    }
+                )
+                MenuToggleEntry(
+                    icon = R.drawable.pin,
+                    text = stringResource(R.string.info_pin_unpin_playlist),
+                    checked = isPinned,
+                    enabled = playlistSongs.isNotEmpty(),
+                    onClick = {
+                        Database.asyncTransaction {
+                            if (playlistPreview?.playlist?.name?.startsWith(
+                                    PINNED_PREFIX,
+                                    0,
+                                    true
+                                ) == true
                             )
-
-                            Row(
-                                horizontalArrangement = Arrangement.End,
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                            ) {
-                                HeaderIconButton(
-                                    modifier = Modifier
-                                        .padding(horizontal = 5.dp)
-                                        .combinedClickable(
-                                            onClick = {
-                                                nowPlayingItem = -1
-                                                scrollToNowPlaying = false
-                                                playlistSongs
-                                                    .forEachIndexed { index, song ->
-                                                        if (song.asMediaItem.mediaId == binder?.player?.currentMediaItem?.mediaId)
-                                                            nowPlayingItem = index
-                                                    }
-
-                                                if (nowPlayingItem > -1)
-                                                    scrollToNowPlaying = true
-                                            },
-                                            onLongClick = {
-                                                SmartMessage(
-                                                    context.resources.getString(R.string.info_find_the_song_that_is_playing),
-                                                    context = context
-                                                )
-                                            }
-                                        ),
-                                    icon = R.drawable.locate,
-                                    enabled = playlistSongs.isNotEmpty(),
-                                    color = if (playlistSongs.isNotEmpty()) colorPalette.text else colorPalette.textDisabled,
-                                    onClick = {}
-                                )
-                                LaunchedEffect(scrollToNowPlaying) {
-                                    if (scrollToNowPlaying)
-                                        lazyListState.scrollToItem(nowPlayingItem, 1)
-                                    scrollToNowPlaying = false
-                                }
-                                /*
-                        HeaderIconButton(
-                            modifier = Modifier.padding(horizontal = 5.dp),
-                            onClick = { searching = !searching },
-                            icon = R.drawable.search_circle,
-                            color = colorPalette.text,
-                            iconSize = 24.dp
-                        )
-                         */
+                                Database.unPinPlaylist(playlistId) else
+                                Database.pinPlaylist(playlistId)
+                        }
+                    }
+                )
+                MenuEntry(
+                    icon = R.drawable.locate,
+                    text = stringResource(R.string.info_find_the_song_that_is_playing),
+                    enabled = playlistSongs.isNotEmpty(),
+                    onClick = {
+                        menuState.hide()
+                        nowPlayingItem = -1
+                        scrollToNowPlaying = false
+                        playlistSongs
+                            .forEachIndexed { index, song ->
+                                if (song.asMediaItem.mediaId == binder?.player?.currentMediaItem?.mediaId)
+                                    nowPlayingItem = index
                             }
 
+                        if (nowPlayingItem > -1)
+                            scrollToNowPlaying = true
+                    }
+                )
+                MenuToggleEntry(
+                    icon = R.drawable.smart_shuffle,
+                    text = stringResource(R.string.smart_recommendations),
+                    checked = isRecommendationEnabled,
+                    secondaryText = if (isRecommendationEnabled)
+                        positionsRecommendationList.distinct().size.toString() else null,
+                    onClick = { isRecommendationEnabled = !isRecommendationEnabled }
+                )
+                if (playlistPreview?.playlist?.isYoutubePlaylist == false && unmatchedSongsCount > 0) {
+                    MenuEntry(
+                        icon = R.drawable.alert,
+                        text = stringResource(R.string.get_album_version),
+                        secondaryText = "($unmatchedSongsCount)",
+                        enabled = canMatchAlbumVersion,
+                        onClick = {
+                            menuState.hide()
+                            if (!isNetworkConnected(context) && playlistPreview?.playlist?.isYoutubePlaylist == true && (playlistPreview?.playlist?.isEditable == true) && isYtSyncEnabled()) {
+                                SmartMessage(
+                                    context.resources.getString(R.string.no_connection),
+                                    context = context,
+                                    type = PopupType.Error
+                                )
+                            } else if (canMatchAlbumVersion) {
+                                showConfirmMatchAllDialog = true
+                            } else {
+                                SmartMessage(
+                                    context.resources.getString(R.string.no_videos_found),
+                                    context = context
+                                )
+                            }
                         }
+                    )
+                }
+                MenuEntry(
+                    icon = R.drawable.update,
+                    text = stringResource(R.string.updating_playlist_message),
+                    onClick = {
+                        menuState.hide()
+                        playlistUpdateDialog = true
+                    }
+                )
+                MenuEntry(
+                    icon = R.drawable.ellipsis_horizontal,
+                    text = stringResource(R.string.noir_playlist_options),
+                    onClick = { openPlaylistOptions() }
+                )
+            }
+        }
+    }
 
+    PullToRefreshBox(
+        refreshing = refreshing,
+        onRefresh = { refresh() }
+    ) {
+        Box(
+            modifier = Modifier
+                .background(colorPalette.background0)
+                //.fillMaxSize()
+                .fillMaxHeight()
+                .fillMaxWidth(
+                    if (navigationBarPosition == NavigationBarPosition.Left ||
+                        navigationBarPosition == NavigationBarPosition.Top ||
+                        navigationBarPosition == NavigationBarPosition.Bottom
+                    ) 1f
+                    else Dimensions.contentWidthRightBar
+                )
+        ) {
+            LazyListContainer(
+                state = lazyListState
+            ) {
+                LazyColumn(
+                    state = lazyListState,
+                    modifier = Modifier
+                        .background(colorPalette.background0)
+                        .fillMaxSize()
+                ) {
+                    item(
+                        key = "header",
+                        contentType = 0
+                    ) {
+                        AlbumNoirHeader(
+                            coverUrl = playlistCoverUrl,
+                            previewUrl = null,
+                            sharedKey = null,
+                            showCover = true,
+                            title = playlistPreview?.playlist?.name?.let { name ->
+                                cleanPrefix(name)
+                            } ?: "Unknown",
+                            artist = if (isYtmPlaylist) "YouTube Music" else "",
+                            meta = playlistMeta,
+                            tint = coverTint,
+                            onBack = { navController.popBackStack() },
+                            onMore = openMoreMenu,
+                            actions = {
+                                // The songs on screen queued for in-app download.
+                                AlbumSquareAction(
+                                    icon = downloadIconFor(playlistSongs.map { it.song }.filterNot { it.isLocal }.map { it.id }),
+                                    enabled = playlistSongs.isNotEmpty(),
+                                    onLongClick = {
+                                        SmartMessage(
+                                            context.resources.getString(R.string.download_all_with_ytdlnis),
+                                            context = context
+                                        )
+                                    },
+                                    onClick = {
+                                        downloadSongs(context = context, songs = playlistSongs.map { it.song })
+                                    }
+                                )
 
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            verticalAlignment = Alignment.Bottom,
-                            modifier = Modifier
-                                .padding(all = 10.dp)
-                                .fillMaxWidth()
-                        ) {
-                            AnimatedVisibility(visible = searching) {
-                                val focusRequester = remember { FocusRequester() }
-                                val focusManager = LocalFocusManager.current
-                                val keyboardController = LocalSoftwareKeyboardController.current
+                                AlbumSquareAction(
+                                    icon = R.drawable.shuffle,
+                                    enabled = playlistSongs.isNotEmpty(),
+                                    onClick = shuffleAll
+                                )
 
-                                LaunchedEffect(searching) {
-                                    focusRequester.requestFocus()
-                                }
+                                AlbumPlayAction(
+                                    enabled = playlistSongs.isNotEmpty(),
+                                    onClick = playAll
+                                )
 
-                                BasicTextField(
-                                    value = filter ?: "",
-                                    onValueChange = { filter = it },
-                                    textStyle = typography.xs.semiBold,
-                                    singleLine = true,
-                                    maxLines = 1,
-                                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                                    keyboardActions = KeyboardActions(onDone = {
-                                        if (filter.isNullOrBlank()) filter = ""
-                                        focusManager.clearFocus()
-                                    }),
-                                    cursorBrush = SolidColor(colorPalette.text),
-                                    decorationBox = { innerTextField ->
-                                        Box(
-                                            contentAlignment = Alignment.CenterStart,
-                                            modifier = Modifier
-                                                .weight(1f)
-                                                .padding(horizontal = 10.dp)
-                                        ) {
-                                            IconButton(
-                                                onClick = {},
-                                                icon = R.drawable.search,
-                                                color = colorPalette.favoritesIcon,
-                                                modifier = Modifier
-                                                    .align(Alignment.CenterStart)
-                                                    .size(16.dp)
+                                // Synced with YouTube when it has a browse id, otherwise enqueue.
+                                if (hasBrowseId)
+                                    AlbumSquareAction(
+                                        icon = R.drawable.sync,
+                                        onClick = { refresh() },
+                                        onLongClick = {
+                                            SmartMessage(
+                                                context.resources.getString(R.string.sync),
+                                                context = context
                                             )
                                         }
-                                        Box(
-                                            contentAlignment = Alignment.CenterStart,
-                                            modifier = Modifier
-                                                .weight(1f)
-                                                .padding(horizontal = 30.dp)
-                                        ) {
-                                            androidx.compose.animation.AnimatedVisibility(
-                                                visible = filter?.isEmpty() ?: true,
-                                                enter = fadeIn(tween(100)),
-                                                exit = fadeOut(tween(100)),
-                                            ) {
-                                                BasicText(
-                                                    text = stringResource(R.string.search),
-                                                    maxLines = 1,
-                                                    overflow = TextOverflow.Ellipsis,
-                                                    style = typography.xs.semiBold.secondary.copy(
-                                                        color = colorPalette.textDisabled
-                                                    )
-                                                )
-                                            }
+                                    )
+                                else
+                                    AlbumSquareAction(
+                                        icon = R.drawable.addqueue,
+                                        enabled = playlistSongs.isNotEmpty(),
+                                        onClick = enqueueAll,
+                                        onLongClick = {
+                                            SmartMessage(
+                                                context.resources.getString(R.string.enqueue),
+                                                context = context
+                                            )
+                                        }
+                                    )
 
-                                            innerTextField()
+                                // Share needs a YouTube link; a local list can be exported to CSV instead.
+                                if (playlistPreview?.playlist?.browseId != null)
+                                    AlbumSquareAction(
+                                        icon = R.drawable.share_social,
+                                        onClick = { showFastShare = true }
+                                    )
+                                else
+                                    AlbumSquareAction(
+                                        icon = R.drawable.export,
+                                        onClick = { isExporting = true },
+                                        onLongClick = {
+                                            SmartMessage(
+                                                context.resources.getString(R.string.export_playlist),
+                                                context = context
+                                            )
                                         }
-                                    },
+                                    )
+                            }
+                        )
+                    }
+
+                    if (playlistAllSongs.isNotEmpty())
+                        item(
+                            key = "tools",
+                            contentType = 1
+                        ) {
+                            Column(modifier = Modifier.noirContentWidth(NoirContentMax.List)) {
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
                                     modifier = Modifier
-                                        .height(30.dp)
                                         .fillMaxWidth()
-                                        .background(
-                                            colorPalette.background4,
-                                            shape = thumbnailRoundness.shape()
-                                        )
-                                        .focusRequester(focusRequester)
-                                        .onFocusChanged {
-                                            if (!it.hasFocus) {
-                                                keyboardController?.hide()
-                                                if (filter?.isBlank() == true) {
-                                                    filter = null
-                                                    searching = false
-                                                }
-                                            }
+                                        .horizontalScroll(rememberScrollState())
+                                        .padding(horizontal = 20.dp, vertical = 6.dp)
+                                ) {
+                                    NoirChip(
+                                        text = stringResource(R.string.search),
+                                        selected = false,
+                                        icon = R.drawable.search,
+                                        onClick = {
+                                            searching = !searching
+                                            if (!searching) filter = null
                                         }
-                                )
+                                    )
+                                    NoirChip(
+                                        text = sortLabel,
+                                        selected = false,
+                                        icon = R.drawable.sort,
+                                        onClick = openSortMenu
+                                    )
+                                    NoirChip(
+                                        text = filterLabel,
+                                        selected = false,
+                                        icon = R.drawable.list_view,
+                                        onClick = openFilterMenu
+                                    )
+                                }
+                                if (searching)
+                                    PlaylistSearchField(
+                                        value = filter ?: "",
+                                        onValueChange = { filter = it },
+                                        hint = stringResource(R.string.noir_playlist_search_hint),
+                                        onClear = {
+                                            filter = null
+                                            searching = false
+                                        }
+                                    )
                             }
                         }
 
-
-                    }
+                    if (playlistSongs.isEmpty() && !refreshing)
+                        item(
+                            key = "empty",
+                            contentType = 2
+                        ) {
+                            val noMatch = playlistAllSongs.isNotEmpty()
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 40.dp, vertical = 56.dp)
+                            ) {
+                                BasicText(
+                                    text = stringResource(
+                                        if (noMatch) R.string.noir_playlist_no_match_title
+                                        else R.string.noir_playlist_empty_title
+                                    ),
+                                    style = typography.m.semiBold.copy(
+                                        color = colorPalette.text,
+                                        fontSize = 20.sp,
+                                        textAlign = TextAlign.Center
+                                    )
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                BasicText(
+                                    text = stringResource(
+                                        if (noMatch) R.string.noir_playlist_no_match_body
+                                        else R.string.noir_playlist_empty_body
+                                    ),
+                                    style = typography.xs.copy(
+                                        color = colorPalette.textSecondary,
+                                        fontSize = 15.sp,
+                                        textAlign = TextAlign.Center
+                                    )
+                                )
+                            }
+                        }
 
                     itemsIndexed(
                         items = playlistSongs.distinctBy { it.song.id },
@@ -2163,6 +1993,7 @@ fun LocalPlaylistSongs(
                                         trailingContent = {},
                                         onThumbnailContent = {},
                                         modifier = Modifier
+                                            .noirContentWidth(NoirContentMax.List)
                                             .clickable {
                                                 binder?.stopRadio()
                                                 binder?.player?.forcePlay(it)
@@ -2177,8 +2008,9 @@ fun LocalPlaylistSongs(
 
                             Box(
                                 modifier = Modifier
-                                    .fillMaxWidth()
+                                    .noirContentWidth(NoirContentMax.List)
                                     .animateItem()
+                                    .padding(horizontal = 4.dp)
 
                             ) {
                                 //val isLocal by remember { derivedStateOf { song.asMediaItem.isLocal } }
@@ -2509,3 +2341,66 @@ fun LocalPlaylistSongs(
 }
 
 
+/** Pill search field of the playlist page, same look as the history one. */
+@Composable
+private fun PlaylistSearchField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    hint: String,
+    onClear: () -> Unit,
+) {
+    val (colors, typo) = LocalAppearance.current
+    val shape = RoundedCornerShape(percent = 50)
+    val focusRequester = remember { FocusRequester() }
+    LaunchedEffect(Unit) { focusRequester.requestFocus() }
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .padding(horizontal = 20.dp, vertical = 6.dp)
+            .fillMaxWidth()
+            .height(46.dp)
+            .clip(shape)
+            .background(colors.background1)
+            .border(1.dp, colors.text.copy(alpha = 0.10f), shape)
+            .padding(horizontal = 16.dp)
+    ) {
+        Image(
+            painter = painterResource(R.drawable.search),
+            contentDescription = null,
+            colorFilter = ColorFilter.tint(colors.textSecondary),
+            modifier = Modifier.size(18.dp)
+        )
+        Box(
+            contentAlignment = Alignment.CenterStart,
+            modifier = Modifier
+                .weight(1f)
+                .padding(start = 12.dp)
+        ) {
+            if (value.isEmpty()) {
+                BasicText(
+                    text = hint,
+                    style = typo.s.copy(color = colors.textSecondary, fontSize = 15.sp),
+                    maxLines = 1
+                )
+            }
+            BasicTextField(
+                value = value,
+                onValueChange = onValueChange,
+                textStyle = typo.s.copy(color = colors.text, fontSize = 15.sp),
+                singleLine = true,
+                cursorBrush = SolidColor(colors.text),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .focusRequester(focusRequester)
+            )
+        }
+        Image(
+            painter = painterResource(R.drawable.close),
+            contentDescription = null,
+            colorFilter = ColorFilter.tint(colors.textSecondary),
+            modifier = Modifier
+                .size(16.dp)
+                .clickable { onClear() }
+        )
+    }
+}

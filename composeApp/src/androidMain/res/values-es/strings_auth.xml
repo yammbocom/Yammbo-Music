@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Auth screens (Noir) -->
+    <string name="auth_login_headline">Toda tu música.\nUna sola cuenta.</string>
+    <string name="auth_login_subtitle">Entra con la misma cuenta de music.yammbo.com</string>
+    <string name="auth_no_account">¿No tienes cuenta?</string>
+    <string name="auth_show_password">Mostrar contraseña</string>
+    <string name="auth_hide_password">Ocultar contraseña</string>
+    <string name="auth_verify_sent_to">Enviamos un código de 6 dígitos a</string>
+    <string name="auth_verify_expires">Caduca en 30 min</string>
+    <string name="auth_resend_code_in">Reenviar en %1$s</string>
+</resources>

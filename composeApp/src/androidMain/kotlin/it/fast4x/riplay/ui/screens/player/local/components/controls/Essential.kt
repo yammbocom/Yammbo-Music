@@ -17,6 +17,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
+import it.fast4x.riplay.ui.styling.tight
+import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -54,6 +58,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.navigation.NavController
 import it.fast4x.riplay.data.Database
 import com.yambo.music.R
+import it.fast4x.riplay.utils.artistRouteFor
 import it.fast4x.riplay.utils.appContext
 import it.fast4x.riplay.commonutils.cleanPrefix
 import it.fast4x.riplay.utils.colorPalette
@@ -71,6 +76,7 @@ import it.fast4x.riplay.data.models.Song
 import it.fast4x.riplay.data.models.UiMedia
 import it.fast4x.riplay.service.PlayerService
 import it.fast4x.riplay.utils.typography
+import it.fast4x.riplay.ui.components.likeBounce
 import it.fast4x.riplay.ui.components.themed.IconButton
 import it.fast4x.riplay.ui.components.themed.SelectorArtistsDialog
 import it.fast4x.riplay.ui.components.themed.SmartMessage
@@ -128,303 +134,160 @@ fun InfoAlbumAndArtistEssential(
     onCollapse: () -> Unit,
     disableScrollingText: Boolean = false
 ) {
-    val playerControlsType by rememberPreference(playerControlsTypeKey, PlayerControlsType.Essential)
-    val colorPaletteMode by rememberPreference(colorPaletteModeKey, ColorPaletteMode.System)
     var effectRotationEnabled by rememberPreference(effectRotationKey, false)
-    var showthumbnail by rememberPreference(showthumbnailKey, true)
     var isRotated by rememberSaveable { mutableStateOf(false) }
     var showSelectDialog by remember { mutableStateOf(false) }
-    var textoutline by rememberPreference(textoutlineKey, false)
-    val buttonState by rememberPreference(buttonStateKey, ButtonState.Idle)
-    val playerBackgroundColors by rememberPreference(playerBackgroundColorsKey,PlayerBackgroundColors.CoverColorGradient)
-    var likeButtonWidth by remember{ mutableStateOf(0.dp) }
     val currentMediaItem = binder.player.currentMediaItem
 
+    if (showSelectDialog)
+        SelectorArtistsDialog(
+            title = stringResource(R.string.artists),
+            onDismiss = { showSelectDialog = false },
+            values = artistIds,
+            onValueSelected = {
+                CoroutineScope(Dispatchers.Main).launch {
+                    navController.navigate(route = artistRouteFor(mediaId, it, artistIds?.firstOrNull { a -> a.id == it }?.name))
+                }
+                showSelectDialog = false
+                onCollapse()
+            }
+        )
+
+    // Yammbo Noir: title and artist flush left, the like button in a ring on the right.
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween,
-        modifier = Modifier
-            .padding(horizontal = 10.dp)
-            .fillMaxWidth()
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier.fillMaxWidth()
     ) {
-
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-            modifier = Modifier.fillMaxWidth()
+        Column(
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+            modifier = Modifier
+                .weight(1f)
         ) {
-
-
-            var modifierTitle = Modifier
-                .combinedClickable (
-                    indication = ripple(bounded = true),
-                    interactionSource = remember { MutableInteractionSource() },
-                    onClick = {
-                        if (albumId != null) {
-                            navController.navigate(route = "${NavRoutes.album.name}/${albumId}")
-                            onCollapse()
-                        }
-                    },
-                    onLongClick = {
-                        copyTextToClipboard(cleanPrefix(title ?: ""), context = appContext())
-                    }
-                )
-
-            if (!disableScrollingText) modifierTitle = modifierTitle.basicMarquee()
-
-            /*if (isExplicit || playerControlsType == PlayerControlsType.Modern ) {
-                Box(
-                    modifier = Modifier.weight(0.1f)
-                ) {
-                    if (isExplicit) {
-                        IconButton(
-                            icon = R.drawable.explicit,
-                            color = colorPalette().text,
-                            enabled = true,
-                            onClick = {},
-                            modifier = Modifier
-                                .size(18.dp)
-                                .align(Alignment.Center)
-                        )
-                    }
-                }
-            }*/
-
-            BoxWithConstraints(
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
-                    .weight(1f)
-                    .applyIf(!disableScrollingText){horizontalfadingEdge2(0.025f)},
-                contentAlignment = Alignment.Center
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically,
-                    modifier = modifierTitle
-                    .applyIf(!disableScrollingText) {padding(horizontal = maxWidth * 0.025f)}
-                    .applyIf(playerControlsType == PlayerControlsType.Modern){padding(start = likeButtonWidth)}
-                ) {
-                    if (isExplicit) {
-                        IconButton(
-                            icon = R.drawable.explicit,
-                            color = colorPalette().text,
-                            enabled = true,
-                            onClick = {},
-                            modifier = Modifier
-                                .size(18.dp)
-                        )
-                        Spacer(modifier = Modifier
-                               .width(5.dp)
-                        )
-                    }
-                    Box {
-                        BasicText(
-                            text = cleanPrefix(title ?: ""),
-                            style = TextStyle(
-                                textAlign = TextAlign.Center,
-                                color = if (albumId == null)
-                                /*if (showthumbnail) colorPalette().textDisabled else if (colorPaletteMode == ColorPaletteMode.Light) colorPalette().textDisabled.copy(0.5f).compositeOver(Color.Black) else colorPalette().textDisabled.copy(0.35f).compositeOver(Color.White)
-                                else colorPalette().text,*/
-                                    if (colorPaletteMode == ColorPaletteMode.Light || (colorPaletteMode == ColorPaletteMode.System && (!isSystemInDarkTheme()))) colorPalette().textDisabled.copy(
-                                        0.35f
-                                    )
-                                        .compositeOver(Color.Black) else colorPalette().textDisabled.copy(
-                                        0.35f
-                                    ).compositeOver(Color.White)
-                                else colorPalette().text,
-                                fontStyle = typography().l.bold.fontStyle,
-                                fontWeight = typography().l.bold.fontWeight,
-                                fontSize = typography().l.bold.fontSize,
-                                fontFamily = typography().l.bold.fontFamily
-                            ),
-                            maxLines = 1,
-                        )
-                        BasicText(
-                            text = cleanPrefix(title ?: ""),
-                            style = TextStyle(
-                                drawStyle = Stroke(width = 1.5f, join = StrokeJoin.Round),
-                                textAlign = TextAlign.Center,
-                                color = if (!textoutline) Color.Transparent else if (colorPaletteMode == ColorPaletteMode.Light || (colorPaletteMode == ColorPaletteMode.System && (!isSystemInDarkTheme()))) Color.White.copy(
-                                    0.5f
-                                )
-                                else Color.Black,
-                                fontStyle = typography().l.bold.fontStyle,
-                                fontWeight = typography().l.bold.fontWeight,
-                                fontSize = typography().l.bold.fontSize,
-                                fontFamily = typography().l.bold.fontFamily
-                            ),
-                            maxLines = 1,
-                        )
-                    }
-                }
-            }
-
-            //}
-            if (playerControlsType == PlayerControlsType.Modern && playerBackgroundColors != PlayerBackgroundColors.MidnightOdyssey){
-                BoxWithConstraints(
-                    modifier = Modifier.weight(0.1f)
-                ) {
-                    likeButtonWidth = maxWidth
-                    IconButton(
-                        color = colorPalette().favoritesIcon,
-                        icon = getLikeState(mediaId),
+                    .combinedClickable(
+                        indication = null,
+                        interactionSource = remember { MutableInteractionSource() },
                         onClick = {
-                            if (!it.fast4x.riplay.extensions.ads.PremiumGuard.checkFeature(it.fast4x.riplay.utils.globalContext(), it.fast4x.riplay.extensions.ads.PremiumFeature.Like)) return@IconButton
-                            if (!isNetworkConnected(appContext()) && isYtSyncEnabled()) {
-                                SmartMessage(appContext().resources.getString(R.string.no_connection), context = appContext(), type = PopupType.Error)
-                            } else if (!isYtSyncEnabled()){
-                                Database.asyncTransaction {
-                                    CoroutineScope(Dispatchers.IO).launch {
-                                        currentMediaItem.takeIf { it?.mediaId == mediaId }.let { mediaItem ->
-                                            if(mediaItem != null){
-                                                mediaItemToggleLike(mediaItem)
-                                            }
-                                        }
-                                    }
-                                }
-                            } else {
-                                CoroutineScope(Dispatchers.IO).launch {
-                                    if (currentMediaItem != null) {
-                                        addToOnlineLikedSong(currentMediaItem)
-                                    }
-                                }
+                            if (albumId != null) {
+                                navController.navigate(route = "${NavRoutes.album.name}/${albumId}")
+                                onCollapse()
                             }
-                            if (effectRotationEnabled) isRotated = !isRotated
                         },
                         onLongClick = {
-                            if (!isNetworkConnected(appContext()) && isYtSyncEnabled()) {
-                                SmartMessage(appContext().resources.getString(R.string.no_connection), context = appContext(), type = PopupType.Error)
-                            } else if (!isYtSyncEnabled()){
-                                Database.asyncTransaction {
-                                    CoroutineScope(Dispatchers.IO).launch {
-                                        if (like(mediaId, setDisLikeState(likedAt)) == 0) {
-                                            currentMediaItem
-                                                ?.takeIf { it.mediaId == mediaId }
-                                                ?.let {
-                                                    insert(currentMediaItem, Song::toggleDislike)
-                                                }
-                                        }
-
-                                    }
+                            copyTextToClipboard(cleanPrefix(title ?: ""), context = appContext())
+                        }
+                    )
+                    .applyIf(!disableScrollingText) { basicMarquee() }
+            ) {
+                if (isExplicit) {
+                    Image(
+                        painter = painterResource(R.drawable.explicit),
+                        contentDescription = null,
+                        colorFilter = ColorFilter.tint(colorPalette().textSecondary),
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                }
+                BasicText(
+                    text = cleanPrefix(title ?: ""),
+                    style = typography().xxl.bold.tight.copy(color = colorPalette().text, fontSize = 26.sp),
+                    maxLines = 1,
+                )
+            }
+            BasicText(
+                text = artist ?: "",
+                style = typography().m.copy(color = colorPalette().textSecondary, fontSize = 16.sp),
+                maxLines = 1,
+                modifier = Modifier
+                    .combinedClickable(
+                        indication = null,
+                        interactionSource = remember { MutableInteractionSource() },
+                        onClick = {
+                            if (artistIds?.isNotEmpty() == true && artistIds.size > 1)
+                                showSelectDialog = true
+                            if (artistIds?.isNotEmpty() == true && artistIds.size == 1 && artistIds.firstOrNull()?.id != "") {
+                                CoroutineScope(Dispatchers.Main).launch {
+                                    navController.navigate(route = artistRouteFor(mediaId, artistIds[0].id, artistIds[0].name))
                                 }
-                            } else {
-                                CoroutineScope(Dispatchers.IO).launch {
-                                    if (currentMediaItem != null) {
-                                        // currently can not implement disliking for sync, so only unliking the song
-                                        removeFromOnlineLikedSong(currentMediaItem)
+                                onCollapse()
+                            }
+                        },
+                        onLongClick = {
+                            copyTextToClipboard(artist ?: "", context = appContext())
+                        }
+                    )
+                    .applyIf(!disableScrollingText) { basicMarquee() }
+            )
+        }
+
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(44.dp)
+                // Before the clip so the ring can grow past the circle
+                .likeBounce((likedAt ?: 0L) > 0L, colorPalette().text, key = mediaId)
+                .clip(CircleShape)
+                .border(1.dp, colorPalette().text.copy(alpha = 0.22f), CircleShape)
+        ) {
+            IconButton(
+                color = colorPalette().text,
+                icon = getLikeState(mediaId),
+                onClick = {
+                    if (!it.fast4x.riplay.extensions.ads.PremiumGuard.checkFeature(it.fast4x.riplay.utils.globalContext(), it.fast4x.riplay.extensions.ads.PremiumFeature.Like)) return@IconButton
+                    if (!isNetworkConnected(appContext()) && isYtSyncEnabled()) {
+                        SmartMessage(appContext().resources.getString(R.string.no_connection), context = appContext(), type = PopupType.Error)
+                    } else if (!isYtSyncEnabled()){
+                        Database.asyncTransaction {
+                            CoroutineScope(Dispatchers.IO).launch {
+                                currentMediaItem.takeIf { it?.mediaId == mediaId }.let { mediaItem ->
+                                    if(mediaItem != null){
+                                        mediaItemToggleLike(mediaItem)
                                     }
                                 }
                             }
-                            if (effectRotationEnabled) isRotated = !isRotated
-                        },
-                        modifier = Modifier
-                            .padding(start = 5.dp)
-                            .size(24.dp)
-                    )
-                    if (playerBackgroundColors == PlayerBackgroundColors.CoverColorGradient) {
-                        Icon(
-                            painter = painterResource(id = getUnlikedIcon()),
-                            tint = colorPalette().text,
-                            contentDescription = null,
-                            modifier = Modifier
-                                .padding(start = 5.dp)
-                                .size(24.dp)
-                        )
+                        }
+                    } else {
+                        CoroutineScope(Dispatchers.IO).launch {
+                            if (currentMediaItem != null) {
+                                addToOnlineLikedSong(currentMediaItem)
+                            }
+                        }
                     }
-                }
-            }
-        }
-
-    }
-
-
-    Spacer(
-        modifier = Modifier
-            .height(10.dp)
-    )
-
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.Center,
-        modifier = Modifier
-            .padding(horizontal = 10.dp)
-            .fillMaxWidth()
-    ) {
-
-        if (showSelectDialog)
-            SelectorArtistsDialog(
-                title = stringResource(R.string.artists),
-                onDismiss = { showSelectDialog = false },
-                values = artistIds,
-                onValueSelected = {
-                    navController.navigate(route = "${NavRoutes.artist.name}/${it}")
-                    showSelectDialog = false
-                    onCollapse()
-                }
-            )
-
-
-        var modifierArtist = Modifier
-            .combinedClickable (
-                indication = ripple(bounded = true),
-                interactionSource = remember { MutableInteractionSource() },
-                onClick = {
-                    if (artistIds?.isNotEmpty() == true && artistIds.size > 1)
-                        showSelectDialog = true
-                    if (artistIds?.isNotEmpty() == true && artistIds.size == 1 && artistIds.firstOrNull()?.id != "") {
-                        navController.navigate(route = "${NavRoutes.artist.name}/${artistIds[0].id}")
-                        onCollapse()
-                    }
+                    if (effectRotationEnabled) isRotated = !isRotated
                 },
                 onLongClick = {
-                    copyTextToClipboard(artist ?: "", context = appContext())
-                }
-            )
+                    if (!isNetworkConnected(appContext()) && isYtSyncEnabled()) {
+                        SmartMessage(appContext().resources.getString(R.string.no_connection), context = appContext(), type = PopupType.Error)
+                    } else if (!isYtSyncEnabled()){
+                        Database.asyncTransaction {
+                            CoroutineScope(Dispatchers.IO).launch {
+                                if (like(mediaId, setDisLikeState(likedAt)) == 0) {
+                                    currentMediaItem
+                                        ?.takeIf { it.mediaId == mediaId }
+                                        ?.let {
+                                            insert(currentMediaItem, Song::toggleDislike)
+                                        }
+                                }
 
-        if (!disableScrollingText) modifierArtist = modifierArtist.basicMarquee()
-
-        BoxWithConstraints(
-            modifier = Modifier
-                .applyIf(!disableScrollingText){horizontalfadingEdge2(0.025f)},
-            contentAlignment = Alignment.Center
-        ) {
-            BasicText(
-                text = artist ?: "",
-                style = TextStyle(
-                    textAlign = TextAlign.Center,
-                    color = if (artistIds?.isEmpty() == true)
-                        /*if (showthumbnail) colorPalette().textDisabled else if (colorPaletteMode == ColorPaletteMode.Light) colorPalette().textDisabled.copy(0.5f).compositeOver(Color.Black) else colorPalette().textDisabled.copy(0.35f).compositeOver(Color.White)
-                            else colorPalette().text,*/
-                        if (colorPaletteMode == ColorPaletteMode.Light || (colorPaletteMode == ColorPaletteMode.System && (!isSystemInDarkTheme()))) colorPalette().textDisabled.copy(0.35f).compositeOver(Color.Black) else colorPalette().textDisabled.copy(0.35f).compositeOver(Color.White)
-                        else colorPalette().text,
-                    fontStyle = typography().m.bold.fontStyle,
-                    fontSize = typography().m.bold.fontSize,
-                    //fontWeight = typography().m.bold.fontWeight,
-                    fontFamily = typography().m.bold.fontFamily
-                ),
-                maxLines = 1,
-                modifier = modifierArtist
-                    .applyIf(!disableScrollingText){padding(horizontal = maxWidth*0.025f)}
-
-            )
-            BasicText(
-                text = artist ?: "",
-                style = TextStyle(
-                    drawStyle = Stroke(width = 1.5f, join = StrokeJoin.Round),
-                    textAlign = TextAlign.Center,
-                    color = if (!textoutline) Color.Transparent else if (colorPaletteMode == ColorPaletteMode.Light || (colorPaletteMode == ColorPaletteMode.System && (!isSystemInDarkTheme()))) Color.White.copy(0.5f)
-                    else Color.Black,
-                    fontStyle = typography().m.bold.fontStyle,
-                    fontSize = typography().m.bold.fontSize,
-                    //fontWeight = typography().m.bold.fontWeight,
-                    fontFamily = typography().m.bold.fontFamily
-                ),
-                maxLines = 1,
-                modifier = modifierArtist
-                    .applyIf(!disableScrollingText){padding(horizontal = maxWidth*0.025f)}
-
+                            }
+                        }
+                    } else {
+                        CoroutineScope(Dispatchers.IO).launch {
+                            if (currentMediaItem != null) {
+                                // currently can not implement disliking for sync, so only unliking the song
+                                removeFromOnlineLikedSong(currentMediaItem)
+                            }
+                        }
+                    }
+                    if (effectRotationEnabled) isRotated = !isRotated
+                },
+                modifier = Modifier.size(22.dp)
             )
         }
-
     }
-
 }
 
 @androidx.annotation.OptIn(UnstableApi::class)
@@ -462,86 +325,21 @@ fun ControlsEssential(
     var jumpPrevious by rememberPreference(jumpPreviousKey,"3")
     val currentMediaItem = binder.player.currentMediaItem
     var lightTheme = colorPaletteMode == ColorPaletteMode.Light || (colorPaletteMode == ColorPaletteMode.System && (!isSystemInDarkTheme()))
+    // Yammbo Noir: the plain button types become the solid white rounded square.
+    val noirPlay = playerPlayButtonType == PlayerPlayButtonType.Disabled || playerPlayButtonType == PlayerPlayButtonType.Default
+    val playShape = if (noirPlay) RoundedCornerShape(24.dp) else RoundedCornerShape(playPauseRoundness)
 
-    Box {
-        if (playerBackgroundColors != PlayerBackgroundColors.MidnightOdyssey){
-            IconButton(
-                color = colorPalette().favoritesIcon,
-                icon = getLikeState(mediaId),
-                onClick = {
-                    if (!it.fast4x.riplay.extensions.ads.PremiumGuard.checkFeature(it.fast4x.riplay.utils.globalContext(), it.fast4x.riplay.extensions.ads.PremiumFeature.Like)) return@IconButton
-                    if (!isNetworkConnected(appContext()) && isYtSyncEnabled()) {
-                        SmartMessage(appContext().resources.getString(R.string.no_connection), context = appContext(), type = PopupType.Error)
-                    } else if (!isYtSyncEnabled()){
-                        Database.asyncTransaction {
-                            CoroutineScope(Dispatchers.IO).launch {
-                                currentMediaItem?.takeIf { it.mediaId == mediaId }?.let { mediaItem ->
-                                    mediaItemToggleLike(mediaItem)
-                                }
-                            }
-                        }
-                    } else {
-                        CoroutineScope(Dispatchers.IO).launch {
-                            if (currentMediaItem != null) {
-                                addToOnlineLikedSong(currentMediaItem)
-                            }
-                        }
-                    }
-                    if (effectRotationEnabled) isRotated = !isRotated
-                },
-                onLongClick = {
-                    if (!isNetworkConnected(appContext()) && isYtSyncEnabled()) {
-                        SmartMessage(appContext().resources.getString(R.string.no_connection), context = appContext(), type = PopupType.Error)
-                    } else if (!isYtSyncEnabled()){
-                        Database.asyncTransaction {
-                            CoroutineScope(Dispatchers.IO).launch {
-                                currentMediaItem?.takeIf { it.mediaId == mediaId }?.let { mediaItem ->
-                                    if (like(mediaId, setDisLikeState(likedAt)) == 0){
-                                        insert(currentMediaItem, Song::toggleDislike)
-                                    }
-                                }
-                            }
-                        }
-                    } else {
-                        CoroutineScope(Dispatchers.IO).launch {
-                            if (currentMediaItem != null) {
-                                // currently can not implement dislike for sync, so unliking the song
-                                removeFromOnlineLikedSong(currentMediaItem)
-                            }
-                        }
-                    }
-                    if (effectRotationEnabled) isRotated = !isRotated
-                },
-                modifier = Modifier
-                    //.padding(10.dp)
-                    .size(26.dp)
-            )
-        } else {
-            IconButton(
-                icon = R.drawable.shuffle,
-                color = colorPalette().text,
-                enabled = true,
-                onClick = {
-                    binder.player.shuffleQueue()
-                },
-                modifier = Modifier
-                    .size(26.dp),
-            )
-        }
-
-        if (playerBackgroundColors == PlayerBackgroundColors.CoverColorGradient) {
-            Icon(
-                painter = painterResource(id = getUnlikedIcon()),
-                tint = colorPalette().text,
-                contentDescription = null,
-                modifier = Modifier
-                    //.padding(10.dp)
-                    .size(26.dp)
-            )
-        }
-
-    }
-
+    // Yammbo Noir: the like button lives next to the title now; the panel opens with shuffle.
+    IconButton(
+        icon = R.drawable.shuffle,
+        color = colorPalette().textSecondary,
+        enabled = true,
+        onClick = {
+            binder.player.shuffleQueue()
+        },
+        modifier = Modifier
+            .size(24.dp),
+    )
 
     Image(
         painter = painterResource(R.drawable.play_skip_back),
@@ -562,8 +360,8 @@ fun ControlsEssential(
                 onLongClick = {}
             )
             .rotate(rotationAngle)
-            .padding(10.dp)
-            .size(26.dp)
+            .padding(11.dp)
+            .size(28.dp)
 
     )
 
@@ -591,20 +389,21 @@ fun ControlsEssential(
                 onLongClick = onShowSpeedPlayerDialog
             )
             .bounceClick()
-            .applyIf(playerPlayButtonType != PlayerPlayButtonType.Circle){clip(RoundedCornerShape(playPauseRoundness))}
+            .applyIf(playerPlayButtonType != PlayerPlayButtonType.Circle){clip(playShape)}
             .applyIf(playerPlayButtonType == PlayerPlayButtonType.Circle){clip(CircleShape)}
             .background(
                 when (playerPlayButtonType) {
-                    PlayerPlayButtonType.CircularRibbed, PlayerPlayButtonType.Disabled -> Color.Transparent
+                    PlayerPlayButtonType.Disabled -> colorPalette().accent
+                    PlayerPlayButtonType.CircularRibbed -> Color.Transparent
                     else -> {
-                        if (playerBackgroundColors == PlayerBackgroundColors.AnimatedGradient)
+                        if (playerBackgroundColors == PlayerBackgroundColors.AnimatedGradient && !noirPlay)
                             if (lightTheme) Color.White else Color.Black
                         else colorPalette().accent
                     }
                 }
             )
-            .width(playerPlayButtonType.width.dp)
-            .height(playerPlayButtonType.height.dp)
+            .width(if (noirPlay) 68.dp else playerPlayButtonType.width.dp)
+            .height(if (noirPlay) 68.dp else playerPlayButtonType.height.dp)
 
     ) {
 
@@ -624,14 +423,16 @@ fun ControlsEssential(
                 contentScale = ContentScale.Fit
             )
 
+        val playIconColor = if (playerBackgroundColors == PlayerBackgroundColors.AnimatedGradient && !noirPlay) colorPalette().accent
+            else colorPalette().onAccent
         Image(
             painter = painterResource(if (shouldBePlaying) R.drawable.pause else R.drawable.play),
             contentDescription = null,
-            colorFilter = ColorFilter.tint(if (playerPlayButtonType == PlayerPlayButtonType.Disabled || playerBackgroundColors == PlayerBackgroundColors.AnimatedGradient) colorPalette().accent else colorPalette().text),
+            colorFilter = ColorFilter.tint(playIconColor),
             modifier = Modifier
                 .rotate(rotationAngle)
                 .align(Alignment.Center)
-                .size(if (playerPlayButtonType == PlayerPlayButtonType.Disabled) 40.dp else 30.dp)
+                .size(if (noirPlay) 28.dp else 30.dp)
                 .bounceClick()
         )
 
@@ -645,7 +446,7 @@ fun ControlsEssential(
                 BasicText(
                     text = fmtSpeed,
                     style = TextStyle(
-                        color = colorPalette().text,
+                        color = playIconColor,
                         fontStyle = typography().xxxs.semiBold.fontStyle,
                         fontSize = typography().xxxs.semiBold.fontSize
                     ),
@@ -675,8 +476,8 @@ fun ControlsEssential(
                 onLongClick = {}
             )
             .rotate(rotationAngle)
-            .padding(10.dp)
-            .size(26.dp)
+            .padding(11.dp)
+            .size(28.dp)
 
     )
 
@@ -684,7 +485,7 @@ fun ControlsEssential(
 
     IconButton(
         icon = getIconQueueLoopState(queueLoopType),
-        color = colorPalette().text,
+        color = if (queueLoopType == QueueLoopType.Default) colorPalette().textSecondary else colorPalette().text,
         onClick = {
             queueLoopType = setQueueLoopState(queueLoopType)
         },

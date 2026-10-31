@@ -184,7 +184,7 @@ fun HeaderWithIcon (
                 SecondaryButton(
                     iconId = R.drawable.settings,
                     onClick = {
-                        navController.navigate(NavRoutes.settings.name)
+                        navController.openAccountOrSettings()
                     },
                     modifier = Modifier.align(Alignment.CenterStart)
                 )

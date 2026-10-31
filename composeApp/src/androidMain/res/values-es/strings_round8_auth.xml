@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="auth_forgot_title">Recupera tu cuenta</string>
+    <string name="auth_forgot_subtitle_email">Te enviaremos un código de 6 dígitos a tu correo.</string>
+    <string name="auth_forgot_subtitle_code">Escribe el código que enviamos a %1$s y elige una contraseña nueva.</string>
+    <string name="auth_forgot_send_code">Enviar código</string>
+    <string name="auth_forgot_change_password">Cambiar contraseña</string>
+    <string name="auth_forgot_resend_code">Reenviar código</string>
+    <string name="auth_forgot_resend_in">Reenviar en %1$d s</string>
+    <string name="auth_forgot_change_email">Cambiar correo</string>
+    <string name="auth_forgot_code_label">Código</string>
+    <string name="auth_forgot_new_password">Contraseña nueva</string>
+    <string name="auth_forgot_repeat_password">Repite la contraseña</string>
+    <string name="auth_forgot_code_incomplete">Escribe el código de 6 dígitos.</string>
+    <string name="auth_forgot_passwords_mismatch">Las contraseñas no coinciden.</string>
+    <string name="auth_forgot_invalid_email">Escribe un correo electrónico válido.</string>
+    <string name="auth_forgot_network_error">No se pudo conectar. Revisa tu conexión e inténtalo de nuevo.</string>
+    <string name="auth_forgot_enter_password">Escribe una contraseña nueva.</string>
+</resources>

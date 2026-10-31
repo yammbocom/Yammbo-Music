@@ -1,16 +1,20 @@
 package it.fast4x.riplay.ui.items
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -38,18 +42,21 @@ fun FolderItem(
         thumbnailSizeDp = thumbnailSizeDp,
         modifier = modifier
     ) {
+        // Monochrome icon tile (same look as the on-device hub): background1 + hairline border.
+        val tileShape = RoundedCornerShape(14.dp)
         Box(
+            contentAlignment = Alignment.Center,
             modifier = Modifier
                 .size(thumbnailSizeDp)
+                .clip(tileShape)
+                .background(colorPalette().background1)
+                .border(1.dp, colorPalette().text.copy(alpha = 0.08f), tileShape)
         ) {
-
             Image(
                 painter = painterResource(icon),
                 contentDescription = null,
                 colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(colorPalette().text),
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .size(thumbnailSizeDp - 15.dp)
+                modifier = Modifier.size(thumbnailSizeDp / 2)
             )
         }
 

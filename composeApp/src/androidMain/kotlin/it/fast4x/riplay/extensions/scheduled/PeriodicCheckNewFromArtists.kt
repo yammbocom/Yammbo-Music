@@ -31,7 +31,7 @@ fun periodicCheckNewFromArtists(context: Context, weeklyOrDaily: Boolean = false
     }
 
     val constraints = Constraints.Builder()
-        .setRequiredNetworkType(NetworkType.CONNECTED)
+        .setRequiredNetworkType(NetworkType.UNMETERED)
         .build()
 
     val initialDelayInMillis = calendar.timeInMillis - now

@@ -1,28 +1,19 @@
 package it.fast4x.riplay.ui.screens.auth
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Text
+import it.fast4x.riplay.ui.components.NoirContentMax
+import it.fast4x.riplay.ui.components.rememberNoirLayout
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -31,12 +22,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.yambo.music.R
@@ -47,7 +35,6 @@ import it.fast4x.riplay.ui.components.themed.OnboardingConnect
 import it.fast4x.riplay.extensions.yammboapi.YammboApiService
 import it.fast4x.riplay.extensions.yammboapi.YammboAuthManager
 import it.fast4x.riplay.utils.colorPalette
-import it.fast4x.riplay.utils.typography
 import kotlinx.coroutines.launch
 
 @Composable
@@ -65,22 +52,11 @@ fun RegisterScreen(
     var vpnNoticeShown by remember { mutableStateOf(false) }
 
     val colors = colorPalette()
-    val typo = typography()
 
     val fillAllFieldsText = stringResource(R.string.auth_fill_all_fields)
     val passwordsNotMatchText = stringResource(R.string.auth_passwords_not_match)
     val passwordMinLengthText = stringResource(R.string.auth_password_min_length)
     val registrationFailedText = stringResource(R.string.auth_registration_failed)
-
-    val textFieldColors = OutlinedTextFieldDefaults.colors(
-        focusedBorderColor = colors.accent,
-        unfocusedBorderColor = colors.textDisabled,
-        cursorColor = colors.accent,
-        focusedLabelColor = colors.accent,
-        unfocusedLabelColor = colors.textSecondary,
-        focusedTextColor = colors.text,
-        unfocusedTextColor = colors.text
-    )
 
     Column(
         modifier = Modifier
@@ -88,99 +64,85 @@ fun RegisterScreen(
             .background(colors.background0)
             .imePadding()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+            .statusBarsPadding()
+            .padding(horizontal = rememberNoirLayout().sidePadding(NoirContentMax.Form, 24.dp))
     ) {
-        Spacer(modifier = Modifier.height(60.dp))
-
-        Image(
-            painter = painterResource(
-                id = if (colors.isDark) R.drawable.yambo_logo_light else R.drawable.yambo_logo_dark
-            ),
-            contentDescription = "Yammbo Music",
-            modifier = Modifier.size(160.dp)
+        AuthBackButton(
+            onClick = { navController.popBackStack() },
+            modifier = Modifier.padding(top = 8.dp)
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
-        BasicText(
-            text = stringResource(R.string.auth_create_account),
-            style = typo.l.copy(color = colors.text, textAlign = TextAlign.Center)
-        )
+        AuthLogo(modifier = Modifier.align(Alignment.Start))
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(18.dp))
 
-        OutlinedTextField(
+        AuthHeadline(text = stringResource(R.string.auth_create_account))
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        AuthField(
+            label = stringResource(R.string.auth_email),
             value = email,
             onValueChange = { email = it },
-            label = { Text(stringResource(R.string.auth_email)) },
-            singleLine = true,
             keyboardOptions = KeyboardOptions(
                 keyboardType = KeyboardType.Email,
                 imeAction = ImeAction.Next
             ),
-            colors = textFieldColors,
             modifier = Modifier.fillMaxWidth()
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(18.dp))
 
-        OutlinedTextField(
+        AuthField(
+            label = stringResource(R.string.auth_password),
             value = password,
             onValueChange = { password = it },
-            label = { Text(stringResource(R.string.auth_password)) },
-            singleLine = true,
-            visualTransformation = PasswordVisualTransformation(),
+            isPassword = true,
             keyboardOptions = KeyboardOptions(
                 keyboardType = KeyboardType.Password,
                 imeAction = ImeAction.Next
             ),
-            colors = textFieldColors,
             modifier = Modifier.fillMaxWidth()
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(18.dp))
 
-        OutlinedTextField(
+        AuthField(
+            label = stringResource(R.string.auth_confirm_password),
             value = confirmPassword,
             onValueChange = { confirmPassword = it },
-            label = { Text(stringResource(R.string.auth_confirm_password)) },
-            singleLine = true,
-            visualTransformation = PasswordVisualTransformation(),
+            isPassword = true,
             keyboardOptions = KeyboardOptions(
                 keyboardType = KeyboardType.Password,
                 imeAction = ImeAction.Done
             ),
-            colors = textFieldColors,
             modifier = Modifier.fillMaxWidth()
         )
 
         errorMessage?.let { msg ->
-            Spacer(modifier = Modifier.height(12.dp))
-            BasicText(
-                text = msg,
-                style = typo.xxs.copy(color = colors.red, textAlign = TextAlign.Center),
-                modifier = Modifier.fillMaxWidth()
-            )
+            Spacer(modifier = Modifier.height(14.dp))
+            AuthMessage(text = msg)
         }
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        Button(
+        AuthPrimaryButton(
+            text = stringResource(R.string.auth_register),
             onClick = {
                 when {
                     email.isBlank() || password.isBlank() || confirmPassword.isBlank() -> {
                         errorMessage = fillAllFieldsText
-                        return@Button
+                        return@AuthPrimaryButton
                     }
                     password != confirmPassword -> {
                         errorMessage = passwordsNotMatchText
-                        return@Button
+                        return@AuthPrimaryButton
                     }
                     password.length < 6 -> {
                         errorMessage = passwordMinLengthText
-                        return@Button
+                        return@AuthPrimaryButton
                     }
                 }
                 // A country's free access is decided by where the person is, and through a
@@ -191,7 +153,7 @@ fun RegisterScreen(
                 ) {
                     vpnNoticeShown = true
                     showVpnNotice = true
-                    return@Button
+                    return@AuthPrimaryButton
                 }
 
                 isLoading = true
@@ -231,37 +193,10 @@ fun RegisterScreen(
                 }
             },
             enabled = !isLoading,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = colors.accent,
-                contentColor = colors.onAccent
-            ),
-            shape = RoundedCornerShape(8.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(48.dp)
-        ) {
-            if (isLoading) {
-                CircularProgressIndicator(
-                    color = colors.onAccent,
-                    modifier = Modifier.size(24.dp),
-                    strokeWidth = 2.dp
-                )
-            } else {
-                Text(stringResource(R.string.auth_register))
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        BasicText(
-            text = stringResource(R.string.auth_back_to_login),
-            style = typo.xxs.copy(color = colors.accent, textAlign = TextAlign.Center),
-            modifier = Modifier
-                .clickable { navController.popBackStack() }
-                .padding(8.dp)
+            loading = isLoading
         )
 
-        Spacer(modifier = Modifier.height(60.dp))
+        Spacer(modifier = Modifier.height(40.dp))
     }
 
     if (showVpnNotice) {

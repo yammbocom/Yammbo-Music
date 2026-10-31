@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="data_saver_mobile_title">Ahorro de datos</string>
+    <string name="data_saver_mobile_text">En datos móviles: portadas más ligeras y menos precarga. La calidad del audio no cambia.</string>
+</resources>

@@ -59,7 +59,7 @@ fun BlacklistItem(
     onClick: () -> Unit = {}
 ) {
 
-    val disableScrollingText by rememberPreference(disableScrollingTextKey, false)
+    val disableScrollingText by rememberPreference(disableScrollingTextKey, true)
 
     var blacklistedEntity: Any? by remember { mutableStateOf(null) }
 

@@ -260,8 +260,8 @@ fun DefaultUiSettings() {
         HomeScreenTabs.Default
     )
     indexNavigationTab = HomeScreenTabs.Default
-    var fontType by rememberPreference(fontTypeKey, FontType.Rubik)
-    fontType = FontType.Rubik
+    var fontType by rememberPreference(fontTypeKey, FontType.Geist)
+    fontType = FontType.Geist
     var useSystemFont by rememberPreference(useSystemFontKey, false)
     useSystemFont = false
     var applyFontPadding by rememberPreference(applyFontPaddingKey, false)
@@ -317,8 +317,8 @@ fun DefaultUiSettings() {
     showFloatingIcon = false
     var menuStyle by rememberPreference(menuStyleKey, MenuStyle.List)
     menuStyle = MenuStyle.List
-    var transitionEffect by rememberPreference(transitionEffectKey, TransitionEffect.Scale)
-    transitionEffect = TransitionEffect.Scale
+    var transitionEffect by rememberPreference(transitionEffectKey, TransitionEffect.SharedAxis)
+    transitionEffect = TransitionEffect.SharedAxis
     var enableCreateMonthlyPlaylists by rememberPreference(enableCreateMonthlyPlaylistsKey, true)
     enableCreateMonthlyPlaylists = true
     var showPipedPlaylists by rememberPreference(showPipedPlaylistsKey, true)
@@ -407,7 +407,7 @@ fun DefaultUiSettings() {
     carouselSize = CarouselSize.Biggest
     var thumbnailType by rememberPreference(thumbnailTypeKey, ThumbnailType.Modern)
     thumbnailType = ThumbnailType.Modern
-    var playerTimelineType by rememberPreference(playerTimelineTypeKey, PlayerTimelineType.Wavy)
+    var playerTimelineType by rememberPreference(playerTimelineTypeKey, PlayerTimelineType.Default)
     playerTimelineType = PlayerTimelineType.Default
     var playerThumbnailSize by rememberPreference(
         playerThumbnailSizeKey,
@@ -447,13 +447,13 @@ fun DefaultUiSettings() {
     playerBackgroundColors = PlayerBackgroundColors.CoverColorGradient
     var blackgradient by rememberPreference(blackgradientKey, true)
     blackgradient = false
-    var showTotalTimeQueue by rememberPreference(showTotalTimeQueueKey, true)
-    showTotalTimeQueue = true
+    var showTotalTimeQueue by rememberPreference(showTotalTimeQueueKey, false)
+    showTotalTimeQueue = false
     var showNextSongsInPlayer by rememberPreference(showNextSongsInPlayerKey, false)
     showNextSongsInPlayer = false
     var showRemainingSongTime by rememberPreference(showRemainingSongTimeKey, true)
     showRemainingSongTime = true
-    var disableScrollingText by rememberPreference(disableScrollingTextKey, false)
+    var disableScrollingText by rememberPreference(disableScrollingTextKey, true)
     disableScrollingText = false
     var effectRotationEnabled by rememberPreference(effectRotationKey, false)
     effectRotationEnabled = true
@@ -555,7 +555,7 @@ fun UiSettings(
         indexNavigationTabKey,
         HomeScreenTabs.Default
     )
-    var fontType by rememberPreference(fontTypeKey, FontType.Rubik)
+    var fontType by rememberPreference(fontTypeKey, FontType.Geist)
     var useSystemFont by rememberPreference(useSystemFontKey, false)
     var applyFontPadding by rememberPreference(applyFontPaddingKey, false)
     var isSwipeToActionEnabled by rememberPreference(isSwipeToActionEnabledKey, true)
@@ -586,7 +586,7 @@ fun UiSettings(
     var showDislikedPlaylist by rememberPreference(showDislikedPlaylistKey, false)
     var showFloatingIcon by rememberPreference(showFloatingIconKey, false)
     var menuStyle by rememberPreference(menuStyleKey, MenuStyle.List)
-    var transitionEffect by rememberPreference(transitionEffectKey, TransitionEffect.Scale)
+    var transitionEffect by rememberPreference(transitionEffectKey, TransitionEffect.SharedAxis)
     var enableCreateMonthlyPlaylists by rememberPreference(enableCreateMonthlyPlaylistsKey, true)
     var showPipedPlaylists by rememberPreference(showPipedPlaylistsKey, true)
     var showPinnedPlaylists by rememberPreference(showPinnedPlaylistsKey, true)
@@ -631,7 +631,7 @@ fun UiSettings(
     var carousel by rememberPreference(carouselKey, true)
     var carouselSize by rememberPreference(carouselSizeKey, CarouselSize.Biggest)
     var thumbnailType by rememberPreference(thumbnailTypeKey, ThumbnailType.Modern)
-    var playerTimelineType by rememberPreference(playerTimelineTypeKey, PlayerTimelineType.Wavy)
+    var playerTimelineType by rememberPreference(playerTimelineTypeKey, PlayerTimelineType.Default)
     var playerThumbnailSize by rememberPreference(
         playerThumbnailSizeKey,
         PlayerThumbnailSize.Biggest
@@ -660,10 +660,10 @@ fun UiSettings(
         PlayerBackgroundColors.CoverColorGradient
     )
     var blackgradient by rememberPreference(blackgradientKey, true)
-    var showTotalTimeQueue by rememberPreference(showTotalTimeQueueKey, true)
+    var showTotalTimeQueue by rememberPreference(showTotalTimeQueueKey, false)
     var showNextSongsInPlayer by rememberPreference(showNextSongsInPlayerKey, false)
     var showRemainingSongTime by rememberPreference(showRemainingSongTimeKey, true)
-    var disableScrollingText by rememberPreference(disableScrollingTextKey, false)
+    var disableScrollingText by rememberPreference(disableScrollingTextKey, true)
     var effectRotationEnabled by rememberPreference(effectRotationKey, false)
     var thumbnailTapEnabled by rememberPreference(thumbnailTapEnabledKey, true)
     var clickLyricsText by rememberPreference(clickOnLyricsTextKey, true)
@@ -1073,6 +1073,7 @@ fun UiSettings(
                                 TransitionEffect.None -> stringResource(R.string.none)
                                 TransitionEffect.Expand -> stringResource(R.string.te_expand)
                                 TransitionEffect.Fade -> stringResource(R.string.te_fade)
+                                TransitionEffect.SharedAxis -> stringResource(R.string.te_shared_axis)
                                 TransitionEffect.Scale -> stringResource(R.string.te_scale)
                                 TransitionEffect.SlideVertical -> stringResource(R.string.te_slide_vertical)
                                 TransitionEffect.SlideHorizontal -> stringResource(R.string.te_slide_horizontal)
@@ -1149,6 +1150,7 @@ fun UiSettings(
                             when (it) {
                                 FontType.Rubik -> FontType.Rubik.name
                                 FontType.Poppins -> FontType.Poppins.name
+                                FontType.Geist -> FontType.Geist.name
                             }
                         }
                     )

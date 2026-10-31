@@ -155,7 +155,7 @@ fun HomeAlbums(
     val lazyGridState = rememberLazyGridState()
     val lazyListState = rememberLazyListState() // Spostato qui sopra per gestire il ripristino scroll
 
-    val disableScrollingText by rememberPreference(disableScrollingTextKey, false)
+    val disableScrollingText by rememberPreference(disableScrollingTextKey, true)
 
     var items by persistList<Album>("home/albums")
     var itemsOnDisplay by persistList<Album>("home/albums/on_display")
@@ -310,13 +310,26 @@ fun HomeAlbums(
                     onSelect = { albumType = it }
                 )
 
-                // 3. Toolbar actions on a glass dock
-                LibraryToolbarDock {
-                    TabToolBar.Buttons(sync, search, randomizer, shuffle, itemSize, viewType)
-                }
+                // 3. Noir tools row: search, shuffle and a "more" sheet with the rest
+                LibraryToolsRow(
+                    search = search,
+                    onShuffle = { shuffle.onShortClick() },
+                    onMore = {
+                        menuState.display {
+                            LibraryMoreMenu(
+                                menuState = menuState,
+                                sync = sync,
+                                itemSize = itemSize,
+                                viewType = viewType,
+                                onRandom = { randomizer.getItems().size.takeIf { it > 0 }?.let { randomizer.onClick(Randomizer.nextInt(it)) } },
+                                randomEnabled = randomizer.getItems().isNotEmpty()
+                            )
+                        }
+                    }
+                )
 
-                // 4. Search Bar
-                search.SearchBar(this)
+                // 4. Search field
+                LibrarySearchField(search)
 
                 // 5. Contenuto (Lista o Griglia)
                 if (itemsOnDisplay.isEmpty()) {
@@ -694,7 +707,7 @@ fun HomeAlbums(
     val selectedQueue = LocalSelectedQueue.current
     val lazyGridState = rememberLazyGridState()
 
-    val disableScrollingText by rememberPreference(disableScrollingTextKey, false)
+    val disableScrollingText by rememberPreference(disableScrollingTextKey, true)
 
     var items by persistList<Album>( "home/albums" )
     //var itemsToFilter by persistList<Album>( "home/artists" )

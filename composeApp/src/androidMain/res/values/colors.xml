@@ -2,6 +2,7 @@
 <resources>
     <color name="ic_launcher_foreground">#000000</color>
     <color name="ic_launcher_background_dark">#FFFFFF</color>
+    <color name="noir_window_background">#000000</color>
     <color name="colorPrimary">#000000</color>
     <color name="colorPrimaryDark">#000000</color>
     <color name="colorAccent">#000000</color>

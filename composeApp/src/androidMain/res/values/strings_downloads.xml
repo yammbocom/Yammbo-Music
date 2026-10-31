@@ -28,4 +28,12 @@
     <string name="auto_download_collection">Download automatically on Wi-Fi</string>
     <string name="auto_download_collection_on">It will download on its own whenever you are on Wi-Fi, songs added later included.</string>
     <string name="auto_download_collection_off">Automatic download turned off. What is already downloaded stays on your phone.</string>
+    <string name="download_wifi_only_title">Download only on Wi-Fi</string>
+    <string name="download_wifi_only_text">Songs you download wait for a Wi-Fi connection instead of using mobile data.</string>
+    <string name="download_progress_count">Downloading %1$d of %2$d</string>
+    <string name="download_waiting_wifi">Waiting for Wi-Fi</string>
+    <string name="download_cancel">Cancel</string>
+    <string name="download_channel_done_name">Finished downloads</string>
+    <string name="download_summary_mixed">%1$d downloaded, %2$d failed</string>
+    <string name="download_notifications_off">Notifications are off, so you will not see the download progress. Downloads keep going in the background.</string>
 </resources>

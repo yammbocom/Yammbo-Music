@@ -98,6 +98,42 @@ object YammboApiService {
         Timber.e("YammboApi forgotPassword error: ${it.message}")
     }
 
+    // Mails a 6-digit reset code. 200 {"status":"sent","message":"..."} whether or not the
+    // account exists; 422 and 429 carry a ready-to-show `message`.
+    suspend fun requestPasswordResetCode(email: String): Result<ResendEmailCodeResponse> = runCatching {
+        client.post("$BASE_URL/password/code") {
+            contentType(ContentType.Application.Json)
+            header("Accept", "application/json")
+            setBody(PasswordResetCodeRequest(email = email))
+        }.body<ResendEmailCodeResponse>()
+    }.onFailure {
+        Timber.e("YammboApi requestPasswordResetCode error: ${it.message}")
+    }
+
+    // Answers like login: a 200 signs the person straight in with the token.
+    suspend fun resetPasswordWithCode(
+        email: String,
+        code: String,
+        password: String,
+        passwordConfirmation: String
+    ): Result<AuthResponse> = runCatching {
+        client.post("$BASE_URL/password/reset-code") {
+            contentType(ContentType.Application.Json)
+            header("Accept", "application/json")
+            header("X-Yammbo-Vpn", VpnState.header())
+            setBody(
+                ResetPasswordWithCodeRequest(
+                    email = email,
+                    code = code,
+                    password = password,
+                    passwordConfirmation = passwordConfirmation
+                )
+            )
+        }.body<AuthResponse>()
+    }.onFailure {
+        Timber.e("YammboApi resetPasswordWithCode error: ${it.message}")
+    }
+
     suspend fun checkSubscription(userId: Int): Result<SubscriptionStatusResponse> = runCatching {
         client.get("https://music.yammbo.com/app-music/subscription-status") {
             header("Accept", "application/json")

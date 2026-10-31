@@ -134,6 +134,16 @@ data class Context(
             client = DefaultWeb.client.copy(hl = hl)
         )
 
+        // Read on every use: LocalePreferences is filled once the UI starts, which can be after
+        // this object was first touched.
+        val DefaultWebLocalized: Context
+            get() = DefaultWeb.copy(
+                client = DefaultWeb.client.copy(
+                    hl = LocalePreferences.preference?.hl ?: "en",
+                    gl = LocalePreferences.preference?.gl ?: "US"
+                )
+            )
+
         val cname2 = EnvironmentPreferences.preference?.p22 ?: ""
         val cver2 = EnvironmentPreferences.preference?.p23 ?: ""
 

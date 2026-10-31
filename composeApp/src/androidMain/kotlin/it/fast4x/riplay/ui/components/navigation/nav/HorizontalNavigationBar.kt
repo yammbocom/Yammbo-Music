@@ -8,8 +8,10 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.animation.animateColor
-import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.VectorConverter
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.updateTransition
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -39,8 +41,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
+import kotlin.math.roundToInt
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -210,7 +219,7 @@ class HorizontalNavigationBar(
                             padding(
                                 start = 12.dp,
                                 end = 12.dp,
-                                bottom = bottomInset + 10.dp
+                                bottom = bottomInset + 20.dp
                             )
                         }
                         .applyIf(!isNavbarBottom) {
@@ -221,7 +230,7 @@ class HorizontalNavigationBar(
                         .height(if (isNavbarBottom) Dimensions.navigationBarHeight else 40.dp)
                         // Nearly opaque: the page now scrolls under the pill and text showing
                         // through it competed with the tab labels.
-                        .glassSurface(shape = RoundedCornerShape(26.dp), alpha = 0.96f)
+                        .glassSurface(shape = RoundedCornerShape(percent = 50), alpha = 0.96f)
                 ) {
                     val scrollState = rememberScrollState()
 
@@ -240,27 +249,74 @@ class HorizontalNavigationBar(
                     // The 5-tab main bar keeps the original labelled layout.
                     val isCompact = items.size > 5
 
+                    // One indicator pill slides between the icon boxes. Positions are kept as root
+                    // coordinates and compared with the container's, so they stay consistent while
+                    // the whole bar slides in.
+                    val itemOffsets = remember { mutableStateMapOf<Int, Offset>() }
+                    val itemSizes = remember { mutableStateMapOf<Int, IntSize>() }
+                    var containerOrigin by remember { mutableStateOf(Offset.Zero) }
+                    val selectedInBar = items.any { it.first == tabIndex }
+                    val indicatorTarget =
+                        if (selectedInBar) itemOffsets[tabIndex]?.let { it - containerOrigin } else null
+                    val indicatorOffset = remember { Animatable(Offset.Zero, Offset.VectorConverter) }
+                    var indicatorPlaced by remember { mutableStateOf(false) }
+                    LaunchedEffect(indicatorTarget) {
+                        if (indicatorTarget != null) {
+                            if (!indicatorPlaced) {
+                                indicatorOffset.snapTo(indicatorTarget)
+                                indicatorPlaced = true
+                            } else {
+                                indicatorOffset.animateTo(
+                                    indicatorTarget,
+                                    spring(dampingRatio = 0.72f, stiffness = 380f)
+                                )
+                            }
+                        }
+                    }
+                    val indicatorAlpha by animateFloatAsState(
+                        targetValue = if (indicatorTarget != null && indicatorPlaced) 1f else 0f,
+                        animationSpec = tween(durationMillis = 180),
+                        label = "indicatorAlpha"
+                    )
+                    val indicatorSize = itemSizes[tabIndex]
+                    val indicatorWidth = with(density) { (indicatorSize?.width?.toDp() ?: 52.dp) }
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 8.dp)
+                            .onGloballyPositioned { containerOrigin = it.positionInRoot() }
+                    ) {
+                    Box(
+                        modifier = Modifier
+                            .offset {
+                                IntOffset(
+                                    indicatorOffset.value.x.roundToInt(),
+                                    indicatorOffset.value.y.roundToInt()
+                                )
+                            }
+                            .size(width = indicatorWidth, height = 30.dp)
+                            .graphicsLayer { alpha = indicatorAlpha }
+                            .background(colorPalette().accent, RoundedCornerShape(percent = 50))
+                    )
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceEvenly,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = 8.dp),
+                        modifier = Modifier.fillMaxSize(),
                     ) {
                         items.forEach { (index, text, iconId) ->
                             val isSelected = tabIndex == index
+                            // Yammbo Noir: the active tab is a solid white pill behind a black icon.
                             val iconColor by transition.animateColor(label = "") {
-                                if (it == index) colorPalette().accent else colorPalette().textDisabled
+                                if (it == index) colorPalette().onAccent else colorPalette().textSecondary
+                            }
+                            val labelColor by transition.animateColor(label = "") {
+                                if (it == index) colorPalette().accent else colorPalette().textSecondary
                             }
                             val iconScale by animateFloatAsState(
-                                targetValue = if (isSelected) 1.12f else 1f,
+                                targetValue = 1f,
                                 animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
                                 label = "iconScale"
-                            )
-                            val indicatorWidth by animateDpAsState(
-                                targetValue = if (isSelected) 22.dp else 0.dp,
-                                animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
-                                label = "indicatorWidth"
                             )
                             Column(
                                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -275,31 +331,30 @@ class HorizontalNavigationBar(
                                         role = Role.Tab
                                         selected = isSelected
                                     }
-                                    .padding(vertical = 6.dp, horizontal = 2.dp)
+                                    .padding(vertical = 4.dp, horizontal = 2.dp)
                             ) {
-                                // Top accent indicator that grows/shrinks when the tab activates
-                                Box(
-                                    modifier = Modifier
-                                        .size(width = indicatorWidth, height = 3.dp)
-                                        .clip(RoundedCornerShape(2.dp))
-                                        .background(colorPalette().accent)
-                                )
-                                Spacer(modifier = Modifier.height(6.dp))
                                 Box(
                                     contentAlignment = Alignment.Center,
-                                    modifier = Modifier.scale(iconScale)
+                                    modifier = Modifier
+                                        .scale(iconScale)
+                                        .size(width = 52.dp, height = 30.dp)
+                                        .onGloballyPositioned {
+                                            itemOffsets[index] = it.positionInRoot()
+                                            itemSizes[index] = it.size
+                                        }
                                 ) {
-                                    Button(iconId, iconColor, 0.dp, 22.dp).Draw()
+                                    Button(iconId, iconColor, 0.dp, 20.dp).Draw()
                                 }
                                 if (!isCompact && !NavigationBarType.IconOnly.isCurrent()) {
-                                    Spacer(modifier = Modifier.height(3.dp))
+                                    Spacer(modifier = Modifier.height(2.dp))
                                     androidx.compose.foundation.text.BasicText(
                                         text = text,
                                         maxLines = 1,
                                         softWrap = false,
                                         overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                                         style = it.fast4x.riplay.utils.typography().xxs.copy(
-                                            color = iconColor,
+                                            color = labelColor,
+                                            fontSize = androidx.compose.ui.unit.TextUnit(10f, androidx.compose.ui.unit.TextUnitType.Sp),
                                             fontWeight = if (isSelected)
                                                 androidx.compose.ui.text.font.FontWeight.SemiBold
                                             else
@@ -309,6 +364,7 @@ class HorizontalNavigationBar(
                                 }
                             }
                         }
+                    }
                     }
 
                     if (UiType.ViMusic.isCurrent() && showSearchIconInNav())

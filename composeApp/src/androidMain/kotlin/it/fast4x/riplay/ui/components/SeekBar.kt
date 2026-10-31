@@ -69,7 +69,9 @@ fun SeekBar(
     scrubberRadius: Dp = 6.dp,
     shape: Shape = RectangleShape,
     drawSteps: Boolean = false,
-    showTooltip: Boolean = true
+    showTooltip: Boolean = true,
+    // Yammbo Noir draws a plain thick bar: no round thumb, the bar itself grows while dragging.
+    showScrubber: Boolean = true
 ) {
     val isDragging = remember {
         MutableTransitionState(false)
@@ -159,7 +161,7 @@ fun SeekBar(
                     }
                 )
             }
-            .padding(horizontal = scrubberRadius)
+            .padding(horizontal = if (showScrubber) scrubberRadius else 0.dp)
             .drawWithContent {
                 drawContent()
 
@@ -169,11 +171,12 @@ fun SeekBar(
                     ((draggingValue.toFloat() - minimumValue) / (maximumValue - minimumValue) * size.width).coerceIn(0f, size.width)
                 }
 
-                drawCircle(
-                    color = scrubberColor,
-                    radius = currentScrubberRadius.toPx(),
-                    center = center.copy(x = scrubberPosition)
-                )
+                if (showScrubber)
+                    drawCircle(
+                        color = scrubberColor,
+                        radius = currentScrubberRadius.toPx(),
+                        center = center.copy(x = scrubberPosition)
+                    )
 
                 if (drawSteps) {
                     for (i in draggingValue + 1..maximumValue) {

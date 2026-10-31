@@ -57,6 +57,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.em
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
@@ -122,6 +125,9 @@ import it.fast4x.riplay.ui.components.themed.IconButton
 import it.fast4x.riplay.ui.components.themed.InputTextDialog
 import it.fast4x.riplay.ui.components.themed.Menu
 import it.fast4x.riplay.ui.components.themed.MenuEntry
+import it.fast4x.riplay.ui.components.themed.MenuChoiceEntry
+import it.fast4x.riplay.ui.components.themed.MenuToggleEntry
+import it.fast4x.riplay.ui.components.themed.SubMenuEntry
 import it.fast4x.riplay.ui.components.themed.SmartMessage
 import it.fast4x.riplay.ui.components.themed.TextPlaceholder
 import it.fast4x.riplay.ui.components.themed.TitleSection
@@ -413,7 +419,7 @@ fun Lyrics(
             mutableStateOf(false)
         }
         var lyricsHighlight by rememberPreference(lyricsHighlightKey, LyricsHighlight.None)
-        var lyricsAlignment by rememberPreference(lyricsAlignmentKey, LyricsAlignment.Center)
+        var lyricsAlignment by rememberPreference(lyricsAlignmentKey, LyricsAlignment.Left)
         var lyricsSizeAnimate by rememberPreference(lyricsSizeAnimateKey, false)
         val mediaMetadata = mediaMetadataProvider()
         var artistName by rememberSaveable { mutableStateOf(mediaMetadata.artist?.toString().orEmpty())}
@@ -1183,7 +1189,7 @@ fun Lyrics(
                                 label = ""
                             )
                             val animateOpacity by animateFloatAsState(
-                                targetValue = if (index == synchronizedLyrics.index) 1f else 0.6f,
+                                targetValue = if (index == synchronizedLyrics.index) 1f else 0.32f,
                                 animationSpec = tween(500, easing = LinearOutSlowInEasing),
                                 label = ""
                             )
@@ -1414,25 +1420,42 @@ fun Lyrics(
                                     )
                                 }
                                 else if ((lyricsColor == LyricsColor.White) || (lyricsColor == LyricsColor.Black) || (lyricsColor == LyricsColor.Accent) || (lyricsColor == LyricsColor.Thememode)) {
+                                    // Yammbo Noir: big bold lines in the app font; the current one is
+                                    // marked with a white bar on its left.
+                                    // Pure black / white rather than the cover-tinted palette text, which
+                                    // reads as grey over the light blurred cover.
+                                    val themeLyricColor = if (lightTheme) Color.Black else Color.White
+                                    val currentLineBar = themeLyricColor
                                     BasicText(
                                         text = translatedText,
                                         style = TextStyle(
-                                            fontWeight = FontWeight.Medium,
+                                            fontWeight = FontWeight.Bold,
+                                            fontFamily = typography().l.fontFamily,
+                                            letterSpacing = (-0.025).em,
                                             color = if (lyricsColor == LyricsColor.White) Color.White
                                             else if (lyricsColor == LyricsColor.Black) Color.Black
-                                            else if (lyricsColor == LyricsColor.Thememode) colorPalette().text
+                                            else if (lyricsColor == LyricsColor.Thememode) themeLyricColor
                                             else colorPalette().accent,
                                             fontSize = if (fontSize == LyricsFontSize.Light) typography().m.fontSize
-                                            else if (fontSize == LyricsFontSize.Medium) typography().l.fontSize
+                                            else if (fontSize == LyricsFontSize.Medium) 26.sp
                                             else if (fontSize == LyricsFontSize.Heavy) typography().xl.fontSize
                                             else if (fontSize == LyricsFontSize.Large) typography().xlxl.fontSize
                                             else customSize.sp,
                                             textAlign = lyricsAlignment.selected,
                                         ),
                                         modifier = Modifier
-                                            .padding(vertical = 4.dp, horizontal = 32.dp)
+                                            .padding(vertical = 6.dp, horizontal = 32.dp)
                                             .applyIf(lyricsSizeAnimate) { padding(vertical = 4.dp) }
                                             .align(if (lyricsAlignment == LyricsAlignment.Left) Alignment.CenterStart else if (lyricsAlignment == LyricsAlignment.Right) Alignment.CenterEnd else Alignment.Center)
+                                            .drawBehind {
+                                                if (index == synchronizedLyrics.index && lyricsAlignment == LyricsAlignment.Left)
+                                                    drawRoundRect(
+                                                        color = currentLineBar,
+                                                        topLeft = Offset(-14.dp.toPx(), 2.dp.toPx()),
+                                                        size = Size(4.dp.toPx(), this.size.height - 4.dp.toPx()),
+                                                        cornerRadius = CornerRadius(2.dp.toPx())
+                                                    )
+                                            }
                                             .applyIf(lyricsSizeAnimate) {
                                                 graphicsLayer {
                                                     transformOrigin =
@@ -1450,7 +1473,7 @@ fun Lyrics(
                                                 }
                                             }
                                             .graphicsLayer {
-                                                alpha = animateOpacity
+                                                alpha = if (index == synchronizedLyrics.index) 1f else animateOpacity
                                             }
                                             .clickable(
                                                 interactionSource = remember { MutableInteractionSource() },
@@ -1517,7 +1540,7 @@ fun Lyrics(
                                                 }
                                             }
                                             .graphicsLayer {
-                                                alpha = animateOpacity
+                                                alpha = if (index == synchronizedLyrics.index) 1f else animateOpacity
                                             }
                                             .clickable(
                                                 interactionSource = remember { MutableInteractionSource() },
@@ -1877,7 +1900,14 @@ fun Lyrics(
                         title = cleanPrefix(metadata.title?.toString() ?: ""),
                         artist = metadata.artist?.toString() ?: "",
                         thumbnailUrl = metadata.artworkUri?.toString(),
-                        onDismiss = menuState::hide
+                        onDismiss = menuState::hide,
+                        // Same App Link the song share sheet builds
+                        shareUrl = it.fast4x.riplay.data.models.Song(
+                            id = mediaId,
+                            title = cleanPrefix(metadata.title?.toString() ?: ""),
+                            durationText = null,
+                            thumbnailUrl = null
+                        ).shareYamboUrl
                     )
                 }
             }
@@ -1897,7 +1927,7 @@ fun Lyrics(
                     modifier = Modifier
                         .align(Alignment.BottomStart)
                         .padding(
-                            start = 4.dp,
+                            start = 16.dp,
                             top = 4.dp,
                             end = 4.dp,
                             bottom = if (isLandscape && !showlyricsthumbnail) 52.dp else 4.dp
@@ -2110,7 +2140,7 @@ fun Lyrics(
                     colorFilter = ColorFilter.tint(colorPalette().text),
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
-                        .padding(all = 4.dp)
+                        .padding(start = 4.dp, top = 4.dp, end = 16.dp, bottom = 4.dp)
                         .size(40.dp)
                         .glassSurface(CircleShape, elevation = 6.dp)
                         .clickable(
@@ -2126,8 +2156,9 @@ fun Lyrics(
                                             onClick = openLyricsShare
                                         )
                                         if (isLandscape && !showlyricsthumbnail) {
-                                            MenuEntry(
-                                                icon = if (landscapeControls) R.drawable.checkmark else R.drawable.play,
+                                            MenuToggleEntry(
+                                                icon = R.drawable.play,
+                                                checked = landscapeControls,
                                                 text = stringResource(R.string.toggle_controls_landscape),
                                                 enabled = true,
                                                 onClick = {
@@ -2136,16 +2167,17 @@ fun Lyrics(
                                                 }
                                             )
                                         }
-                                        MenuEntry(
+                                        SubMenuEntry(
                                             icon = R.drawable.text,
                                             enabled = true,
                                             text = stringResource(R.string.lyricsalignment),
                                             onClick = {
                                                 menuState.display {
                                                     Menu {
-                                                        MenuEntry(
-                                                            icon = R.drawable.arrow_left,
+                                                        MenuChoiceEntry(
+                                                            icon = R.drawable.text,
                                                             text = stringResource(R.string.direction_left),
+                                                            selected = lyricsAlignment == LyricsAlignment.Left,
                                                             secondaryText = "",
                                                             onClick = {
                                                                 menuState.hide()
@@ -2153,9 +2185,10 @@ fun Lyrics(
                                                                     LyricsAlignment.Left
                                                             }
                                                         )
-                                                        MenuEntry(
-                                                            icon = R.drawable.arrow_down,
+                                                        MenuChoiceEntry(
+                                                            icon = R.drawable.text,
                                                             text = stringResource(R.string.center),
+                                                            selected = lyricsAlignment == LyricsAlignment.Center,
                                                             secondaryText = "",
                                                             onClick = {
                                                                 menuState.hide()
@@ -2163,9 +2196,10 @@ fun Lyrics(
                                                                     LyricsAlignment.Center
                                                             }
                                                         )
-                                                        MenuEntry(
-                                                            icon = R.drawable.arrow_right,
+                                                        MenuChoiceEntry(
+                                                            icon = R.drawable.text,
                                                             text = stringResource(R.string.direction_right),
+                                                            selected = lyricsAlignment == LyricsAlignment.Right,
                                                             secondaryText = "",
                                                             onClick = {
                                                                 menuState.hide()
@@ -2179,52 +2213,61 @@ fun Lyrics(
                                         )
 
                                         if (!showlyricsthumbnail)
-                                            MenuEntry(
+                                            SubMenuEntry(
                                                 icon = R.drawable.text,
                                                 enabled = true,
                                                 text = stringResource(R.string.lyrics_size),
                                                 onClick = {
                                                     menuState.display {
                                                         Menu {
-                                                            MenuEntry(
+                                                            MenuChoiceEntry(
                                                                 icon = R.drawable.text,
                                                                 text = stringResource(R.string.light),
+                                                                selected = fontSize == LyricsFontSize.Light,
                                                                 secondaryText = "",
                                                                 onClick = {
                                                                     menuState.hide()
-                                                                    fontSize = LyricsFontSize.Light
+                                                                    fontSize =
+                                                                        LyricsFontSize.Light
                                                                 }
                                                             )
-                                                            MenuEntry(
+                                                            MenuChoiceEntry(
                                                                 icon = R.drawable.text,
                                                                 text = stringResource(R.string.medium),
+                                                                selected = fontSize == LyricsFontSize.Medium,
                                                                 secondaryText = "",
                                                                 onClick = {
                                                                     menuState.hide()
-                                                                    fontSize = LyricsFontSize.Medium
+                                                                    fontSize =
+                                                                        LyricsFontSize.Medium
                                                                 }
                                                             )
-                                                            MenuEntry(
+                                                            MenuChoiceEntry(
                                                                 icon = R.drawable.text,
                                                                 text = stringResource(R.string.heavy),
+                                                                selected = fontSize == LyricsFontSize.Heavy,
                                                                 secondaryText = "",
                                                                 onClick = {
                                                                     menuState.hide()
-                                                                    fontSize = LyricsFontSize.Heavy
+                                                                    fontSize =
+                                                                        LyricsFontSize.Heavy
                                                                 }
                                                             )
-                                                            MenuEntry(
+                                                            MenuChoiceEntry(
                                                                 icon = R.drawable.text,
                                                                 text = stringResource(R.string.large),
+                                                                selected = fontSize == LyricsFontSize.Large,
                                                                 secondaryText = "",
                                                                 onClick = {
                                                                     menuState.hide()
-                                                                    fontSize = LyricsFontSize.Large
+                                                                    fontSize =
+                                                                        LyricsFontSize.Large
                                                                 }
                                                             )
-                                                            MenuEntry(
+                                                            MenuChoiceEntry(
                                                                 icon = R.drawable.text,
                                                                 text = stringResource(R.string.custom),
+                                                                selected = fontSize == LyricsFontSize.Custom,
                                                                 secondaryText = stringResource(R.string.lyricsSizeSecondary),
                                                                 onClick = {
                                                                     menuState.hide()
@@ -2240,16 +2283,17 @@ fun Lyrics(
                                                 }
                                             )
                                         if (!showlyricsthumbnail)
-                                            MenuEntry(
+                                            SubMenuEntry(
                                                 icon = R.drawable.droplet,
                                                 enabled = true,
                                                 text = stringResource(R.string.lyricscolor),
                                                 onClick = {
                                                     menuState.display {
                                                         Menu {
-                                                            MenuEntry(
+                                                            MenuChoiceEntry(
                                                                 icon = R.drawable.droplet,
                                                                 text = stringResource(R.string.theme),
+                                                                selected = lyricsColor == LyricsColor.Thememode,
                                                                 secondaryText = "",
                                                                 onClick = {
                                                                     menuState.hide()
@@ -2257,9 +2301,10 @@ fun Lyrics(
                                                                         LyricsColor.Thememode
                                                                 }
                                                             )
-                                                            MenuEntry(
+                                                            MenuChoiceEntry(
                                                                 icon = R.drawable.droplet,
                                                                 text = stringResource(R.string.white),
+                                                                selected = lyricsColor == LyricsColor.White,
                                                                 secondaryText = "",
                                                                 onClick = {
                                                                     menuState.hide()
@@ -2267,9 +2312,10 @@ fun Lyrics(
                                                                         LyricsColor.White
                                                                 }
                                                             )
-                                                            MenuEntry(
+                                                            MenuChoiceEntry(
                                                                 icon = R.drawable.droplet,
                                                                 text = stringResource(R.string.black),
+                                                                selected = lyricsColor == LyricsColor.Black,
                                                                 secondaryText = "",
                                                                 onClick = {
                                                                     menuState.hide()
@@ -2277,18 +2323,21 @@ fun Lyrics(
                                                                         LyricsColor.Black
                                                                 }
                                                             )
-                                                            MenuEntry(
+                                                            MenuChoiceEntry(
                                                                 icon = R.drawable.droplet,
                                                                 text = stringResource(R.string.accent),
+                                                                selected = lyricsColor == LyricsColor.Accent,
                                                                 secondaryText = "",
                                                                 onClick = {
                                                                     menuState.hide()
-                                                                    lyricsColor = LyricsColor.Accent
+                                                                    lyricsColor =
+                                                                        LyricsColor.Accent
                                                                 }
                                                             )
-                                                            MenuEntry(
+                                                            MenuChoiceEntry(
                                                                 icon = R.drawable.droplet,
                                                                 text = stringResource(R.string.fluidrainbow),
+                                                                selected = lyricsColor == LyricsColor.FluidRainbow,
                                                                 secondaryText = "",
                                                                 onClick = {
                                                                     menuState.hide()
@@ -2296,13 +2345,15 @@ fun Lyrics(
                                                                         LyricsColor.FluidRainbow
                                                                 }
                                                             )
-                                                            /*MenuEntry(
+                                                            /*MenuChoiceEntry(
                                                                 icon = R.drawable.droplet,
                                                                 text = stringResource(R.string.fluidtheme),
+                                                                selected = lyricsColor == LyricsColor.FluidTheme,
                                                                 secondaryText = "",
                                                                 onClick = {
                                                                     menuState.hide()
-                                                                    lyricsColor = LyricsColor.FluidTheme
+                                                                    lyricsColor =
+                                                                        LyricsColor.FluidTheme
                                                                 }
                                                             )*/
                                                         }
@@ -2310,16 +2361,17 @@ fun Lyrics(
                                                 }
                                             )
                                         if (!showlyricsthumbnail)
-                                            MenuEntry(
+                                            SubMenuEntry(
                                                 icon = R.drawable.horizontal_bold_line,
                                                 enabled = true,
                                                 text = stringResource(R.string.lyricsoutline),
                                                 onClick = {
                                                     menuState.display {
                                                         Menu {
-                                                            MenuEntry(
+                                                            MenuChoiceEntry(
                                                                 icon = R.drawable.close,
                                                                 text = stringResource(R.string.none),
+                                                                selected = lyricsOutline == LyricsOutline.None,
                                                                 secondaryText = "",
                                                                 onClick = {
                                                                     menuState.hide()
@@ -2327,9 +2379,10 @@ fun Lyrics(
                                                                         LyricsOutline.None
                                                                 }
                                                             )
-                                                            MenuEntry(
+                                                            MenuChoiceEntry(
                                                                 icon = R.drawable.horizontal_bold_line,
                                                                 text = stringResource(R.string.theme),
+                                                                selected = lyricsOutline == LyricsOutline.Thememode,
                                                                 secondaryText = "",
                                                                 onClick = {
                                                                     menuState.hide()
@@ -2337,9 +2390,10 @@ fun Lyrics(
                                                                         LyricsOutline.Thememode
                                                                 }
                                                             )
-                                                            MenuEntry(
+                                                            MenuChoiceEntry(
                                                                 icon = R.drawable.horizontal_bold_line,
                                                                 text = stringResource(R.string.white),
+                                                                selected = lyricsOutline == LyricsOutline.White,
                                                                 secondaryText = "",
                                                                 onClick = {
                                                                     menuState.hide()
@@ -2347,9 +2401,10 @@ fun Lyrics(
                                                                         LyricsOutline.White
                                                                 }
                                                             )
-                                                            MenuEntry(
+                                                            MenuChoiceEntry(
                                                                 icon = R.drawable.horizontal_bold_line,
                                                                 text = stringResource(R.string.black),
+                                                                selected = lyricsOutline == LyricsOutline.Black,
                                                                 secondaryText = "",
                                                                 onClick = {
                                                                     menuState.hide()
@@ -2357,9 +2412,10 @@ fun Lyrics(
                                                                         LyricsOutline.Black
                                                                 }
                                                             )
-                                                            MenuEntry(
+                                                            MenuChoiceEntry(
                                                                 icon = R.drawable.droplet,
                                                                 text = stringResource(R.string.fluidrainbow),
+                                                                selected = lyricsOutline == LyricsOutline.Rainbow,
                                                                 secondaryText = "",
                                                                 onClick = {
                                                                     menuState.hide()
@@ -2368,9 +2424,10 @@ fun Lyrics(
                                                                 }
                                                             )
                                                             if (isShowingSynchronizedLyrics) {
-                                                                MenuEntry(
+                                                                MenuChoiceEntry(
                                                                     icon = R.drawable.droplet,
                                                                     text = stringResource(R.string.glow),
+                                                                    selected = lyricsOutline == LyricsOutline.Glow,
                                                                     secondaryText = "",
                                                                     onClick = {
                                                                         menuState.hide()
@@ -2407,15 +2464,16 @@ fun Lyrics(
                                             }
                                         )
 
-                                        MenuEntry(
-                                            icon = if (romanization == Romanization.Original || romanization == Romanization.Translated || romanization == Romanization.Both) R.drawable.checkmark else R.drawable.text,
+                                        SubMenuEntry(
+                                            icon = R.drawable.text,
                                             enabled = true,
                                             text = stringResource(R.string.toggle_romanization),
                                             onClick = {
                                                 menuState.display {
                                                     Menu {
-                                                        MenuEntry(
-                                                            icon = if (romanization == Romanization.Off) R.drawable.checkmark else R.drawable.text,
+                                                        MenuChoiceEntry(
+                                                            icon = R.drawable.text,
+                                                            selected = romanization == Romanization.Off,
                                                             text = stringResource(R.string.turn_off),
                                                             secondaryText = "",
                                                             onClick = {
@@ -2424,8 +2482,9 @@ fun Lyrics(
                                                                     Romanization.Off
                                                             }
                                                         )
-                                                        MenuEntry(
-                                                            icon = if (romanization == Romanization.Original || (romanization == Romanization.Both && !showSecondLine)) R.drawable.checkmark else R.drawable.text,
+                                                        MenuChoiceEntry(
+                                                            icon = R.drawable.text,
+                                                            selected = romanization == Romanization.Original || (romanization == Romanization.Both && !showSecondLine),
                                                             text = stringResource(R.string.original_lyrics),
                                                             secondaryText = "",
                                                             onClick = {
@@ -2434,8 +2493,9 @@ fun Lyrics(
                                                                     Romanization.Original
                                                             }
                                                         )
-                                                        MenuEntry(
-                                                            icon = if (romanization == Romanization.Translated) R.drawable.checkmark else R.drawable.text,
+                                                        MenuChoiceEntry(
+                                                            icon = R.drawable.text,
+                                                            selected = romanization == Romanization.Translated,
                                                             text = stringResource(R.string.translated_lyrics),
                                                             secondaryText = "",
                                                             onClick = {
@@ -2445,8 +2505,9 @@ fun Lyrics(
                                                             }
                                                         )
                                                         if (showSecondLine) {
-                                                            MenuEntry(
-                                                                icon = if (romanization == Romanization.Both) R.drawable.checkmark else R.drawable.text,
+                                                            MenuChoiceEntry(
+                                                                icon = R.drawable.text,
+                                                                selected = romanization == Romanization.Both,
                                                                 text = stringResource(R.string.both),
                                                                 secondaryText = "",
                                                                 onClick = {
@@ -2460,8 +2521,9 @@ fun Lyrics(
                                                 }
                                             }
                                         )
-                                        MenuEntry(
-                                            icon = if (showSecondLine) R.drawable.checkmark else R.drawable.close,
+                                        MenuToggleEntry(
+                                            icon = R.drawable.text,
+                                            checked = showSecondLine,
                                             text = stringResource(R.string.showsecondline),
                                             enabled = true,
                                             onClick = {
@@ -2471,8 +2533,9 @@ fun Lyrics(
                                         )
 
                                         if (!showlyricsthumbnail && isShowingSynchronizedLyrics) {
-                                            MenuEntry(
-                                                icon = if (lyricsSizeAnimate) R.drawable.checkmark else R.drawable.close,
+                                            MenuToggleEntry(
+                                                icon = R.drawable.text,
+                                                checked = lyricsSizeAnimate,
                                                 text = stringResource(R.string.lyricsanimate),
                                                 enabled = true,
                                                 onClick = {
@@ -2483,16 +2546,17 @@ fun Lyrics(
                                         }
 
                                         if (!showlyricsthumbnail)
-                                            MenuEntry(
+                                            SubMenuEntry(
                                                 icon = R.drawable.horizontal_bold_line_rounded,
                                                 enabled = true,
                                                 text = stringResource(R.string.highlight),
                                                 onClick = {
                                                     menuState.display {
                                                         Menu {
-                                                            MenuEntry(
+                                                            MenuChoiceEntry(
                                                                 icon = R.drawable.horizontal_straight_line,
                                                                 text = stringResource(R.string.none),
+                                                                selected = lyricsHighlight == LyricsHighlight.None,
                                                                 secondaryText = "",
                                                                 onClick = {
                                                                     menuState.hide()
@@ -2500,9 +2564,10 @@ fun Lyrics(
                                                                         LyricsHighlight.None
                                                                 }
                                                             )
-                                                            MenuEntry(
+                                                            MenuChoiceEntry(
                                                                 icon = R.drawable.horizontal_straight_line,
                                                                 text = stringResource(R.string.white),
+                                                                selected = lyricsHighlight == LyricsHighlight.White,
                                                                 secondaryText = "",
                                                                 onClick = {
                                                                     menuState.hide()
@@ -2510,9 +2575,10 @@ fun Lyrics(
                                                                         LyricsHighlight.White
                                                                 }
                                                             )
-                                                            MenuEntry(
+                                                            MenuChoiceEntry(
                                                                 icon = R.drawable.horizontal_straight_line,
                                                                 text = stringResource(R.string.black),
+                                                                selected = lyricsHighlight == LyricsHighlight.Black,
                                                                 secondaryText = "",
                                                                 onClick = {
                                                                     menuState.hide()
@@ -2526,16 +2592,17 @@ fun Lyrics(
                                             )
 
                                         if (!showlyricsthumbnail)
-                                            MenuEntry(
+                                            SubMenuEntry(
                                                 icon = R.drawable.droplet,
                                                 enabled = true,
                                                 text = stringResource(R.string.lyricsbackground),
                                                 onClick = {
                                                     menuState.display {
                                                         Menu {
-                                                            MenuEntry(
+                                                            MenuChoiceEntry(
                                                                 icon = R.drawable.droplet,
                                                                 text = stringResource(R.string.none),
+                                                                selected = lyricsBackground == LyricsBackground.None,
                                                                 secondaryText = "",
                                                                 onClick = {
                                                                     menuState.hide()
@@ -2543,9 +2610,10 @@ fun Lyrics(
                                                                         LyricsBackground.None
                                                                 }
                                                             )
-                                                            MenuEntry(
+                                                            MenuChoiceEntry(
                                                                 icon = R.drawable.droplet,
                                                                 text = stringResource(R.string.white),
+                                                                selected = lyricsBackground == LyricsBackground.White,
                                                                 secondaryText = "",
                                                                 onClick = {
                                                                     menuState.hide()
@@ -2553,9 +2621,10 @@ fun Lyrics(
                                                                         LyricsBackground.White
                                                                 }
                                                             )
-                                                            MenuEntry(
+                                                            MenuChoiceEntry(
                                                                 icon = R.drawable.droplet,
                                                                 text = stringResource(R.string.black),
+                                                                selected = lyricsBackground == LyricsBackground.Black,
                                                                 secondaryText = "",
                                                                 onClick = {
                                                                     menuState.hide()

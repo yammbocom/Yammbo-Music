@@ -10,6 +10,7 @@ import it.fast4x.environment.models.Context
 import it.fast4x.environment.models.MusicCarouselShelfRenderer
 import it.fast4x.environment.models.NavigationEndpoint
 import it.fast4x.environment.models.SectionListRenderer
+import it.fast4x.environment.models.bodies.BrowseBody
 import it.fast4x.environment.models.bodies.BrowseBodyWithLocale
 import it.fast4x.environment.models.bodies.FormData
 
@@ -45,13 +46,26 @@ suspend fun Environment.chartsPageComplete(countryCode: String = "") = runCatchi
 
     val chart = parseChart(data)
 
+    // Since oct-2026 the chart page lists no songs inline: its first carousel holds the
+    // country's chart playlists, the last one being "Top 100 music videos <country>" (same
+    // order in US, MX, NI, ES and global). Without inline songs, they come from that playlist.
+    val topSongs = if (chart?.songs.isNullOrEmpty() && chart?.trending.isNullOrEmpty()) {
+        musicDetailRenderer
+            ?.firstNotNullOfOrNull { section ->
+                section.musicCarouselShelfRenderer?.contents
+                    ?.mapNotNull { it.musicTwoRowItemRenderer?.navigationEndpoint?.browseEndpoint?.browseId }
+                    ?.lastOrNull { it.startsWith("VLPL") }
+            }
+            ?.let { playlistPage(BrowseBody(browseId = it))?.getOrNull()?.songsPage?.items }
+    } else null
+
     Environment.ChartsPage(
         playlists = musicDetailRenderer
             ?.mapNotNull { it.musicCarouselShelfRenderer }
             ?.mapNotNull(Environment.PlaylistItem::fromComplete),
         artists = chart?.artists,
         videos = chart?.videos,
-        songs = chart?.songs,
+        songs = topSongs ?: chart?.songs,
         trending = chart?.trending
     )
 
@@ -345,6 +359,9 @@ fun parseArtistChart(contents: List<MusicCarouselShelfRenderer.Content>?): Array
                     content.musicResponsiveListItemRenderer.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails
                 val artistId =
                     content.musicResponsiveListItemRenderer.navigationEndpoint?.browseEndpoint?.browseId
+                // The other carousels in this branch are top albums (MPRE...) and podcasts
+                // (MPSP...): only channels are artists.
+                if (artistId?.startsWith("UC") != true) continue
                 artists.add(
                     Environment.ArtistItem(
                         info = Environment.Info(

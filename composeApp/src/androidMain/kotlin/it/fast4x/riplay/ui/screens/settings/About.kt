@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -39,7 +40,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
@@ -61,9 +61,11 @@ import it.fast4x.riplay.extensions.yammboapi.YammboAuthManager
 import it.fast4x.riplay.ui.components.CustomModalBottomSheet
 import it.fast4x.riplay.ui.components.StaggeredEntry
 import it.fast4x.riplay.ui.components.pressable
+import it.fast4x.riplay.ui.components.themed.NoirEyebrow
 import it.fast4x.riplay.ui.components.themed.SmartMessage
 import it.fast4x.riplay.ui.styling.Dimensions
 import it.fast4x.riplay.ui.styling.secondary
+import it.fast4x.riplay.ui.styling.tight
 import it.fast4x.riplay.utils.colorPalette
 import it.fast4x.riplay.utils.typography
 import kotlinx.coroutines.launch
@@ -97,60 +99,60 @@ fun About() {
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 16.dp)
     ) {
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
         // === Hero ===
         StaggeredEntry(index = 0) {
             AboutHeroCard()
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(32.dp))
 
         // === Social ===
         StaggeredEntry(index = 1) {
-            SectionLabel(stringResource(R.string.settings_about_connect))
-            Spacer(modifier = Modifier.height(10.dp))
+          Column {
+            NoirEyebrow(
+                text = stringResource(R.string.settings_about_connect),
+                modifier = Modifier.padding(horizontal = 4.dp),
+            )
+            Spacer(modifier = Modifier.height(14.dp))
             Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(colors.background1)
-                    .padding(horizontal = 16.dp, vertical = 18.dp)
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
             ) {
                 SocialChip(
                     iconId = R.drawable.brand_facebook,
                     label = "Facebook",
-                    modifier = Modifier.weight(1f),
                 ) { uriHandler.openUri("https://www.facebook.com/yammbo") }
                 SocialChip(
                     iconId = R.drawable.brand_instagram,
                     label = "Instagram",
-                    modifier = Modifier.weight(1f),
                 ) { uriHandler.openUri("https://instagram.com/yammbo_com") }
                 SocialChip(
                     iconId = R.drawable.brand_x,
                     label = "X",
-                    modifier = Modifier.weight(1f),
                 ) { uriHandler.openUri("https://x.com/yammbo_com") }
                 SocialChip(
                     iconId = R.drawable.brand_tiktok,
                     label = "TikTok",
-                    modifier = Modifier.weight(1f),
                 ) { uriHandler.openUri("https://www.tiktok.com/@yammbo_com") }
                 SocialChip(
                     iconId = R.drawable.brand_whatsapp,
                     label = "WhatsApp",
-                    modifier = Modifier.weight(1f),
                 ) { uriHandler.openUri("https://api.whatsapp.com/send?phone=5623464876") }
             }
+          }
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(28.dp))
 
         // === Support ===
         StaggeredEntry(index = 2) {
-            SectionLabel(stringResource(R.string.settings_about_support))
+          Column {
+            NoirEyebrow(
+                text = stringResource(R.string.settings_about_support),
+                modifier = Modifier.padding(horizontal = 4.dp),
+            )
             Spacer(modifier = Modifier.height(10.dp))
             LinkGroup {
                 AboutLinkRow(
@@ -177,13 +179,18 @@ fun About() {
                     iconId = R.drawable.alert_circle,
                 ) { showBugReportSheet = true }
             }
+          }
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
         // === Legal ===
         StaggeredEntry(index = 3) {
-            SectionLabel(stringResource(R.string.settings_about_legal))
+          Column {
+            NoirEyebrow(
+                text = stringResource(R.string.settings_about_legal),
+                modifier = Modifier.padding(horizontal = 4.dp),
+            )
             Spacer(modifier = Modifier.height(10.dp))
             LinkGroup {
                 AboutLinkRow(
@@ -198,6 +205,7 @@ fun About() {
                     iconId = R.drawable.singlepage,
                 ) { uriHandler.openUri("https://music.yammbo.com/pages/terms-of-service") }
             }
+          }
         }
 
         Spacer(modifier = Modifier.height(28.dp))
@@ -228,7 +236,7 @@ fun About() {
             }
         }
 
-        Spacer(modifier = Modifier.height(Dimensions.bottomSpacer))
+        Spacer(modifier = Modifier.navigationBarsPadding().height(Dimensions.bottomSpacer + 24.dp))
     }
 
     if (showBugReportSheet) {
@@ -406,117 +414,75 @@ private fun BugReportSheet(
 private fun AboutHeroCard() {
     val colors = colorPalette()
     val typo = typography()
-    Box(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(28.dp))
-            .background(
-                Brush.linearGradient(
-                    colors = listOf(
-                        colors.accent.copy(alpha = 0.28f),
-                        colors.background2.copy(alpha = 0.92f),
-                    )
-                )
-            )
-            .padding(vertical = 32.dp, horizontal = 24.dp),
+            .padding(vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally,
+        Box(
+            modifier = Modifier
+                .size(88.dp)
+                .clip(CircleShape)
+                .border(1.dp, colors.text.copy(alpha = 0.20f), CircleShape),
+            contentAlignment = Alignment.Center,
         ) {
-            // App icon — circle backdrop with subtle border for depth.
-            Box(
-                modifier = Modifier
-                    .size(88.dp)
-                    .clip(CircleShape)
-                    .background(colors.background0)
-                    .border(
-                        width = 2.dp,
-                        color = colors.accent.copy(alpha = 0.35f),
-                        shape = CircleShape,
-                    ),
-                contentAlignment = Alignment.Center,
-            ) {
-                Image(
-                    painter = painterResource(R.drawable.yambo_icon),
-                    contentDescription = null,
-                    colorFilter = ColorFilter.tint(colors.text),
-                    modifier = Modifier.size(48.dp),
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            BasicText(
-                text = "Yammbo Music",
-                style = typo.l.copy(
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 26.sp,
-                    color = colors.text,
-                    textAlign = TextAlign.Center,
-                ),
+            Image(
+                painter = painterResource(R.drawable.yambo_icon),
+                contentDescription = null,
+                colorFilter = ColorFilter.tint(colors.text),
+                modifier = Modifier.size(48.dp),
             )
+        }
 
-            Spacer(modifier = Modifier.height(2.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
-            BasicText(
-                text = stringResource(R.string.settings_about_tagline),
-                style = typo.s.copy(
-                    color = colors.textSecondary,
-                    textAlign = TextAlign.Center,
-                ),
+        BasicText(
+            text = "Yammbo Music",
+            style = typo.xxl.tight.copy(
+                fontWeight = FontWeight.Bold,
+                fontSize = 30.sp,
+                color = colors.text,
+                textAlign = TextAlign.Center,
+            ),
+        )
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        BasicText(
+            text = stringResource(R.string.settings_about_tagline),
+            style = typo.s.copy(
+                color = colors.textSecondary,
+                textAlign = TextAlign.Center,
+            ),
+        )
+
+        Spacer(modifier = Modifier.height(18.dp))
+
+        // Version pill: outlined, mono eyebrow.
+        val pillShape = RoundedCornerShape(percent = 50)
+        Box(
+            modifier = Modifier
+                .clip(pillShape)
+                .border(1.dp, colors.text.copy(alpha = 0.16f), pillShape)
+                .padding(horizontal = 14.dp, vertical = 7.dp),
+        ) {
+            NoirEyebrow(
+                text = stringResource(R.string.settings_about_version, BuildConfig.VERSION_NAME),
             )
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            // Version pill
-            Row(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(colors.background0.copy(alpha = 0.65f))
-                    .padding(horizontal = 14.dp, vertical = 7.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(6.dp)
-                        .clip(CircleShape)
-                        .background(colors.accent),
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                BasicText(
-                    text = stringResource(R.string.settings_about_version, BuildConfig.VERSION_NAME),
-                    style = typo.xs.copy(
-                        fontWeight = FontWeight.SemiBold,
-                        color = colors.text,
-                    ),
-                )
-            }
         }
     }
 }
 
 @Composable
-private fun SectionLabel(text: String) {
-    BasicText(
-        text = text.uppercase(),
-        style = typography().xxs.copy(
-            fontWeight = FontWeight.SemiBold,
-            color = colorPalette().textSecondary,
-            letterSpacing = 1.sp,
-        ),
-        modifier = Modifier.padding(horizontal = 4.dp),
-    )
-}
-
-@Composable
 private fun LinkGroup(content: @Composable () -> Unit) {
+    val shape = RoundedCornerShape(24.dp)
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
+            .clip(shape)
             .background(colorPalette().background1)
-            .padding(horizontal = 4.dp),
+            .border(1.dp, colorPalette().text.copy(alpha = 0.10f), shape),
     ) {
         content()
     }
@@ -537,9 +503,9 @@ private fun SocialChip(
         // Black and white only: the platform colors are gone on purpose.
         Box(
             modifier = Modifier
-                .size(50.dp)
+                .size(56.dp)
                 .clip(CircleShape)
-                .background(colorPalette().background2),
+                .border(1.dp, colorPalette().text.copy(alpha = 0.14f), CircleShape),
             contentAlignment = Alignment.Center,
         ) {
             Image(
@@ -549,10 +515,11 @@ private fun SocialChip(
                 modifier = Modifier.size(24.dp),
             )
         }
-        Spacer(modifier = Modifier.height(6.dp))
+        Spacer(modifier = Modifier.height(8.dp))
         BasicText(
             text = label,
             style = typo.xxs.copy(
+                fontSize = 12.sp,
                 color = colorPalette().textSecondary,
                 textAlign = TextAlign.Center,
             ),
@@ -574,14 +541,13 @@ private fun AboutLinkRow(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
             .pressable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 12.dp),
+            .padding(horizontal = 16.dp, vertical = 12.dp),
     ) {
         Box(
             modifier = Modifier
-                .size(40.dp)
-                .clip(CircleShape)
+                .size(34.dp)
+                .clip(RoundedCornerShape(10.dp))
                 .background(colors.background2),
             contentAlignment = Alignment.Center,
         ) {
@@ -589,23 +555,20 @@ private fun AboutLinkRow(
                 painter = painterResource(iconId),
                 contentDescription = null,
                 colorFilter = ColorFilter.tint(colors.text),
-                modifier = Modifier.size(20.dp),
+                modifier = Modifier.size(18.dp),
             )
         }
         Spacer(modifier = Modifier.width(14.dp))
         Column(modifier = Modifier.weight(1f)) {
             BasicText(
                 text = title,
-                style = typo.s.copy(
-                    fontWeight = FontWeight.SemiBold,
-                    color = colors.text,
-                ),
+                style = typo.s.copy(fontSize = 16.sp, color = colors.text),
                 maxLines = 1,
             )
             Spacer(modifier = Modifier.height(2.dp))
             BasicText(
                 text = subtitle,
-                style = typo.xxs.secondary,
+                style = typo.xxs.copy(fontSize = 13.sp, color = colors.textSecondary),
                 maxLines = 1,
             )
         }
@@ -622,9 +585,9 @@ private fun AboutLinkRow(
 private fun AboutRowDivider() {
     Box(
         modifier = Modifier
-            .padding(start = 66.dp)
+            .padding(start = 64.dp)
             .fillMaxWidth()
             .height(1.dp)
-            .background(colorPalette().background2),
+            .background(colorPalette().text.copy(alpha = 0.10f)),
     )
 }

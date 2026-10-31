@@ -46,8 +46,9 @@ suspend fun Environment.searchSuggestionsWithItems(body: SearchSuggestionsBody) 
 
     val recommendedItems =
         response.contents?.getOrNull(1)?.searchSuggestionsSectionRenderer?.contents?.mapNotNull {
+            // One malformed item (e.g. an artist run without a link) must not drop the whole list.
             it.musicResponsiveListItemRenderer?.let { renderer ->
-                SearchSuggestionPage.fromMusicResponsiveListItemRenderer(renderer)
+                runCatching { SearchSuggestionPage.fromMusicResponsiveListItemRenderer(renderer) }.getOrNull()
             }
         }.orEmpty()
 
@@ -103,20 +104,20 @@ object SearchSuggestionPage {
                 Environment.SongItem(
                     info = Environment.Info(
                         name = "${explicitBadge}${renderer.flexColumns.firstOrNull()?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.firstOrNull()?.text}",
-                        endpoint = renderer.navigationEndpoint?.endpoint as NavigationEndpoint.Endpoint.Watch
+                        endpoint = renderer.navigationEndpoint?.endpoint as? NavigationEndpoint.Endpoint.Watch ?: return null
                     ),
                     authors = renderer.flexColumns.getOrNull(1)?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.splitBySeparator()
                         ?.getOrNull(1)?.oddElements()?.map {
                             Environment.Info(
                                 name = it.text,
-                                endpoint = it.navigationEndpoint?.endpoint as NavigationEndpoint.Endpoint.Browse
+                                endpoint = it.navigationEndpoint?.endpoint as? NavigationEndpoint.Endpoint.Browse
                             )
                         } ?: return null,
                     album = renderer.flexColumns.getOrNull(2)?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.firstOrNull()
                         ?.let {
                             Environment.Info(
                                 name = it.text,
-                                endpoint = it.navigationEndpoint?.endpoint as NavigationEndpoint.Endpoint.Browse
+                                endpoint = it.navigationEndpoint?.endpoint as? NavigationEndpoint.Endpoint.Browse
                             )
                         },
                     durationText = null,
@@ -131,7 +132,7 @@ object SearchSuggestionPage {
                 Environment.ArtistItem(
                     info = Environment.Info(
                         name = renderer.flexColumns.firstOrNull()?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.firstOrNull()?.text ?: return null,
-                        endpoint = renderer.navigationEndpoint?.endpoint as NavigationEndpoint.Endpoint.Browse
+                        endpoint = renderer.navigationEndpoint?.endpoint as? NavigationEndpoint.Endpoint.Browse ?: return null
                     ),
                     thumbnail = renderer.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.getBestQuality()
                         ?: return null,
@@ -144,13 +145,13 @@ object SearchSuggestionPage {
                 Environment.AlbumItem(
                     info = Environment.Info(
                         name = renderer.flexColumns.firstOrNull()?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.firstOrNull()?.text ?: return null,
-                        endpoint = renderer.navigationEndpoint?.endpoint as NavigationEndpoint.Endpoint.Browse
+                        endpoint = renderer.navigationEndpoint?.endpoint as? NavigationEndpoint.Endpoint.Browse ?: return null
                     ),
                     authors = renderer.flexColumns.getOrNull(1)?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.splitBySeparator()
                         ?.getOrNull(1)?.oddElements()?.map {
                             Environment.Info(
                                 name = it.text,
-                                endpoint = it.navigationEndpoint?.endpoint as NavigationEndpoint.Endpoint.Browse
+                                endpoint = it.navigationEndpoint?.endpoint as? NavigationEndpoint.Endpoint.Browse
                             )
                         } ?: return null,
                     year = secondaryLine.lastOrNull()?.firstOrNull()?.text,
