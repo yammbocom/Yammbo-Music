@@ -2,6 +2,8 @@ package it.fast4x.riplay.extensions.cast
 
 import it.fast4x.riplay.extensions.yammboapi.AppEvents
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import androidx.media3.common.MediaItem
 import com.google.android.gms.cast.MediaInfo
 import com.google.android.gms.cast.MediaLoadRequestData
@@ -42,6 +44,17 @@ object CastManager {
     private var castContext: CastContext? = null
     private var appContext: Context? = null
     private var session: CastSession? = null
+
+    /**
+     * The Cast SDK takes calls on the main thread only. Lyrics are read and fetched on IO, and
+     * the IllegalStateException that came back was swallowed by runCatching, so not one lyric
+     * ever reached the TV from the app; the TV's own log showed LOAD and nothing after it.
+     */
+    private val mainHandler = Handler(Looper.getMainLooper())
+
+    private fun onMain(block: () -> Unit) {
+        if (Looper.myLooper() == Looper.getMainLooper()) block() else mainHandler.post(block)
+    }
     private var youTubeChannelOpen = false
 
     /** Receiver the next session will launch; see [prepareFor]. */
@@ -357,26 +370,28 @@ object CastManager {
     var showVideo: Boolean = false
         set(value) {
             field = value
-            val castSession = session ?: return
-            if (!youTubeChannelOpen) return
-            runCatching {
-                castSession.sendMessage(
-                    CastMessages.NAMESPACE,
-                    CastMessages.command(CastMessages.SET_VIDEO_MODE, "showVideo" to value.toString())
-                )
+            onMain {
+                val castSession = session ?: return@onMain
+                if (!youTubeChannelOpen) return@onMain
+                runCatching {
+                    castSession.sendMessage(
+                        CastMessages.NAMESPACE,
+                        CastMessages.command(CastMessages.SET_VIDEO_MODE, "showVideo" to value.toString())
+                    )
+                }.onFailure { Timber.w("CastManager: could not send video mode: ${it.message}") }
             }
         }
 
     /** Sends the song's lyrics so the TV can follow along. Empty text clears them. */
-    fun sendLyrics(text: String?) {
-        val castSession = session ?: return
-        if (!youTubeChannelOpen) return
+    fun sendLyrics(text: String?) = onMain {
+        val castSession = session ?: return@onMain
+        if (!youTubeChannelOpen) return@onMain
         runCatching {
             castSession.sendMessage(
                 CastMessages.NAMESPACE,
                 CastMessages.command(CastMessages.SET_LYRICS, "lyrics" to text.orEmpty())
             )
-        }
+        }.onFailure { Timber.w("CastManager: could not send lyrics: ${it.message}") }
     }
 
     private fun castRadio(castSession: CastSession, item: MediaItem, streamUrl: String): Boolean {
