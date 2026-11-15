@@ -165,6 +165,7 @@ import it.fast4x.riplay.enums.ThumbnailCoverType
 import it.fast4x.riplay.enums.ThumbnailRoundness
 import it.fast4x.riplay.enums.ThumbnailType
 import it.fast4x.riplay.data.models.Info
+import it.fast4x.riplay.data.models.orArtistsFromExtras
 import it.fast4x.riplay.data.models.Song
 import it.fast4x.riplay.data.models.toUiMedia
 import it.fast4x.riplay.utils.thumbnailShape
@@ -614,10 +615,13 @@ fun LocalPlayer(
     if (showlyricsthumbnail) expandedplayer = false
 
     LaunchedEffect(mediaItem.mediaId) {
-        withContext(Dispatchers.IO) {
-            albumInfo = Database.songAlbumInfo(mediaItem.mediaId)
-            artistsInfo = Database.songArtistInfo(mediaItem.mediaId)
+        // Read off the main thread, publish on it: a state written from Dispatchers.IO while a
+        // recomposition is writing it too crashes the Recomposer ("Unsupported concurrent change").
+        val (album, artists) = withContext(Dispatchers.IO) {
+            Database.songAlbumInfo(mediaItem.mediaId) to Database.songArtistInfo(mediaItem.mediaId)
         }
+        albumInfo = album
+        artistsInfo = artists.orArtistsFromExtras(mediaItem)
         updateBrush = true
     }
 
@@ -645,15 +649,8 @@ fun LocalPlayer(
 
 
 
-    if (artistsInfo?.isEmpty() == true && ExistIdsExtras.equals(0).not()) {
-        artistsInfo = artistNames.let { artistNames ->
-            artistIds.let { artistIds ->
-                artistNames.zip(artistIds).map {
-                    Info(it.second, it.first)
-                }
-            }
-        }
-    }
+    // The fallback to the artists carried in the extras is applied where artistsInfo is loaded
+    // (orArtistsFromExtras): writing it here, during composition, raced the IO load.
 
     var likedAt by rememberSaveable {
         mutableStateOf<Long?>(null)

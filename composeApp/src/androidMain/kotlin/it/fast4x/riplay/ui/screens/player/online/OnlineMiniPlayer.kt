@@ -663,26 +663,26 @@ fun OnlineMiniPlayer(
         }
 
         LaunchedEffect(mediaItem.mediaId) {
-            Database.likedAt(mediaItem.mediaId).distinctUntilChanged().collect { likedAt = it }
+            // likedAt is collected by the effect at the top of OnlineMiniPlayer. Collecting it
+            // here too never returned, so the song collector below never ran.
             Database.song(mediaItem.mediaId).distinctUntilChanged()
                 .collect { songIsAudioOnly = it?.isVideo == false }
         }
 
 
         LaunchedEffect(mediaItem) {
-            // Ensure that the song is in database
-            CoroutineScope(Dispatchers.IO).launch {
-                Database.asyncTransaction {
-                    insert(mediaItem.asSong)
-                }
-
-                Database.likedAt(mediaItem.mediaId).distinctUntilChanged().collect { likedAt = it }
-
+            // Ensure that the song is in database. The likedAt collector that also lived here ran
+            // in its own CoroutineScope, so it was never cancelled: one more per song played.
+            Database.asyncTransaction {
+                insert(mediaItem.asSong)
             }
-            withContext(Dispatchers.IO) {
-                albumInfo = Database.songAlbumInfo(mediaItem.mediaId)
-                artistsInfo = Database.songArtistInfo(mediaItem.mediaId)
+            // Read off the main thread, publish on it (states written from Dispatchers.IO can
+            // collide with a recomposition and crash the Recomposer)
+            val (album, artists) = withContext(Dispatchers.IO) {
+                Database.songAlbumInfo(mediaItem.mediaId) to Database.songArtistInfo(mediaItem.mediaId)
             }
+            albumInfo = album
+            artistsInfo = artists
 
             stepToUpdateStats = 1
 

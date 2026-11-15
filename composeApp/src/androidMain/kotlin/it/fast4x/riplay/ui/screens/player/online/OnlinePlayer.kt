@@ -181,6 +181,7 @@ import it.fast4x.riplay.extensions.cast.CastButton
 import it.fast4x.riplay.extensions.cast.CastManager
 import it.fast4x.riplay.data.Database
 import it.fast4x.riplay.data.models.Info
+import it.fast4x.riplay.data.models.orArtistsFromExtras
 import it.fast4x.riplay.data.models.Song
 import it.fast4x.riplay.data.models.defaultQueue
 import it.fast4x.riplay.data.models.toUiMedia
@@ -646,10 +647,13 @@ fun OnlinePlayer(
     if (showlyricsthumbnail) expandedplayer = false
 
     LaunchedEffect(mediaItem.mediaId) {
-        withContext(Dispatchers.IO) {
-            albumInfo = Database.songAlbumInfo(mediaItem.mediaId)
-            artistsInfo = Database.songArtistInfo(mediaItem.mediaId)
+        // Read off the main thread, publish on it: a state written from Dispatchers.IO while a
+        // recomposition is writing it too crashes the Recomposer ("Unsupported concurrent change").
+        val (album, artists) = withContext(Dispatchers.IO) {
+            Database.songAlbumInfo(mediaItem.mediaId) to Database.songArtistInfo(mediaItem.mediaId)
         }
+        albumInfo = album
+        artistsInfo = artists.orArtistsFromExtras(mediaItem)
         updateBrush = true
     }
 
@@ -677,15 +681,8 @@ fun OnlinePlayer(
 
 
 
-    if (artistsInfo?.isEmpty() == true && ExistIdsExtras.equals(0).not()) {
-        artistsInfo = artistNames.let { artistNames ->
-            artistIds.let { artistIds ->
-                artistNames.zip(artistIds).map {
-                    Info(it.second, it.first)
-                }
-            }
-        }
-    }
+    // The fallback to the artists carried in the extras is applied where artistsInfo is loaded
+    // (orArtistsFromExtras): writing it here, during composition, raced the IO load.
 
     var likedAt by rememberSaveable {
         mutableStateOf<Long?>(null)
@@ -1372,18 +1369,11 @@ fun OnlinePlayer(
 
     LaunchedEffect(mediaItem) {
 
-        // Ensure that the song is in database
-        CoroutineScope(Dispatchers.IO).launch {
-            Database.asyncTransaction {
-                insert(mediaItem.asSong)
-            }
-
-            Database.likedAt(mediaItem.mediaId).distinctUntilChanged().collect { likedAt = it }
-
-        }
-        withContext(Dispatchers.IO) {
-            albumInfo = Database.songAlbumInfo(mediaItem.mediaId)
-            artistsInfo = Database.songArtistInfo(mediaItem.mediaId)
+        // Ensure that the song is in database. likedAt, albumInfo and artistsInfo are loaded by
+        // the effects keyed on mediaId above; the copies that lived here never stopped (one Room
+        // collector leaked per song) and wrote those states from Dispatchers.IO.
+        Database.asyncTransaction {
+            insert(mediaItem.asSong)
         }
         updateBrush = true
 
