@@ -12,6 +12,15 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import it.fast4x.riplay.ui.components.noirContentWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -94,12 +103,14 @@ fun NoirPlayerTopBar(
     onDismiss: () -> Unit,
     onMenu: (() -> Unit)?,
     modifier: Modifier = Modifier,
-    onLogo: (() -> Unit)? = null
+    onLogo: (() -> Unit)? = null,
+    // The tablet's two-pane player spreads the bar across the screen, like the panes under it.
+    contentMax: Dp = 560.dp,
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
-            .noirContentWidth(560.dp)
+            .noirContentWidth(contentMax)
             .padding(horizontal = 8.dp)
             .height(52.dp)
     ) {
@@ -287,7 +298,8 @@ fun NoirTimeRow(elapsed: String, quality: String?, remaining: String, modifier: 
     Row(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
-        modifier = modifier.noirContentWidth(560.dp)
+        // As wide as the progress bar above it: a cap here pulled the times inwards on tablets.
+        modifier = modifier.fillMaxWidth()
     ) {
         BasicText(text = elapsed, style = style, maxLines = 1)
         if (!quality.isNullOrBlank()) BasicText(text = quality.uppercase(), style = style, maxLines = 1)
@@ -297,3 +309,80 @@ fun NoirTimeRow(elapsed: String, quality: String?, remaining: String, modifier: 
 
 /** The big cover in the player. */
 val NoirCoverShape = RoundedCornerShape(28.dp)
+
+
+/**
+ * Tablet held sideways: the cover on the left and the controls on the right. With [panelOpen]
+ * the left pane keeps the cover and the controls stacked, and the right one shows [panel]
+ * (lyrics or the queue) instead of sending them full screen over everything.
+ */
+@Composable
+fun NoirTabletLandscapePlayer(
+    panelOpen: Boolean,
+    topBar: @Composable () -> Unit,
+    cover: @Composable (Modifier) -> Unit,
+    controls: @Composable (Modifier) -> Unit,
+    actions: @Composable (Modifier) -> Unit,
+    panel: @Composable (Modifier) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom))
+    ) {
+        topBar()
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(48.dp),
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .padding(start = 40.dp, end = 40.dp, top = 8.dp, bottom = 24.dp)
+        ) {
+            if (panelOpen) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier
+                        .weight(0.42f)
+                        .fillMaxHeight()
+                ) {
+                    BoxWithConstraints(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                    ) {
+                        cover(Modifier.size(minOf(maxWidth, maxHeight)))
+                    }
+                    Spacer(Modifier.height(20.dp))
+                    controls(Modifier.fillMaxWidth())
+                    actions(Modifier.fillMaxWidth().padding(top = 8.dp))
+                }
+                panel(
+                    Modifier
+                        .weight(0.58f)
+                        .fillMaxHeight()
+                        .clip(RoundedCornerShape(28.dp))
+                )
+            } else {
+                BoxWithConstraints(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                ) {
+                    cover(Modifier.size(minOf(maxWidth, maxHeight)))
+                }
+                Column(
+                    verticalArrangement = Arrangement.Center,
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                ) {
+                    controls(Modifier.fillMaxWidth())
+                    actions(Modifier.fillMaxWidth().padding(top = 20.dp))
+                }
+            }
+        }
+    }
+}

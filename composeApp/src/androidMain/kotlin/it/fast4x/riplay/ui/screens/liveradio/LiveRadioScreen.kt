@@ -82,6 +82,7 @@ import it.fast4x.riplay.extensions.preferences.rememberPreference
 import it.fast4x.riplay.data.Database
 import it.fast4x.riplay.ui.components.CollapsingTitleEffect
 import it.fast4x.riplay.ui.components.NoirContentMax
+import it.fast4x.riplay.ui.components.NoirFillFrom
 import it.fast4x.riplay.ui.components.rememberNoirLayout
 import it.fast4x.riplay.ui.components.cascadeEntry
 import it.fast4x.riplay.ui.components.collapsingTitle
@@ -228,6 +229,7 @@ fun LiveRadio() {
 
     fun play(station: RadioStation) = playRadioStation(binder, station, coroutineScope)
 
+    val stationColumns = if (rememberNoirLayout().screenWidth >= NoirFillFrom) 2 else 1
     val listState = rememberLazyListState()
     // The "header" item comes right after the optional eyebrow
     val titleProgress = rememberTitleCollapse(listState, if (liveCount != null) 1 else 0)
@@ -370,14 +372,33 @@ fun LiveRadio() {
                 )
             }
 
-            itemsIndexed(shownStations, key = { _, station -> station.stationuuid }) { rowIndex, station ->
-                RadioStationRow(
-                    modifier = Modifier.cascadeEntry(6 + rowIndex),
-                    station = station,
-                    isPlaying = nowPlayingId?.let(::radioStreamUrlOf) == station.streamUrl,
-                    onClick = { play(station) }
-                )
-            }
+            if (stationColumns == 1)
+                itemsIndexed(shownStations, key = { _, station -> station.stationuuid }) { rowIndex, station ->
+                    RadioStationRow(
+                        modifier = Modifier.cascadeEntry(6 + rowIndex),
+                        station = station,
+                        isPlaying = nowPlayingId?.let(::radioStreamUrlOf) == station.streamUrl,
+                        onClick = { play(station) }
+                    )
+                }
+            else
+                // A tablet held sideways: two stations per row instead of rows spanning the screen.
+                itemsIndexed(
+                    shownStations.chunked(stationColumns),
+                    key = { _, row -> row.first().stationuuid }
+                ) { rowIndex, row ->
+                    Row(modifier = Modifier.cascadeEntry(6 + rowIndex)) {
+                        row.forEach { station ->
+                            RadioStationRow(
+                                modifier = Modifier.weight(1f),
+                                station = station,
+                                isPlaying = nowPlayingId?.let(::radioStreamUrlOf) == station.streamUrl,
+                                onClick = { play(station) }
+                            )
+                        }
+                        repeat(stationColumns - row.size) { Spacer(Modifier.weight(1f)) }
+                    }
+                }
 
             item(key = "state") {
                 Box(

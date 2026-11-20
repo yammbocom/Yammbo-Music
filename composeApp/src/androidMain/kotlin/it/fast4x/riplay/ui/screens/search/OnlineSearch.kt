@@ -556,7 +556,7 @@ fun OnlineSearch(
                         TitleMiniSection(
                             title = stringResource(R.string.search_browse_title),
                             modifier = Modifier
-                                .padding(start = 12.dp)
+                                .padding(start = 16.dp)
                                 .padding(top = 18.dp, bottom = 6.dp)
                         )
                     }

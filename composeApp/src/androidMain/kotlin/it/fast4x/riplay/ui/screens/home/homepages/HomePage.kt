@@ -1,5 +1,6 @@
 package it.fast4x.riplay.ui.screens.home.homepages
 
+import it.fast4x.riplay.ui.components.rememberNoirLayout
 import android.annotation.SuppressLint
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -588,13 +589,15 @@ fun HomePage(
                 )
 
         ) {
-            val quickPicksLazyGridItemWidthFactor =
-                if (isLandscape && maxWidth * 0.475f >= 320.dp) {
-                    0.475f
-                } else {
-                    0.9f
-                }
-            val itemInHorizontalGridWidth = maxWidth * quickPicksLazyGridItemWidthFactor
+            // Tablets show as many ~380 dp columns as fit, plus a sliver of the next one so it
+            // reads as a row that scrolls; phones keep one column and a peek.
+            val quickPicksColumns = (maxWidth / 380.dp).toInt()
+            val isTabletLayout = rememberNoirLayout().isTablet
+            val itemInHorizontalGridWidth =
+                if (isTabletLayout && quickPicksColumns >= 2)
+                    (maxWidth - 16.dp) / (quickPicksColumns + 0.15f)
+                else if (isLandscape && maxWidth * 0.475f >= 320.dp) maxWidth * 0.475f
+                else maxWidth * 0.9f
 
             val moodItemWidthFactor =
                 if (isLandscape && maxWidth * 0.475f >= 320.dp) 0.475f else 0.9f
@@ -672,9 +675,17 @@ fun HomePage(
                         heroArtists.isNotEmpty() -> heroArtists.joinToString(", ")
                         else -> null
                     }
+                    // Distinct covers for the hero's mosaic: songs of one album share theirs.
+                    val heroImages = (listOfNotNull(trending?.thumbnailUrl) +
+                            relatedPage?.songs.orEmpty().mapNotNull { it.thumbnail?.url })
+                        .map { it.thumbnail(480) }
+                        .filterNotNull()
+                        .distinct()
+                        .take(8)
                     NoirHeroCard(
                         modifier = Modifier.cascadeEntry(4),
                         image = heroImage,
+                        images = heroImages,
                         subtitle = heroSubtitle,
                         title = stringResource(R.string.quick_picks),
                         eyebrow = when (playEventType) {

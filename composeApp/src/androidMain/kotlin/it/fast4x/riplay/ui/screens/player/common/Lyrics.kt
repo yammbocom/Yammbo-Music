@@ -1,5 +1,8 @@
 package it.fast4x.riplay.ui.screens.player.common
 
+import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.PlayerConstants
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.runtime.collectAsState
 import android.app.SearchManager
 import android.content.ActivityNotFoundException
 import android.content.Intent
@@ -2058,6 +2061,11 @@ fun Lyrics(
                             .size(30.dp)
 
                     )
+                    // Online songs play in the web player, not in ExoPlayer: its state is the one to read.
+                    val onlineState = binder?.onlinePlayerState?.collectAsState()
+                    val usesLocal = binder?.player?.currentMediaItem?.usesLocalPlayer == true
+                    val isPlayingNow = if (usesLocal) binder?.player?.isPlaying == true
+                        else onlineState?.value == PlayerConstants.PlayerState.PLAYING
                     Box {
                         Box(modifier = Modifier
                             .align(Alignment.Center)
@@ -2065,18 +2073,21 @@ fun Lyrics(
                             .background(colorPalette().accent, RoundedCornerShape(15.dp))
                         ){}
                         Image(
-                            painter = painterResource(if (binder?.player?.isPlaying == true) R.drawable.pause else R.drawable.play),
+                            painter = painterResource(if (isPlayingNow) R.drawable.pause else R.drawable.play),
                             contentDescription = null,
-                            colorFilter = ColorFilter.tint(if (colorPaletteName == ColorPaletteName.PureBlack) Color.Black else colorPalette().text),
+                            // Ink that reads on the accent square: the white accent of Noir hid a white icon.
+                            colorFilter = ColorFilter.tint(if (colorPalette().accent.luminance() > 0.5f) Color.Black else Color.White),
                             modifier = Modifier
                                 .clickable(
                                     indication = ripple(bounded = false),
                                     interactionSource = remember { MutableInteractionSource() },
                                     onClick = {
-                                        if (binder?.player?.isPlaying == true) {
-                                            binder.callPause({})
-                                        } else {
+                                        if (isPlayingNow) {
+                                            binder?.callPause({})
+                                        } else if (usesLocal) {
                                             binder?.player?.play()
+                                        } else {
+                                            binder?.onlinePlayerPlay()
                                         }
                                     },
                                 )

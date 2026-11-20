@@ -1,5 +1,7 @@
 package it.fast4x.riplay.ui.screens.artist
 
+import it.fast4x.riplay.ui.components.NoirContentMax
+import it.fast4x.riplay.ui.components.rememberNoirLayout
 import it.fast4x.riplay.ui.components.themed.openAccountOrSettings
 import it.fast4x.riplay.ui.screens.search.openHomeTab
 import android.annotation.SuppressLint
@@ -280,25 +282,9 @@ fun ArtistOverview(
         )
     }
 
-    Box(
-        modifier = Modifier
-            .background(colorPalette().background0)
-            //.fillMaxSize()
-            .fillMaxHeight()
-            .fillMaxWidth(
-                if (NavigationBarPosition.Right.isCurrent())
-                    Dimensions.contentWidthRightBar
-                else
-                    1f
-            )
-    ) {
-
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-        ) {
-
-            // Stable key: the header must survive the data arriving or its bounds would jump.
-            item(key = "header") {
+    // The page's header: the photo with the name, then the action bar. A tablet held sideways
+    // shows it as a fixed left pane beside the scrolling sections instead of as their top.
+    val artistHeader: @Composable (pane: Boolean) -> Unit = { pane ->
                 // Same fetch for Play and Shuffle: the first song section of the artist page.
                 fun playArtistSongs(shuffled: Boolean) {
                     CoroutineScope(Dispatchers.IO).launch {
@@ -327,20 +313,8 @@ fun ArtistOverview(
                     }
                 }
 
-                ArtistHero(
-                    // Landscape has no room for the photo: only the name is shown.
-                    imageUrl = if (isLandscape) null else artistPage?.artist?.thumbnail?.url,
-                    name = artistPage?.artist?.info?.name ?: handoff?.title ?: "",
-                    eyebrow = listOfNotNull(
-                        stringResource(R.string.noir_kind_artist),
-                        artistPage?.subscribers?.let { String.format(stringResource(R.string.artist_subscribers), it) }
-                    ).joinToString(" · "),
-                    onBack = { navController.popBackStack() },
-                    sharedKey = if (isLandscape) null else handoff?.key,
-                    previewUrl = if (isLandscape) null else handoff?.url
-                )
-
-                ArtistActionBar(onPlay = { playArtistSongs(shuffled = false) }) {
+                val actionBar: @Composable (inHero: Boolean) -> Unit = { inHero ->
+                ArtistActionBar(onPlay = { playArtistSongs(shuffled = false) }, inHero = inHero) {
                     ArtistFollowPill(
                         following = artist?.bookmarkedAt != null,
                         onClick = {
@@ -413,7 +387,59 @@ fun ArtistOverview(
                         )
                     }
                 }
-            }
+                }
+
+                // A phone held sideways has no room for the photo: only the name is shown. A
+                // tablet does, and without it the page opens on an empty black band.
+                val heroPhoto = !isLandscape || pane
+                ArtistHero(
+                    imageUrl = if (heroPhoto) artistPage?.artist?.thumbnail?.url else null,
+                    name = artistPage?.artist?.info?.name ?: handoff?.title ?: "",
+                    eyebrow = listOfNotNull(
+                        stringResource(R.string.noir_kind_artist),
+                        artistPage?.subscribers?.let { String.format(stringResource(R.string.artist_subscribers), it) }
+                    ).joinToString(" · "),
+                    onBack = { navController.popBackStack() },
+                    sharedKey = if (heroPhoto) handoff?.key else null,
+                    previewUrl = if (heroPhoto) handoff?.url else null,
+                    pane = pane,
+                    footer = { if (pane) actionBar(true) }
+                )
+                if (!pane) actionBar(false)
+    }
+    val paneLayout = rememberNoirLayout().isTabletLandscape
+
+    Box(
+        modifier = Modifier
+            .background(colorPalette().background0)
+            //.fillMaxSize()
+            .fillMaxHeight()
+            .fillMaxWidth(
+                if (NavigationBarPosition.Right.isCurrent())
+                    Dimensions.contentWidthRightBar
+                else
+                    1f
+            )
+    ) {
+
+        Row(modifier = Modifier.fillMaxSize()) {
+        if (paneLayout)
+            Box(
+                modifier = Modifier
+                    .weight(0.42f)
+                    .fillMaxHeight()
+            ) { artistHeader(true) }
+        LazyColumn(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight(),
+        ) {
+
+            // Stable key: the header must survive the data arriving or its bounds would jump.
+            if (!paneLayout)
+                item(key = "header") { artistHeader(false) }
+            else
+                item(key = "paneTop") { Spacer(Modifier.height(20.dp)) }
 
             if (artistPage == null && !loadFailed && handoff != null) {
                 item(key = "loader") {
@@ -554,8 +580,13 @@ fun ArtistOverview(
                     }
                 } else {
                     item {
+                        // Shelves start under their title (which sits in the centred list
+                        // column on a tablet) and still run off the right edge.
+                        // In the tablet pane the list fills the pane, like the shelves.
+                        val shelfStart = if (paneLayout) 16.dp
+                            else rememberNoirLayout().sidePadding(NoirContentMax.List, 0.dp) + 16.dp
                         LazyRow(
-                            contentPadding = PaddingValues(horizontal = 16.dp),
+                            contentPadding = PaddingValues(start = shelfStart, end = 16.dp),
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             items(it.items) { item ->
@@ -663,6 +694,7 @@ fun ArtistOverview(
                 Spacer(modifier = Modifier.height(Dimensions.bottomSpacer))
             }
 
+        }
         }
 
         val showFloatingIcon by rememberPreference(showFloatingIconKey, false)

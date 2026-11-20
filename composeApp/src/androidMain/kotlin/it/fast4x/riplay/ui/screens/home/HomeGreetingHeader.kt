@@ -51,9 +51,7 @@ import it.fast4x.riplay.data.models.Song
 import it.fast4x.riplay.enums.NavRoutes
 import it.fast4x.riplay.extensions.persist.persistList
 import it.fast4x.riplay.extensions.yammboapi.YammboAuthManager
-import it.fast4x.riplay.ui.components.NoirContentMax
 import it.fast4x.riplay.ui.components.RevealImage
-import it.fast4x.riplay.ui.components.noirContentWidth
 import it.fast4x.riplay.ui.components.rememberNoirLayout
 import it.fast4x.riplay.ui.components.pressable
 import it.fast4x.riplay.ui.screens.settings.isYtLoggedIn
@@ -195,7 +193,7 @@ fun HomeGreetingHeader(
 
     Column(
         modifier = Modifier
-            .noirContentWidth(NoirContentMax.Grid)
+            .fillMaxWidth() // edge-aligned with the shelves below, which run full width
             .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 4.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -348,7 +346,7 @@ fun JumpBackInSection() {
     // 2 columns on phones (same as before); more on tablets.
     val cols = rememberNoirLayout().columns(minItem = 170.dp, spacing = 10.dp)
 
-    Column(modifier = Modifier.noirContentWidth(NoirContentMax.Grid)) {
+    Column(modifier = Modifier.fillMaxWidth()) { // edge-aligned with the full-width shelves below
         SectionTitleWithRule(title = stringResource(R.string.home_jump_back_in))
 
         Column(

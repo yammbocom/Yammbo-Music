@@ -5,6 +5,8 @@ import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.navigationBars
@@ -101,7 +103,46 @@ fun NoirBottomChrome(
             exit = fadeOut(tween(150)),
             modifier = Modifier.align(Alignment.BottomCenter)
         ) {
-            Column(Modifier.noirContentWidth(NoirContentMax.Chrome)) {
+            val layout = rememberNoirLayout()
+            val navigationBar: (@Composable (Modifier) -> Unit)? = if (navAtBottom) { barModifier ->
+                Box(barModifier) {
+                    val bar = HorizontalNavigationBar(
+                        tabIndex = selectedTab,
+                        onTabChanged = { index -> openHomeTab(navController, context, index) },
+                        navController = navController
+                    )
+                    bar.add { Item ->
+                        Item(0, stringResource(R.string.home), R.drawable.home)
+                        Item(1, stringResource(R.string.live_radio_tab), R.drawable.radio)
+                        Item(5, stringResource(R.string.podcasts_tab_podcasts), R.drawable.podcasts_tab)
+                        Item(2, stringResource(R.string.my_music), R.drawable.musical_notes)
+                        Item(3, stringResource(R.string.search), R.drawable.search)
+                    }
+                    bar.Draw()
+                }
+            } else null
+
+            // Tablet held sideways: the mini player and the nav pill share one row, so the
+            // short screen keeps more of its height for the page.
+            if (layout.isTabletLandscape && playerAtBottom && navigationBar != null) {
+                val density = LocalDensity.current
+                val bottomInset = with(density) { WindowInsets.navigationBars.getBottom(density).toDp() }
+                Row(
+                    verticalAlignment = Alignment.Bottom,
+                    modifier = Modifier.noirContentWidth(NoirContentMax.ChromeWide)
+                ) {
+                    Column(
+                        Modifier
+                            .weight(1f)
+                            // Centred on the 64 dp pill, which floats 20 dp over the system bar.
+                            .padding(bottom = bottomInset + 20.dp + 2.dp)
+                    ) {
+                        BannerAd()
+                        miniPlayer()
+                    }
+                    navigationBar(Modifier.weight(1f))
+                }
+            } else Column(Modifier.noirContentWidth(NoirContentMax.Chrome)) {
                 if (playerAtBottom) {
                     // Yammbo Noir: the mini player floats 12dp above the nav pill.
                     // Without the pill below, nothing else keeps it clear of the system bar.
@@ -114,21 +155,7 @@ fun NoirBottomChrome(
                         miniPlayer()
                     }
                 }
-                if (navAtBottom) {
-                    val navigationBar = HorizontalNavigationBar(
-                        tabIndex = selectedTab,
-                        onTabChanged = { index -> openHomeTab(navController, context, index) },
-                        navController = navController
-                    )
-                    navigationBar.add { Item ->
-                        Item(0, stringResource(R.string.home), R.drawable.home)
-                        Item(1, stringResource(R.string.live_radio_tab), R.drawable.radio)
-                        Item(5, stringResource(R.string.podcasts_tab_podcasts), R.drawable.podcasts_tab)
-                        Item(2, stringResource(R.string.my_music), R.drawable.musical_notes)
-                        Item(3, stringResource(R.string.search), R.drawable.search)
-                    }
-                    navigationBar.Draw()
-                }
+                navigationBar?.invoke(Modifier)
             }
         }
     }

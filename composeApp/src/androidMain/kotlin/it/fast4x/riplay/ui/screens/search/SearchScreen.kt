@@ -1,5 +1,9 @@
 package it.fast4x.riplay.ui.screens.search
 
+import it.fast4x.riplay.ui.components.NoirContentMax
+import it.fast4x.riplay.ui.components.noirContentWidth
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
@@ -348,7 +352,13 @@ fun SearchContent(
     }
 
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    // On tablets the whole page (chips, field, sections, results) shares one centred column, so
+    // the field lines up with the sections under it instead of running edge to edge.
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .noirContentWidth(NoirContentMax.Grid)
+    ) {
         if (!isSearchActive) {
             // No big page title: the bar already says where the user is.
             LazyRow(

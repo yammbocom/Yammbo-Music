@@ -10,6 +10,10 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import it.fast4x.riplay.ui.components.rememberNoirLayout
+import kotlin.math.roundToInt
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
@@ -243,18 +247,40 @@ fun NoirHeroCard(
     modifier: Modifier = Modifier,
     eyebrow: String? = null,
     subtitle: String? = null,
-    onTitleClick: (() -> Unit)? = null
+    onTitleClick: (() -> Unit)? = null,
+    images: List<String> = emptyList()
 ) {
     val shape = RoundedCornerShape(24.dp)
-    Box(
+    val tablet = rememberNoirLayout().isTablet
+    BoxWithConstraints(
         modifier = modifier
             .padding(start = 16.dp, end = 16.dp, top = 22.dp, bottom = 12.dp)
             .fillMaxWidth()
-            .height(196.dp)
+            .height(if (tablet) 248.dp else 196.dp)
             .clip(shape)
             .background(colorPalette().background1)
     ) {
-        if (image != null)
+        // A single square cover stretched over a wide card turns into a blurry strip, so with
+        // several covers at hand the card shows them side by side, each close to a square:
+        // two on a phone, five or six on a tablet held sideways.
+        val tiles = (maxWidth / maxHeight).roundToInt().coerceIn(1, maxOf(1, images.size))
+        if (images.size >= 2 && tiles >= 2)
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(2.dp),
+                modifier = Modifier.fillMaxSize()
+            ) {
+                images.take(tiles).forEach { cover ->
+                    RevealImage(
+                        model = cover,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                    )
+                }
+            }
+        else if (image != null)
             RevealImage(
                 model = image,
                 contentDescription = null,

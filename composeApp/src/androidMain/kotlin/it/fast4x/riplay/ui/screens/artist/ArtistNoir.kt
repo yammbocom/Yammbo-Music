@@ -74,17 +74,24 @@ fun ArtistHero(
     onBack: () -> Unit,
     // Cover handoff from the screen that opened this page (see CoverHandoff).
     sharedKey: String? = null,
-    previewUrl: String? = null
+    previewUrl: String? = null,
+    // Tablet held sideways: the photo fills the left pane top to bottom, with the name and
+    // [footer] (the action bar) over its fade, above the floating mini player and nav row.
+    pane: Boolean = false,
+    footer: @Composable () -> Unit = {}
 ) {
     val statusBarTop = WindowInsets.systemBars.asPaddingValues().calculateTopPadding()
     // On tablets the photo is capped at list width and centred (less crop than a 1000dp-wide slice).
     val heroWidthDp = minOf(LocalConfiguration.current.screenWidthDp.toFloat(), NoirContentMax.List.value)
-    val height = (heroWidthDp * 0.92f).dp.coerceAtMost(440.dp)
+    // Sideways (tablet) the photo takes under half of the short screen, so the songs show too.
+    val config = LocalConfiguration.current
+    val maxHeight = if (config.screenWidthDp > config.screenHeightDp) (config.screenHeightDp * 0.46f).dp else 440.dp
+    val height = (heroWidthDp * 0.92f).dp.coerceAtMost(maxHeight)
     val page = colorPalette().background0
     Box(
-        modifier = Modifier
+        modifier = (if (pane) Modifier.fillMaxSize() else Modifier
             .noirContentWidth(NoirContentMax.List)
-            .height(if (imageUrl != null || previewUrl != null) height else statusBarTop + 120.dp)
+            .height(if (imageUrl != null || previewUrl != null) height else statusBarTop + 120.dp))
             .sharedCover(sharedKey, RectangleShape)
             .background(colorPalette().background1)
     ) {
@@ -124,6 +131,7 @@ fun ArtistHero(
                 .align(Alignment.BottomStart)
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp)
+                .padding(bottom = if (pane) 112.dp else 0.dp)
         ) {
             if (!eyebrow.isNullOrBlank()) NoirEyebrow(eyebrow)
             BasicText(
@@ -137,6 +145,7 @@ fun ArtistHero(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
+            footer()
         }
         MediaBackButton(
             onClick = onBack,
@@ -195,12 +204,14 @@ fun ArtistFollowPill(following: Boolean, onClick: () -> Unit) {
 @Composable
 fun ArtistActionBar(
     onPlay: () -> Unit,
+    // Inside the hero's own padded column (tablet pane) rather than as a row of the list.
+    inHero: Boolean = false,
     content: @Composable RowScope.() -> Unit
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
-        modifier = Modifier
+        modifier = if (inHero) Modifier.fillMaxWidth().padding(top = 14.dp) else Modifier
             .noirContentWidth(NoirContentMax.List)
             .padding(start = 20.dp, end = 20.dp, top = 14.dp, bottom = 6.dp)
     ) {

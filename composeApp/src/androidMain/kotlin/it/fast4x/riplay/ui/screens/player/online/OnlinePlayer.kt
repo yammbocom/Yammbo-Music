@@ -124,6 +124,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.coerceAtLeast
 import androidx.compose.ui.unit.dp
@@ -173,6 +174,8 @@ import it.fast4x.riplay.commonutils.thumbnail
 import it.fast4x.riplay.ui.screens.player.common.noirCoverBackdrop
 import it.fast4x.riplay.ui.screens.player.common.NoirPlayerTopBar
 import it.fast4x.riplay.ui.screens.player.common.NoirKindChips
+import it.fast4x.riplay.ui.components.rememberNoirLayout
+import it.fast4x.riplay.ui.screens.player.common.NoirTabletLandscapePlayer
 import it.fast4x.riplay.ui.screens.player.common.NoirAction
 import it.fast4x.riplay.ui.screens.player.common.NoirActionRow
 import it.fast4x.riplay.ui.screens.player.common.NoirUpNextBar
@@ -2219,6 +2222,78 @@ fun OnlinePlayer(
             SwipeAnimationNoThumbnail.Sliding
         )
 
+        // Yammbo Noir: the player's labelled actions, shared by the phone layout and the tablet's
+        // two-pane one (where lyrics and the queue open beside the cover instead of over it).
+        val castAvailable = remember { CastManager.isAvailable(context) }
+        var showQueuePanel by rememberSaveable { mutableStateOf(false) }
+        val toggleLyrics: () -> Unit = {
+            if (isShowingVisualizer) isShowingVisualizer = false
+            if (isShowingLyrics || PremiumGuard.isPremium(context)) {
+                isShowingLyrics = !isShowingLyrics
+                if (isShowingLyrics) showQueuePanel = false
+            } else {
+                PremiumGuard.checkFeature(context, PremiumFeature.Lyrics)
+            }
+        }
+        val noirActions: @Composable (queueActive: Boolean, onQueue: () -> Unit) -> List<NoirAction> =
+            { queueActive, onQueue ->
+                listOfNotNull(
+                    NoirAction(
+                        icon = R.drawable.song_lyrics,
+                        label = stringResource(R.string.noir_action_lyrics),
+                        active = isShowingLyrics,
+                        onClick = toggleLyrics
+                    ),
+                    NoirAction(
+                        icon = R.drawable.playlist,
+                        label = stringResource(R.string.noir_action_queue),
+                        active = queueActive,
+                        onClick = onQueue
+                    ),
+                    if (castAvailable) NoirAction(
+                        icon = R.drawable.cast_disconnected,
+                        label = stringResource(R.string.noir_action_cast),
+                        content = { CastButton() }
+                    ) else null,
+                    NoirAction(
+                        icon = R.drawable.sleep,
+                        label = sleepTimerMillisLeft?.let { formatAsDuration(it) }
+                            ?: stringResource(R.string.noir_action_sleep),
+                        active = sleepTimerMillisLeft != null,
+                        onClick = { isShowingSleepTimerDialog = true }
+                    ),
+                    NoirAction(
+                        icon = R.drawable.add_in_playlist,
+                        label = stringResource(R.string.noir_action_save),
+                        active = songPlaylist > 0,
+                        onClick = {
+                            menuState.display {
+                                AddToPlaylistPlayerMenu(
+                                    navController = navController,
+                                    onDismiss = {
+                                        menuState.hide()
+                                        Database.asyncTransaction {
+                                            songPlaylist =
+                                                songUsedInPlaylists(mediaItem.mediaId)
+                                        }
+                                    },
+                                    mediaItem = mediaItem,
+                                    binder = binder,
+                                    onClosePlayer = {
+                                        onDismiss()
+                                    },
+                                )
+                            }
+                        }
+                    ),
+                    NoirAction(
+                        icon = R.drawable.share_social,
+                        label = stringResource(R.string.noir_action_share),
+                        onClick = { showPlayerShare = true }
+                    )
+                )
+            }
+
         //if ( isLandscape && !mediaItem.isVideo ) {
         if ( isLandscape ) {
             Box(
@@ -2239,7 +2314,131 @@ fun OnlinePlayer(
                 //use online player core for landscape mode
                 thumbnailContent( if (!mediaItem.isVideo) Modifier.hide() else Modifier )
 
-                if (!mediaItem.isVideo) {
+                val noirTablet = rememberNoirLayout().isTablet
+                if (!mediaItem.isVideo && noirTablet) {
+                    NoirTabletLandscapePlayer(
+                        panelOpen = isShowingLyrics || showQueuePanel,
+                        modifier = containerModifier,
+                        topBar = {
+                            NoirPlayerTopBar(
+                                onLogo = {
+                                    onDismiss()
+                                    navController.navigate(NavRoutes.home.name)
+                                },
+                                source = selectedQueue?.title
+                                    ?.takeUnless { it.isBlank() || it.equals("Default", ignoreCase = true) },
+                                onDismiss = onDismiss,
+                                onMenu = {
+                                    menuState.display {
+                                        PlayerMenu(
+                                            navController = navController,
+                                            onDismiss = menuState::hide,
+                                            mediaItem = mediaItem,
+                                            binder = binder,
+                                            onClosePlayer = {
+                                                onDismiss()
+                                            },
+                                            onInfo = {
+                                                navController.navigate("${NavRoutes.videoOrSongInfo.name}/${mediaItem.mediaId}")
+                                            },
+                                            disableScrollingText = disableScrollingText
+                                        )
+                                    }
+                                },
+                                contentMax = Dp.Infinity,
+                                modifier = Modifier.padding(
+                                    windowInsets
+                                        .only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)
+                                        .asPaddingValues()
+                                )
+                            )
+                        },
+                        cover = { coverModifier ->
+                            Box(coverModifier) {
+                                AsyncImage(
+                                    model = ImageRequest.Builder(LocalContext.current)
+                                        .data(mediaItem.mediaMetadata.artworkUri.toString().thumbnail(PLAYER_COVER_PX))
+                                        .size(1200, 1200)
+                                        .transformations(LandscapeToSquareTransformation(1200))
+                                        .crossfade(true)
+                                        .build(),
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .doubleShadowDrop(NoirCoverShape, 4.dp, 8.dp)
+                                        .clip(NoirCoverShape)
+                                        .clickable(
+                                            interactionSource = remember { MutableInteractionSource() },
+                                            indication = null,
+                                            enabled = thumbnailTapEnabled,
+                                            onClick = toggleLyrics
+                                        )
+                                )
+                                NoirKindChips(
+                                    isVideo = false,
+                                    onSwitch = {
+                                        binder.callPause {}
+                                        showSearchEntity = true
+                                    },
+                                    modifier = Modifier
+                                        .align(Alignment.TopStart)
+                                        .padding(start = 14.dp, top = 14.dp)
+                                )
+                            }
+                        },
+                        controls = { controlsModifier -> controlsContent(controlsModifier) },
+                        actions = { actionsModifier ->
+                            if (showPlayerActionsBar)
+                                NoirActionRow(
+                                    actions = noirActions(showQueuePanel) {
+                                        showQueuePanel = !showQueuePanel
+                                        if (showQueuePanel) isShowingLyrics = false
+                                    },
+                                    modifier = actionsModifier
+                                )
+                        },
+                        panel = { panelModifier ->
+                            Box(
+                                panelModifier.background(
+                                    if (lightTheme) Color.White.copy(alpha = 0.55f) else Color.Black.copy(alpha = 0.35f)
+                                )
+                            ) {
+                                if (showQueuePanel)
+                                    Queue(
+                                        navController = navController,
+                                        showPlayer = {},
+                                        hidePlayer = {},
+                                        onDismiss = {
+                                            queueLoopType = it
+                                            showQueuePanel = false
+                                        },
+                                        onDiscoverClick = {
+                                            discoverIsEnabled = it
+                                        }
+                                    )
+                                else
+                                    Lyrics(
+                                        mediaId = mediaItem.mediaId,
+                                        isDisplayed = isShowingLyrics,
+                                        onDismiss = {
+                                            isShowingLyrics = false
+                                        },
+                                        ensureSongInserted = { Database.insert(mediaItem) },
+                                        size = 1000.dp,
+                                        mediaMetadataProvider = mediaItem::mediaMetadata,
+                                        durationProvider = { positionAndDuration.second.toLong() * 1000 },
+                                        positionProvider = { positionAndDuration.first.toLong() * 1000 },
+                                        // The pane keeps the player's own controls in view, so the
+                                        // lyrics use their portrait layout (no extra mini controls).
+                                        isLandscape = false,
+                                        clickLyricsText = clickLyricsText,
+                                        centerOnViewport = true,
+                                    )
+                            }
+                        },
+                    )
+                } else if (!mediaItem.isVideo) {
 
                     if ((playerBackgroundColors == PlayerBackgroundColors.CoverColorGradient && playerType == PlayerType.Modern && (!showthumbnail || albumCoverRotation)) || (animatedGradient == AnimatedGradient.Random && tempGradient == gradients[14])) {
                         val fling = PagerDefaults.flingBehavior(
@@ -3901,69 +4100,8 @@ fun OnlinePlayer(
 
                         if (showPlayerActionsBar) {
                             // Yammbo Noir: labelled actions, then the next song as the edge of the queue sheet.
-                            val castAvailable = remember { CastManager.isAvailable(context) }
                             NoirActionRow(
-                                actions = listOfNotNull(
-                                    NoirAction(
-                                        icon = R.drawable.song_lyrics,
-                                        label = stringResource(R.string.noir_action_lyrics),
-                                        active = isShowingLyrics,
-                                        onClick = {
-                                            if (isShowingVisualizer) isShowingVisualizer = false
-                                            if (isShowingLyrics || PremiumGuard.isPremium(context)) {
-                                                isShowingLyrics = !isShowingLyrics
-                                            } else {
-                                                PremiumGuard.checkFeature(context, PremiumFeature.Lyrics)
-                                            }
-                                        }
-                                    ),
-                                    NoirAction(
-                                        icon = R.drawable.playlist,
-                                        label = stringResource(R.string.noir_action_queue),
-                                        onClick = { showQueue = true }
-                                    ),
-                                    if (castAvailable) NoirAction(
-                                        icon = R.drawable.cast_disconnected,
-                                        label = stringResource(R.string.noir_action_cast),
-                                        content = { CastButton() }
-                                    ) else null,
-                                    NoirAction(
-                                        icon = R.drawable.sleep,
-                                        label = sleepTimerMillisLeft?.let { formatAsDuration(it) }
-                                            ?: stringResource(R.string.noir_action_sleep),
-                                        active = sleepTimerMillisLeft != null,
-                                        onClick = { isShowingSleepTimerDialog = true }
-                                    ),
-                                    NoirAction(
-                                        icon = R.drawable.add_in_playlist,
-                                        label = stringResource(R.string.noir_action_save),
-                                        active = songPlaylist > 0,
-                                        onClick = {
-                                            menuState.display {
-                                                AddToPlaylistPlayerMenu(
-                                                    navController = navController,
-                                                    onDismiss = {
-                                                        menuState.hide()
-                                                        Database.asyncTransaction {
-                                                            songPlaylist =
-                                                                songUsedInPlaylists(mediaItem.mediaId)
-                                                        }
-                                                    },
-                                                    mediaItem = mediaItem,
-                                                    binder = binder,
-                                                    onClosePlayer = {
-                                                        onDismiss()
-                                                    },
-                                                )
-                                            }
-                                        }
-                                    ),
-                                    NoirAction(
-                                        icon = R.drawable.share_social,
-                                        label = stringResource(R.string.noir_action_share),
-                                        onClick = { showPlayerShare = true }
-                                    )
-                                ),
+                                actions = noirActions(false) { showQueue = true },
                                 modifier = Modifier.padding(top = 4.dp, bottom = 10.dp)
                             )
                             if (!isShowingLyrics)
