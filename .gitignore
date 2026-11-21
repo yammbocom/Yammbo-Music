@@ -60,3 +60,16 @@ service-account*.json
 /fastlane/it.fast4x.riplay.yml
 /Api Keys/
 /fastlane/it.fast4x.riplay.txt
+
+# Secrets, local config and build outputs (never commit)
+.dev.vars
+.dev.vars.*
+keystore.properties
+key.properties
+signing.properties
+*adminsdk*.json
+*.pem
+*.p12
+*.iml
+*.aab
+!.dev.vars.example
