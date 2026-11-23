@@ -139,7 +139,7 @@ data class YammboUser(
 // Subscription status response from /app-music/subscription-status
 @Serializable
 data class SubscriptionStatusResponse(
-    val subscribed: Boolean = false,
+    val subscribed: Boolean,
     val plan: String? = null,
     @SerialName("renews_at") val renewsAt: String? = null
 )

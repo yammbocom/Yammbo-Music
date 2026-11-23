@@ -20,6 +20,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,9 +37,9 @@ import com.yambo.music.R
 import it.fast4x.riplay.extensions.yammboapi.YammboApiService
 import it.fast4x.riplay.extensions.yammboapi.YammboAuthManager
 import it.fast4x.riplay.utils.colorPalette
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Composable
 fun SubscriptionGateOverlay(
@@ -50,20 +51,27 @@ fun SubscriptionGateOverlay(
 
     var isSubscribed by remember { mutableStateOf(authManager.isSubscriptionActive()) }
 
-    // Re-check subscription on every resume (e.g. after returning from pricing page)
+    // Re-check subscription on every resume (e.g. after returning from pricing page).
+    // The request runs on IO but the state is written back on the main thread (composition
+    // scope): writing snapshot state from IO is what crashed 0.7.160. On failure the last
+    // stored status stays.
+    val scope = rememberCoroutineScope()
     LifecycleResumeEffect(Unit) {
         val userId = authManager.getUserId()
-        if (userId > 0) {
-            CoroutineScope(Dispatchers.IO).launch {
-                YammboApiService.checkSubscription(userId).onSuccess { response ->
-                    authManager.saveSubscriptionStatus(response)
-                    isSubscribed = response.subscribed
-                }
+        val job = if (userId > 0) {
+            scope.launch {
+                withContext(Dispatchers.IO) { YammboApiService.checkSubscription(userId) }
+                    .onSuccess { response ->
+                        authManager.saveSubscriptionStatus(response)
+                        isSubscribed = response.subscribed
+                    }
+                    .onFailure { isSubscribed = authManager.isSubscriptionActive() }
             }
         } else {
             isSubscribed = authManager.isSubscriptionActive()
+            null
         }
-        onPauseOrDispose { }
+        onPauseOrDispose { job?.cancel() }
     }
 
     // If user is subscribed, just show content without overlay

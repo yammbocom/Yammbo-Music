@@ -10,6 +10,7 @@ import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
+import io.ktor.http.isSuccess
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 import timber.log.Timber
@@ -134,11 +135,19 @@ object YammboApiService {
         Timber.e("YammboApi resetPasswordWithCode error: ${it.message}")
     }
 
+    /**
+     * Fails (instead of answering "not subscribed") on any non-2xx reply or a body without
+     * `subscribed`: a Laravel error page in JSON (`{"message":"Service Unavailable"}` during
+     * maintenance) used to parse as subscribed=false and was saved, locking Premium users out.
+     * Callers keep the last stored status on failure.
+     */
     suspend fun checkSubscription(userId: Int): Result<SubscriptionStatusResponse> = runCatching {
-        client.get("https://music.yammbo.com/app-music/subscription-status") {
+        val response = client.get("https://music.yammbo.com/app-music/subscription-status") {
             header("Accept", "application/json")
             url { parameters.append("user_id", userId.toString()) }
-        }.body<SubscriptionStatusResponse>()
+        }
+        check(response.status.isSuccess()) { "HTTP ${response.status.value}" }
+        response.body<SubscriptionStatusResponse>()
     }.onFailure {
         Timber.e("YammboApi checkSubscription error: ${it.message}")
     }

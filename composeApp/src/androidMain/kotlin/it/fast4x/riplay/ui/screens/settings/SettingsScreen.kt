@@ -155,10 +155,11 @@ fun SettingsScreen(
 @Composable
 private fun SettingsSectionContent(index: Int, navController: NavController) {
     when (index) {
-        0 -> SubscriptionGateOverlay { GeneralSettings(navController = navController) }
+        // General and Home are free; UI and Appearance are the Premium 'advanced settings'.
+        0 -> GeneralSettings(navController = navController)
         1 -> SubscriptionGateOverlay { UiSettings(navController = navController) }
         2 -> SubscriptionGateOverlay { AppearanceSettings(navController = navController) }
-        3 -> SubscriptionGateOverlay { HomeSettings(navController = navController) }
+        3 -> HomeSettings(navController = navController)
         4 -> DataSettings()
         5 -> {
             val activity = navController.context as? it.fast4x.riplay.MainActivity

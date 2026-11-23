@@ -72,7 +72,7 @@ import it.fast4x.riplay.ui.styling.Dimensions
 import it.fast4x.riplay.ui.styling.secondary
 import it.fast4x.riplay.utils.colorPalette
 import it.fast4x.riplay.utils.typography
-import kotlinx.coroutines.CoroutineScope
+import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -130,19 +130,22 @@ fun MyAccountTab(
         }
     }
 
+    // Request on IO, state written on the main thread; on failure the stored status stays.
+    val subscriptionScope = rememberCoroutineScope()
     LifecycleResumeEffect(Unit) {
         val userId = authManager.getUserId()
-        if (userId > 0) {
-            CoroutineScope(Dispatchers.IO).launch {
-                YammboApiService.checkSubscription(userId).onSuccess { response ->
-                    authManager.saveSubscriptionStatus(response)
-                    isSubscribed = response.subscribed
-                    subscriptionPlan = response.plan.orEmpty()
-                    renewsAt = response.renewsAt.orEmpty()
-                }
+        val job = if (userId > 0) {
+            subscriptionScope.launch {
+                withContext(Dispatchers.IO) { YammboApiService.checkSubscription(userId) }
+                    .onSuccess { response ->
+                        authManager.saveSubscriptionStatus(response)
+                        isSubscribed = response.subscribed
+                        subscriptionPlan = response.plan.orEmpty()
+                        renewsAt = response.renewsAt.orEmpty()
+                    }
             }
-        }
-        onPauseOrDispose { }
+        } else null
+        onPauseOrDispose { job?.cancel() }
     }
 
     val colors = colorPalette()
