@@ -126,7 +126,7 @@ fun SubscriptionGateOverlay(
                 )
 
                 Text(
-                    text = "Suscríbete para desbloquear todas las opciones de configuración",
+                    text = "Suscríbete para desbloquear la configuración avanzada",
                     color = colors.textSecondary,
                     fontSize = 14.sp,
                     textAlign = TextAlign.Center
