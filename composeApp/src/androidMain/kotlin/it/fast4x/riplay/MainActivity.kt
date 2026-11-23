@@ -2014,7 +2014,7 @@ class MainActivity :
         lifecycleScope.launch(Dispatchers.IO) {
             runCatching {
                 it.fast4x.riplay.extensions.yammboapi.YammboApiService
-                    .checkSubscription(userId)
+                    .checkSubscription(userId, authManager.getAccessToken())
                     .onSuccess { response ->
                         authManager.saveSubscriptionStatus(response)
                     }

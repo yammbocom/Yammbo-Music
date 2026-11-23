@@ -10,6 +10,7 @@ import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
+import io.ktor.http.isSuccess
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 import java.util.logging.Logger
@@ -71,11 +72,19 @@ object YammboApiService {
         log.warning("YammboApi forgotPassword error: ${it.message}")
     }
 
-    suspend fun checkSubscription(userId: Int): Result<SubscriptionStatusResponse> = runCatching {
-        client.get("https://music.yammbo.com/app-music/subscription-status") {
+    /**
+     * The session token identifies the user (the server ignores user_id when it is valid). Fails on
+     * a non-2xx reply instead of reading an error body as "not subscribed"; callers keep the stored
+     * status on failure.
+     */
+    suspend fun checkSubscription(userId: Int, token: String?): Result<SubscriptionStatusResponse> = runCatching {
+        val response = client.get("https://music.yammbo.com/app-music/subscription-status") {
             header("Accept", "application/json")
+            if (!token.isNullOrBlank()) header("Authorization", "Bearer $token")
             url { parameters.append("user_id", userId.toString()) }
-        }.body<SubscriptionStatusResponse>()
+        }
+        check(response.status.isSuccess()) { "HTTP ${response.status.value}" }
+        response.body<SubscriptionStatusResponse>()
     }.onFailure {
         log.warning("YammboApi checkSubscription error: ${it.message}")
     }

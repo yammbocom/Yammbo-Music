@@ -168,7 +168,7 @@ fun RegisterScreen(
                                 OnboardingConnect.markNewAccount()
                                 val userId = authManager.getUserId()
                                 if (userId > 0) {
-                                    YammboApiService.checkSubscription(userId).onSuccess { subResponse ->
+                                    YammboApiService.checkSubscription(userId, authManager.getAccessToken()).onSuccess { subResponse ->
                                         authManager.saveSubscriptionStatus(subResponse)
                                     }
                                 }

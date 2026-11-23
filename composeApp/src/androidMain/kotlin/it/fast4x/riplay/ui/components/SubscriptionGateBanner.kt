@@ -60,7 +60,7 @@ fun SubscriptionGateOverlay(
         val userId = authManager.getUserId()
         val job = if (userId > 0) {
             scope.launch {
-                withContext(Dispatchers.IO) { YammboApiService.checkSubscription(userId) }
+                withContext(Dispatchers.IO) { YammboApiService.checkSubscription(userId, authManager.getAccessToken()) }
                     .onSuccess { response ->
                         authManager.saveSubscriptionStatus(response)
                         isSubscribed = response.subscribed

@@ -140,10 +140,14 @@ object YammboApiService {
      * `subscribed`: a Laravel error page in JSON (`{"message":"Service Unavailable"}` during
      * maintenance) used to parse as subscribed=false and was saved, locking Premium users out.
      * Callers keep the last stored status on failure.
+     *
+     * The session token identifies the user: the server answers for the token's own account and
+     * ignores user_id (kept only for servers/versions that predate the token check).
      */
-    suspend fun checkSubscription(userId: Int): Result<SubscriptionStatusResponse> = runCatching {
+    suspend fun checkSubscription(userId: Int, token: String?): Result<SubscriptionStatusResponse> = runCatching {
         val response = client.get("https://music.yammbo.com/app-music/subscription-status") {
             header("Accept", "application/json")
+            if (!token.isNullOrBlank()) header("Authorization", "Bearer $token")
             url { parameters.append("user_id", userId.toString()) }
         }
         check(response.status.isSuccess()) { "HTTP ${response.status.value}" }

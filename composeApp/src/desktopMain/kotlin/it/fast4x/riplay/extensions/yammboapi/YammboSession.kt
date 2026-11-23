@@ -128,7 +128,7 @@ object YammboSession {
         val userId = auth.getUserId()
         if (userId <= 0) return
         scope.launch {
-            YammboApiService.checkSubscription(userId).onSuccess { status ->
+            YammboApiService.checkSubscription(userId, auth.getAccessToken()).onSuccess { status ->
                 auth.saveSubscriptionStatus(status)
                 refreshFromDisk()
             }

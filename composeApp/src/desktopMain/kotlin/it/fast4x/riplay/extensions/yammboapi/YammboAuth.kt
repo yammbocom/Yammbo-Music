@@ -90,7 +90,7 @@ data class YammboUser(
 
 @Serializable
 data class SubscriptionStatusResponse(
-    val subscribed: Boolean = false,
+    val subscribed: Boolean,
     val plan: String? = null,
     @SerialName("renews_at") val renewsAt: String? = null
 )
