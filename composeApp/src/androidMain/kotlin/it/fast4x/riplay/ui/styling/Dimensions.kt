@@ -25,8 +25,9 @@ object Dimensions {
     val additionalVerticalSpaceForFloatingAction = 40.dp
     /**
      * Height of the persistent bottom chrome (promo bar + mini player + nav pill + system bar), measured
-     * by NoirBottomChrome; 0 while it is hidden. Snapshot state, so screens re-lay out when it changes
-     * (e.g. the "Hazte Premium" bar appears or goes away).
+     * by NoirBottomChrome (0 until it is first laid out; it may keep its last value while the chrome is
+     * hidden, which only screens that show the chrome read). Snapshot state, so screens re-lay out when
+     * it changes (e.g. the "Hazte Premium" bar appears or goes away).
      */
     var bottomChromeHeight by mutableStateOf(0.dp)
 
