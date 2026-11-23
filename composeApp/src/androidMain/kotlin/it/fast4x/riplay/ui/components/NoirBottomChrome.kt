@@ -23,6 +23,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -37,6 +38,7 @@ import it.fast4x.riplay.extensions.preferences.playerPositionKey
 import it.fast4x.riplay.extensions.preferences.rememberPreference
 import it.fast4x.riplay.ui.components.navigation.nav.HorizontalNavigationBar
 import it.fast4x.riplay.ui.screens.search.openHomeTab
+import it.fast4x.riplay.ui.styling.Dimensions
 import kotlinx.coroutines.delay
 
 /**
@@ -73,6 +75,7 @@ fun NoirBottomChrome(
     miniPlayer: @Composable () -> Unit,
 ) {
     val context = LocalContext.current
+    val density = LocalDensity.current
     val playerPosition by rememberPreference(playerPositionKey, PlayerPosition.Bottom)
     val navAtBottom = NavigationBarPosition.Bottom.isCurrent()
     val playerAtBottom = playerPosition != PlayerPosition.Top
@@ -101,7 +104,13 @@ fun NoirBottomChrome(
             visible = shown,
             enter = EnterTransition.None,
             exit = fadeOut(tween(150)),
-            modifier = Modifier.align(Alignment.BottomCenter)
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                // Tell scrolling screens how tall the chrome really is (it grows with the promo bar),
+                // so Dimensions.bottomSpacer keeps their last rows reachable.
+                .onSizeChanged { size ->
+                    Dimensions.bottomChromeHeight = with(density) { size.height.toDp() }
+                }
         ) {
             val layout = rememberNoirLayout()
             val navigationBar: (@Composable (Modifier) -> Unit)? = if (navAtBottom) { barModifier ->
@@ -125,7 +134,6 @@ fun NoirBottomChrome(
             // Tablet held sideways: the mini player and the nav pill share one row, so the
             // short screen keeps more of its height for the page.
             if (layout.isTabletLandscape && playerAtBottom && navigationBar != null) {
-                val density = LocalDensity.current
                 val bottomInset = with(density) { WindowInsets.navigationBars.getBottom(density).toDp() }
                 Row(
                     verticalAlignment = Alignment.Bottom,
